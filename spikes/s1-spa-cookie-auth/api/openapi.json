@@ -1,0 +1,756 @@
+{
+  "components": {
+    "schemas": {
+      "Body_upload_api_v1_trades__trade_id__screenshots_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_api_v1_trades__trade_id__screenshots_post",
+        "type": "object"
+      },
+      "DailyPoint": {
+        "properties": {
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "trade_date": {
+            "format": "date",
+            "title": "Trade Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "trade_date",
+          "net_pnl"
+        ],
+        "title": "DailyPoint",
+        "type": "object"
+      },
+      "FlagsOut": {
+        "properties": {
+          "is_admin": {
+            "title": "Is Admin",
+            "type": "boolean"
+          },
+          "mfa_fresh": {
+            "title": "Mfa Fresh",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "is_admin",
+          "mfa_fresh"
+        ],
+        "title": "FlagsOut",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "LedgerIn": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "cost",
+              "payout"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "kind"
+        ],
+        "title": "LedgerIn",
+        "type": "object"
+      },
+      "LedgerOut": {
+        "properties": {
+          "amount": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "cost",
+              "payout"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "amount",
+          "kind",
+          "note"
+        ],
+        "title": "LedgerOut",
+        "type": "object"
+      },
+      "NotesIn": {
+        "properties": {
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notes"
+        ],
+        "title": "NotesIn",
+        "type": "object"
+      },
+      "SessionOut": {
+        "properties": {
+          "app_version": {
+            "title": "App Version",
+            "type": "string"
+          },
+          "csrf_token": {
+            "title": "Csrf Token",
+            "type": "string"
+          },
+          "flags": {
+            "$ref": "#/components/schemas/FlagsOut"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsOut"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserOut"
+          }
+        },
+        "required": [
+          "user",
+          "settings",
+          "flags",
+          "csrf_token",
+          "app_version"
+        ],
+        "title": "SessionOut",
+        "type": "object"
+      },
+      "SettingsOut": {
+        "properties": {
+          "theme": {
+            "enum": [
+              "dark",
+              "light"
+            ],
+            "title": "Theme",
+            "type": "string"
+          },
+          "timezone": {
+            "title": "Timezone",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timezone",
+          "theme"
+        ],
+        "title": "SettingsOut",
+        "type": "object"
+      },
+      "StatsSummary": {
+        "properties": {
+          "fees": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Fees",
+            "type": "string"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "preset": {
+            "title": "Preset",
+            "type": "string"
+          },
+          "trades": {
+            "title": "Trades",
+            "type": "integer"
+          },
+          "win_rate": {
+            "title": "Win Rate",
+            "type": "number"
+          }
+        },
+        "required": [
+          "preset",
+          "trades",
+          "net_pnl",
+          "fees",
+          "win_rate"
+        ],
+        "title": "StatsSummary",
+        "type": "object"
+      },
+      "TradeOut": {
+        "properties": {
+          "direction": {
+            "enum": [
+              "long",
+              "short"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "fees": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Fees",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "trade_date": {
+            "format": "date",
+            "title": "Trade Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "symbol",
+          "direction",
+          "trade_date",
+          "net_pnl",
+          "fees",
+          "notes"
+        ],
+        "title": "TradeOut",
+        "type": "object"
+      },
+      "TradesOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "TradesOut",
+        "type": "object"
+      },
+      "UploadOut": {
+        "properties": {
+          "content_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Type"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "size": {
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "filename",
+          "size",
+          "content_type"
+        ],
+        "title": "UploadOut",
+        "type": "object"
+      },
+      "UserOut": {
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "display_name"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "S1 spike API",
+    "version": "s1-spike-1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/ledger": {
+      "post": {
+        "operationId": "add_ledger_api_v1_ledger_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LedgerIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Ledger"
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "operationId": "session_api_v1_session_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Session"
+      }
+    },
+    "/api/v1/stats/daily": {
+      "get": {
+        "operationId": "daily_api_v1_stats_daily_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DailyPoint"
+                  },
+                  "title": "Response Daily Api V1 Stats Daily Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Daily"
+      }
+    },
+    "/api/v1/stats/summary": {
+      "get": {
+        "operationId": "summary_api_v1_stats_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "title": "Preset",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Summary"
+      }
+    },
+    "/api/v1/trades": {
+      "get": {
+        "operationId": "list_trades_api_v1_trades_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "long",
+                "short"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Trades"
+      }
+    },
+    "/api/v1/trades/{trade_id}": {
+      "get": {
+        "operationId": "get_trade_api_v1_trades__trade_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trade"
+      }
+    },
+    "/api/v1/trades/{trade_id}/notes": {
+      "put": {
+        "operationId": "put_notes_api_v1_trades__trade_id__notes_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Notes"
+      }
+    },
+    "/api/v1/trades/{trade_id}/screenshots": {
+      "post": {
+        "operationId": "upload_api_v1_trades__trade_id__screenshots_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_api_v1_trades__trade_id__screenshots_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload"
+      }
+    }
+  }
+}
