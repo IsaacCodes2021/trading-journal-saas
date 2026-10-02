@@ -1,0 +1,162 @@
+# 07. Front end and API (FastAPI + React)
+
+**Status:** Proposed, 2026-10-02. Introduced by [ADR-010](06-decisions.md); read with docs 02 to 05, which are updated to match. Package versions below are the latest on the npm registry on 2026-10-02; the ecosystem has moved a major version on several tools, so **confirm the combination in the M1 scaffold** before treating any pin as settled.
+
+## 1. What stays, what moves, what goes
+
+| Bucket | Files | Notes |
+|---|---|---|
+| **Keep in Python, unchanged** | `parser.py`, `grouping.py`, `trades.py`, `finance.py`, `timeutil.py`, `symbols.py`, `models.py`, and their tests | Money stays exact `Decimal`. 210 tests today |
+| **Port (SQL dialect only)** | `accounts.py`, `ledger.py`, `journal.py`, `importer.py`, `store.py`, `queries.py`, `settings.py`, `db.py` | Doc 03 section 9 |
+| **New, Python** | `api/`, `auth/`, `infra/`, `jobs/` | Doc 02 section 5 |
+| **New, TypeScript** | `frontend/` | This doc |
+| **Deleted after parity** | `ui/` (2,752 lines in 17 files) | Kept as the behavioral reference until M4 exits |
+
+**Why the rewrite is cheap now.** `ui/` is a single-user proof of concept of about 2,750 lines; the domain layer (about 2,450 lines) is already separate and the UI reaches the database through about 45 `open_db()` call sites that the API layer replaces; there are no users or deployed data to migrate. It never gets cheaper than this.
+
+## 2. API contract
+
+| Topic | Decision |
+|---|---|
+| Paths | `/api/v1/*` tenant API; `/api/admin/v1/*` operator API; `/auth/*` browser redirects (login, callback, logout); `/files/{id}` screenshots; `/webhooks/*`; `/healthz`, `/readyz` |
+| Format | JSON, **snake_case keys end to end** (no case-conversion layer, so nothing to drift) |
+| **Money** | JSON **strings** (`"-475.00"`). A shared `Money` type in `api/schemas` accepts strings only (rejects JSON numbers) and declares `{"type": "string", "pattern": "^-?\\d+(\\.\\d+)?$"}` in **both** input and output schemas. Reason: Pydantic documents `Decimal` as a string in serialization schemas but as `number \| string` in validation (input) schemas, which would let the generated TypeScript types accept JavaScript floats ([Pydantic JSON Schema](https://docs.pydantic.dev/latest/concepts/json_schema/), [FastAPI discussion](https://github.com/fastapi/fastapi/discussions/14264)). A CI test fails if any money field in the OpenAPI document has type `number` |
+| Client arithmetic | None with `number`. Totals come from the API (`finance.py`). Where the client must compute, use `decimal.js`. Chart series convert strings to `number` in exactly one helper (`lib/money.ts`) at the ECharts boundary, the same rule as today ("floats only for drawing charts") |
+| Time | Timestamps ISO 8601 UTC with `Z`; trading days `YYYY-MM-DD`; the client formats in the user's timezone from `/api/v1/session`; trading-day computation stays server-side (`timeutil.py`) |
+| IDs | Integers for rows (identity bigints, assumed far below 2^53); fill refs are strings (ADR-009) |
+| Errors | RFC 9457 `application/problem+json` (`type`, `title`, `status`, `detail`, `errors[{field, message}]`). 401 not signed in; 403 forbidden, suspended, or `mfa_required`; 404 for ids that belong to someone else (RLS); 409 conflict; 413 too large; 422 validation; 429 rate limit with `Retry-After` |
+| Lists | `limit` (max 200), `offset`, `sort=field` or `sort=-field`; responses `{items, total}` |
+| Filters | One query model shared by stats and trades: `preset`, `start`, `end`, `account_type`, `show_archived`, `firms[]`, `account_ids[]`, `symbol_roots[]`, `direction`. **`preset` is resolved server-side in the user's timezone**, which removes the server-clock "today" bug at the source; the client never computes date ranges |
+| Versioning | Additive changes within `v1`. After a deploy an open tab still runs the old SPA, so keep the API backward compatible for one release; every response carries `X-App-Version`, and the SPA shows a "reload" banner when it differs from its own build id |
+| Rate limits | Per-user token bucket; in-process while there is one instance, Postgres or Redis once there are several |
+| **Types cannot drift** | FastAPI emits `openapi.json` with `python -m tradejournal.api.openapi` (no server needed). `openapi-typescript` generates `src/lib/api/schema.d.ts`; `openapi-fetch` is the typed client. Both generated files are committed; **CI regenerates them and fails on any diff** |
+
+`GET /api/v1/session` is the SPA's first call and returns: `user`, `settings` (timezone, trading-day start and timezone, theme), `plan` (effective plan, source, expiry), `entitlements`, `csrf_token`, `flags` (`is_admin`, `mfa_fresh`), `app_version`. A 401 sends the browser to `/auth/login?next=<path>` (a full-page OIDC redirect, doc 03 section 4).
+
+## 3. React tooling: recommendation
+
+| Concern | Pick | Main alternatives | Why this one | Watch out / verify |
+|---|---|---|---|---|
+| Build | **Vite 8** + `@vitejs/plugin-react` 6 | Next.js (rejected, ADR-010), Rsbuild | Static bundle with one external script: a normal CSP, no server to run | Several majors are new; confirm the set in the M1 scaffold |
+| Language | **TypeScript 7** strict, `noUncheckedIndexedAccess` | Plain JS | The compiler becomes the API-drift detector | A new major: confirm `typescript-eslint` and other tools support it (unverified); fall back one major if not |
+| UI library | **React 19** | | | |
+| Router | **TanStack Router 1.x** | React Router 8 | Typed route and **typed search params**: filters live in the URL, so they survive reload and can be shared; route-level code splitting for `/admin` | Smaller community. If S1 shows friction, React Router 8 is a contained swap (confined to `routes/`) |
+| Server state | **TanStack Query 5** | SWR, RTK Query | Caching, loading and retry states, and invalidation after mutations (an import invalidates stats and trades) | |
+| API client | **openapi-typescript 7** + **openapi-fetch 0.17** | hey-api/openapi-ts, Orval | Types and a tiny runtime straight from the schema | `openapi-fetch` is pre-1.0: pin the exact version and wrap it in `lib/api/client.ts` so it is swappable |
+| Styling and components | **Tailwind CSS 4** + **shadcn/ui** (Radix primitives copied into the repo) | MUI, Mantine | Accessible primitives, no runtime CSS-in-JS (CSP-friendly), you own the component code, dark/light through CSS variables (replaces `theme.py`, 320 lines) | shadcn components are copied code, so upstream fixes are manual |
+| Table | **TanStack Table** + **TanStack Virtual 3** | AG Grid Community, plain table | Headless, server-side sorting and paging, row virtualization | npm shows v9 as current (v8 was long-lived): spike one in M1, pick one major, do not mix |
+| Charts | **Apache ECharts 6**, modular imports | Recharts, visx | Already used (`charts.py`, 204 lines); options port almost 1:1 and the radar and drawdown charts are covered | Import only the used charts to keep the bundle small. ECharts may need inline styles: verify against the CSP in S1 |
+| Forms | **React Hook Form 7** + **Zod 4** | TanStack Form | Uncontrolled forms, schema validation; server problem+json errors map onto fields | Keep Zod to UX checks; the server stays the authority and types come from OpenAPI |
+| Notes editor | **Tiptap 3** (ProseMirror) | Lexical, Quill | Replaces the Quasar editor; HTML in and out, so notes stay HTML | The server sanitizes with `nh3` (allow-list in doc 04 S6); the client renders read-only HTML only through one `SafeHtml` component using DOMPurify 3. Tiptap's schema must be a subset of the allow-list. Normalize old Quasar HTML in the migration script (`div` to `p`, `b` to `strong`, `i` to `em`, `strike` to `s`) |
+| Decimal math | **decimal.js 10** | big.js | Only for the rare client-side total | |
+| Tests | **Vitest 5** + **React Testing Library 16** + **MSW 3** | Jest | Shares Vite's config; MSW mocks at the fetch boundary | Vitest 5 and MSW 3 are new majors |
+| End to end | **Playwright 1.63** | Cypress | Cross-browser; runs against the built container and a fake IdP | |
+| Lint and format | **ESLint 10** + `typescript-eslint`, `react-hooks`, `jsx-a11y`, `react/no-danger`; **Prettier** | Biome | Accessibility rules (the app uses aria today) and a ban on raw HTML injection | Confirm the plugins support ESLint 10 (unverified) |
+| Package manager | **pnpm 12** | npm | Strict dependency tree; **dependency lifecycle scripts blocked by default** since v10 (allow-list via `onlyBuiltDependencies`); `minimumReleaseAge` delays installing freshly published versions, available since v10.16 ([pnpm settings](https://pnpm.io/10.x/settings), [Socket](https://socket.dev/blog/pnpm-10-0-0-blocks-lifecycle-scripts-by-default)) | An advisory once bypassed the script block ([GHSA-379q-355j-w6rj](https://github.com/pnpm/pnpm/security/advisories/GHSA-379q-355j-w6rj)): keep pnpm current. Corepack ships with Node 24 LTS (installed here, v24.21) but is dropped from Node 25 and later ([Socket](https://socket.dev/blog/node-js-tsc-votes-to-stop-distributing-corepack)): pin `packageManager` in `package.json` and install pnpm with its own installer rather than relying on Corepack |
+| Node | **24 LTS**, pinned in `.nvmrc`, CI and the Dockerfile | | | |
+
+**Conventions for someone new to TypeScript** (you said: some React, new to TypeScript). Strict mode on; `any` is a lint error; types come from the generated schema, never hand-copied; one pattern per concern (a query hook and a mutation hook per endpoint in `features/<x>/api.ts`, one form pattern, one table pattern, one chart wrapper); small components; a short `frontend/README.md` with those five patterns. I draft each pattern once and the rest copy it, so review effort goes to the patterns, not every line.
+
+## 4. Layout and build
+
+```
+frontend/
+  package.json  pnpm-lock.yaml  vite.config.ts  tsconfig.json  eslint.config.js  .nvmrc  index.html
+  openapi.json                         generated, committed
+  src/
+    main.tsx   routes/                 TanStack Router route tree
+    features/{dashboard,trades,trade-detail,imports,accounts,settings,onboarding,profile,admin}/
+        api.ts  components/  hooks/    (admin is a lazy-loaded chunk)
+    components/ui/                     shadcn components
+    lib/{api/(client.ts, schema.d.ts), money.ts, format.ts, filters.ts, session.ts}
+    styles/                            Tailwind, design tokens, dark and light
+  e2e/                                 Playwright
+```
+
+**One image.** A multi-stage Dockerfile: a Node 24 stage runs `pnpm install --frozen-lockfile && pnpm build`; the Python stage copies `dist/` into the API. FastAPI serves `/assets/*` with `Cache-Control: public, max-age=31536000, immutable` (hashed file names) and `index.html` with `no-cache`; any other `GET` that accepts HTML and is not under `/api`, `/auth`, `/files`, `/webhooks`, `/healthz` or `/readyz` returns `index.html` (the client-side routing fallback).
+
+## 5. Page-by-page rebuild list
+
+Sizes are today's NiceGUI line counts. About 60 routes in total.
+
+| Page (route) | Replaces | Endpoints | Notes |
+|---|---|---|---|
+| **App shell**: header, nav, theme toggle, filter bar | `layout.py` 40, `theme.py` 320, `filters.py` 129, `widgets.py` 160, `state.py` 57, `fmt.py` 33 | `GET /api/v1/session`, `GET /api/v1/filters/options` | Design tokens for dark and light. **Filter state lives in the URL** (`/?preset=30d&firms=Apex`), replacing the global singleton; last-used filters in `localStorage` as a convenience only |
+| **Dashboard** `/` | `pages/dashboard.py` 148, `charts.py` 204 | `GET /api/v1/stats/summary`, `.../stats/equity` (cumulative net and drawdown per trade), `.../stats/daily`, `.../stats/score` | KPI tiles, equity and drawdown chart, score radar, daily P&L chart with table view, "How it's scored" panel. All numbers computed on the server by `finance.py` |
+| **Trade log** `/trades` | `pages/trades.py` 212 | `GET /api/v1/trades` (filters, sort, paging, per-column filters, `q` search), `GET /api/v1/trades/summary`, `GET /api/v1/trades/{id}/neighbors` | Count and net follow every filter. The previous/next arrows in the detail view need the neighbors endpoint because paging is server-side. Journal column from `journal_summary` |
+| **Trade detail** `/trades/$tradeId` | `trade_detail.py` 397 | `GET /api/v1/trades/{id}` (stats and fill pairs); `PUT /api/v1/trades/{id}/notes`; tags: `GET /api/v1/tags`, `PUT /api/v1/trades/{id}/tags/{group_id}`, `POST` and `DELETE /api/v1/trades/{id}/tags/{tag_id}`; screenshots: `GET` and `POST /api/v1/trades/{id}/screenshots`, `DELETE /api/v1/screenshots/{id}`, `GET /files/{id}`, `GET /files/{id}/thumb` | Tiptap with debounced autosave; drop, browse and **paste** upload (replaces the inline `PASTE_SCRIPT`); lightbox viewer; insert-template button |
+| **Imports** `/import` | `pages/imports.py` 304 | `POST /api/v1/imports/preview` (multipart: `account_id`, files), `POST /api/v1/imports` (commit), `GET /api/v1/imports`, `POST /api/v1/imports/{id}/undo/preview`, `POST /api/v1/imports/{id}/undo`, `GET /api/v1/accounts` | **Stateless**: today's server-held pending files go away. The browser keeps the `File` objects; commit re-uploads them with the preview's SHA-256 hashes, which the server verifies. CSV size and row caps; the import runs in a thread pool behind a concurrency semaphore |
+| **Settings** `/settings/*` | `pages/settings_page.py` 663 (the largest file) | Preferences: `GET` and `PATCH /api/v1/settings`. Accounts: `GET` and `POST /api/v1/accounts`, `PATCH /api/v1/accounts/{id}`, `GET` and `PUT .../fees`, `PATCH .../rules`, `POST .../archive`, `POST .../restore`, `GET /api/v1/accounts/stats` (pass rate). Ledger: `GET` and `POST /api/v1/accounts/{id}/ledger`, `DELETE /api/v1/ledger/{id}`, `GET /api/v1/ledger/summary`. Tags: `GET` and `POST /api/v1/tags`, `PATCH` and `DELETE /api/v1/tags/{id}`, `POST /api/v1/tags/{id}/merge`, `POST`, `PATCH`, `DELETE /api/v1/tag-groups` | Split into sub-routes (`/settings/preferences`, `/accounts`, `/tags`), one component each. Saving fees or trading-day settings recalculates trades; if that takes over about 5 s on 10,000 trades, make it a background job with polling (`GET /api/v1/jobs/{id}`). Measure in M3 |
+| **Onboarding** `/welcome` (new, F-P1) | none | `GET /api/v1/onboarding` (progress computed from data), `PATCH /api/v1/settings`, accounts create, imports preview and commit | Confirm timezone, create the first account, how to export from Tradovate, upload a CSV, done. The timezone rule is in doc 03 section 7 |
+| **Profile** `/profile` (new) | none | `GET` and `DELETE /api/v1/sessions`, `POST` and `GET /api/v1/exports`, `POST` and `DELETE /api/v1/account/deletion`, `POST /api/v1/grants/redeem`, billing portal link (later) | Email and password changes link out to the IdP |
+| **Sign-in** (new) | none | `/auth/login`, `/auth/callback`, `POST /auth/logout` | Browser redirects, not SPA pages, apart from a "signed out / invite required" screen |
+| **Admin** `/admin/*` (new) | none | Section 6 | A lazy-loaded chunk, hidden unless `session.flags.is_admin`; the real control is server-side |
+| After beta | Calendar and day view (`GET /api/v1/stats/calendar`, `GET` and `PUT /api/v1/day-notes/{date}`), reports, prop-rule tracker, demo mode | | Tier 1 in doc 05 |
+
+## 6. Admin API and pages (design in ADR-012, tables in doc 03)
+
+| Area | Endpoints under `/api/admin/v1` |
+|---|---|
+| Users | `GET /users?q=&status=&plan=` search; `GET /users/{id}` (account metadata, effective plan and its source, **usage counts from `user_usage`**, session count, flags); `POST /users/{id}/suspend` and `/unsuspend`; `POST /users/{id}/revoke-sessions`; `POST /users/{id}/export`; `POST` and `DELETE /users/{id}/deletion` (schedule, cancel) |
+| Plan override | `PUT /users/{id}/plan-override` (`plan`, optional `expires_at`, required `reason`); `DELETE /users/{id}/plan-override` (revoke, with reason); `GET /users/{id}/plan-overrides` (history) |
+| Codes | `GET` and `POST /invites`, `POST /invites/{id}/revoke`; `GET` and `POST /grant-codes`, `POST /grant-codes/{id}/revoke`; `GET` and `POST /discount-codes`, `POST /discount-codes/{id}/deactivate` (calls the payment provider's API) |
+| Audit and metrics | `GET /audit?actor=&target=&action=&from=&to=`; `GET /metrics/overview` (signups, active users, plan counts, import failure rate) |
+
+Rules for every admin route: the `require_admin` dependency (**`is_admin` and MFA satisfied recently**); the `system_session("admin")` profile, whose DB role has **no grants on tenant tables**; every mutation, and every view of a user's detail page, written to `audit_log`; no response contains trade, note or screenshot data (a contract test scans the admin part of the OpenAPI document for such fields); no impersonation. Admins are created only by the CLI.
+
+## 7. What this changes in testing and delivery
+
+Summarized here; the full strategy is in doc 05 section 5 and CI in doc 02 section 7.
+
+- A **two-tenant test generated from the OpenAPI document**: for every route, user B calls it with user A's ids and must get 404 or an empty result.
+- Front end: Vitest and React Testing Library for components, MSW for network, Playwright end to end against the built container with a **fake IdP**; `openapi.json` and `schema.d.ts` drift check.
+- Load testing is plain HTTP (k6 or Locust), not websocket sessions.
+
+## 8. Appendix: NiceGUI-specific assumptions that no longer apply
+
+Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.
+
+| Doc and section | v1 assumption | Now |
+|---|---|---|
+| README, TL;DR 1 and 3 | "UI plumbing" is fixed in place; keep NiceGUI and deploy one container | Domain kept, UI rebuilt; API and SPA in one image (ADR-010) |
+| README, findings: global state | Must become per-tab state | URL state in the SPA; the API keeps none |
+| README, decisions D1 | Keep NiceGUI, with a seam for a later rewrite | Superseded; the rewrite is the plan |
+| README, sources | NiceGUI storage, single process, sticky sessions plus Redis | Historical (ADR-001); no longer drives a decision |
+| README, unverified list | `request` injection in `@ui.page`; `unsafe-eval` in a CSP; "a few hundred concurrent users on one instance" | Void |
+| 01, F-T3 | Per-session UI state | Per-browser URL state; no per-session server state |
+| 01, accessibility | "The UI already uses aria labels" | The rebuild must keep that |
+| 01, performance | p95 page load | Split into API response time and SPA first load, plus a bundle budget |
+| 01, section 4 | 30 to 50 concurrent **websocket** sessions; one NiceGUI process is the ceiling | Stateless requests; add instances; unmeasured |
+| 01, constraints | Existing stack NiceGUI 3.17 | Being replaced; FastAPI, React and TypeScript added |
+| 02, diagram | One NiceGUI process serving UI pages over a websocket | API container serving the SPA and JSON on one origin |
+| 02, components: edge | Cloudflare "proxies websockets; confirm in S4" | No websockets; the edge caches `/assets/*` |
+| 02, components: app | NiceGUI plus FastAPI routes, one process, no multiple workers | Stateless FastAPI, any number of instances |
+| 02, components: jobs | Imports via `run.io_bound` | A thread pool inside the request, behind a semaphore |
+| 02, request flow | Page function closure, websocket events, session revocation lagging an open socket | Per-request session check (cached 60 s); no long-lived connections |
+| 02, code layout | `ui/` changed for per-tab filters and an auth gate; "seam for a future UI rewrite" | `ui/` deleted after parity; `api/` and `frontend/` added; the seam is the plan |
+| 02, hosting: Render | "Websocket support to confirm in S4" | Not needed; S4 checks caching, SPA fallback, deploy behavior and memory |
+| 02, sizing and deploys | 2 GB for NiceGUI; 50 simulated websocket sessions; deploys drop sockets | Memory unmeasured and expected lower; HTTP load test; stale tabs handled by backward compatibility |
+| 02, `.gitignore` | `.nicegui/` | Drop it when `ui/` is deleted; `node_modules/` and `dist/` already covered |
+| 02, scale path | Second NiceGUI instance with sticky sessions and Redis | Add stateless instances; rate limiter to Postgres or Redis |
+| 03, tenancy rules | `system_session` never from "UI code" | Never from tenant routes; admin routes never import `tenant_session` |
+| 03, session | CSRF by `SameSite=Lax` plus an Origin check on HTTP routes | Four layers (ADR-011) |
+| 03, session | Auth state in our table, **not** `app.storage.user`; `storage_secret` for `app.storage.tab` | No NiceGUI storage at all; no per-tab server state |
+| 03, authorization | `is_admin` unlocks an aggregates page | CLI-only, MFA-gated, content-blind admin back end (ADR-012) |
+| 03, spike S1 note | Page handlers can receive `request`; Socket.IO checks `Origin` | Replaced by the cookie, CSRF, MFA-claim and CSP questions |
+| 03, files | `ui.upload(max_file_size, ...)` | `POST` route with edge, header and streaming limits |
+| 03, lifecycle | UI "today" defaults from the browser or server clock (`ui/state.py:55` and others) | The API resolves presets in the user's timezone |
+| 03, port checklist | `ui/`: replace `open_db()` with `tenant_session`, per-tab state | `ui/` deleted; `api/` and `frontend/` |
+| 04, T4 | Escaped rendering (`esc()` in `trades.py:58`), no `ui.html` of user data | React escaping, one `SafeHtml` component, CSP |
+| 04, T5 | Websocket floods | Request floods |
+| 04, T14 | Cross-site websocket hijack | Removed; replaced by CSRF, with CORS, SPA credential exposure, admin abuse and code abuse added as T15 to T18 |
+| 04, findings S3, S7, S10, S14 | Singleton filters, `ui.upload` limits, server clock, NiceGUI CSP | Disappear with `ui/`; the rule behind S3, S7 and S10 carries to the API (kept as findings about today's code) |
+| 04, checklist | "No UI code can reach `system_session`"; limits "at proxy, widget and server"; `esc()` audit; "CSP as strict as NiceGUI allows"; websocket `Origin` check | Reworded for routes; `SafeHtml` and `react/no-danger`; a strict CSP; websocket item removed |
+| 04, privacy | Cookies include "NiceGUI tab storage" | Session cookie, OIDC state cookie, `localStorage` for UI preferences |
+| 05, tier 0 | "Per-tab state" in tenancy | URL state; API and SPA rows added |
+| 05, spikes | S1 NiceGUI multi-user; S3 `ui.image`; S4 websockets through Cloudflare | S1 SPA and cookie auth; S3 `<img>` under the CSP; S4 one-image deploy |
+| 05, risks | R2 "NiceGUI limits found late" | Replaced by "SPA rebuild overruns" |
+| 05, test strategy | NiceGUI `user` test fixture; 200 websocket sessions | Vitest, React Testing Library, MSW, Playwright; HTTP load test |
+| 05, tier 2 | Public API via "FastAPI routers per doc 02 section 5" | The API exists from day one |
+| 06, ADR-001 | Keep NiceGUI | **Superseded** by ADR-010 (text kept) |
+| 06, ADR-003 | Own sessions because `app.storage.user` is file-backed | Own sessions for the reasons in ADR-011; amended |
+| 06, ADR-005 | Confirm websocket handling in S4 | Amended; not needed |

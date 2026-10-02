@@ -1,5 +1,7 @@
 # 01. Requirements
 
+*Revised 2026-10-02 for ADR-010 to ADR-012: the UI becomes a React SPA over a stateless API (changes F-T3, the concurrency model and the constraints), and the operator back end becomes explicit requirements (F-O1 to F-O8).*
+
 ## 1. Product framing
 
 A hosted trading journal and analytics app for **prop-firm futures traders**. Users export a Tradovate Performance CSV, import it, and get trades, statistics, journaling (notes, tags, screenshots) and a view of their prop-firm business (evaluations, funded accounts, costs, payouts, pass rate).
@@ -22,7 +24,7 @@ Priority: **P0** blocks launch, **P1** expected at launch, **P2** after launch.
 | F-A4 | Change email / password; view active sessions | P1 |
 | F-A5 | Export all my data (CSV + JSON + screenshots) | P0 |
 | F-A6 | Delete my account and all data (with a short grace period) | P0 |
-| F-A7 | Invite codes to gate the private beta | P0 (beta) |
+| F-A7 | Invite codes to gate the private beta (multi-use, optional bundled plan grant) | P0 (beta) |
 | F-A8 | Accept Terms of Service and Privacy Policy, versioned | P0 |
 
 ### Tenancy
@@ -31,7 +33,7 @@ Priority: **P0** blocks launch, **P1** expected at launch, **P2** after launch.
 |---|---|---|
 | F-T1 | Every record belongs to exactly one user; no read or write across users | P0 |
 | F-T2 | Per-user settings (timezone, trading-day start, theme) replace global settings | P0 |
-| F-T3 | Per-session UI state (filters) replaces the global singleton | P0 |
+| F-T3 | Per-browser UI state (filters in the URL) replaces the global singleton; the API keeps no per-session or per-tab state | P0 |
 | F-T4 | New-user provisioning creates default tag categories and settings | P0 |
 
 ### Core journal (exists today; must keep working)
@@ -60,7 +62,22 @@ Import Tradovate Performance CSV with preview, duplicate handling and undo; trad
 | F-B2 | Subscription checkout, cancellation, invoices via a payment provider's hosted pages | P0 for paid launch |
 | F-B3 | Lapsed subscription means read-only plus export, never data deletion | P0 for paid launch |
 | F-B4 | Marketing site, pricing, docs/FAQ, support email, legal pages | P0 |
-| F-B5 | Admin view: user counts, plan counts, errors; no browsing of user trade data | P1 |
+| F-B5 | Operator back end: see F-O1 to F-O8 below (replaces the earlier aggregates-only admin view) | P1 |
+
+### Operator back end (admin)
+
+Design: ADR-012, doc 03 (tables, plan resolution), doc 07 section 6 (endpoints). Priority P1 for public launch (milestone M10); the beta runs with the CLI and invite codes only.
+
+| ID | Requirement | Pri |
+|---|---|---|
+| F-O1 | Admin means `is_admin` **and** MFA satisfied recently; `is_admin` is set only through the CLI, never through the UI or API | P1 |
+| F-O2 | User management: search; view account metadata, effective plan and its source, usage counts; suspend and unsuspend; revoke sessions; trigger an export; schedule and cancel deletion | P1 |
+| F-O3 | Manual plan override: plan, optional expiry, required reason; takes precedence over the billing-provider mirror and survives webhooks and the nightly reconcile job | P1 |
+| F-O4 | Discount codes created through the payment provider's API | P1 |
+| F-O5 | Local grant codes (N days of a plan, one redemption per user) and beta invite codes (multi-use, optional bundled grant) | P1 |
+| F-O6 | Every admin action is written to the audit log, including views of a user's detail page | P1 |
+| F-O7 | Admins never see trade, note or screenshot content; no impersonation; enforced by database grants, not only by code | P1 |
+| F-O8 | Overview metrics: signups, active users, plan counts, import failure rate | P2 |
 
 ## 3. Non-functional requirements
 
@@ -70,13 +87,14 @@ Import Tradovate Performance CSV with preview, duplicate handling and undo; trad
 | **Security baseline** | OWASP ASVS Level 2 as the checklist (see doc 04) | Not a certification |
 | **Durability** | RPO 5 min (point-in-time recovery), RTO 4 h; tested restore | A journal is irreplaceable history; users will not forgive loss |
 | **Availability** | 99.5% monthly (about 3.6 h down) | Not intraday-critical; users journal after the session |
-| **Performance** | p95 page load under 1.5 s with 10,000 trades; import of a 5,000-row CSV under 10 s | Measure in M2 on synthetic data |
+| **Performance** | With 10,000 trades: p95 dashboard API response under 800 ms and p95 first load of the SPA under 2 s on broadband; initial JavaScript under about 250 KB gzipped (a target to set a budget, not a measured figure); import of a 5,000-row CSV under 10 s | Measure in M2 and M3 on synthetic data |
 | **Scale target** | 1,000 registered users in year 1, design headroom to 10,000 | See section 4 |
 | **Cost** | Infra under $60/month through beta | See doc 02 |
 | **Privacy** | Export and delete on request; no broker credentials; no selling or sharing data; minimal analytics | GDPR/CCPA-ready |
-| **Maintainability** | One developer can run it: managed services, CI, runbooks | |
+| **Maintainability** | One developer can run it: managed services, CI, runbooks. Two languages now (Python and TypeScript), kept in step by generated API types | |
+| **Operator access** | The operator cannot read user content; every admin action is audited | ADR-012 |
 | **Portability** | Docker image + plain Postgres + S3 API; no lock-in to a PaaS | Hosting is then a reversible decision |
-| **Accessibility** | Keyboard navigable, contrast AA in both themes | The UI already uses aria labels |
+| **Accessibility** | Keyboard navigable, contrast AA in both themes | The NiceGUI UI uses aria labels today; the rebuild must keep that (Radix primitives and `jsx-a11y` linting help) |
 | **Browsers** | Current Chrome, Edge, Firefox, Safari; responsive down to phone width for viewing | |
 
 ## 4. Load estimate
@@ -92,15 +110,16 @@ Assumptions for a **heavy** user: 30 trades/day for 250 days is 7,500 trades a y
 | Screenshot storage | about 220 MB | about 80 to 100 GB worst case, about 30 GB typical |
 | R2 cost for screenshots | | about $0.3 to $1.5 per month (after the 10 GB free) |
 
-Concurrency: 1,000 registered users is about 100 to 300 weekly actives and **30 to 50 concurrent websocket sessions at peak**. At 10,000 users, 300 to 500. A single NiceGUI process is the real ceiling (it does not support multiple workers; scaling out needs sticky sessions plus Redis, see [NiceGUI discussion](https://github.com/zauberzeug/nicegui/discussions/4483)). That is fine for year 1.
+Concurrency: 1,000 registered users is about 100 to 300 weekly actives and **30 to 50 concurrent users at peak**. At 10,000 users, 300 to 500. The API is stateless (no websockets, no per-tab server state), so that load is a modest request rate and capacity grows by adding instances behind the load balancer. The single-process NiceGUI ceiling that originally shaped this section is gone (ADR-010). Request rate and memory per instance are **unmeasured**; spike S4 and M11 measure them.
 
-Read path to watch: `queries.load_trades` loads every matching trade into Python and aggregates with `Decimal`. At 10,000 trades per user that is likely tens to hundreds of milliseconds, but it is **unmeasured**. Plan: build a 10,000-trade synthetic dataset in M2, measure the dashboard, and only then decide whether to push aggregation into SQL (Postgres `NUMERIC` makes exact SQL sums possible).
+Read path to watch: `queries.load_trades` loads every matching trade into Python and aggregates with `Decimal`. At 10,000 trades per user that is likely tens to hundreds of milliseconds, but it is **unmeasured**. The dashboard is several stats requests, so they should share one load or one cached summary per request. Plan: build a 10,000-trade synthetic dataset in M2, measure the dashboard, and only then decide whether to push aggregation into SQL (Postgres `NUMERIC` makes exact SQL sums possible).
 
 ## 5. Constraints
 
 - Solo developer, part-time. Prefer managed services and boring tools.
-- Existing stack: Python 3.12, NiceGUI 3.17, SQLite, pandas (used only in `parser.py` to read the CSV).
-- Dev machine: Windows 10 Home, Node installed, **no Git, GitHub CLI or Docker yet**.
+- Existing stack: Python 3.12, NiceGUI 3.17 (being replaced, ADR-010), SQLite (being replaced, ADR-002), pandas (used only in `parser.py` to read the CSV). New: FastAPI, React and TypeScript.
+- Developer experience: some React, new to TypeScript. That drives the strict, generated-types tooling in doc 07.
+- Dev machine: Windows 10 Home with Git, the GitHub CLI, `uv`, Python 3.12 and Node 24 installed; **no Docker** (hardware virtualization is off) and no pnpm yet.
 - The app currently holds real data for one user (you): 23 trades, 8 accounts.
 
 ## 6. Out of scope for launch
