@@ -87,7 +87,7 @@ Design: ADR-012, doc 03 (tables, plan resolution), doc 07 section 6 (endpoints).
 | **Security baseline** | OWASP ASVS Level 2 as the checklist (see doc 04) | Not a certification |
 | **Durability** | RPO 5 min (point-in-time recovery), RTO 4 h; tested restore | A journal is irreplaceable history; users will not forgive loss |
 | **Availability** | 99.5% monthly (about 3.6 h down) | Not intraday-critical; users journal after the session |
-| **Performance** | With 10,000 trades: p95 dashboard API response under 800 ms and p95 first load of the SPA under 2 s on broadband; initial JavaScript under about 250 KB gzipped (a target to set a budget, not a measured figure); import of a 5,000-row CSV under 10 s | Measure in M2 and M3 on synthetic data |
+| **Performance** | With 10,000 trades: p95 dashboard API response under 800 ms and p95 first load of the SPA under 2 s on broadband; JavaScript budget of 150 KB gzipped for the entry chunk and 300 KB for the landing route (targets; spike S1 measured 133 KB and about 298 KB on a toy with a chart and an editor, once those were code-split); import of a 5,000-row CSV under 10 s | Measure in M2 and M3 on synthetic data |
 | **Scale target** | 1,000 registered users in year 1, design headroom to 10,000 | See section 4 |
 | **Cost** | Infra under $60/month through beta | See doc 02 |
 | **Privacy** | Export and delete on request; no broker credentials; no selling or sharing data; minimal analytics | GDPR/CCPA-ready |
