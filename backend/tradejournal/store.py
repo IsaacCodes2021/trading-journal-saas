@@ -51,8 +51,9 @@ def insert_fill_pair(conn: sqlite3.Connection, account_id: int, pair: FillPair) 
         plain(pair.sell_price), money_str(pair.pnl), to_utc_iso(pair.bought_at),
         to_utc_iso(pair.sold_at), pair.duration_raw, pair.duration_seconds, pair.direction,
     )  # fmt: skip
+    # S608: only column names from the constant _PAIR_COLUMNS are interpolated; every value is a ? placeholder.
     cursor = conn.execute(
-        f"INSERT INTO fill_pairs (account_id, {', '.join(_PAIR_COLUMNS)}) "
+        f"INSERT INTO fill_pairs (account_id, {', '.join(_PAIR_COLUMNS)}) "  # noqa: S608
         f"VALUES (?, {', '.join('?' * len(_PAIR_COLUMNS))})",
         (account_id, *values),
     )
@@ -100,15 +101,17 @@ def write_trade(
         plain(metrics.points), plain(metrics.ticks), money_str(metrics.gross_pnl),
         money_str(metrics.fees), money_str(metrics.net_pnl),
     )  # fmt: skip
+    # S608 (both statements below): only column names from the constant _TRADE_COLUMNS are
+    # interpolated; every value is a ? placeholder.
     if trade_id is None:
         cursor = conn.execute(
-            f"INSERT INTO trades (account_id, {', '.join(_TRADE_COLUMNS)}) "
+            f"INSERT INTO trades (account_id, {', '.join(_TRADE_COLUMNS)}) "  # noqa: S608
             f"VALUES (?, {', '.join('?' * len(_TRADE_COLUMNS))})",
             (account_id, *values),
         )
         return cursor.lastrowid
     assignments = ", ".join(f"{column} = ?" for column in _TRADE_COLUMNS)
-    conn.execute(f"UPDATE trades SET {assignments} WHERE id = ?", (*values, trade_id))
+    conn.execute(f"UPDATE trades SET {assignments} WHERE id = ?", (*values, trade_id))  # noqa: S608
     return trade_id
 
 

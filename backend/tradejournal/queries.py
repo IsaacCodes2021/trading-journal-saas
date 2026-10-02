@@ -61,7 +61,8 @@ _SELECT = """
 """
 
 
-def load_trades(conn: sqlite3.Connection, trade_filter: TradeFilter = TradeFilter()) -> list[TradeRecord]:
+# B008: TradeFilter is a frozen dataclass, so one shared default instance is safe.
+def load_trades(conn: sqlite3.Connection, trade_filter: TradeFilter = TradeFilter()) -> list[TradeRecord]:  # noqa: B008
     """Trades matching the filter, in the order they were closed."""
     clauses: list[str] = []
     params: list = []

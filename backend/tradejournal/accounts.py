@@ -187,7 +187,8 @@ def find_account(conn: sqlite3.Connection, name: str) -> Account | None:
 
 def list_accounts(conn: sqlite3.Connection, *, include_archived: bool = True) -> list[Account]:
     where = "" if include_archived else " WHERE outcome IS NULL"
-    return [_account_from_row(r) for r in conn.execute(f"SELECT * FROM accounts{where} ORDER BY name")]
+    # S608: `where` is one of the two fixed fragments above, never user input.
+    return [_account_from_row(r) for r in conn.execute(f"SELECT * FROM accounts{where} ORDER BY name")]  # noqa: S608
 
 
 def fee_schedule(conn: sqlite3.Connection, account_id: int) -> dict[str, Decimal]:
