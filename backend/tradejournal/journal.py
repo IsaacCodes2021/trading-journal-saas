@@ -14,7 +14,7 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from .timeutil import to_utc_iso
 
@@ -293,11 +293,22 @@ def image_extension(data: bytes) -> str:
     raise ValueError("not a PNG, JPEG, GIF or WebP image")
 
 
+def clean_filename(name: str | None) -> str:
+    """The file's own name with any folders removed, for display.
+
+    Uploads can come from Windows machines (C:\\charts\\a.png) or Unix ones (/home/me/a.png),
+    and the server may be either. Path would only split on the server's own separator, so a
+    Windows path on a Linux server would keep its folder names. PureWindowsPath splits on both.
+    """
+    return PureWindowsPath(name or "").name or "screenshot"
+
+
 def add_screenshot(
     conn: sqlite3.Connection, folder: Path, trade_id: int, original_name: str, data: bytes
 ) -> Screenshot:
     """Save an image file for a trade under a random name and record it."""
     extension = image_extension(data)
+    display_name = clean_filename(original_name)
     if conn.execute("SELECT 1 FROM trades WHERE id = ?", (trade_id,)).fetchone() is None:
         raise LookupError(f"no trade with id {trade_id}")
     folder.mkdir(parents=True, exist_ok=True)
@@ -308,12 +319,12 @@ def add_screenshot(
         created_at = to_utc_iso(datetime.now(UTC))
         cursor = conn.execute(
             "INSERT INTO screenshots (trade_id, stored_name, original_name, created_at) VALUES (?, ?, ?, ?)",
-            (trade_id, stored_name, Path(original_name or "screenshot").name, created_at),
+            (trade_id, stored_name, display_name, created_at),
         )
     except BaseException:
         path.unlink(missing_ok=True)
         raise
-    return Screenshot(cursor.lastrowid, trade_id, stored_name, Path(original_name or "screenshot").name, created_at)
+    return Screenshot(cursor.lastrowid, trade_id, stored_name, display_name, created_at)
 
 
 def screenshots(conn: sqlite3.Connection, trade_id: int) -> list[Screenshot]:

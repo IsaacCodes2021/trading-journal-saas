@@ -69,6 +69,23 @@ def test_too_large_images_are_rejected(monkeypatch):
         journal.image_extension(PNG)
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("entry.png", "entry.png"),
+        ("C:\\charts\\entry.png", "entry.png"),  # Windows path
+        ("/home/me/charts/entry.png", "entry.png"),  # Unix path
+        ("mixed/folders\\entry.png", "entry.png"),
+        ("..\\..\\etc\\entry.png", "entry.png"),  # traversal-style names lose their folders too
+        ("", "screenshot"),
+        (None, "screenshot"),
+        ("C:", "screenshot"),  # a bare drive letter has no file name
+    ],
+)
+def test_clean_filename_strips_folders_on_any_platform(name, expected):
+    assert journal.clean_filename(name) == expected
+
+
 def test_add_list_and_delete_screenshots(conn, trades, tmp_path):
     with db.transaction(conn):
         first = journal.add_screenshot(conn, tmp_path, trades[0], "C:\\charts\\entry.png", PNG)
