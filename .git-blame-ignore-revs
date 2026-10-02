@@ -1,0 +1,4 @@
+# Mechanical reformatting commits; GitHub and `git blame` skip these.
+# Locally: git config blame.ignoreRevsFile .git-blame-ignore-revs
+# ruff auto-fixes and formatting
+af21059fb6bf212978d2766b955100fe1b07be1a
