@@ -32,6 +32,8 @@ htmlcov/
 # Node (Phase 2+)
 node_modules/
 dist/
+test-results/
+playwright-report/
 
 # Editors and OS
 .idea/

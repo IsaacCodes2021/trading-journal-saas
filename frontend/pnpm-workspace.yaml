@@ -1,0 +1,10 @@
+# pnpm settings for this project (they live here in current pnpm versions).
+
+# Do not install a version published in the last 24 hours (minutes). Most malicious releases are pulled
+# within hours, so a short delay removes much of the risk of a freshly compromised package.
+minimumReleaseAge: 1440
+
+# Dependency build scripts (postinstall and friends) never run unless allow-listed below, and the install
+# FAILS if a package wants to run one, so every new one is a deliberate review.
+strictDepBuilds: true
+allowBuilds: {}

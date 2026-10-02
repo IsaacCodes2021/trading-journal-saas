@@ -112,3 +112,54 @@ jobs:
       # the server: the bind address is still hardcoded to 127.0.0.1, which is an M2 change.)
       - name: Import smoke test
         run: docker run --rm tradejournal:ci python -c "import tradejournal.ui.app"
+
+  frontend:
+    name: Front end
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+
+      # Same version as `packageManager` in package.json. Installed from the npm registry rather than
+      # through Corepack, which is dropped from Node 25 and later.
+      - name: Install pnpm
+        run: npm install --global pnpm@12.8.1
+
+      # --frozen-lockfile refuses to change the lock file. pnpm-workspace.yaml holds the supply-chain
+      # settings: a 24-hour release delay, and dependency build scripts fail the install unless reviewed.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # Fails if the entry chunk is over 150 KB gzipped (the chart and editor must stay lazily loaded).
+      - name: Bundle budget
+        run: pnpm check:bundle
+
+      - name: Dependency audit
+        run: pnpm audit --audit-level high
+
+      # TODO (M2/M3, when the API writes backend/openapi.json): regenerate src/lib/api/schema.d.ts with
+      # `pnpm gen:api` and fail on any `git diff`, so the API and the front end cannot drift.
