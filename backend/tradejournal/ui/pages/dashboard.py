@@ -46,7 +46,9 @@ def dashboard_page() -> None:
         _stat_tiles(summary)
 
         with ui.element("div").classes("grid gap-4 w-full grid-cols-1 lg:grid-cols-3 items-start"):
-            with card("Cumulative net P&L", "By trade, with drawdown from the running peak below").classes("lg:col-span-2"):
+            with card("Cumulative net P&L", "By trade, with drawdown from the running peak below").classes(
+                "lg:col-span-2"
+            ):
                 ui.echart(charts.equity_options(trades, zone, colors)).classes("w-full h-[380px]")
             with card("Performance score", "Six measures, each scored 0–100"):
                 _score_panel(score, colors)
@@ -85,15 +87,20 @@ def _stat_tiles(s: finance.Summary) -> None:
         stat_tile(
             "Win rate",
             fmt.percent(s.win_rate),
-            sub=f"{s.win_count} won · {s.loss_count} lost" + (f" · {s.breakeven_count} flat" if s.breakeven_count else ""),
+            sub=f"{s.win_count} won · {s.loss_count} lost"
+            + (f" · {s.breakeven_count} flat" if s.breakeven_count else ""),
         )
         stat_tile(
             "Profit factor",
             fmt.ratio(s.profit_factor),
             sub=f"Won {fmt.money(s.total_won)} · lost {fmt.money(-s.total_lost)}",
         )
-        stat_tile("Expectancy", fmt.money(s.expectancy), sub="Net P&L per trade", value_class=fmt.pnl_class(s.expectancy))
-        stat_tile("Trades", f"{s.trade_count:,}", sub=f"Over {s.trading_days} trading day{'s' if s.trading_days != 1 else ''}")
+        stat_tile(
+            "Expectancy", fmt.money(s.expectancy), sub="Net P&L per trade", value_class=fmt.pnl_class(s.expectancy)
+        )
+        stat_tile(
+            "Trades", f"{s.trade_count:,}", sub=f"Over {s.trading_days} trading day{'s' if s.trading_days != 1 else ''}"
+        )
         stat_tile(
             "Day win rate",
             fmt.percent(s.day_win_rate),
@@ -125,8 +132,7 @@ def _score_panel(score: finance.PerformanceScore, colors) -> None:
                 {"name": "score", "label": "Score", "field": "score", "align": "right"},
             ],
             rows=[
-                {"name": a.name, "value": _AXIS_FORMAT[a.name](a.value), "score": f"{a.score:.1f}"}
-                for a in score.axes
+                {"name": a.name, "value": _AXIS_FORMAT[a.name](a.value), "score": f"{a.score:.1f}"} for a in score.axes
             ],
             row_key="name",
         ).classes("w-full tj-table").props("flat dense hide-bottom")

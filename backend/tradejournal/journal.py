@@ -11,10 +11,10 @@ from __future__ import annotations
 import re
 import sqlite3
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterable
 
 from .timeutil import to_utc_iso
 
@@ -305,7 +305,7 @@ def add_screenshot(
     path = folder / stored_name
     path.write_bytes(data)
     try:
-        created_at = to_utc_iso(datetime.now(timezone.utc))
+        created_at = to_utc_iso(datetime.now(UTC))
         cursor = conn.execute(
             "INSERT INTO screenshots (trade_id, stored_name, original_name, created_at) VALUES (?, ?, ?, ?)",
             (trade_id, stored_name, Path(original_name or "screenshot").name, created_at),
@@ -317,9 +317,7 @@ def add_screenshot(
 
 
 def screenshots(conn: sqlite3.Connection, trade_id: int) -> list[Screenshot]:
-    rows = conn.execute(
-        "SELECT * FROM screenshots WHERE trade_id = ? ORDER BY created_at, id", (trade_id,)
-    )
+    rows = conn.execute("SELECT * FROM screenshots WHERE trade_id = ? ORDER BY created_at, id", (trade_id,))
     return [Screenshot(r["id"], r["trade_id"], r["stored_name"], r["original_name"], r["created_at"]) for r in rows]
 
 

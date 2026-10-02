@@ -1,6 +1,6 @@
 import pytest
-
 from helpers import SAMPLE, fixture_bytes
+
 from tradejournal import db, importer, journal
 
 

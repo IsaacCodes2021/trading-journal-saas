@@ -94,7 +94,14 @@ COLUMNS = [
     },
     {"field": "gross", "headerName": "Gross", **_MONEY, **_PNL_COLOR},
     {"field": "fees", "headerName": "Fees", **_MONEY, "minWidth": 80},
-    {"field": "points", "headerName": "Points", **_NUMBER, **_PNL_COLOR, ":valueFormatter": _decimals(2), "minWidth": 72},
+    {
+        "field": "points",
+        "headerName": "Points",
+        **_NUMBER,
+        **_PNL_COLOR,
+        ":valueFormatter": _decimals(2),
+        "minWidth": 72,
+    },
     {"field": "ticks", "headerName": "Ticks", **_NUMBER, **_PNL_COLOR, ":valueFormatter": _decimals(1)},
     {"field": "hold", "headerName": "Hold", **_HOLD},
     {"field": "avg_entry", "headerName": "Avg entry", **_PRICE},
@@ -161,9 +168,7 @@ def trades_page() -> None:
         loaded.clear()
         loaded.update((t.id, t) for t in trades)
         show_totals(trades)
-        grid.options["rowData"] = [
-            grid_row(t, zone, tags.get(t.id, []), summary.get(t.id, (False, 0))) for t in trades
-        ]
+        grid.options["rowData"] = [grid_row(t, zone, tags.get(t.id, []), summary.get(t.id, (False, 0))) for t in trades]
         grid.update()
 
     async def grid_filters_changed() -> None:

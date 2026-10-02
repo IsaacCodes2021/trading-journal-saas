@@ -88,9 +88,9 @@ def import_page() -> None:
             return
         with ui.row().classes("w-full items-center gap-2"):
             for name in pending:
-                ui.chip(name, icon="description", removable=True, on_value_change=lambda _, n=name: remove_file(n)).props(
-                    "outline dense"
-                )
+                ui.chip(
+                    name, icon="description", removable=True, on_value_change=lambda _, n=name: remove_file(n)
+                ).props("outline dense")
             ui.button("Clear all", on_click=clear_files).props("flat dense no-caps").classes("tj-secondary")
 
     @ui.refreshable
@@ -149,23 +149,27 @@ def import_page() -> None:
             }
             for r in records
         ]
-        table = ui.table(
-            columns=[
-                {"name": "id", "label": "#", "field": "id", "align": "left"},
-                {"name": "when", "label": "Imported", "field": "when", "align": "left"},
-                {"name": "account", "label": "Account", "field": "account", "align": "left"},
-                {"name": "file", "label": "File", "field": "file", "align": "left"},
-                {"name": "rows", "label": "Rows", "field": "rows", "align": "right"},
-                {"name": "added", "label": "Added", "field": "added", "align": "right"},
-                {"name": "dupes", "label": "Duplicates", "field": "dupes", "align": "right"},
-                {"name": "errors", "label": "Errors", "field": "errors", "align": "right"},
-                {"name": "trades", "label": "Trades", "field": "trades", "align": "right"},
-                {"name": "action", "label": "", "field": "status", "align": "right"},
-            ],
-            rows=rows,
-            row_key="id",
-            pagination=20,
-        ).classes("w-full tj-table").props("flat dense")
+        table = (
+            ui.table(
+                columns=[
+                    {"name": "id", "label": "#", "field": "id", "align": "left"},
+                    {"name": "when", "label": "Imported", "field": "when", "align": "left"},
+                    {"name": "account", "label": "Account", "field": "account", "align": "left"},
+                    {"name": "file", "label": "File", "field": "file", "align": "left"},
+                    {"name": "rows", "label": "Rows", "field": "rows", "align": "right"},
+                    {"name": "added", "label": "Added", "field": "added", "align": "right"},
+                    {"name": "dupes", "label": "Duplicates", "field": "dupes", "align": "right"},
+                    {"name": "errors", "label": "Errors", "field": "errors", "align": "right"},
+                    {"name": "trades", "label": "Trades", "field": "trades", "align": "right"},
+                    {"name": "action", "label": "", "field": "status", "align": "right"},
+                ],
+                rows=rows,
+                row_key="id",
+                pagination=20,
+            )
+            .classes("w-full tj-table")
+            .props("flat dense")
+        )
         table.add_slot(
             "body-cell-action",
             """
@@ -190,7 +194,11 @@ def import_page() -> None:
             ui.label(
                 f"Removes {effect.rows_removed} fill pair{'s' if effect.rows_removed != 1 else ''} and "
                 f"{effect.trades_removed} trade{'s' if effect.trades_removed != 1 else ''}"
-                + (f"; {effect.trades_changed} trade{'s' if effect.trades_changed != 1 else ''} will be regrouped" if effect.trades_changed else "")
+                + (
+                    f"; {effect.trades_changed} trade{'s' if effect.trades_changed != 1 else ''} will be regrouped"
+                    if effect.trades_changed
+                    else ""
+                )
                 + "."
             )
             if effect.rows_kept:
@@ -223,12 +231,16 @@ def import_page() -> None:
         ):
             options = _account_options()
             with ui.row().classes("items-center gap-3"):
-                account_select = ui.select(
-                    options,
-                    label="Account",
-                    value=next(iter(options), None) if len(options) == 1 else None,
-                    on_change=refresh_preview,
-                ).props("dense outlined").classes("min-w-[260px]")
+                account_select = (
+                    ui.select(
+                        options,
+                        label="Account",
+                        value=next(iter(options), None) if len(options) == 1 else None,
+                        on_change=refresh_preview,
+                    )
+                    .props("dense outlined")
+                    .classes("min-w-[260px]")
+                )
                 ui.button("New account", icon="add", on_click=lambda: new_account_dialog(account_created)).props(
                     "flat no-caps"
                 )
@@ -296,9 +308,11 @@ def _preview_issues(report: ImportReport) -> None:
         if not messages:
             continue
         icon = "error" if f.fatal or f.errors else "info"
-        with ui.expansion(f"{f.filename}: {len(messages)} note{'s' if len(messages) != 1 else ''}", icon=icon).classes(
-            "w-full"
-        ).props("dense"):
+        with (
+            ui.expansion(f"{f.filename}: {len(messages)} note{'s' if len(messages) != 1 else ''}", icon=icon)
+            .classes("w-full")
+            .props("dense")
+        ):
             for message in messages:
                 ui.label(message).classes("tj-label")
 

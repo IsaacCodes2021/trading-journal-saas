@@ -1,8 +1,8 @@
-from datetime import date, datetime, time, timezone
+from datetime import UTC, date, datetime, time
 
 import pytest
-
 from helpers import parse_fixture
+
 from tradejournal.symbols import parse_symbol
 from tradejournal.timeutil import (
     TradingSession,
@@ -13,7 +13,7 @@ from tradejournal.timeutil import (
     trading_date,
 )
 
-UTC = timezone.utc
+UTC = UTC
 
 
 @pytest.mark.parametrize(
@@ -43,9 +43,7 @@ def test_local_timestamps_convert_to_utc_across_dst():
 
 
 def test_timezone_is_a_parameter():
-    assert parse_local_timestamp("01/05/2024 06:30:00", "America/New_York") == datetime(
-        2024, 1, 5, 11, 30, tzinfo=UTC
-    )
+    assert parse_local_timestamp("01/05/2024 06:30:00", "America/New_York") == datetime(2024, 1, 5, 11, 30, tzinfo=UTC)
     with pytest.raises(ValueError):
         parse_local_timestamp("01/05/2024 06:30:00", "Mars/Olympus_Mons")
 

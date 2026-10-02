@@ -37,8 +37,7 @@ def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
     elif key == "theme" and value not in ("dark", "light"):
         raise ValueError("theme must be 'dark' or 'light'")
     conn.execute(
-        "INSERT INTO settings (key, value) VALUES (?, ?) "
-        "ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
         (key, value),
     )
 

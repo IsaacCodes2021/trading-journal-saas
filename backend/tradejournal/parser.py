@@ -54,7 +54,7 @@ class _RowError(ValueError):
 
 
 def parse_duration(text: str) -> int | None:
-    """"4sec" -> 4, "1min 5sec" -> 65, "1h 2min" -> 3720. None when empty or unrecognized."""
+    """ "4sec" -> 4, "1min 5sec" -> 65, "1h 2min" -> 3720. None when empty or unrecognized."""
     cleaned = text.strip().lower()
     total = 0
     position = 0
@@ -89,9 +89,7 @@ def parse_performance_csv(data: bytes | str, tz_name: str) -> ParseResult:
         return ParseResult(fatal=header_problem)
 
     try:
-        frame = pd.read_csv(
-            io.StringIO(text), dtype=str, keep_default_na=False, skip_blank_lines=False
-        )
+        frame = pd.read_csv(io.StringIO(text), dtype=str, keep_default_na=False, skip_blank_lines=False)
     except (pd.errors.ParserError, pd.errors.EmptyDataError) as exc:
         return ParseResult(fatal=f"Could not read the CSV: {exc}")
 

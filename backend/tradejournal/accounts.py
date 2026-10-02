@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from .finance import DEFAULT_FEE_KEY, ZERO, money_str, parse_decimal
@@ -78,7 +78,7 @@ def create_account(
             _money_or_none(trail_lock_level),
             _money_or_none(daily_loss_limit),
             _money_or_none(profit_target),
-            to_utc_iso(datetime.now(timezone.utc)),
+            to_utc_iso(datetime.now(UTC)),
         ),
     )
     return get_account(conn, cursor.lastrowid)
@@ -107,8 +107,7 @@ def update_account(
             f"'{OUTCOMES[current.outcome]}'; restore it first"
         )
     conn.execute(
-        "UPDATE accounts SET name = ?, firm = ?, account_type = ?, account_size = ?, starting_balance = ? "
-        "WHERE id = ?",
+        "UPDATE accounts SET name = ?, firm = ?, account_type = ?, account_size = ?, starting_balance = ? WHERE id = ?",
         (name, firm, account_type, _money_or_none(account_size), money_str(starting_balance), account_id),
     )
     return get_account(conn, account_id)
@@ -133,9 +132,7 @@ def archive_account(
 def restore_account(conn: sqlite3.Connection, account_id: int) -> Account:
     """Make an archived account active again."""
     get_account(conn, account_id)
-    conn.execute(
-        "UPDATE accounts SET outcome = NULL, ended_on = NULL, archive_note = '' WHERE id = ?", (account_id,)
-    )
+    conn.execute("UPDATE accounts SET outcome = NULL, ended_on = NULL, archive_note = '' WHERE id = ?", (account_id,))
     return get_account(conn, account_id)
 
 

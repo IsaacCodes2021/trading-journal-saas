@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from .finance import money_str, to_money
@@ -56,7 +56,7 @@ def add_entry(
         raise LookupError(f"no account with id {account_id}")
     cursor = conn.execute(
         "INSERT INTO account_ledger (account_id, kind, amount, entry_date, note, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (account_id, kind, money_str(amount), entry_date.isoformat(), note.strip(), to_utc_iso(datetime.now(timezone.utc))),
+        (account_id, kind, money_str(amount), entry_date.isoformat(), note.strip(), to_utc_iso(datetime.now(UTC))),
     )
     return LedgerEntry(cursor.lastrowid, account_id, kind, amount, entry_date, note.strip())
 
@@ -74,6 +74,8 @@ def entries(conn: sqlite3.Connection, account_id: int | None = None) -> list[Led
         params = (account_id,)
     rows = conn.execute(query + " ORDER BY entry_date, id", params)
     return [
-        LedgerEntry(r["id"], r["account_id"], r["kind"], Decimal(r["amount"]), date.fromisoformat(r["entry_date"]), r["note"])
+        LedgerEntry(
+            r["id"], r["account_id"], r["kind"], Decimal(r["amount"]), date.fromisoformat(r["entry_date"]), r["note"]
+        )
         for r in rows
     ]

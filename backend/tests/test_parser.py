@@ -1,12 +1,12 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-
 from helpers import HEADER, SAMPLE, TZ, parse_fixture
+
 from tradejournal.parser import parse_duration, parse_performance_csv
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def test_sample_file_parses_all_rows_cleanly():
@@ -72,7 +72,7 @@ MESSY = (
     "MNQH4,-2,0,0.25,100,105,2,17000.00,17010.00,$40.00,01/10/2024 06:30:00,01/10/2024 06:31:05,1min \n"  # 2
     'ESH4,-2,0,0.25,110,115,1,4800.00,4790.00,"$(500.00)",01/10/2024 06:32:00,01/10/2024 06:32:30,30sec\n'  # 3
     "\n"  # 4: blank
-    + HEADER + "\n"  # 5: header repeated by a concatenated export
+     + HEADER + "\n"  # 5: header repeated by a concatenated export
     "NQH4,-2,0,0.25,120,125,1,17000.00,17001.00,$20.00,01/10/2024 06:40:00,01/10/2024 06:40:03,\n"  # 6
     "NQH4,-2,0,0.25,120,125,1,17000.00,17001.00,$20.00,01/10/2024 06:40:00,01/10/2024 06:40:03,\n"  # 7: duplicate
     "NQH4,-2,0,0.25,130,135,1,17000.00,abc,$20.00,01/10/2024 06:41:00,01/10/2024 06:41:03,3sec\n"  # 8

@@ -7,8 +7,8 @@ thread (imports run off the UI thread so the page stays responsive).
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Iterator
 from zoneinfo import ZoneInfo
 
 from .. import config, db, settings

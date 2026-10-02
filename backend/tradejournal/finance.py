@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
-from typing import Iterable, Mapping, Protocol, Sequence
+from typing import Protocol
 
 from .models import FillPair
 
@@ -301,8 +302,7 @@ SCORE_RULES = {
         "100% (one day made it all) scores 0."
     ),
     "Max drawdown": (
-        "Deepest drop in cumulative net P&L as a share of total won. 0% scores 100; "
-        "giving back 100% or more scores 0."
+        "Deepest drop in cumulative net P&L as a share of total won. 0% scores 100; giving back 100% or more scores 0."
     ),
     "Recovery factor": "Net P&L ÷ max drawdown. 3 or higher scores 100; 0 or lower scores 0.",
 }
@@ -351,9 +351,7 @@ def performance_score(summary: Summary, days: Sequence[DailyResult]) -> Performa
         ),
         "Recovery factor": (
             recovery,
-            _scale(recovery, ZERO, Decimal("3"))
-            if recovery is not None
-            else when_undefined(summary.net_pnl > 0),
+            _scale(recovery, ZERO, Decimal("3")) if recovery is not None else when_undefined(summary.net_pnl > 0),
         ),
     }
     axes = [ScoreAxis(name, value, score, SCORE_RULES[name]) for name, (value, score) in scores.items()]

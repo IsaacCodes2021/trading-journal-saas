@@ -2,8 +2,8 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-
 from helpers import SAMPLE, fixture_bytes
+
 from tradejournal import accounts, db, importer
 from tradejournal.queries import TradeFilter, load_trade, load_trades, symbol_roots
 

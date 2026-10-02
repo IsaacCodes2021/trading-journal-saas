@@ -3,8 +3,8 @@
 import sqlite3
 
 import pytest
-
 from helpers import SAMPLE, fixture_bytes
+
 from tradejournal import db, importer, journal
 from tradejournal.ui import theme
 

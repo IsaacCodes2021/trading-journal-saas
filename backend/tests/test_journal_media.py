@@ -1,8 +1,8 @@
 """Notes and screenshots."""
 
 import pytest
-
 from helpers import SAMPLE, fixture_bytes
+
 from tradejournal import db, importer, journal
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
@@ -50,7 +50,9 @@ def test_notes_round_trip(conn, trades):
         journal.notes(conn, 999_999)
 
 
-@pytest.mark.parametrize("data, extension", [(PNG, ".png"), (JPEG, ".jpg"), (WEBP, ".webp"), (b"GIF89a" + b"\0" * 8, ".gif")])
+@pytest.mark.parametrize(
+    "data, extension", [(PNG, ".png"), (JPEG, ".jpg"), (WEBP, ".webp"), (b"GIF89a" + b"\0" * 8, ".gif")]
+)
 def test_image_types_are_recognized_by_content(data, extension):
     assert journal.image_extension(data) == extension
 

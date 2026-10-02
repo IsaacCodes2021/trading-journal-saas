@@ -29,9 +29,7 @@ def test_unknown_account_type_is_rejected(conn):
     with pytest.raises(ValueError, match="account type"):
         accounts.create_account(conn, "Mystery", account_type="live")
     with pytest.raises(sqlite3.IntegrityError):  # the database enforces it too
-        conn.execute(
-            "INSERT INTO accounts (name, firm, account_type, created_at) VALUES ('x', 'Other', 'live', 'now')"
-        )
+        conn.execute("INSERT INTO accounts (name, firm, account_type, created_at) VALUES ('x', 'Other', 'live', 'now')")
 
 
 @pytest.mark.parametrize("firm", accounts.FIRMS)
@@ -67,6 +65,7 @@ def test_upgrading_an_existing_journal_marks_accounts_as_evaluations(tmp_path):
 def test_upgrade_to_free_firm_names_keeps_accounts_and_their_trades(tmp_path):
     """v3 rebuilds the accounts table; ids, data and every reference must survive."""
     from helpers import SAMPLE, fixture_bytes
+
     from tradejournal import importer
 
     path = tmp_path / "journal.db"

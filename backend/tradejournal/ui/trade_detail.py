@@ -12,9 +12,9 @@ you stop typing (and whenever you move away from the trade).
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from datetime import tzinfo
 from functools import partial
-from typing import Callable
 
 from nicegui import events, ui
 
@@ -46,9 +46,7 @@ NOTES_TOOLBAR = [
 
 
 class TradePanel:
-    def __init__(
-        self, trade_id: int, zone: tzinfo, order: list[int], on_changed: Callable[[int], None]
-    ) -> None:
+    def __init__(self, trade_id: int, zone: tzinfo, order: list[int], on_changed: Callable[[int], None]) -> None:
         """order: trade ids as the log currently lists them. on_changed(trade_id) runs
         whenever that trade's tags, notes or screenshots change."""
         self.trade_id = trade_id
@@ -173,7 +171,8 @@ class TradePanel:
                 ui.label("Add").classes("tj-label w-24")
                 if not offered:
                     ui.label(
-                        "No other tags in this category yet." if category != ALL_CATEGORIES
+                        "No other tags in this category yet."
+                        if category != ALL_CATEGORIES
                         else "Tags you create appear here for every trade."
                     ).classes("tj-label tj-muted")
                 for tag in offered:
@@ -185,9 +184,11 @@ class TradePanel:
                 )
                 self.new_tag_name.on("keydown.enter", self._create_tag)
                 default_group = category if category != ALL_CATEGORIES else (groups[0].id if groups else None)
-                self.new_tag_group = ui.select({g.id: g.name for g in groups}, value=default_group).props(
-                    'dense outlined options-dense aria-label="Category for the new tag"'
-                ).classes("w-36")
+                self.new_tag_group = (
+                    ui.select({g.id: g.name for g in groups}, value=default_group)
+                    .props('dense outlined options-dense aria-label="Category for the new tag"')
+                    .classes("w-36")
+                )
                 ui.button("Add tag", icon="add", on_click=self._create_tag).props("flat dense no-caps")
 
     def _manage_tags(self) -> None:
@@ -284,9 +285,11 @@ class TradePanel:
         self.shots_box.clear()
         with self.shots_box:
             for index, shot in enumerate(shots):
-                with ui.element("button").classes("tj-thumb").props(
-                    f'type=button aria-label="View screenshot {shot.original_name}"'
-                ) as thumb:
+                with (
+                    ui.element("button")
+                    .classes("tj-thumb")
+                    .props(f'type=button aria-label="View screenshot {shot.original_name}"') as thumb
+                ):
                     ui.image(f"/screenshots/{shot.stored_name}").props("fit=cover ratio=1.6 no-spinner")
                     ui.label(shot.original_name).classes("tj-thumb-name")
                 thumb.on("click", partial(self._view, index))
@@ -317,8 +320,10 @@ class TradePanel:
     # -- fill pairs --------------------------------------------------------------
 
     def _fills(self, pairs: list[FillPair]) -> None:
-        with ui.expansion(f"Fill pairs ({len(pairs)})", icon="receipt_long").classes("w-full tj-secondary").props(
-            "dense"
+        with (
+            ui.expansion(f"Fill pairs ({len(pairs)})", icon="receipt_long")
+            .classes("w-full tj-secondary")
+            .props("dense")
         ):
             ui.table(
                 columns=[

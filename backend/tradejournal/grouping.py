@@ -16,9 +16,9 @@ explicit guarantee. Positions are walked separately per direction, so a reversal
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Iterable, Sequence
 
 from .models import FillPair
 

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from datetime import date
 from decimal import Decimal
-from typing import Callable
 
 from nicegui import ui
 
@@ -115,12 +115,16 @@ def new_account_dialog(
         name = ui.input("Name", placeholder="e.g. Apex 50K #07").props("dense outlined autofocus").classes("w-full")
         with ui.row().classes("w-full gap-3 no-wrap"):
             # No default unless the caller knows: every account gets a deliberate choice.
-            type_field = ui.select(ACCOUNT_TYPES, value=account_type, label="Evaluation or funded?").props(
-                "dense outlined"
-            ).classes("flex-1")
-            firm = ui.select(list(FIRMS), value=based_on.firm if based_on else "Apex", label="Firm").props(
-                "dense outlined"
-            ).classes("flex-1")
+            type_field = (
+                ui.select(ACCOUNT_TYPES, value=account_type, label="Evaluation or funded?")
+                .props("dense outlined")
+                .classes("flex-1")
+            )
+            firm = (
+                ui.select(list(FIRMS), value=based_on.firm if based_on else "Apex", label="Firm")
+                .props("dense outlined")
+                .classes("flex-1")
+            )
         size = amount_input("Account size ($)", size_text, required=False).classes("w-full")
         balance = amount_input("Starting balance ($)", balance_text).classes("w-full")
         fee = amount_input("Fees per contract, round trip ($)", str(fee_default or "0")).classes("w-full")

@@ -1,8 +1,8 @@
 """Command-line access to the journal database.
 
-    python -m tradejournal accounts add "Apex 07" --firm Apex --size 50000 --balance 50000 --fee 4.12
-    python -m tradejournal import path/to/*.csv --account "Apex 07" --dry-run
-    python -m tradejournal trades --account "Apex 07" --date 2024-01-05 --fills
+python -m tradejournal accounts add "Apex 07" --firm Apex --size 50000 --balance 50000 --fee 4.12
+python -m tradejournal import path/to/*.csv --account "Apex 07" --dry-run
+python -m tradejournal trades --account "Apex 07" --date 2024-01-05 --fills
 """
 
 from __future__ import annotations
@@ -11,9 +11,9 @@ import argparse
 import glob
 import sqlite3
 import sys
+from collections.abc import Sequence
 from decimal import Decimal
 from pathlib import Path
-from typing import Sequence
 
 from . import accounts, config, db, importer, settings, store
 from .finance import DEFAULT_FEE_KEY, ZERO, parse_decimal
@@ -114,7 +114,9 @@ def _add_account(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
         )
         for root, rate in _parse_rates(args.fee):
             accounts.set_fee(conn, account.id, root, rate)
-    print(f"Created account {account.id}: {account.name} ({accounts.ACCOUNT_TYPES[account.account_type]}, {account.firm})")
+    print(
+        f"Created account {account.id}: {account.name} ({accounts.ACCOUNT_TYPES[account.account_type]}, {account.firm})"
+    )
 
 
 def _set_fees(conn: sqlite3.Connection, args: argparse.Namespace) -> None:
@@ -142,7 +144,9 @@ def _import(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
             dupes, sum(f.duplicates_other_accounts.values()), len(f.errors),
             f.trades_created, f.trades_extended,
         ])  # fmt: skip
-    _print_table(["file", "import", "rows", "added", "dupes", "in other acct", "errors", "new trades", "extended"], rows)
+    _print_table(
+        ["file", "import", "rows", "added", "dupes", "in other acct", "errors", "new trades", "extended"], rows
+    )
 
     for f in report.files:
         if f.fatal:
@@ -154,7 +158,9 @@ def _import(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
         for other, count in f.duplicates_other_accounts.items():
             print(f"{f.filename}: {count} rows already belong to account '{other}' and were skipped")
         if f.previous_imports:
-            print(f"{f.filename}: this exact file was already imported (import {', '.join(map(str, f.previous_imports))})")
+            print(
+                f"{f.filename}: this exact file was already imported (import {', '.join(map(str, f.previous_imports))})"
+            )
     return 1 if any(f.fatal for f in report.files) else 0
 
 

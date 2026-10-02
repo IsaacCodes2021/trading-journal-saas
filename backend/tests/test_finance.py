@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -11,8 +11,8 @@ D = Decimal
 
 def make_pair(direction, qty, entry, exit_, pnl, *, buy_id=1, sell_id=2) -> FillPair:
     long = direction == "long"
-    t0 = datetime(2024, 1, 5, 14, 30, tzinfo=timezone.utc)
-    t1 = datetime(2024, 1, 5, 14, 31, tzinfo=timezone.utc)
+    t0 = datetime(2024, 1, 5, 14, 30, tzinfo=UTC)
+    t1 = datetime(2024, 1, 5, 14, 31, tzinfo=UTC)
     return FillPair(
         symbol="NQH4",
         tick_size=D("0.25"),

@@ -5,9 +5,9 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from collections import Counter, defaultdict
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Sequence
+from datetime import UTC, datetime
 
 from . import store
 from .accounts import get_account
@@ -103,9 +103,8 @@ def _import_file(
         )
     ]
     import_id = conn.execute(
-        "INSERT INTO imports (account_id, filename, file_sha256, source_timezone, imported_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (account_id, filename, digest, tz_name, to_utc_iso(datetime.now(timezone.utc))),
+        "INSERT INTO imports (account_id, filename, file_sha256, source_timezone, imported_at) VALUES (?, ?, ?, ?, ?)",
+        (account_id, filename, digest, tz_name, to_utc_iso(datetime.now(UTC))),
     ).lastrowid
     report.import_id = import_id
 
@@ -174,9 +173,7 @@ def undo_import(conn: sqlite3.Connection, import_id: int, *, dry_run: bool = Fal
 
         linked = [
             row["fill_pair_id"]
-            for row in conn.execute(
-                "SELECT fill_pair_id FROM import_fill_pairs WHERE import_id = ?", (import_id,)
-            )
+            for row in conn.execute("SELECT fill_pair_id FROM import_fill_pairs WHERE import_id = ?", (import_id,))
         ]
         conn.execute("DELETE FROM import_fill_pairs WHERE import_id = ?", (import_id,))
 
@@ -197,10 +194,7 @@ def undo_import(conn: sqlite3.Connection, import_id: int, *, dry_run: bool = Fal
         remaining_by_symbol: dict[str, list[int]] = defaultdict(list)
         changed: set[int] = set()  # trades that lost some, but not all, of their fill pairs
         for trade_id, symbol in affected.items():
-            remaining = [
-                row["id"]
-                for row in conn.execute("SELECT id FROM fill_pairs WHERE trade_id = ?", (trade_id,))
-            ]
+            remaining = [row["id"] for row in conn.execute("SELECT id FROM fill_pairs WHERE trade_id = ?", (trade_id,))]
             if remaining:
                 remaining_by_symbol[symbol].extend(remaining)
                 changed.add(trade_id)
@@ -218,15 +212,14 @@ def undo_import(conn: sqlite3.Connection, import_id: int, *, dry_run: bool = Fal
 
         conn.execute(
             "UPDATE imports SET undone_at = ? WHERE id = ?",
-            (to_utc_iso(datetime.now(timezone.utc)), import_id),
+            (to_utc_iso(datetime.now(UTC)), import_id),
         )
     return report
 
 
 def list_imports(conn: sqlite3.Connection, account_id: int | None = None) -> list[sqlite3.Row]:
     query = (
-        "SELECT imports.*, accounts.name AS account_name FROM imports "
-        "JOIN accounts ON accounts.id = imports.account_id"
+        "SELECT imports.*, accounts.name AS account_name FROM imports JOIN accounts ON accounts.id = imports.account_id"
     )
     params: tuple = ()
     if account_id is not None:

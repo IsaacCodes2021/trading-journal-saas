@@ -4,6 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from helpers import SAMPLE, lines_of, parse_fixture
+
 from tradejournal.grouping import group_fill_pairs, max_position
 from tradejournal.timeutil import TradingSession
 from tradejournal.trades import build_trade
@@ -15,10 +16,7 @@ FEES = {"*": D("4.00")}
 def trades_for(name):
     result = parse_fixture(name)
     groups = group_fill_pairs(result.pairs)
-    built = [
-        build_trade([result.pairs[i] for i in g], fee_schedule=FEES, session=TradingSession())
-        for g in groups
-    ]
+    built = [build_trade([result.pairs[i] for i in g], fee_schedule=FEES, session=TradingSession()) for g in groups]
     return result, groups, built
 
 

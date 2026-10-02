@@ -1,8 +1,8 @@
 from decimal import Decimal
 
 import pytest
-
 from helpers import SAMPLE, fixture_bytes, fixture_lines, make_csv
+
 from tradejournal import accounts, db, importer, settings, store
 
 D = Decimal

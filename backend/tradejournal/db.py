@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import itertools
 import sqlite3
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterator
 
 SCHEMA_V1 = """
 CREATE TABLE settings (

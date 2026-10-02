@@ -7,8 +7,8 @@ Keys starting with ":" are JavaScript that NiceGUI turns into functions.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import tzinfo
-from typing import Sequence
 
 from ..finance import DailyResult, PerformanceScore, equity_curve
 from ..queries import TradeRecord
@@ -81,7 +81,7 @@ def equity_options(trades: Sequence[TradeRecord], zone: tzinfo, p: Palette) -> d
         )
     tooltip_js = (
         "(params) => { " + _MONEY_JS + " const d = params[0].data; "
-        "return `<div style=\"font-weight:600;margin-bottom:2px\">${d.when} · ${d.symbol}</div>`"
+        'return `<div style="font-weight:600;margin-bottom:2px">${d.when} · ${d.symbol}</div>`'
         " + `Trade #${params[0].dataIndex + 1}: ${m(d.net)}<br/>`"
         " + `Cumulative: <b>${m(d.equity)}</b><br/>Drawdown: ${m(d.dd)}`; }"
     )
@@ -92,7 +92,12 @@ def equity_options(trades: Sequence[TradeRecord], zone: tzinfo, p: Palette) -> d
             {"left": 72, "right": 16, "top": "68%", "bottom": 28},
         ],
         "axisPointer": {"link": [{"xAxisIndex": "all"}]},
-        "tooltip": _tooltip(p, trigger="axis", axisPointer={"type": "line", "lineStyle": {"color": p.axis}}, **{":formatter": tooltip_js}),
+        "tooltip": _tooltip(
+            p,
+            trigger="axis",
+            axisPointer={"type": "line", "lineStyle": {"color": p.axis}},
+            **{":formatter": tooltip_js},
+        ),
         "xAxis": [
             _category_axis(p, categories, 0, axisLabel={"show": False}, boundaryGap=False),
             _category_axis(
@@ -100,7 +105,12 @@ def equity_options(trades: Sequence[TradeRecord], zone: tzinfo, p: Palette) -> d
                 categories,
                 1,
                 boundaryGap=False,
-                axisLabel={"color": p.muted, "fontSize": 11, "hideOverlap": True, ":formatter": "(v) => v.slice(0, 10)"},
+                axisLabel={
+                    "color": p.muted,
+                    "fontSize": 11,
+                    "hideOverlap": True,
+                    ":formatter": "(v) => v.slice(0, 10)",
+                },
             ),
         ],
         "yAxis": [
@@ -158,13 +168,18 @@ def daily_pnl_options(days: Sequence[DailyResult], p: Palette) -> dict:
         )
     tooltip_js = (
         "(params) => { " + _MONEY_JS + " const d = params[0]; "
-        "return `<div style=\"font-weight:600;margin-bottom:2px\">${d.name}</div>`"
+        'return `<div style="font-weight:600;margin-bottom:2px">${d.name}</div>`'
         " + `${m(d.value)} · ${d.data.trades} trade${d.data.trades === 1 ? '' : 's'}`; }"
     )
     return {
         "animation": False,
         "grid": {"left": 72, "right": 16, "top": 12, "bottom": 28},
-        "tooltip": _tooltip(p, trigger="axis", axisPointer={"type": "shadow", "shadowStyle": {"color": p.grid, "opacity": 0.5}}, **{":formatter": tooltip_js}),
+        "tooltip": _tooltip(
+            p,
+            trigger="axis",
+            axisPointer={"type": "shadow", "shadowStyle": {"color": p.grid, "opacity": 0.5}},
+            **{":formatter": tooltip_js},
+        ),
         "xAxis": _category_axis(p, [d.day.isoformat() for d in days]),
         "yAxis": _value_axis(p, splitNumber=4),
         "series": [

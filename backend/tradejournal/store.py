@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import sqlite3
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Iterable
 
 from .accounts import fee_schedule
 from .finance import money_str, plain
@@ -86,9 +86,7 @@ def trade_fill_pairs(conn: sqlite3.Connection, trade_id: int) -> list[FillPair]:
     return sorted((pair_from_row(r) for r in rows), key=row_order)
 
 
-def write_trade(
-    conn: sqlite3.Connection, account_id: int, metrics: TradeMetrics, trade_id: int | None = None
-) -> int:
+def write_trade(conn: sqlite3.Connection, account_id: int, metrics: TradeMetrics, trade_id: int | None = None) -> int:
     """Insert a trade, or overwrite the derived columns of an existing one.
 
     Journal columns (notes) are never touched here.
@@ -140,8 +138,7 @@ def rebuild_trades(
         overlapping = {
             row["id"]
             for row in conn.execute(
-                "SELECT id FROM trades WHERE account_id = ? AND symbol = ? "
-                "AND entry_at <= ? AND exit_at >= ?",
+                "SELECT id FROM trades WHERE account_id = ? AND symbol = ? AND entry_at <= ? AND exit_at >= ?",
                 (account_id, symbol, end, start),
             )
         }

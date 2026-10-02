@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from decimal import Decimal
-from typing import Mapping, Sequence
 
 from . import finance
 from .grouping import max_position

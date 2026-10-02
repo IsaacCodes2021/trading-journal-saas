@@ -4,8 +4,8 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-
 from helpers import SAMPLE, fixture_bytes
+
 from tradejournal import accounts, db, importer
 from tradejournal.accounts import archive_account, archive_summary, restore_account
 from tradejournal.queries import TradeFilter, load_trades
@@ -34,7 +34,11 @@ def test_archive_and_restore(conn, two_accounts):
             conn, evaluation.id, outcome="passed", ended_on=date(2024, 1, 5), note="  Hit target on day 1  "
         )
     assert archived.archived
-    assert (archived.outcome, archived.ended_on, archived.archive_note) == ("passed", date(2024, 1, 5), "Hit target on day 1")
+    assert (archived.outcome, archived.ended_on, archived.archive_note) == (
+        "passed",
+        date(2024, 1, 5),
+        "Hit target on day 1",
+    )
     # Trades are untouched.
     assert len(load_trades(conn, TradeFilter(account_ids=(evaluation.id,)))) == 8
 

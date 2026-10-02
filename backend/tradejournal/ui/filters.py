@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 from nicegui import ui
 
@@ -120,25 +120,31 @@ def filter_bar(on_change: Callable[[], None]) -> None:
         ui.select(firm_options, multiple=True, value=filters.firms, label="Firms", on_change=set_firms).props(
             "dense outlined use-chips clearable"
         ).classes("min-w-[130px]")
-        account_field = ui.select(
-            account_options(),
-            multiple=True,
-            value=filters.account_ids,
-            label=_ACCOUNT_LABELS[filters.account_type],
-            on_change=set_accounts,
-        ).props("dense outlined use-chips clearable").classes("min-w-[200px]")
+        account_field = (
+            ui.select(
+                account_options(),
+                multiple=True,
+                value=filters.account_ids,
+                label=_ACCOUNT_LABELS[filters.account_type],
+                on_change=set_accounts,
+            )
+            .props("dense outlined use-chips clearable")
+            .classes("min-w-[200px]")
+        )
         ui.switch("Show archived", value=filters.show_archived, on_change=set_show_archived).props("dense").classes(
             "tj-secondary"
         ).tooltip("Include accounts you've archived after they passed, failed or closed")
-        preset_field = ui.select(PRESETS, value=filters.preset, label="Date range", on_change=set_preset).props(
-            "dense outlined"
-        ).classes("w-40")
+        preset_field = (
+            ui.select(PRESETS, value=filters.preset, label="Date range", on_change=set_preset)
+            .props("dense outlined")
+            .classes("w-40")
+        )
         start_field = date_input("From", filters.start, on_change=set_dates).classes("w-36")
         end_field = date_input("To", filters.end, on_change=set_dates).classes("w-36")
-        ui.select(
-            root_options, multiple=True, value=filters.symbol_roots, label="Symbols", on_change=set_roots
-        ).props("dense outlined use-chips clearable").classes("min-w-[140px]")
-        ui.toggle({"all": "All", "long": "Long", "short": "Short"}, value=filters.direction, on_change=set_direction).props(
-            "dense no-caps"
-        )
+        ui.select(root_options, multiple=True, value=filters.symbol_roots, label="Symbols", on_change=set_roots).props(
+            "dense outlined use-chips clearable"
+        ).classes("min-w-[140px]")
+        ui.toggle(
+            {"all": "All", "long": "Long", "short": "Short"}, value=filters.direction, on_change=set_direction
+        ).props("dense no-caps")
         ui.button("Reset", on_click=reset).props("flat dense no-caps").classes("tj-secondary")

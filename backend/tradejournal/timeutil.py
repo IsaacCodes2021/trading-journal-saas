@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, time, timedelta, timezone
-from functools import lru_cache
-from typing import Sequence
+from datetime import UTC, date, datetime, time, timedelta
+from functools import cache
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .models import FillPair
@@ -14,7 +14,7 @@ _CSV_FORMATS = ("%m/%d/%Y %H:%M:%S", "%m/%d/%Y %H:%M", "%Y-%m-%d %H:%M:%S")
 _ISO_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 
-@lru_cache(maxsize=None)
+@cache
 def zone(name: str) -> ZoneInfo:
     try:
         return ZoneInfo(name)
@@ -34,17 +34,17 @@ def parse_local_timestamp(text: str, tz_name: str) -> datetime:
             naive = datetime.strptime(cleaned, fmt)
         except ValueError:
             continue
-        return naive.replace(tzinfo=zone(tz_name)).astimezone(timezone.utc)
+        return naive.replace(tzinfo=zone(tz_name)).astimezone(UTC)
     raise ValueError(f"not a timestamp: {text!r} (expected MM/DD/YYYY HH:MM:SS)")
 
 
 def to_utc_iso(moment: datetime) -> str:
     """Storage format. Fixed width, so stored timestamps sort and compare as text."""
-    return moment.astimezone(timezone.utc).strftime(_ISO_FORMAT)
+    return moment.astimezone(UTC).strftime(_ISO_FORMAT)
 
 
 def from_utc_iso(text: str) -> datetime:
-    return datetime.strptime(text, _ISO_FORMAT).replace(tzinfo=timezone.utc)
+    return datetime.strptime(text, _ISO_FORMAT).replace(tzinfo=UTC)
 
 
 @dataclass(frozen=True)

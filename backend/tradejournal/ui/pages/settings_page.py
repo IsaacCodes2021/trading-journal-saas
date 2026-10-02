@@ -36,7 +36,9 @@ from ..widgets import amount_input, date_input, new_account_dialog, parse_amount
 # Icon per archive outcome, so passed and failed differ by shape as well as color.
 _OUTCOME_ICONS = {"passed": "check_circle", "failed": "cancel", "closed": "inventory_2"}
 
-_TIMEZONES = sorted(tz for tz in available_timezones() if "/" in tz and not tz.startswith(("Etc/", "SystemV/"))) + ["UTC"]
+_TIMEZONES = sorted(tz for tz in available_timezones() if "/" in tz and not tz.startswith(("Etc/", "SystemV/"))) + [
+    "UTC"
+]
 
 
 @ui.page("/settings")
@@ -121,7 +123,11 @@ def _general_card() -> None:
 def accounts_list() -> None:
     with open_db() as conn:
         accounts = [
-            (a, fee_schedule(conn, a.id), conn.execute("SELECT COUNT(*) FROM trades WHERE account_id = ?", (a.id,)).fetchone()[0])
+            (
+                a,
+                fee_schedule(conn, a.id),
+                conn.execute("SELECT COUNT(*) FROM trades WHERE account_id = ?", (a.id,)).fetchone()[0],
+            )
             for a in list_accounts(conn)
         ]
     if not accounts:
@@ -136,9 +142,13 @@ def accounts_list() -> None:
             _account_editor(account, fees, trade_count)
     if archived:
         archived.sort(key=lambda entry: entry[0].ended_on or date.min, reverse=True)  # most recent first
-        with ui.expansion(
-            f"Archived ({len(archived)})", caption=archive_summary([a for a, _, _ in archived]), icon="inventory_2"
-        ).classes("w-full mt-3").props("dense"):
+        with (
+            ui.expansion(
+                f"Archived ({len(archived)})", caption=archive_summary([a for a, _, _ in archived]), icon="inventory_2"
+            )
+            .classes("w-full mt-3")
+            .props("dense")
+        ):
             for account, fees, trade_count in archived:
                 _account_editor(account, fees, trade_count)
 
@@ -176,9 +186,7 @@ def _account_editor(account: Account, fees: dict, trade_count: int) -> None:
                     + (f" Note: {note}" if note else "")
                     + " Its trades are hidden unless Show archived is on."
                 ).classes("tj-label")
-                ui.button("Restore", icon="unarchive", on_click=partial(_restore, account)).props(
-                    "flat dense no-caps"
-                )
+                ui.button("Restore", icon="unarchive", on_click=partial(_restore, account)).props("flat dense no-caps")
         with ui.element("div").classes("grid gap-3 w-full grid-cols-1 md:grid-cols-5 pt-2"):
             name = ui.input("Name", value=account.name).props("dense outlined")
             account_type = ui.select(ACCOUNT_TYPES, value=account.account_type, label="Account type").props(
@@ -301,7 +309,9 @@ def _ledger_section(account: Account, trade_count: int, expansion: ui.expansion)
                 with ui.row().classes("w-full gap-6 pt-2"):
                     ui.label(f"Cost {fmt.money(totals.costs)}").classes("tj-label")
                     ui.label(f"Paid out {fmt.money(totals.payouts)}").classes("tj-label")
-                    ui.label(f"Net {fmt.money(totals.net)}").classes(f"tj-label font-semibold {fmt.pnl_class(totals.net)}")
+                    ui.label(f"Net {fmt.money(totals.net)}").classes(
+                        f"tj-label font-semibold {fmt.pnl_class(totals.net)}"
+                    )
         expansion.props["caption"] = _caption(account, trade_count, items)
         return items
 
@@ -333,9 +343,11 @@ def _ledger_section(account: Account, trade_count: int, expansion: ui.expansion)
 
     items = render()
     with ui.row().classes("w-full items-center gap-2 pt-2"):
-        kind = ui.select(ledger.KINDS, value=_next_kind(account, items), label="Type").props(
-            "dense outlined options-dense"
-        ).classes("w-40")
+        kind = (
+            ui.select(ledger.KINDS, value=_next_kind(account, items), label="Type")
+            .props("dense outlined options-dense")
+            .classes("w-40")
+        )
         amount = amount_input("Amount ($)", None, required=False).classes("w-32")
         entry_date = date_input("Date", date.today()).classes("w-40")
         note = ui.input("Note (optional)").props("dense outlined hide-bottom-space").classes("grow min-w-[160px]")
@@ -369,7 +381,9 @@ def business_summary() -> None:
                 ui.label(label).classes("tj-label")
                 ui.label(value).classes(f"tj-value {value_class}")
         if missing:
-            names = ", ".join(a.name for a in missing[:3]) + (f" and {len(missing) - 3} more" if len(missing) > 3 else "")
+            names = ", ".join(a.name for a in missing[:3]) + (
+                f" and {len(missing) - 3} more" if len(missing) > 3 else ""
+            )
             ui.label(
                 f"{len(missing)} account{'s have' if len(missing) != 1 else ' has'} no cost recorded ({names}). "
                 "Open an account below to add one."
@@ -392,9 +406,11 @@ def _archive_dialog(account: Account, fees: dict) -> None:
         outcome = ui.toggle(choices, value=None).props("no-caps")
         ended = date_input("Ended on", last_day or date.today()).classes("w-full")
         ui.label("Defaults to the account's last trading day.").classes("tj-label -mt-2")
-        note = ui.textarea("Note (optional)", placeholder="e.g. Hit the trailing drawdown on CPI day").props(
-            "dense outlined autogrow"
-        ).classes("w-full")
+        note = (
+            ui.textarea("Note (optional)", placeholder="e.g. Hit the trailing drawdown on CPI day")
+            .props("dense outlined autogrow")
+            .classes("w-full")
+        )
         next_funded = ui.checkbox("Set up the funded account next", value=True).bind_visibility_from(
             outcome, "value", backward=lambda value: value == "passed"
         )
@@ -470,9 +486,11 @@ def tags_editor() -> None:
                     f'flat round dense aria-label="Add the tag to {group.name}"'
                 )
     with ui.row().classes("items-center gap-2 mt-2"):
-        new_group = ui.input(placeholder="New category, e.g. Market condition").props(
-            "dense outlined hide-bottom-space"
-        ).classes("w-72")
+        new_group = (
+            ui.input(placeholder="New category, e.g. Market condition")
+            .props("dense outlined hide-bottom-space")
+            .classes("w-72")
+        )
         new_group.on("keydown.enter", partial(_add_group, new_group))
         ui.button("Add category", icon="add", on_click=partial(_add_group, new_group)).props("flat no-caps")
 
@@ -512,11 +530,13 @@ def _tag_dialog(tag: journal.Tag, groups: list[journal.TagGroup]) -> None:
                 preview_name = ui.label(tag.name)
             ui.label(f"On {trades}" if tag.trade_count else "Not on any trades yet").classes("tj-label")
         with ui.row().classes("w-full gap-3 no-wrap"):
-            name = ui.input(
-                "Name", value=tag.name, on_change=lambda e: preview_name.set_text(e.value or "")
-            ).props("dense outlined").classes("flex-1")
-            category = ui.select(group_names, value=tag.group_id, label="Category").props("dense outlined").classes(
-                "flex-1"
+            name = (
+                ui.input("Name", value=tag.name, on_change=lambda e: preview_name.set_text(e.value or ""))
+                .props("dense outlined")
+                .classes("flex-1")
+            )
+            category = (
+                ui.select(group_names, value=tag.group_id, label="Category").props("dense outlined").classes("flex-1")
             )
         ui.label("Color").classes("tj-label")
         with ui.row().classes("items-center gap-3 no-wrap"):
@@ -526,8 +546,10 @@ def _tag_dialog(tag: journal.Tag, groups: list[journal.TagGroup]) -> None:
             ui.label("Your colors").classes("tj-label tj-muted w-20")
             yours_box = ui.row().classes("items-center gap-2")
             # Outside the redrawn boxes, so the picker stays open while you try colors.
-            with ui.element("button").classes("tj-swatch tj-swatch-custom").props(
-                'type=button aria-label="Pick any color" title="Pick any color"'
+            with (
+                ui.element("button")
+                .classes("tj-swatch tj-swatch-custom")
+                .props('type=button aria-label="Pick any color" title="Pick any color"')
             ):
                 ui.icon("add")
                 picker = ui.color_picker(on_pick=lambda e: pick(e.color))
@@ -591,7 +613,11 @@ def _tag_dialog(tag: journal.Tag, groups: list[journal.TagGroup]) -> None:
                     footer,
                     note=(
                         f"{group_names[category.value]} already has a tag called '{clash.name}'. Merge into it? "
-                        + (f"The {trades} tagged '{tag.name}' will carry '{clash.name}' instead, and " if tag.trade_count else "")
+                        + (
+                            f"The {trades} tagged '{tag.name}' will carry '{clash.name}' instead, and "
+                            if tag.trade_count
+                            else ""
+                        )
                         + f"'{tag.name}' will be deleted. '{clash.name}' keeps its own color."
                     ),
                     actions=[("Back", show_main, "flat"), ("Merge", lambda: save(merge=True), "primary")],
@@ -630,9 +656,9 @@ def _category_dialog(group: journal.TagGroup, group_tags: list[journal.Tag]) -> 
     dialog, body = _editor_dialog("Edit category")
     with body:
         name = ui.input("Name", value=group.name).props("dense outlined autofocus").classes("w-full")
-        ui.label(
-            f"{count}, on trades {tagged:,} time{'s' if tagged != 1 else ''}" if tagged else count
-        ).classes("tj-label")
+        ui.label(f"{count}, on trades {tagged:,} time{'s' if tagged != 1 else ''}" if tagged else count).classes(
+            "tj-label"
+        )
         footer = ui.column().classes("w-full gap-2 mt-1")
 
     def show_main() -> None:
@@ -649,7 +675,11 @@ def _category_dialog(group: journal.TagGroup, group_tags: list[journal.Tag]) -> 
         _footer(
             footer,
             note=f"Delete {group.name} and its {count}?"
-            + (f" They're on trades {tagged:,} time{'s' if tagged != 1 else ''}; those trades lose them." if tagged else ""),
+            + (
+                f" They're on trades {tagged:,} time{'s' if tagged != 1 else ''}; those trades lose them."
+                if tagged
+                else ""
+            ),
             actions=[("Back", show_main, "flat"), ("Delete category", delete, "negative")],
         )
 
@@ -678,9 +708,11 @@ def _category_dialog(group: journal.TagGroup, group_tags: list[journal.Tag]) -> 
 def _editor_dialog(title: str) -> tuple[ui.dialog, ui.card]:
     """A dialog for the tags editor. It lives at the page root so redraws can't remove it,
     and redraws the tags from the database once it closes, whatever happened inside."""
-    with ui.context.client.layout, ui.dialog() as dialog, ui.card().classes(
-        "tj-card w-[500px] max-w-[95vw] gap-3"
-    ) as body:
+    with (
+        ui.context.client.layout,
+        ui.dialog() as dialog,
+        ui.card().classes("tj-card w-[500px] max-w-[95vw] gap-3") as body,
+    ):
         ui.label(title).classes("tj-title")
     dialog.on_value_change(lambda e: None if e.value else (dialog.delete(), tags_editor.refresh()))
     return dialog, body
