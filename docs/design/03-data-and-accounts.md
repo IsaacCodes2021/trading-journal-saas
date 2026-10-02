@@ -75,7 +75,7 @@ with tenant_session(user_id) as conn:        # pool.connection(); BEGIN
 | `accounts.name UNIQUE NOCASE` | `UNIQUE (user_id, lower(name))` |
 | `tag_groups.name UNIQUE NOCASE` | `UNIQUE (user_id, lower(name))` |
 | `tags UNIQUE (group_id, name)` | `UNIQUE (user_id, group_id, lower(name))` |
-| `fill_pairs UNIQUE (buy_fill_id, sell_fill_id)` | `UNIQUE (user_id, buy_fill_id, sell_fill_id)`; the existing "belongs to another account" skip logic keeps working within one user |
+| `fill_pairs UNIQUE (buy_fill_id, sell_fill_id)` | `UNIQUE (user_id, source, buy_ref, sell_ref)` (identity generalized per ADR-009; `source` is `tradovate_performance` for today's data); the existing "belongs to another account" skip logic keeps working within one user |
 | `day_notes PRIMARY KEY (trade_date)` | `PRIMARY KEY (user_id, trade_date)` |
 | `settings (key)` | replaced by `user_settings` |
 | `screenshots.stored_name UNIQUE` | `object_key text UNIQUE` plus `content_type`, `size_bytes`, `sha256`, `width`, `height`, `thumb_key` |

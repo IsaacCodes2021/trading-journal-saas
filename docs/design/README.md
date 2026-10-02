@@ -21,7 +21,7 @@
 3. **Recommended shape:** keep NiceGUI, move SQLite to managed Postgres with **row-level security (RLS)**, move screenshots to private S3-compatible storage (Cloudflare R2), use a **hosted identity provider** (sign-in via OIDC) with our own session cookie, deploy one container to a PaaS (Render recommended) from GitHub.
 4. **Tenant isolation is enforced by the database, not by remembering a `WHERE user_id = ?` in ~100 SQL statements.** That is the single most important design choice.
 5. **Never take broker credentials.** CSV upload only. This removes the largest class of liability. It also matches reality: Tradovate API access requires a live funded account and is not available for prop-firm evaluation accounts ([source](https://vendor-support.ninjatrader.com/s/article/Tradovate-API-Access)).
-6. **Order of work:** GitHub + CI foundations, then spikes, then multi-tenant core, then auth, then hardening and deploy. Run an **invite-only free beta** while finishing product features and billing. Rough size: 8 to 11 focused weeks to private beta, 14 to 20 to public launch.
+6. **Order of work:** GitHub + CI foundations, then spikes, then multi-tenant core, then auth, then hardening and deploy. Run an **invite-only free beta** while finishing product features and billing. Rough size: about 200 to 300 hours to private beta and 330 to 525 hours to public launch.
 
 ## What I found in the current code
 
@@ -77,7 +77,7 @@ Each has a default; I will proceed on the defaults until you say otherwise.
 2. **Legal entity.** Personal or an LLC? It affects the payment-provider account, Terms of Service and tax. *Default: personal for beta; talk to an accountant/lawyer before taking money.*
 3. **Name and domain.** "Trading Journal" is generic. The domain drives cookies, email sending and branding. *Default: pick one before M3.*
 4. **Where are your users?** US-only, or EU too (GDPR, EU data region)? *Default: US region, GDPR-ready deletion and export.*
-5. **Hours per week.** Turns the effort estimates into a calendar. *Default: part-time, about 15 h/week, so roughly 5 to 7 months to public launch.*
+5. **Hours per week.** Turns the effort estimates into a calendar. *Default: part-time, about 15 h/week, so roughly 3 to 4.5 months to private beta and 5 to 8 months to public launch.*
 6. **Budget ceiling** per month for infrastructure. *Default: $60.*
 
 ## Sources and verification status

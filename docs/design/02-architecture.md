@@ -148,7 +148,7 @@ Prices are from third-party summaries ([Render](https://render.com/articles/rail
 - Render services track branches (`main` for staging, `production` for prod) with **auto-deploy after CI checks pass** (confirm the setting exists on your plan).
 - Migrations run as a **release step** (pre-deploy command) using the `owner` role with a Postgres advisory lock, never on connection open as `db.py:247` does today.
 - Secrets live in the host's environment settings and GitHub Actions secrets. Never in the repo. Ship `.env.example` with names only.
-- Local dev: `docker compose up` for Postgres; the app runs from your venv.
+- Local dev: a native Postgres install (Docker is deferred, see the tools table below); the app runs from your venv. The Python version is pinned to 3.12 (`backend/.python-version`).
 
 ### CI (`.github/workflows/ci.yml`), on every PR and push to `main`
 
@@ -169,7 +169,7 @@ Free-plan budget is 2,000 Actions minutes per month; this pipeline uses a few mi
 |---|---|---|
 | Git for Windows | Version control | Not currently on PATH |
 | GitHub CLI (`gh`) | Create the repo, PRs, secrets from the terminal | `gh auth login` with a browser; do not paste tokens into chats or files |
-| Docker Desktop (WSL2) | Local Postgres, build the production image | Windows 10 Home 22H2 supports WSL2; alternative is a native Postgres install |
+| Docker Desktop (WSL2): **deferred** | Local Postgres, build the production image | Not practical on this machine today: hardware virtualization is off in firmware, WSL is still v1, about 11 GB free on C:. CI builds the image; use a native Postgres install for local development |
 | `uv` | Lock file and fast installs | |
 
 Account hygiene while you are at it: GitHub, the host, Cloudflare and the domain registrar all get **2FA (a hardware key or authenticator, not SMS)** and a password manager. Windows 10 reached end of support in October 2025; this machine will hold production deploy access, so plan to move to Windows 11 or enroll in extended security updates.

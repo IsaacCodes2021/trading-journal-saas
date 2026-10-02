@@ -85,7 +85,7 @@ Effort is **hours of focused, AI-assisted work including tests and review**. The
 
 | M | Milestone | Hours | Exit criteria |
 |---|---|---|---|
-| **M0** | **Foundations (GitHub first)**: Git, private repo, CI, lock file, Dockerfile, issues | 8 to 15 | Green CI on `main` running today's tests; app runs in a container locally; backlog in GitHub Issues |
+| **M0** | **Foundations (GitHub first)**: Git, private repo, CI, lock file, Dockerfile, issues | 8 to 15 | Green CI on `main` running today's tests; container image builds in CI (local Docker is not practical on the dev machine, see doc 02 section 7); backlog in GitHub Issues |
 | **M1** | **Spikes** S1, S1b, S2, S3, S4, S5; waitlist landing page live | 20 to 30 | Decisions confirmed or amended in doc 06; payment application submitted; waitlist collecting emails (validates demand early) |
 | **M2** | **Multi-tenant core**: Postgres port, tenancy, per-tab state, `user_settings`, `source/ref` fill-pair columns, local-data migration script | 60 to 90 | All 16 existing test files green on Postgres; schema lint + two-tenant suite green; your data migrated and golden-checked; 10,000-trade benchmark recorded |
 | **M3** | **Auth and accounts**: IdP, sessions, profile, MFA, export, deletion, audit log, invites | 45 to 70 | Doc 04 authentication and access-control gates ticked; end-to-end signup to dashboard on staging |
@@ -141,7 +141,7 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 
 Current state: no Git, no `gh`, no repo, no history. Nothing here has been done yet; each step is for us to do together, and I will ask before installing or pushing anything.
 
-1. **Install tools:** Git for Windows and the GitHub CLI (for example with `winget`), then Docker Desktop and `uv` in M0 part 2.
+1. **Install tools:** Git for Windows and the GitHub CLI (with `winget`), plus `uv` and `ruff` in a Python 3.12 virtual environment. Docker is deferred (see step 10).
 2. **Identity:** set `git config --global user.name` and `user.email`. Use GitHub's private no-reply address (`<id>+<username>@users.noreply.github.com`) so your real email is not embedded in commit history.
 3. **Authenticate:** `gh auth login` (browser flow). Turn on 2FA for the GitHub account first. Do not paste tokens anywhere.
 4. **Clean the tree:** delete `backend/=ro`; extend `.gitignore` (doc 02 section 7); add `.gitattributes` (`* text=auto`, `*.bat text eol=crlf`, `*.sh text eol=lf`) because the project mixes Windows and shell scripts.
@@ -150,6 +150,6 @@ Current state: no Git, no `gh`, no repo, no history. Nothing here has been done 
 7. **CI v0:** a workflow that runs `ruff` and the existing SQLite tests so `main` is green before the port starts. Add `dependabot.yml` and a PR template. Enable Dependabot alerts and security updates in repo settings (free).
 8. **Protect `main`:** needs GitHub Pro on a private repo (doc 02 section 7). Until then, always work on branches and merge through PRs.
 9. **Backlog:** turn the milestones above into GitHub Issues on a Project board; replace the README status table with a link to it.
-10. **Dev environment:** Docker Desktop for local Postgres, `uv` lock file, Dockerfile, `.env.example`.
+10. **Dev environment:** `uv` lock file and Dockerfile are done in M0 (CI builds the image). For local Postgres in M2 use a native Windows install: Docker Desktop is not practical on this machine today (hardware virtualization is off in firmware, WSL is still v1, about 11 GB free on C:). `.env.example` arrives with the M2 config rewrite.
 
 Then M1 (spikes). If you meant "Sign in with GitHub" for end users rather than the repo, say so: it would be added as a social login option at the IdP and does not change this plan.
