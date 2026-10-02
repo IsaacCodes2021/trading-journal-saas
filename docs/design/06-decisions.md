@@ -184,6 +184,16 @@ Status of every decision below is **Proposed** until you confirm it, and the spi
 
 **Revisit when:** bundle size or build time becomes a problem; SEO or server rendering of app pages becomes a requirement (then re-evaluate Next.js in server mode); or the TypeScript toolchain proves too costly for one developer after M4 (the API stays regardless).
 
+**Spike S1 conclusions (2026-10-02).** The decision holds. A throwaway app (`spikes/s1-spa-cookie-auth/README.md` on the branch `spike/s1-spa-cookie-auth`, with the evidence) ran the whole path in a real browser: sign-in redirect, cookie session, typed API client, ECharts and Tiptap, under the strict CSP. 26 API tests, 16 unit tests and 8 Playwright tests (driving the installed Edge) pass. What changes in the plan:
+
+- **Pin TypeScript to 6.0.x, not 7.** `typescript@7.0.2` ships only a native launcher with no JavaScript compiler API, so `openapi-typescript` crashes and `typescript-eslint` (support declared below 6.1) cannot run. Revisit when both support 7.
+- **Money works end to end** with a `Money` schema type; a plain `Decimal` was confirmed to generate `number | string` for requests. Two generator settings must be paired: `openapi-typescript --default-non-nullable false` with Pydantic `json_schema_serialization_defaults_required=True`.
+- **A strict CSP survives** (no `unsafe-inline`, no `unsafe-eval`) with two fixes: a plain-text ECharts tooltip formatter (its default uses inline `style` attributes, and the formatter output is inserted as HTML, so user-derived text must be escaped) and Tiptap with `injectCSS: false`.
+- **Bundle:** unsplit it was 422 KB gzipped. With the chart and editor lazily loaded the entry chunk is 133 KB, the chart chunk 165 KB and the editor chunk 124 KB, so the dashboard (entry plus chart) is about 298 KB. Code-splitting is mandatory; the budget in doc 01 is restated accordingly.
+- **Confirmed picks:** Vite 8, React 19, TanStack Router (typed search params caught a real bug; React Router is not needed), TanStack Query, `openapi-typescript` with `openapi-fetch`, Tailwind 4, ECharts 6, Tiptap 3, Vitest 5, ESLint 10 (the peer warnings for `eslint-plugin-react` and `jsx-a11y` are cosmetic: planted violations all fire), pnpm 12 (`minimumReleaseAge` and `strictDepBuilds` behave as intended), and Playwright driving the installed Edge, so no browser download is needed.
+- **Not exercised:** TanStack Table (v8 versus v9 moves to M4), React Hook Form, Zod, MSW.
+- **Still open:** Cloudflare in front, Firefox and Safari, a real identity provider (S1b), and the R2 `img-src` question (S3).
+
 ---
 
 ## ADR-011: Same-origin session cookie with layered CSRF protection
@@ -205,6 +215,8 @@ CSRF protection has four layers, all enforced on unsafe methods: (1) `SameSite=L
 **Consequences.** No credentials in JavaScript-accessible storage; the SPA never sees the session secret. Moving the SPA to Pages later means switching to option B, and the API contract does not change.
 
 **Revisit when:** front-end deploy frequency makes the coupling painful, or a separate team owns the front end (then B with a reviewed proxy).
+
+**Spike S1 conclusions (2026-10-02).** Option A works as designed. In Edge on `http://localhost` the `__Host-` cookie was accepted; the redirect dance preserved `next` including search parameters; every login rotated the token; the cookie was invisible to `document.cookie` and nothing sensitive was in `localStorage`; sign-out revoked the session server-side. The CSRF matrix held in tests and in the browser (no token, wrong token, another session's token, foreign `Origin`, cross-site fetch metadata, form-encoded body, multipart upload, oversize upload). An open redirect through `next` (`//evil`, `https://evil`, `/\evil`, `javascript:`) always became `/`, a replayed code and a wrong `state` were refused, and an unverified email could not sign in. Another user's trade id answered 404. Deep links and cache headers behaved (`index.html` `no-cache`, hashed assets `immutable`, API `no-store`, no fallback for API paths). **Not verified:** Cloudflare in front, Firefox and Safari, and a real provider's tokens and MFA claim. **CSP report delivery did not work from the embedded browser** (not even for a deliberate violation); the console and Playwright were the reliable signal, so reporting must be tested in real browsers before it is relied on.
 
 ---
 
