@@ -1,9 +1,42 @@
 [project]
 name = "tradejournal"
 version = "0.1.0"
-description = "Local futures trading journal and analytics"
-requires-python = ">=3.11"
+description = "Futures trading journal and analytics"
+# Tested on 3.12 only (CI, the container image and local development all use it).
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pandas>=2.2",
+    "tzdata>=2024.1",
+    "nicegui>=3.17,<4",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.16",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+# E/F/W: errors and style; I: import order; B: likely bugs; UP: modern syntax; S: security checks
+# (the free substitute for code scanning on a private repository).
+select = ["E", "F", "W", "I", "B", "UP", "S"]
+ignore = [
+    "E501",  # the formatter wraps what it can; the rest are long strings and comments
+    "B905",  # zip(strict=...) would change behavior where lengths may legitimately differ
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",  # assert is how pytest tests work
+    "S311",  # seeded random is fine for test data
+    "S608",  # test helpers build SQL from fixed table names
+]

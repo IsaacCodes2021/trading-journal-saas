@@ -16,8 +16,9 @@ No cloud services, accounts, or telemetry.
 
 ## Requirements
 
-- Python 3.11 or newer (tested on 3.12). On Windows, tick "Add python.exe to PATH"
-  when installing from python.org.
+- Python 3.12 (the version the project is tested and locked on). On Windows, tick
+  "Add python.exe to PATH" when installing from python.org. If you have several
+  Pythons installed, `run.bat` / `run.sh` pick 3.12.
 
 That's it. The interface is written in Python with [NiceGUI](https://nicegui.io),
 so there's no Node.js or separate frontend build.
@@ -158,34 +159,45 @@ dashboard's "How it's scored" panel shows your value and score for each measure.
 
 ## Manual setup (optional)
 
-`run.bat` / `run.sh` do this for you. To set up by hand, for example to run the tests:
-
-**Windows (PowerShell)**
-
-```powershell
-cd trading-journal\backend
-python -m venv .venv
-.venv\Scripts\python -m pip install -r requirements.txt
-```
-
-**macOS / Linux**
-
-```bash
-cd trading-journal/backend
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-```
-
-The commands below use the Windows path `.venv\Scripts\python`. On macOS use
-`.venv/bin/python`. Calling the venv's Python directly means you never need to
-activate the venv, which avoids PowerShell execution-policy prompts.
-
-## Run the tests
+`run.bat` / `run.sh` set up what the app needs to run. For development (tests, linting)
+use [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs exactly
+the versions recorded in `backend/uv.lock`:
 
 ```powershell
-cd trading-journal\backend
-.venv\Scripts\python -m pytest
+cd backend
+uv sync        # creates .venv with the pinned runtime and dev tools, on Python 3.12
 ```
+
+The commands below use `uv run`, so you never need to activate the venv (which also
+avoids PowerShell execution-policy prompts). The CLI examples further down use
+`.venv\Scripts\python`; on macOS / Linux that is `.venv/bin/python`.
+
+## Run the tests and checks
+
+```powershell
+cd backend
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+```
+
+CI runs the same three on every pull request.
+
+## Dependencies
+
+Versions are declared in `backend/pyproject.toml` and locked, with hashes, in
+`backend/uv.lock`. `backend/requirements.txt` is **generated** from the lock (runtime
+packages only) for `run.bat`, `run.sh` and the container image; don't edit it by hand.
+After changing dependencies, regenerate both:
+
+```powershell
+cd backend
+uv lock
+uv export --frozen --no-dev --no-emit-project --no-header --format requirements-txt -o requirements.txt
+```
+
+CI fails if `requirements.txt` and `uv.lock` disagree, and `pip-audit` checks the pinned
+versions for known vulnerabilities.
 
 The fixtures in `backend/tests/fixtures/` are copies of real exports. The main one,
 `01-05-2024-performance.csv`, has 14 rows that must collapse into 8 trades.
