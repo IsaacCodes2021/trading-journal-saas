@@ -65,6 +65,8 @@ Status of every decision below is **Proposed** until you confirm it, and the spi
 
 **Amendment (2026-10-02, ADR-010 and ADR-011).** The own-session decision stands. The NiceGUI reason (`app.storage.user` is file-backed) no longer applies because there is no NiceGUI; the session cookie is now consumed by a stateless FastAPI API on the same origin as the SPA, with CSRF protection (ADR-011). Spike S1b gains two criteria because admin access requires recent MFA (ADR-012): the ID token carries an MFA indicator (`amr` or `acr`), and the provider supports step-up re-authentication. Whether each shortlisted provider offers these is **unverified**.
 
+**Spike prep findings for S1b (2026-10-02, doc 08).** The free-tier premise needs correcting: Auth0's free plan (25,000 MAU) has no MFA and Clerk's MFA is paid, so both drop out on a free plan. **Kinde** becomes the front-runner: its free plan has 10,500 MAU, authenticator-app MFA, Google login and a custom domain, with standard OIDC discovery, a management API (list and delete users) and a Python SDK; step-up with `acr_values`, `max_age`, `amr` and `auth_time` is described only in a docs pull request that is still open, so it must be proven against a live tenant. WorkOS AuthKit and Supabase Auth are the fallbacks (WorkOS charges $99 a month for a custom domain and cannot export password hashes; Supabase's free plan pauses after a week of inactivity and has no custom domain). The revisit trigger above should read "above the chosen provider's free limit" rather than 25,000 MAU.
+
 ---
 
 ## ADR-004: Cloudflare R2 for screenshots, accessed only through authorization
@@ -101,6 +103,8 @@ Status of every decision below is **Proposed** until you confirm it, and the spi
 
 **Amendment (2026-10-02, ADR-010).** Websockets are no longer needed, so Render's websocket handling is no longer a risk. The container now holds the API and the built SPA (one image, one origin); the marketing site stays on Cloudflare Pages. Because the API is stateless it can run on several instances behind Render's load balancer, and memory per user should be far below NiceGUI's server-held UI state (to be measured in S4; the 2 GB sizing in doc 02 is a starting guess, not a requirement). Whether Render deploys a single instance without dropping in-flight requests is **unverified**.
 
+**Spike prep findings for S4 (2026-10-02, doc 08).** Render documents zero-downtime deploys: a new instance is started and health-checked before traffic moves (a persistent disk disables this, and we use none), and the old instance receives SIGTERM with a configurable shutdown delay. It offers PostgreSQL 13 to 18 with 18 as the default for new databases, so the local development database should be 18. Instance specs and prices (Starter $7 for 512 MB, Standard $25 for 2 GB) come from third-party summaries and remain to be confirmed.
+
 ---
 
 ## ADR-006: Private GitHub repo, trunk-based, GitHub Actions CI, deploy gated on CI
@@ -132,6 +136,8 @@ Status of every decision below is **Proposed** until you confirm it, and the spi
 **Revisit when:** fees become material (switch to Stripe), or you need invoicing features the provider lacks.
 
 **Amendment (2026-10-02, ADR-012).** The billing integration is milestone M9 in the new roadmap (it was M7). Entitlements now resolve an *effective plan* from three sources (operator override, local grant, billing mirror), and discount codes are created through the provider's API from the admin back end. Both are specified in ADR-012 and doc 03 section 5.
+
+**Spike prep findings for S5 (2026-10-02, doc 08).** The policy check turns the risk from unverified into real but manageable. Stripe lists funded prop trading as prohibited and investment services as restricted; Paddle prohibits trading platforms and trading signals or strategies and reserves judgment; Lemon Squeezy lists neither and tells sellers to ask support first. Pre-clear with Lemon Squeezy and Stripe support in M1 with a precise description, keep marketing wording to analytics of the user's own trades (not advice, not signals, not a prop firm), and note that Lemon Squeezy has been Stripe-owned since 2024 (its long-term status is unverified).
 
 ---
 
