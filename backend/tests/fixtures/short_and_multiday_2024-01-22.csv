@@ -1,0 +1,3 @@
+symbol,_priceFormat,_priceFormatType,_tickSize,buyFillId,sellFillId,qty,buyPrice,sellPrice,pnl,boughtTimestamp,soldTimestamp,duration
+NQH4,-2,0,0.25,40945750056,40945750064,5,17529.25,17531.25,$200.00,01/22/2024 06:29:57,01/22/2024 06:30:02,4sec
+NQH4,-2,0,0.25,40945750083,40945750077,5,17413.25,17420.00,$675.00,01/23/2024 06:35:16,01/23/2024 06:35:11,4sec
