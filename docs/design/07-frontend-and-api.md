@@ -156,6 +156,13 @@ Gaps and decisions:
 - **Resulting trades** in the sample is an estimate (pairs of one contract whose time ranges overlap count as one trade); the server's `grouping.py` is the authority.
 - A shared `Modal` (focus kept inside, Escape and backdrop close, focus returned) now backs the image viewer and the undo dialog.
 
+**Slice 4a (2026-10-03): Settings frame, Preferences, Plan & billing.** Branch `fe/settings-shell`. `/settings` is now a layout with the canvas's five sections (Preferences, Prop accounts, Tags, Plan & billing, Data & privacy) and opens at `/settings/preferences`. **Preferences and Plan & billing run on the real API**, not sample data: Preferences reads and saves time zone, trading day time zone and start, and theme through `PATCH /api/v1/settings` (only the fields that changed are sent; the server's field messages appear beside the field; saving a trading-day change warns first that trades are recalculated, and re-reads what is built from trades). Plan & billing shows the session's plan, where it came from, when it ends and the entitlements, read-only. The sample-data banner is hidden on these two pages, because nothing on them is made up. Prop accounts, Tags and Data & privacy are placeholders inside the frame.
+
+- **`unwrap` now throws an `ApiError`** that carries the status, the server's `detail` (or a plain fallback for a 500) and the per-field messages of a 422, so no page shows a generic "request failed".
+- Time zone lists come from `Intl.supportedValuesOf('timeZone')` plus UTC and any zone already in use; the stored value is always the IANA name.
+- The canvas's "Plan & billing" shows no payment details: payments are not live, and the page says plans come from an invitation or a code until after the beta. Redeeming a code (`POST /api/v1/grants/redeem`) belongs here once that route exists.
+- The main navigation now marks Settings (and Trades) as current inside their sub-pages: the link's own search is ignored when deciding.
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

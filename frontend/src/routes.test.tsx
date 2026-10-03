@@ -98,11 +98,10 @@ describe('the app shell', () => {
     expect(within(range).getByRole('button', { name: '90D' })).toHaveAttribute('aria-pressed', 'true')
   })
 
-  it('shows what is coming on a screen that is designed but not built yet', async () => {
+  it('opens settings at the preferences section', async () => {
     stubApi()
     open('/settings')
-    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Back to the dashboard' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Preferences' })).toBeInTheDocument()
   })
 
   it('opens the import page', async () => {
