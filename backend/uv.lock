@@ -733,6 +733,7 @@ name = "tradejournal"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "fastapi" },
     { name = "nicegui" },
     { name = "pandas" },
     { name = "tzdata" },
@@ -740,12 +741,14 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "httpx" },
     { name = "pytest" },
     { name = "ruff" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", specifier = ">=0.142,<1" },
     { name = "nicegui", specifier = ">=3.17,<4" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "tzdata", specifier = ">=2024.1" },
@@ -753,6 +756,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "httpx", specifier = ">=0.28" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "ruff", specifier = ">=0.16" },
 ]

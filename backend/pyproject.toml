@@ -8,12 +8,16 @@ dependencies = [
     "pandas>=2.2",
     "tzdata>=2024.1",
     "nicegui>=3.17,<4",
+    # The hosted API (tradejournal/api). nicegui already brings FastAPI in; this makes the dependency explicit,
+    # because the API outlives the NiceGUI user interface (ADR-010).
+    "fastapi>=0.142,<1",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
     "ruff>=0.16",
+    "httpx>=0.28",  # FastAPI's test client
 ]
 
 [tool.pytest.ini_options]
