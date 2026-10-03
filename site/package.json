@@ -2,7 +2,7 @@
   "name": "roundturn-site",
   "private": true,
   "type": "module",
-  "description": "The Roundturn marketing site and waitlist. Static pages in public/, one Pages Function in functions/. No dependencies.",
+  "description": "The Roundturn marketing site and waitlist. Static pages in public/, one Worker in src/ for the waitlist API. No dependencies.",
   "scripts": {
     "test": "node --test \"test/*.test.mjs\""
   }
