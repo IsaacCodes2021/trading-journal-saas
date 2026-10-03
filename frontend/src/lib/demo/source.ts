@@ -12,6 +12,7 @@ import type {
 } from '../data/model'
 import type { Filters } from '../filters'
 import { SAMPLE_ACCOUNTS, SAMPLE_TRADES, fillPairsFor, pointsFor } from './generate'
+import * as imports from './imports'
 import * as journal from './journal'
 import {
   accountSummaries,
@@ -138,6 +139,12 @@ export const demoSource: DataSource = {
   createTag: (groupId, name) => run(() => journal.createTag(groupId, name)),
   addScreenshots: (id, files) => run(() => journal.addScreenshots(target(id), files)),
   deleteScreenshot: (id, screenshotId) => run(() => journal.deleteScreenshot(target(id), screenshotId)),
+  accounts: () => Promise.resolve(SAMPLE_ACCOUNTS),
+  previewImport: (accountId, file) => imports.previewImport(accountId, file),
+  commitImport: (accountId, file) => imports.commitImport(accountId, file),
+  imports: () => Promise.resolve(imports.listImports()),
+  undoPreview: (importId) => run(() => imports.undoPreview(importId)),
+  undoImport: (importId) => run(() => imports.undoImport(importId)),
 }
 
 /** Runs a write and answers as a promise, so a refusal arrives as a rejection, as it will from the server. */

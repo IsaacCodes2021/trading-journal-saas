@@ -144,6 +144,18 @@ Gaps and decisions:
 - Tags can be several per group; the backend's `set_trade_tags` replaces a whole group, and the API in section 5 has add and remove per tag, which is what the page uses.
 - The sample journal (`lib/demo/journal.ts`) keeps edits in memory only, so a reload resets them; the banner says so.
 
+**Slice 3 (2026-10-03): Import.** Branch `fe/import-screen`, from the canvas's Imports screen at `/import`: choose an account, choose or drop a Performance CSV, see a dry-run preview (six counts, any unreadable rows with their line numbers, and a table of rows with New / Already imported / Belongs to another account), confirm, and later undo from the history, where the undo dialog states what it would remove before anything is removed. The page is its own lazily loaded chunk (3.8 KB gzipped).
+
+How it works today: the sample source reads the file in the browser with a small reader (`lib/demo/csv.ts`) that follows the backend parser's header rule, its row rules and its messages, and keeps the result in memory, so importing the same file twice shows every row as already imported and a pair stored under another account is named. **That reader is for the sample only**: the real parser is `parser.py`, the only one that reads a real file (it also applies the timezone and the P&L cross-check).
+
+Gaps and decisions:
+
+- **The preview needs per-row detail the importer does not produce today.** `FileImportReport` has counts and error lists, not a status for each row. The canvas's preview table needs one (New, Already imported, Belongs to Lucid 100K), so `POST /api/v1/imports/preview` has to return the first rows with a status each, plus the account names for pairs stored elsewhere. That is a small backend addition to plan in M3.
+- **Limits are placeholders**: 5 MB and 50,000 rows per file in the sample, to be set by the real limits work (doc 04). The 12 MB upload cap in the API config covers one 10 MB screenshot plus overhead.
+- **Several files at once** (the plan in section 5 allows it): the canvas shows one, so the page takes one and says so if more are dropped.
+- **Resulting trades** in the sample is an estimate (pairs of one contract whose time ranges overlap count as one trade); the server's `grouping.py` is the authority.
+- A shared `Modal` (focus kept inside, Escape and backdrop close, focus returned) now backs the image viewer and the undo dialog.
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

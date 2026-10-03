@@ -17,6 +17,7 @@ import { parseFilters, pickFilters } from './lib/filters'
 import { useSession } from './lib/session'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
+const ImportPage = lazy(() => import('./features/imports/ImportPage').then((m) => ({ default: m.ImportPage })))
 const TradeDetailPage = lazy(() =>
   import('./features/trade-detail/TradeDetailPage').then((m) => ({ default: m.TradeDetailPage })),
 )
@@ -112,15 +113,20 @@ function NextUp({ title, children }: { title: string; children: string }) {
   )
 }
 
+function ImportRoute() {
+  const session = useSession()
+  return (
+    <Suspense fallback={<Spinner label="Loading the import page" />}>
+      <ImportPage timeZone={session.data?.settings.timezone ?? 'UTC'} />
+    </Suspense>
+  )
+}
+
 const importRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/import',
   validateSearch: pickFilters,
-  component: () => (
-    <NextUp title="Import">
-      Uploading a Tradovate export, previewing it and undoing an import are built after the trade screens.
-    </NextUp>
-  ),
+  component: ImportRoute,
 })
 
 const settingsRoute = createRoute({

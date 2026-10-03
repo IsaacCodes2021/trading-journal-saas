@@ -116,3 +116,68 @@ export function useDeleteScreenshot(id: number) {
   const source = useDataSource()
   return useJournalWrite((screenshotId: number) => source.deleteScreenshot(id, screenshotId))
 }
+
+/** The accounts a person can import into. */
+export function useAccounts() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['accounts', source.label],
+    queryFn: ({ signal }) => source.accounts(signal),
+    staleTime: 5 * 60_000,
+  })
+}
+
+export function useImports() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['imports', source.label],
+    queryFn: ({ signal }) => source.imports(signal),
+  })
+}
+
+/** Works out what a file would do, without saving anything. Each call replaces the last one's result. */
+export function usePreviewImport() {
+  const source = useDataSource()
+  return useMutation({
+    mutationFn: ({ accountId, file }: { accountId: number; file: File }) => source.previewImport(accountId, file),
+  })
+}
+
+/** Saves the file's new pairs. Refreshes the history, and everything that reads trades. */
+export function useCommitImport() {
+  const source = useDataSource()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ accountId, file }: { accountId: number; file: File }) => source.commitImport(accountId, file),
+    onSuccess: () =>
+      Promise.all(
+        ['imports', 'trades', 'trade', 'dashboard', 'filter-options'].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      ),
+  })
+}
+
+export function useUndoPreview(importId: number | null) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['undo-preview', source.label, importId],
+    queryFn: () => source.undoPreview(importId as number),
+    enabled: importId !== null,
+    gcTime: 0, // always ask again: what an undo would remove depends on what has happened since
+  })
+}
+
+export function useUndoImport() {
+  const source = useDataSource()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (importId: number) => source.undoImport(importId),
+    onSuccess: () =>
+      Promise.all(
+        ['imports', 'trades', 'trade', 'dashboard', 'filter-options'].map((key) =>
+          queryClient.invalidateQueries({ queryKey: [key] }),
+        ),
+      ),
+  })
+}

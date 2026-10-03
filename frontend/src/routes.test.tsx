@@ -100,8 +100,14 @@ describe('the app shell', () => {
 
   it('shows what is coming on a screen that is designed but not built yet', async () => {
     stubApi()
-    open('/import')
-    expect(await screen.findByRole('heading', { name: 'Import' })).toBeInTheDocument()
+    open('/settings')
+    expect(await screen.findByRole('heading', { name: 'Settings' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the dashboard' })).toBeInTheDocument()
+  })
+
+  it('opens the import page', async () => {
+    stubApi()
+    open('/import')
+    expect(await screen.findByRole('heading', { name: 'Import trades' })).toBeInTheDocument()
   })
 })
