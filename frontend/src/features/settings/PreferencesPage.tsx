@@ -1,4 +1,5 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type FormEvent } from 'react'
+import { CONTROL, Field } from '../../components/ui/Field'
 import { Button, Card, Segmented, Spinner } from '../../components/ui/primitives'
 import { ApiError } from '../../lib/api/client'
 import type { components } from '../../lib/api/schema'
@@ -14,37 +15,6 @@ const THEMES = [
   { value: 'light', label: 'Light' },
 ] as const
 
-const control = 'h-10 w-full rounded-lg border border-line-strong bg-bg px-3 font-[inherit] text-ink'
-
-function Field({
-  id,
-  label,
-  hint,
-  error,
-  children,
-}: {
-  id: string
-  label: string
-  hint: string
-  error?: string
-  children: ReactNode
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-medium">
-        {label}
-      </label>
-      {children}
-      <p className="m-0 text-xs text-muted">{hint}</p>
-      {error ? (
-        <p role="alert" className="m-0 text-xs text-neg">
-          {error}
-        </p>
-      ) : null}
-    </div>
-  )
-}
-
 function ZoneSelect({
   id,
   value,
@@ -57,7 +27,7 @@ function ZoneSelect({
   zones: string[]
 }) {
   return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={control}>
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={CONTROL}>
       {zones.map((zone) => (
         <option key={zone} value={zone}>
           {zoneLabel(zone)}
@@ -155,7 +125,7 @@ function Form({ saved }: { saved: Settings }) {
                   setDayStart(e.target.value)
                   setJustSaved(false)
                 }}
-                className={control}
+                className={CONTROL}
               />
             </Field>
           </div>

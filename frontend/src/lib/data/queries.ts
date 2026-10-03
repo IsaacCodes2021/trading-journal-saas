@@ -1,6 +1,13 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Filters } from '../filters'
-import type { TradeDetail, TradesQuery } from './model'
+import type {
+  AccountDetailsInput,
+  AccountRulesInput,
+  ArchiveInput,
+  NewLedgerEntry,
+  TradeDetail,
+  TradesQuery,
+} from './model'
 import { useDataSource } from './source'
 
 /** One query hook per read, keyed by everything that changes the answer, so a filter change refetches and a repeat is cached. */
@@ -180,4 +187,110 @@ export function useUndoImport() {
         ),
       ),
   })
+}
+
+// ---- prop accounts -----------------------------------------------------------------------------------------------
+
+export function useAccountOverviews() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['account-overviews', source.label],
+    queryFn: ({ signal }) => source.accountOverviews(signal),
+  })
+}
+
+export function useBusinessTotals() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['business-totals', source.label],
+    queryFn: ({ signal }) => source.businessTotals(signal),
+  })
+}
+
+export function useFees(accountId: number) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['fees', source.label, accountId],
+    queryFn: ({ signal }) => source.fees(accountId, signal),
+  })
+}
+
+export function useLedger(accountId: number) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['ledger', source.label, accountId],
+    queryFn: ({ signal }) => source.ledger(accountId, signal),
+  })
+}
+
+/*
+ * Account writes refresh what they touch: the list and the business totals, and (because the accounts are what the
+ * import page, the filters and the trade log name) the account choices and everything built from trades. A fee change
+ * moves net results, so it refreshes those too.
+ */
+const ACCOUNT_KEYS = [
+  'account-overviews',
+  'business-totals',
+  'accounts',
+  'trades',
+  'trade',
+  'dashboard',
+  'filter-options',
+]
+
+function useAccountWrite<Variables, Result>(
+  write: (variables: Variables) => Promise<Result>,
+  extraKeys: string[] = [],
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: write,
+    onSuccess: () =>
+      Promise.all([...ACCOUNT_KEYS, ...extraKeys].map((key) => queryClient.invalidateQueries({ queryKey: [key] }))),
+  })
+}
+
+export function useCreateAccount() {
+  const source = useDataSource()
+  return useAccountWrite((input: AccountDetailsInput) => source.createAccount(input))
+}
+
+export function useUpdateAccount(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((input: AccountDetailsInput) => source.updateAccount(id, input))
+}
+
+export function useUpdateRules(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((input: AccountRulesInput) => source.updateRules(id, input))
+}
+
+export function useArchiveAccount(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((input: ArchiveInput) => source.archiveAccount(id, input))
+}
+
+export function useRestoreAccount(id: number) {
+  const source = useDataSource()
+  return useAccountWrite(() => source.restoreAccount(id))
+}
+
+export function useSetFee(id: number) {
+  const source = useDataSource()
+  return useAccountWrite(({ root, rate }: { root: string; rate: string }) => source.setFee(id, root, rate), ['fees'])
+}
+
+export function useRemoveFee(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((root: string) => source.removeFee(id, root), ['fees'])
+}
+
+export function useAddLedgerEntry(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((entry: NewLedgerEntry) => source.addLedgerEntry(id, entry), ['ledger'])
+}
+
+export function useDeleteLedgerEntry(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((entryId: number) => source.deleteLedgerEntry(id, entryId), ['ledger'])
 }

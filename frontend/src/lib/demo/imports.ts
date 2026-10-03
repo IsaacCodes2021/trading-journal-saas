@@ -2,6 +2,7 @@ import type { ImportPreview, ImportRecord, PreviewRow, UndoPreview } from '../da
 import { ImportRefused } from '../data/model'
 import { countTrades, parsePerformanceCsv, type ParsedPair } from './csv'
 import { SAMPLE_ACCOUNTS } from './generate'
+import { accountRef } from './accounts'
 
 /*
  * The sample import: reads a real Performance export in the browser (nothing is uploaded), checks it the way the
@@ -14,8 +15,7 @@ export const MAX_CSV_BYTES = 5 * 1024 * 1024
 export const MAX_CSV_ROWS = 50_000
 export const PREVIEW_ROWS_SHOWN = 100
 
-const account = (id: number) =>
-  SAMPLE_ACCOUNTS.find((a) => a.id === id) ?? (SAMPLE_ACCOUNTS[0] as (typeof SAMPLE_ACCOUNTS)[number])
+const account = (id: number) => accountRef(id) ?? (SAMPLE_ACCOUNTS[0] as (typeof SAMPLE_ACCOUNTS)[number])
 
 // 16:48 in Los Angeles on 30 Sep is 23:48 UTC (daylight time).
 const INITIAL: ImportRecord[] = [

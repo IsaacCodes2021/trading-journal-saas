@@ -1,5 +1,6 @@
 import { Link, Outlet } from '@tanstack/react-router'
 import { Card } from '../../components/ui/primitives'
+import { pickFilters } from '../../lib/filters'
 
 const SECTIONS = [
   { to: '/settings/preferences', label: 'Preferences' },
@@ -21,7 +22,7 @@ export function SettingsLayout() {
           <Link
             key={section.to}
             to={section.to}
-            search={(prev) => prev}
+            search={(prev) => pickFilters(prev as Record<string, unknown>)}
             className="block rounded-lg px-3 py-2 whitespace-nowrap text-muted no-underline hover:text-ink data-[status=active]:bg-raised data-[status=active]:text-ink"
           >
             {section.label}

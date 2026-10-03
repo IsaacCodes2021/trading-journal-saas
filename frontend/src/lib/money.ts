@@ -19,3 +19,20 @@ export function toChartNumber(value: string): number {
 export function sumMoney(values: readonly string[]): string {
   return values.reduce((total, v) => total.plus(v), new Decimal(0)).toFixed(2)
 }
+
+/**
+ * What a person typed as an amount of money ("$1,234.5", "1234", " 50 ") as an exact decimal string with cents
+ * ("1234.50"), or null when the box is empty. Throws an Error with a message fit to show when it is not an amount.
+ * Never negative: a loss is a different field, not a minus sign.
+ */
+export function parseAmount(text: string): string | null {
+  const cleaned = text
+    .trim()
+    .replaceAll(',', '')
+    .replace(/^\$\s*/, '')
+  if (cleaned === '') return null
+  if (!/^\d+(?:\.\d{0,2})?$/.test(cleaned) && !/^\.\d{1,2}$/.test(cleaned)) {
+    throw new Error('Type an amount like 2500 or 2,500.50.')
+  }
+  return new Decimal(cleaned).toFixed(2)
+}
