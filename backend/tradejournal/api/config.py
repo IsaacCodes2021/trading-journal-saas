@@ -28,8 +28,13 @@ class ApiConfig:
     session_secret: bytes = field(default_factory=lambda: secrets.token_bytes(MIN_SECRET_BYTES), repr=False)
     app_version: str = "dev"  # the build id (git sha); sent as X-App-Version so a stale tab can tell it is stale
     production: bool = False
+    # Ceilings on a request body (api/limits.py). Routes enforce their own exact limits underneath these.
+    max_json_bytes: int = 1024 * 1024
+    max_upload_bytes: int = 12 * 1024 * 1024  # one 10 MB screenshot plus multipart overhead
 
     def __post_init__(self) -> None:
+        if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
+            raise ConfigError("body size limits must be positive")
         parts = urlsplit(self.app_origin)
         if parts.scheme not in ("http", "https") or not parts.netloc or parts.path or parts.query or parts.fragment:
             raise ConfigError(

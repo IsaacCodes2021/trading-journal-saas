@@ -12,6 +12,7 @@ from fastapi import FastAPI
 
 from .config import ApiConfig
 from .errors import install_error_handlers
+from .limits import BodyLimitMiddleware
 from .ports import Services
 from .routers import session
 from .security import SecurityHeadersMiddleware
@@ -38,6 +39,8 @@ def create_app(config: ApiConfig | None = None, services: Services | None = None
     )
     app.state.config = config
     app.state.services = services
+    # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
+    app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)
     install_error_handlers(app, config)
 

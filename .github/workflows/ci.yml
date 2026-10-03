@@ -165,5 +165,10 @@ jobs:
       - name: Bundle budget
         run: pnpm check:bundle
 
+      # Raw HTML only through SafeHtml; no build-time environment values; no source maps or secret-shaped strings in
+      # the build (doc 04, launch gates). --require-dist makes a missing build a failure, not a skipped check.
+      - name: Security gates
+        run: pnpm check:security --require-dist
+
       - name: Dependency audit
         run: pnpm audit --audit-level high

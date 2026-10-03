@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "check:bundle": "node scripts/check-bundle.mjs",
+    "check:security": "node scripts/check-security.mjs",
     "gen:api": "openapi-typescript ../backend/openapi.json -o src/lib/api/schema.d.ts --default-non-nullable false"
   },
   "dependencies": {
