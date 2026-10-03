@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { normalizeEmail, onRequest, onRequestPost } from "../functions/api/waitlist.js";
+import { handleWaitlist, methodNotAllowed, normalizeEmail } from "../src/waitlist.js";
 
 const ORIGIN = "https://roundturn.app";
 
@@ -47,7 +47,7 @@ function post(body, { type = "application/json", headers = {} } = {}) {
   return new Request(`${ORIGIN}/api/waitlist`, { method: "POST", headers: { "content-type": type, ...headers }, body: payload });
 }
 
-const call = (request, db = new FakeDb()) => onRequestPost({ request, env: { DB: db } }).then((response) => ({ response, db }));
+const call = (request, db = new FakeDb()) => handleWaitlist({ request, env: { DB: db } }).then((response) => ({ response, db }));
 
 test("a valid address is stored lowercased and trimmed, with only the date", async () => {
   const { response, db } = await call(post({ email: "  Trader@Example.COM " }));
@@ -140,7 +140,7 @@ test("the table is created once per database, not on every request", async () =>
 });
 
 test("other methods get 405 and an Allow header", () => {
-  const response = onRequest();
+  const response = methodNotAllowed();
   assert.equal(response.status, 405);
   assert.equal(response.headers.get("allow"), "POST");
 });
@@ -159,6 +159,6 @@ test("normalizeEmail accepts ordinary addresses and rejects the rest", () => {
 });
 
 test("the function never logs", () => {
-  const source = readFileSync(new URL("../functions/api/waitlist.js", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../src/waitlist.js", import.meta.url), "utf8");
   assert.ok(!/console\./.test(source), "a console call could write an email address to the logs");
 });

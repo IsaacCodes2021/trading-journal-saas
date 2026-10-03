@@ -1,6 +1,6 @@
-// POST /api/waitlist: a Cloudflare Pages Function that stores one email address and the date it joined.
+// POST /api/waitlist: the handler that stores one email address and the date it joined. `worker.js` routes to it.
 //
-// Needs a D1 database bound as `DB` (see site/README.md). It stores nothing else: no IP address, no user agent, no
+// Needs a D1 database bound as `DB` (see wrangler.jsonc and site/README.md). It stores nothing else: no IP address, no user agent, no
 // referrer. It never logs the address, and it answers the same way whether or not the address was already on the list,
 // so the form cannot be used to find out who has signed up.
 
@@ -73,7 +73,7 @@ async function ensureSchema(db) {
   await ready.get(db);
 }
 
-export async function onRequestPost({ request, env }) {
+export async function handleWaitlist({ request, env }) {
   try {
     // Reject another site's form posting here. Browsers always send Origin on a cross-site POST.
     const origin = request.headers.get("origin");
@@ -100,6 +100,6 @@ export async function onRequestPost({ request, env }) {
   }
 }
 
-export function onRequest() {
+export function methodNotAllowed() {
   return new Response("Method not allowed.", { status: 405, headers: { ...SAFE_HEADERS, allow: "POST" } });
 }

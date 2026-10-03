@@ -111,7 +111,7 @@ test("the privacy page matches what the code does", () => {
   const script = read(join(PUBLIC, "waitlist.js"));
   assert.ok(!/document\.cookie|localStorage|sessionStorage|indexedDB/.test(script), "the script stores something in the browser");
   assert.ok(!/fetch\(\s*["'`]https?:/.test(script), "the script calls another origin");
-  const fn = readFileSync(new URL("../functions/api/waitlist.js", import.meta.url), "utf8");
+  const fn = readFileSync(new URL("../src/waitlist.js", import.meta.url), "utf8");
   assert.ok(!/set-cookie/i.test(fn), "the function sets a cookie");
   assert.ok(!/cf-connecting-ip|user-agent|referer/i.test(fn), "the function reads something the privacy page says it does not store");
 });
