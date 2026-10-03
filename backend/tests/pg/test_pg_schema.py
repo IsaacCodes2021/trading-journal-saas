@@ -41,12 +41,20 @@ def test_row_level_security_is_enabled_forced_and_has_a_tenant_policy(owner, tab
     ).fetchone()
     assert (row["enabled"], row["forced"]) == (True, True)
     policies = owner.execute(
-        "SELECT polname, pg_get_expr(polqual, polrelid) AS using_expr, pg_get_expr(polwithcheck, polrelid) AS check_expr "
-        "FROM pg_policy WHERE polrelid = %s::regclass",
+        "SELECT polname, polcmd, pg_get_expr(polqual, polrelid) AS using_expr, "
+        "       pg_get_expr(polwithcheck, polrelid) AS check_expr, "
+        "       ARRAY(SELECT rolname FROM pg_roles WHERE oid = ANY(polroles)) AS roles "
+        "FROM pg_policy WHERE polrelid = %s::regclass ORDER BY polname",
         (table,),
     ).fetchall()
-    assert [p["polname"] for p in policies] == ["tenant"]
-    assert "app_user_id()" in policies[0]["using_expr"] and "app_user_id()" in policies[0]["check_expr"]
+    [tenant] = [p for p in policies if p["polname"] == "tenant"]
+    assert "app_user_id()" in tenant["using_expr"] and "app_user_id()" in tenant["check_expr"]
+    # Policies combine with OR, so an extra one widens access. The only one allowed is the operator's read of the
+    # usage counters: SELECT only, and for app_admin alone.
+    others = [p for p in policies if p["polname"] != "tenant"]
+    assert [(p["polname"], p["polcmd"], p["roles"]) for p in others] == (
+        [("admin_read", "r", ["app_admin"])] if table == "user_usage" else []
+    )
 
 
 @pytest.mark.parametrize("table", TENANT_TABLES)
