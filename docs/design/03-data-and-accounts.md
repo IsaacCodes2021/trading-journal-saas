@@ -109,7 +109,7 @@ Retention: `sessions` rows deleted 30 days after expiry; `audit_log`, `plan_over
 
 | SQLite today | Postgres | Effect on code |
 |---|---|---|
-| Money, prices, fee rates as TEXT decimal strings | `NUMERIC(20,6)` for money, `NUMERIC(20,8)` for prices and tick sizes | psycopg returns `Decimal` natively. `finance.py` is unchanged; the `money_str()` / `plain()` string helpers at the storage boundary are replaced by passing `Decimal` |
+| Money, prices, fee rates as TEXT decimal strings | `NUMERIC(20,2)` for money (**amended 2026-10-03 from `(20,6)`**: the domain rounds every amount to cents, and six decimals reached the API as `"50000.000000"`), `NUMERIC(20,6)` for a per-contract fee rate, plain `NUMERIC` for prices, tick sizes and derived points | psycopg returns `Decimal` natively. `finance.py` is unchanged; the `money_str()` / `plain()` string helpers at the storage boundary are replaced by passing `Decimal` |
 | Timestamps as TEXT `YYYY-MM-DDTHH:MM:SSZ` | `timestamptz` | psycopg returns aware `datetime`; `to_utc_iso` / `from_utc_iso` at the boundary go away |
 | `trade_date` TEXT | `date` | |
 | `INTEGER PRIMARY KEY` + `cursor.lastrowid` | `bigint GENERATED ALWAYS AS IDENTITY` + `INSERT ... RETURNING id` | Every insert site |
@@ -268,7 +268,7 @@ You are the only existing user and the data is small (23 trades), so this is a o
 
 ### 9.1 SQL audit of the current code (2026-10-02)
 
-Every SQL statement in `backend/tradejournal/` was read against the table above. The checklist is right on the whole; this adds what it missed. **"Verified"** means checked in the code or by running Python on this machine. **"Expected"** is my reading of Postgres rules, **not run** (no Postgres yet), so spike S2 should confirm each one.
+Every SQL statement in `backend/tradejournal/` was read against the table above. The checklist is right on the whole; this adds what it missed. **"Verified"** means checked in the code or by running Python on this machine. **"Expected"** is my reading of Postgres rules, **not run**. *(Update 2026-10-03: spike S2 ran the two "Expected" query items below on PostgreSQL 18.6 and both were confirmed; the conclusion and five new findings, including the time zone and money-scale ones, are under ADR-002 in doc 06. The advisory-lock rule at the end of this section is still a proposal.)*
 
 **Changes that give a wrong answer without an error (the dangerous kind)**
 
@@ -282,8 +282,8 @@ Every SQL statement in `backend/tradejournal/` was read against the table above.
 
 | Where | What happens | Status |
 |---|---|---|
-| `journal.py:108-113` | `GROUP BY tags.id` but `ORDER BY tag_groups.sort_order`. Postgres allows ungrouped columns only from the table whose primary key is grouped, and `sort_order` belongs to `tag_groups`. Expect "must appear in the GROUP BY clause". Fix: group by `tags.id, tag_groups.sort_order` | Expected |
-| `journal.py:366-369` | The alias-in-`HAVING` trap already listed above; the line is now 366 to 369, not 360 | Verified (location) |
+| `journal.py:108-113` | `GROUP BY tags.id` but `ORDER BY tag_groups.sort_order`. Postgres allows ungrouped columns only from the table whose primary key is grouped, and `sort_order` belongs to `tag_groups`. Expect "must appear in the GROUP BY clause". Fix: group by `tags.id, tag_groups.sort_order` | **Verified on PostgreSQL 18.6 (S2, 2026-10-03):** `GroupingError`, as predicted |
+| `journal.py:366-369` | The alias-in-`HAVING` trap already listed above; the line is now 366 to 369, not 360 | **Verified on PostgreSQL 18.6:** `UndefinedColumn: column "has_notes" does not exist` |
 | Positional row access: `accounts.py:158`, `cli.py:94`, `journal.py:83`, `queries.py:103`, `store.py:233, 238, 240` | `sqlite3.Row` allows `row[0]` and `row["id"]`; `dict_row` allows only the name. The table above says "`sqlite3.Row` to `dict_row`, all call sites", which hides that these 7 sites also change. (`db.py:258` and `ui/pages/settings_page.py:129` go away with the rewrite and the UI deletion) | Verified |
 | 8 `cursor.lastrowid` sites | `accounts.py`, `importer.py`, `ledger.py` once each, `journal.py` three times, `store.py` twice. Covered by `RETURNING id` above; counted here so none is forgotten | Verified |
 

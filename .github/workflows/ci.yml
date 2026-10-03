@@ -22,6 +22,20 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    # A real Postgres, the same major version as production (doc 02 section 7). The password is for this throwaway
+    # container only; it exists for the length of the job.
+    services:
+      postgres:
+        image: postgres:18@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        env:
+          POSTGRES_PASSWORD: ci-throwaway
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -42,7 +56,20 @@ jobs:
       - name: Format check
         run: uv run --frozen ruff format --check .
 
+      # Creates the two roles (owner and request-serving) and the test databases, then writes the connection URLs
+      # to backend/.env.test, which the Postgres tests read.
+      - name: Prepare the test database
+        env:
+          PGPASSWORD: ci-throwaway
+        run: >-
+          uv run --frozen python -m tradejournal.pg.provision
+          --superuser-url postgresql://postgres@localhost:5432/postgres --env-file .env.test
+
+      # TJ_REQUIRE_POSTGRES turns "no database configured" from a skip into a failure, so these tests cannot be
+      # silently skipped in CI.
       - name: Tests
+        env:
+          TJ_REQUIRE_POSTGRES: "1"
         run: uv run --frozen pytest -q
 
   audit:
