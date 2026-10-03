@@ -243,7 +243,7 @@ Do not add third-party session-replay or ad analytics inside the app (it renders
 | Production web + Postgres | $25 to 45 | Third-party prices; verify. Web memory is unmeasured, so this assumes the cautious tier |
 | Staging web + small Postgres | $10 to 15 | Same; or skip a permanent staging and use a temporary one |
 | R2 | about $0 under 10 GB, then $0.015 per GB | Vendor page |
-| Cloudflare (DNS, CDN, Pages for the marketing site), Sentry free tier, hosted IdP free tier | $0 | IdP free tiers advertise 25,000 MAU; verify |
+| Cloudflare (DNS, CDN, Pages for the marketing site), Sentry free tier, hosted IdP free tier | $0 | Kinde's free plan covers 10,500 MAU including MFA (doc 08); verify at signup |
 | Transactional email | $0 on a free tier | Unverified |
 | Domain | about $1 | |
 | GitHub Pro (optional but recommended) | a few dollars | Unverified |

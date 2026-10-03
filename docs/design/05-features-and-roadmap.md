@@ -97,7 +97,7 @@ Each is a day or two, ends in a short written conclusion appended to doc 06, and
 | **S2** Postgres + RLS | Does the RLS/`tenant_session` design work with psycopg's pool, and how painful is the port? | `accounts.py` and `journal.py` ported, their tests green on Postgres, a two-tenant test passing |
 | **S3** Files | Does a presigned R2 URL work as an `<img src>` through the `/files/{id}` redirect under the real CSP, and what must `img-src` allow? Does the Pillow pipeline keep screenshot quality at acceptable size? | Upload, thumbnail, display under the strict CSP, delete, orphan report; a decision between redirecting and streaming through the API |
 | **S4** Deploy | One image (API + SPA) on Render behind Cloudflare: caching of `/assets/*`, the SPA fallback, deploy behavior, memory and latency under an HTTP load test; marketing site on Cloudflare Pages. (If ADR-011 is reversed to Pages plus an edge proxy, this becomes a two-piece deploy and gains the proxy and quota questions.) | Container reachable at the real domain; resident memory and p95 latency measured at 50 simulated users |
-| **S5** Payments (non-code) | Will a provider approve a trading-journal product, and does its API create discount codes? | Application submitted and answered |
+| **S5** Payments (non-code; the policies were read, see doc 08) | Will a provider approve a trading-journal product, and does its API create discount codes? | Application submitted and answered |
 
 ## 3. Roadmap
 
