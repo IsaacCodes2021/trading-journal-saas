@@ -21,16 +21,20 @@ export const SETTINGS = {
 
 export interface ApiOptions {
   plan?: object
+  entitlements?: Record<string, number | boolean>
   theme?: string
   saveFails?: boolean
+  /** Answer every settings save with this problem document instead of saving. */
+  saveProblem?: { status: number; body: object }
+  settings?: Partial<typeof SETTINGS>
 }
 
 export function sessionBody(opts: ApiOptions = {}) {
   return {
     user: { id: '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11', email: 'alice@example.test' },
-    settings: { ...SETTINGS, theme: opts.theme ?? 'dark' },
+    settings: { ...SETTINGS, ...opts.settings, theme: opts.theme ?? 'dark' },
     plan: opts.plan ?? { effective: 'free', source: 'free', expires_at: null },
-    entitlements: {},
+    entitlements: opts.entitlements ?? {},
     flags: { is_admin: false, mfa_fresh: false },
     csrf_token: 'tok',
     app_version: 'test',
@@ -44,9 +48,12 @@ export function stubApi(opts: ApiOptions = {}) {
     'fetch',
     vi.fn(async (request: Request) => {
       if (request.method === 'PATCH') {
-        const body = (await request.clone().json()) as { theme: string }
+        const body = (await request.clone().json()) as Record<string, string>
         saved.push(body)
-        return opts.saveFails ? json({ detail: 'nope' }, 500) : json({ ...SETTINGS, ...body })
+        if (opts.saveProblem) return json(opts.saveProblem.body, opts.saveProblem.status)
+        return opts.saveFails
+          ? json({ title: 'Internal Server Error', status: 500, detail: null, errors: null }, 500)
+          : json({ ...SETTINGS, ...opts.settings, ...body })
       }
       return json(sessionBody(opts))
     }),
@@ -54,7 +61,7 @@ export function stubApi(opts: ApiOptions = {}) {
   return saved
 }
 
-export type AppPath = '/' | '/trades' | '/import' | '/settings' | `/trades/${string}`
+export type AppPath = '/' | '/trades' | '/import' | '/settings' | `/trades/${string}` | `/settings/${string}`
 
 export function openApp(to: AppPath, search: Record<string, string | number> = {}) {
   const query = new URLSearchParams(Object.entries(search).map(([key, value]) => [key, String(value)])).toString()

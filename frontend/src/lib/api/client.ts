@@ -37,9 +37,38 @@ export const api = createClient<paths>({
 })
 api.use(middleware)
 
-/** Turn an openapi-fetch result into its data, or throw. */
-export async function unwrap<T>(result: Promise<{ data?: T; error?: unknown }>): Promise<T> {
-  const { data } = await result
-  if (data === undefined) throw new Error('request failed')
+/** The API's problem document (RFC 9457), as far as the pages need it. */
+export interface ProblemBody {
+  title?: string
+  status?: number
+  detail?: string | null
+  errors?: { field: string; message: string }[] | null
+}
+
+/** A request the server answered with an error. `message` is safe to show: it is the server's `detail`, or a plain fallback. */
+export class ApiError extends Error {
+  readonly status: number
+  readonly fields: Record<string, string>
+
+  constructor(status: number, problem?: ProblemBody) {
+    super(
+      problem?.detail ||
+        (status >= 500 ? 'The server had a problem. Try again in a moment.' : 'The request was refused.'),
+    )
+    this.name = 'ApiError'
+    this.status = status
+    this.fields = Object.fromEntries((problem?.errors ?? []).map((e) => [e.field, e.message]))
+  }
+}
+
+/** Turn an openapi-fetch result into its data, or throw an ApiError that says what the server said. */
+export async function unwrap<T>(result: Promise<{ data?: T; error?: unknown; response?: Response }>): Promise<T> {
+  const { data, error, response } = await result
+  if (data === undefined) {
+    throw new ApiError(
+      response?.status ?? 0,
+      typeof error === 'object' && error !== null ? (error as ProblemBody) : undefined,
+    )
+  }
   return data
 }

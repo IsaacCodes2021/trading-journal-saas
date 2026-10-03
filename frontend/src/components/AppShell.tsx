@@ -1,4 +1,4 @@
-import { Link, useSearch } from '@tanstack/react-router'
+import { Link, useLocation, useSearch } from '@tanstack/react-router'
 import { useEffect, type ReactNode } from 'react'
 import { csrfHeader } from '../lib/api/client'
 import type { components } from '../lib/api/schema'
@@ -114,10 +114,14 @@ function AccountMenu({ email }: { email: string }) {
   )
 }
 
-/** Says out loud that the numbers are made up, on every page, for as long as a sample source is in use. */
+/** Settings that are real (saved to the account through the API) and so need no sample-data warning. */
+const REAL_PAGES = /^\/settings\/(?:preferences|plan)(?:\/|$)/
+
+/** Says out loud that the numbers are made up, on every page that shows them, while a sample source is in use. */
 function SampleDataBanner() {
   const label = useDataSource().label
-  if (label === null) return null
+  const { pathname } = useLocation()
+  if (label === null || REAL_PAGES.test(pathname)) return null
   return (
     <div role="note" className="border-b border-warn-line bg-panel px-4 py-1.5 text-center text-xs text-warn sm:px-8">
       <strong>{label}.</strong> These numbers are made up so the screens can be tried, and changes you make are not
@@ -154,7 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 key={item.to}
                 to={item.to}
                 search={filters}
-                activeOptions={{ exact: item.exact }}
+                activeOptions={{ exact: item.exact, includeSearch: false }}
                 className="flex h-12 items-center border-b-2 border-transparent px-3.5 whitespace-nowrap text-muted no-underline hover:text-ink data-[status=active]:border-accent data-[status=active]:text-ink sm:h-14"
               >
                 {item.label}
