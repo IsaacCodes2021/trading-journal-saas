@@ -113,6 +113,19 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 - [ ] Export and deletion work end to end, including R2 prefix and IdP user
 - [ ] Privacy Policy, Terms, financial disclaimer, subprocessor list reviewed by a professional
 
+### 4.1 Gates already enforced in code (2026-10-03)
+
+Boxes stay unticked above because each is a launch gate for the whole system. These parts are built, and each is held in place by a test or a CI step that fails if it regresses. "Mutation-checked" means I removed the protection on purpose and watched the test fail.
+
+| Gate (section 4) | Enforced by | Still open |
+|---|---|---|
+| CSRF on every unsafe route; no CORS | `tests/test_api_gates.py`, generated from the OpenAPI document: every operation answers an anonymous caller 401, and every write answers 403 to a missing token, a wrong token, a cross-site request and a foreign origin, with a positive control. A rogue unguarded route is caught (mutation-checked). `PUBLIC` is an empty allow-list. A test also checks that no CORS middleware exists and a preflight gets nothing | The per-session token is real; the cookie, rotation and revocation arrive with sessions (M5) |
+| Strict CSP, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS | `api/security.py`; tests assert no `unsafe-inline` or `unsafe-eval` (mutation-checked) and HSTS only in production | Cloudflare "Full (strict)"; `img-src` for R2 (S3) |
+| Upload and body limits | `api/limits.py`: `Content-Length` checked before the app runs, chunked bodies counted as read, separate JSON and multipart ceilings (mutation-checked) | Per-route exact limits (10 MB per screenshot, 10 files), the edge cap, pixel cap, CSV row cap, import concurrency limit |
+| No raw HTML outside `SafeHtml` | `frontend/scripts/check-security.mjs` in CI (also forbids `eval` and `new Function`); ESLint `react/no-danger` still applies | |
+| No secrets in `VITE_*` or the bundle; no public source maps | The same script: no `import.meta.env.VITE_*` or `process.env` in the app, no `.env` files, no `.map` files, no secret-shaped strings in `dist/` | |
+| Locked dependencies, frozen installs | `uv sync --frozen`, `pnpm install --frozen-lockfile`, `pip-audit`, `pnpm audit` in CI | The Dockerfile does not build the front end yet (M7) |
+
 ## 5. Logging, monitoring and incident response
 
 - **Log:** auth events, import and undo, exports, deletions, admin actions, permission failures. **Never log:** passwords, session or CSRF tokens, notes, trade contents, screenshot names, full IPs (store a salted hash).

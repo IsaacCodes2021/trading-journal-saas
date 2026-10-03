@@ -736,6 +736,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "nicegui" },
     { name = "pandas" },
+    { name = "python-multipart" },
     { name = "tzdata" },
 ]
 
@@ -751,6 +752,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.142,<1" },
     { name = "nicegui", specifier = ">=3.17,<4" },
     { name = "pandas", specifier = ">=2.2" },
+    { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "tzdata", specifier = ">=2024.1" },
 ]
 

@@ -11,6 +11,7 @@ dependencies = [
     # The hosted API (tradejournal/api). nicegui already brings FastAPI in; this makes the dependency explicit,
     # because the API outlives the NiceGUI user interface (ADR-010).
     "fastapi>=0.142,<1",
+    "python-multipart>=0.0.20",  # FastAPI needs it to read multipart uploads (screenshots, CSV imports)
 ]
 
 [dependency-groups]
