@@ -91,6 +91,12 @@ test("wrangler.jsonc names the Worker, its entry point and the assets folder, an
   assert.match(config.compatibility_date, /^\d{4}-\d{2}-\d{2}$/);
 });
 
+test("the site is served only at its own domain: workers.dev and preview addresses stay off", () => {
+  const config = readConfig();
+  assert.equal(config.workers_dev, false);
+  assert.equal(config.preview_urls, false);
+});
+
 test("only /api/* runs code; pages are served straight from the assets", () => {
   const { assets } = readConfig();
   assert.deepEqual(assets.run_worker_first, ["/api/*"]);
