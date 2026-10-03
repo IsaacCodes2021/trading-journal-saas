@@ -20,8 +20,13 @@
     "gen:api": "openapi-typescript ../backend/openapi.json -o src/lib/api/schema.d.ts --default-non-nullable false"
   },
   "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
     "@tanstack/react-query": "^5.104.0",
     "@tanstack/react-router": "^1.170.41",
+    "@tiptap/pm": "^3.31.4",
+    "@tiptap/react": "^3.31.4",
+    "@tiptap/starter-kit": "^3.31.4",
     "decimal.js": "^10.6.0",
     "dompurify": "^3.4.16",
     "openapi-fetch": "^0.17.0",
