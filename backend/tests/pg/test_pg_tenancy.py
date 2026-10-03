@@ -56,7 +56,7 @@ def data(db, alice, tmp_path):
         conn.execute("INSERT INTO import_fill_pairs (import_id, fill_pair_id) VALUES (%s, %s)", (import_id, pair_id))
         conn.execute("INSERT INTO day_notes (trade_date, notes) VALUES ('2024-01-05', 'a note')")
         conn.execute(
-            "INSERT INTO account_ledger (account_id, kind, amount, entry_date) VALUES (%s, 'cost', 99, '2024-01-01')",
+            "INSERT INTO account_ledger (account_id, kind, amount, entry_date) VALUES (%s, 'other_cost', 99, '2024-01-01')",
             (account.id,),
         )
     return {

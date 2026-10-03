@@ -212,3 +212,12 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 5. **Design consequence for M2: `rebuild_account` and `recalculate_trades` must be background jobs when hosted**, not work done inside a web request (16 s at one heavy user's size).
 
 **Not covered:** concurrent users, HTTP and JSON overhead, Postgres (that is the point of re-running it), multiple accounts, filters other than one month, and the other pages. The synthetic grouping may differ from real exports (real days have more scale-ins and reversals).
+
+## 8. M2 progress (running log)
+
+Ported to Postgres so far, each with its SQLite tests carried over plus tenancy and constraint tests, and mutation-checked: `accounts` and `journal` (spike S2), then `ledger` and `settings`. Still to port: `store`, `queries`, `importer`.
+
+Findings from the ledger and settings ports:
+
+- **The database now enforces the ledger rules** (migration `0002_ledger_constraints.sql`: a known `kind`, `amount > 0`). It exposed a bug in an S2 test fixture that had been inserting the kind `'cost'`, which the application never allowed. A test compares the CHECK's kinds with `ledger.KINDS` so the two cannot drift apart.
+- **Settings are columns of `user_settings`, not key/value rows.** SQLite accepted `9:30` for the trading day start and stored it as typed; the Postgres column only accepts zero-padded `HH:MM`, so the port pads it (`09:30`). The SQLite settings module had no tests of its own; the port has them.
