@@ -115,6 +115,25 @@ Summarized here; the full strategy is in doc 05 section 5 and CI in doc 02 secti
 - Front end: Vitest and React Testing Library for components, MSW for network, Playwright end to end against the built container with a **fake IdP**; `openapi.json` and `schema.d.ts` drift check.
 - Load testing is plain HTTP (k6 or Locust), not websocket sessions.
 
+## 8a. Front-end progress (running log)
+
+**Slice 1 (2026-10-03): shell, dashboard, trade log.** Built from the Design canvas "Trading Journal Mockups" on branch `fe/design-system-and-shell`. Product name in the UI: Roundturn. 125 tests.
+
+What exists: the design tokens (the canvas's dark palette, plus a light theme derived from it); the app shell with the filter-carrying nav, plan chip, theme toggle (applied at once, saved to the account) and account menu; the shared filter bar with all state in the URL; the Dashboard (tiles, equity and drawdown, score radar with its rules, daily P&L as chart or table, per-account table) and the Trade log (sort, search, paging). `/trades/$tradeId`, `/import` and `/settings` are placeholder pages.
+
+Decisions and deviations from the plan in section 3 and 4:
+
+- **Charts are plain SVG, not ECharts**, so the dashboard needs no chart chunk (entry chunk 129 KB gzipped of the 150 KB budget). Each chart is drawn at its measured width so labels stay readable on a phone, and carries a text description for screen readers. Revisit ECharts only if a chart needs zoom, brushing or hundreds of series.
+- **No shadcn yet.** The few components needed (card, button, segmented control, popover, chip) are small and live in `components/ui`; adopt shadcn when a screen needs a dialog, combobox or date picker.
+- **The radar draws as many axes as the data has.** The mockup shows 5; `finance.performance_score` has 6 (win rate, profit factor, average win/loss, consistency, max drawdown, recovery factor), and the "How it's scored" panel lists each rule from the server.
+- **Pages read through a `DataSource` context** (`lib/data`). Today's default is a seeded sample set (`lib/demo`) that ports the backend's `finance` definitions, with a permanent "Sample data" banner. When the stats and trades endpoints exist (M3), the API source becomes the default, its generated types replace `lib/data/model.ts`, and the banner goes. The sample set is not product code and is never reached once the API source is the default.
+- **Money stays a decimal string** everywhere; `lib/money.ts` `toChartNumber` is the only conversion to a number, and only for drawing.
+- **Fonts.** IBM Plex is first in the font stack but not bundled: the strict CSP rules out a font CDN, so self-hosting needs the `@fontsource` packages (an install to approve). System fonts until then.
+- **Dev stub.** `frontend/dev/session-stub.ts` answers the session calls under `pnpm dev` only (`apply: 'serve'`); `TJ_DEV_API=real` proxies to the API on port 8000 instead.
+- Phone width: no page-level sideways scroll; tables scroll inside their card. A card-per-trade layout for the log on a phone is a later improvement.
+
+Next: Trade detail, Import, Settings (accounts, fees, rules, tags, preferences), Onboarding, then the sign-in and admin screens.
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.
