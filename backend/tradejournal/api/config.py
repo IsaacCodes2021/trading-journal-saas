@@ -31,10 +31,15 @@ class ApiConfig:
     # Ceilings on a request body (api/limits.py). Routes enforce their own exact limits underneath these.
     max_json_bytes: int = 1024 * 1024
     max_upload_bytes: int = 12 * 1024 * 1024  # one 10 MB screenshot plus multipart overhead
+    # The request role's connection URL (app_rw). It holds a password, so it never appears in repr or logs. Not
+    # required yet: until the routes use the database (M3), a process without it starts, and /readyz says so.
+    database_url: str | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
             raise ConfigError("body size limits must be positive")
+        if self.database_url is not None and urlsplit(self.database_url).scheme not in ("postgresql", "postgres"):
+            raise ConfigError("TJ_DATABASE_URL must be a postgresql:// URL")
         parts = urlsplit(self.app_origin)
         if parts.scheme not in ("http", "https") or not parts.netloc or parts.path or parts.query or parts.fragment:
             raise ConfigError(
@@ -59,6 +64,8 @@ class ApiConfig:
             values["web_dist"] = Path(env["TJ_WEB_DIST"])
         if "TJ_APP_VERSION" in env:
             values["app_version"] = env["TJ_APP_VERSION"]
+        if env.get("TJ_DATABASE_URL"):
+            values["database_url"] = env["TJ_DATABASE_URL"]
         if "TJ_SESSION_SECRET" in env:
             try:
                 values["session_secret"] = bytes.fromhex(env["TJ_SESSION_SECRET"])

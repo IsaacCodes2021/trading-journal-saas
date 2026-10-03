@@ -31,8 +31,18 @@ class Database:
             open=False,
         )
 
-    def open(self) -> None:
-        self._pool.open(wait=True)
+    def open(self, *, wait: bool = True) -> None:
+        """With `wait=False` this returns at once and the pool keeps trying in the background, so a web process can start
+        while the database is briefly away and report it through /readyz instead of failing to boot."""
+        self._pool.open(wait=wait)
+
+    def schema_version(self, timeout: float = 2.0) -> str | None:
+        """The newest migration the database has applied, for the readiness check. It needs no tenant: it reads one
+        name through a function the request role may call (migration 0005), never the migrations table itself.
+        Raises if no connection is available within `timeout` seconds."""
+        with self._pool.connection(timeout=timeout) as conn:
+            conn.execute("SELECT set_config('statement_timeout', %s, true)", (str(int(timeout * 1000)),))
+            return conn.execute("SELECT app_schema_version() AS version").fetchone()["version"]
 
     def close(self) -> None:
         self._pool.close()

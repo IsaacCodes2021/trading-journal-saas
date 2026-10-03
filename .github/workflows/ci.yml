@@ -142,6 +142,8 @@ jobs:
             --env TJ_ENV=development --env TJ_APP_ORIGIN=http://localhost:8000 tradejournal:ci
           for _ in $(seq 1 30); do curl --fail --silent http://localhost:8000/healthz > /dev/null && break; sleep 1; done
           curl --fail --silent http://localhost:8000/healthz | grep --quiet '"status":"ok"'
+          # Readiness: with no database configured, a development container is ready and says so.
+          curl --fail --silent http://localhost:8000/readyz | grep --quiet '"database":"not configured"'
           curl --fail --silent --header 'Accept: text/html' http://localhost:8000/trades | grep --quiet 'id="root"'
           headers=$(curl --fail --silent --head --header 'Accept: text/html' http://localhost:8000/)
           echo "$headers" | grep --ignore-case --quiet "^content-security-policy:.*script-src 'self'"
@@ -150,6 +152,18 @@ jobs:
           test -n "$asset"
           curl --fail --silent --head "http://localhost:8000$asset" \
             | grep --ignore-case --quiet 'cache-control: public, max-age=31536000, immutable'
+
+      # Alive is not ready: a production container with no database answers /healthz and refuses /readyz (503), so a
+      # platform health check on /readyz would never send it traffic.
+      - name: Production without a database is alive but not ready
+        run: |
+          docker run --detach --name tj-prod --publish 8001:8000 --env TJ_ENV=production \
+            --env TJ_APP_ORIGIN=https://app.example.com --env TJ_SESSION_SECRET=$(openssl rand -hex 32) tradejournal:ci
+          for _ in $(seq 1 30); do curl --silent --output /dev/null http://localhost:8001/healthz && break; sleep 1; done
+          curl --fail --silent http://localhost:8001/healthz | grep --quiet '"status":"ok"'
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://localhost:8001/readyz)" = "503"
+          curl --silent http://localhost:8001/readyz | grep --quiet '"database":"not configured"'
+          docker stop tj-prod
 
       # Fail closed: the image defaults to production mode, which must refuse to start without its settings.
       - name: Refuses to start unconfigured
