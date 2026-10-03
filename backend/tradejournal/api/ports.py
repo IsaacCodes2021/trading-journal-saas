@@ -7,12 +7,17 @@ later without touching a route. Tests use the in-memory versions in `tests/api_f
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
 from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
+
+# What /readyz asks: (ready, {check name: a short state such as "ok" or "unreachable"}). The states are public, so they
+# are words and never error text, hosts or addresses.
+ReadinessCheck = Callable[[], tuple[bool, dict[str, str]]]
 
 
 @dataclass(frozen=True)

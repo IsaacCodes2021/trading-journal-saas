@@ -24,6 +24,14 @@ class MigrationError(RuntimeError):
     pass
 
 
+def latest_version(directory: Path = MIGRATIONS_DIR) -> str:
+    """The newest migration this code ships with: what the database must have applied before this image takes traffic."""
+    versions = sorted(path.stem for path in directory.glob("*.sql"))
+    if not versions:
+        raise MigrationError(f"no migrations found in {directory}")
+    return versions[-1]
+
+
 def migrate(owner_url: str, directory: Path = MIGRATIONS_DIR) -> list[str]:
     """Apply what is pending. Returns the versions applied by this call."""
     applied_now: list[str] = []
