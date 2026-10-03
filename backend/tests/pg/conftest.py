@@ -1,0 +1,94 @@
+"""Fixtures for the Postgres tests (spike S2).
+
+They need a real Postgres 18 with the two roles from ``tradejournal.pg.provision``. Connection URLs come from the
+environment (CI) or from ``backend/.env.test`` (written by the provisioning script). Without them every test in this
+folder is skipped, so the rest of the suite still runs anywhere.
+"""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+import psycopg
+import pytest
+from psycopg.rows import dict_row
+
+from tradejournal.pg import migrate as pg_migrate
+from tradejournal.pg.defaults import provision_defaults
+from tradejournal.pg.provision import read_env_file
+from tradejournal.pg.session import Database
+
+ENV_FILE = Path(__file__).resolve().parents[2] / ".env.test"
+
+
+@pytest.fixture(scope="session")
+def pg_urls() -> tuple[str, str]:
+    env = {**read_env_file(ENV_FILE), **os.environ}
+    owner, app = env.get("TJ_TEST_OWNER_URL"), env.get("TJ_TEST_APP_URL")
+    if not owner or not app:
+        if env.get("TJ_REQUIRE_POSTGRES"):  # CI sets this: a missing database must fail the build, never skip it
+            pytest.fail("TJ_REQUIRE_POSTGRES is set but TJ_TEST_OWNER_URL and TJ_TEST_APP_URL are not")
+        pytest.skip(
+            "no Postgres: set TJ_TEST_OWNER_URL and TJ_TEST_APP_URL, or run python -m tradejournal.pg.provision"
+        )
+    return owner, app
+
+
+@pytest.fixture(scope="session")
+def owner_url(pg_urls) -> str:
+    """The test database with a fresh schema: dropped and rebuilt from the migrations once per run."""
+    owner, _ = pg_urls
+    with psycopg.connect(owner, autocommit=True) as conn:
+        conn.execute("DROP SCHEMA public CASCADE")
+        conn.execute("CREATE SCHEMA public")
+    pg_migrate.migrate(owner)
+    return owner
+
+
+@pytest.fixture(scope="session")
+def app_url(pg_urls) -> str:
+    return pg_urls[1]
+
+
+@pytest.fixture(scope="session")
+def db(owner_url, app_url):
+    """The request-serving pool: connects as app_rw, so row-level security applies."""
+    database = Database(app_url, max_size=4)
+    database.open()
+    yield database
+    database.close()
+
+
+@pytest.fixture
+def owner(owner_url):
+    """An owner connection (it can create users and read everything), on an emptied database."""
+    with psycopg.connect(owner_url, autocommit=True, row_factory=dict_row) as conn:
+        conn.execute("TRUNCATE users RESTART IDENTITY CASCADE")  # cascades through every tenant table
+        yield conn
+
+
+def make_user(owner, db, email: str):
+    row = owner.execute(
+        "INSERT INTO users (idp_subject, email) VALUES (%s, %s) RETURNING id", (f"idp|{email}", email)
+    ).fetchone()
+    with db.tenant_session(row["id"]) as conn:
+        provision_defaults(conn)
+    return row["id"]
+
+
+@pytest.fixture
+def alice(owner, db):
+    return make_user(owner, db, "alice@example.test")
+
+
+@pytest.fixture
+def bob(owner, db):
+    return make_user(owner, db, "bob@example.test")
+
+
+@pytest.fixture
+def conn(db, alice):
+    """Alice's tenant session, as the SQLite tests' `conn` fixture was the one journal."""
+    with db.tenant_session(alice) as connection:
+        yield connection

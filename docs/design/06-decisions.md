@@ -45,6 +45,23 @@ Status of every decision below is **Proposed** until you confirm it, and the spi
 
 **Revisit when:** spike S2 shows the port exceeds roughly 90 hours or surfaces blocking incompatibilities; or you decide self-hosted/local mode is a product feature. Then reconsider C.
 
+**Spike S2 conclusion (2026-10-03).** Decision A stands; nothing blocked and nothing pointed back to option C. What was built and run, on PostgreSQL 18.6 (portable zip, local), is `backend/tradejournal/pg/`: the migration `0001_tenancy_core.sql` (all 12 tenant tables, users and user settings), a migration runner, `Database.tenant_session`, and ports of `accounts.py` and `journal.py`, with 144 tests in `backend/tests/pg/`, also run in CI against a Postgres 18 service container.
+
+*Verified by running it:*
+- **The tenant does not leak through the pool.** `set_config('app.user_id', ..., true)` is transaction-local: a test forces a one-connection pool, uses the connection as user A, then reuses the *same backend process* and sees no tenant. Making the setting session-wide fails that test (checked).
+- **Each of the three layers holds alone.** RLS isolation across all 13 tenant tables (user B sees none of A's rows, reads, writes, deletes and guessed ids all fail); composite foreign keys refuse a cross-tenant reference even with RLS switched off in a rolled-back transaction; `user_id DEFAULT app_user_id()` makes an insert with no tenant fail. Making the policy `USING (true)` fails the schema lint (checked).
+- **`ON DELETE SET NULL (trade_id)`** works on 18 and leaves `user_id` intact; deleting a user cascades through every tenant table and touches nothing else.
+- **The request role** is not a superuser, lacks `BYPASSRLS`, has only SELECT/INSERT/UPDATE/DELETE on tenant tables and no access to `users` or `schema_migrations`.
+- **The audit's predictions** (doc 03 section 9.1) were run on the real database: the original `GROUP BY tags.id ... ORDER BY tag_groups.sort_order` raises `GroupingError`; the `HAVING has_notes` alias raises `UndefinedColumn`; positional `row[0]` on dict rows raises `KeyError`.
+
+*New findings from the port:*
+1. **`timestamptz` comes back in the connection's time zone**, not UTC. The instant is right, but `entry_at.date()` would silently move a trade across midnight. Fix: the database default is UTC (set in the first migration) and the pool also pins it per connection.
+2. **Money columns are `numeric(20,2)`, not `numeric(20,6)` as doc 03 said.** The domain already rounds every amount to cents, and `numeric(20,6)` reached the API as `"50000.000000"`. Only the per-contract fee rate keeps six decimals. Doc 03 is amended.
+3. **`remove_orphan_files` is not portable as written.** It compares a folder with *the current user's* screenshot rows; on a shared folder that deletes every other user's files. It was left out; orphan cleanup becomes a system job over the whole object store (M6).
+4. A psycopg *connection* has no `executemany` (only a cursor does); `lastrowid` becomes `RETURNING id`; after any failed statement the whole transaction is aborted until a savepoint is rolled back (the tests use `conn.transaction()`, and each API request is its own transaction, which is the right granularity).
+
+*Not yet shown:* the advisory-lock rule for concurrent regrouping (it needs the importer and `store.rebuild_trades`, so it moves to the M2 port, with a test that runs two imports at once); the system roles (`login`, `webhook`, `sweep`, `admin`); and the importer batching. **Size of the port:** two of ten modules (about 620 lines) produced eleven distinct issues (six the audit predicted, five new, none a blocker). I expect similar density in the rest and keep the M2 estimate of 70 to 100 hours, to be recalibrated at the end of M2 as planned.
+
 ---
 
 ## ADR-003: Hosted identity provider (OIDC) with our own server-side sessions
