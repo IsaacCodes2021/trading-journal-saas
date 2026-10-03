@@ -1,0 +1,29 @@
+# The build context is the repository root (docker build -f backend/Dockerfile .). Keep it small, and keep
+# anything local or secret out of it, so a COPY can never pick it up.
+.git/
+.github/
+docs/
+spikes/
+data/
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.csv
+
+# Never copy a local install into the image: it is rebuilt from the lock files.
+**/node_modules/
+**/.venv/
+**/dist/
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.ruff_cache/
+**/test-results/
+**/playwright-report/
+
+# Not needed at run time
+backend/tests/
+frontend/e2e/

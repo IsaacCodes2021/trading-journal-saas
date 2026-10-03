@@ -208,7 +208,16 @@ uv run uvicorn tradejournal.api.app:create_app --factory --port 8000    # needs 
 uv run python -m tradejournal.api.openapi                              # rewrites backend/openapi.json
 ```
 
-Settings come from environment variables (`ApiConfig` in `api/config.py`). Development needs none.
+The container image holds the API and the built front end (a Node stage builds `frontend/`). Build it from the
+repository root; the image defaults to `TJ_ENV=production`, so it refuses to start until the settings below exist:
+
+```powershell
+docker build -f backend/Dockerfile -t tradejournal .
+docker run --rm -p 8000:8000 -e TJ_ENV=development -e TJ_APP_ORIGIN=http://localhost:8000 tradejournal
+```
+
+CI builds it and starts it on every pull request. Settings come from environment variables (`ApiConfig` in
+`api/config.py`). Development needs none.
 
 | Variable | Meaning |
 |---|---|

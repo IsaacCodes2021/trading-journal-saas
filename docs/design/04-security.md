@@ -124,7 +124,7 @@ Boxes stay unticked above because each is a launch gate for the whole system. Th
 | Upload and body limits | `api/limits.py`: `Content-Length` checked before the app runs, chunked bodies counted as read, separate JSON and multipart ceilings (mutation-checked) | Per-route exact limits (10 MB per screenshot, 10 files), the edge cap, pixel cap, CSV row cap, import concurrency limit |
 | No raw HTML outside `SafeHtml` | `frontend/scripts/check-security.mjs` in CI (also forbids `eval` and `new Function`); ESLint `react/no-danger` still applies | |
 | No secrets in `VITE_*` or the bundle; no public source maps | The same script: no `import.meta.env.VITE_*` or `process.env` in the app, no `.env` files, no `.map` files, no secret-shaped strings in `dist/` | |
-| Locked dependencies, frozen installs | `uv sync --frozen`, `pnpm install --frozen-lockfile`, `pip-audit`, `pnpm audit` in CI | The Dockerfile does not build the front end yet (M7) |
+| Locked dependencies, frozen installs | `uv sync --frozen`, `pnpm install --frozen-lockfile`, `pip-audit`, `pnpm audit` in CI. The Dockerfile builds the front end with a frozen install, and base images are pinned by digest | |
 
 ## 5. Logging, monitoring and incident response
 

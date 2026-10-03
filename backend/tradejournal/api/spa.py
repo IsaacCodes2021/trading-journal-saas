@@ -30,7 +30,8 @@ def mount_spa(app: FastAPI, dist: Path) -> None:
     if (root / "assets").is_dir():
         app.mount("/assets", ImmutableStaticFiles(directory=root / "assets"), name="assets")
 
-    @app.get("/{full_path:path}", include_in_schema=False)
+    # HEAD as well as GET: uptime monitors and `curl -I` use it, and FastAPI does not add it on its own.
+    @app.api_route("/{full_path:path}", methods=["GET", "HEAD"], include_in_schema=False)
     def spa(full_path: str, request: Request) -> Response:
         if full_path.split("/", 1)[0] in RESERVED_PREFIXES:
             raise HTTPException(404)

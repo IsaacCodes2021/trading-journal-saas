@@ -12,6 +12,7 @@ dependencies = [
     # because the API outlives the NiceGUI user interface (ADR-010).
     "fastapi>=0.142,<1",
     "python-multipart>=0.0.20",  # FastAPI needs it to read multipart uploads (screenshots, CSV imports)
+    "uvicorn>=0.30",  # the server the container runs (also pulled in by nicegui)
 ]
 
 [dependency-groups]
