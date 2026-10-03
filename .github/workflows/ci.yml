@@ -137,6 +137,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The committed types must be exactly what the committed backend/openapi.json generates, so the API and the
+      # front end cannot drift. (The other half of the chain, openapi.json matching the Python code, is a pytest test
+      # in the "Lint and test" job.) Runs before the type check: a stale file would otherwise surface as a confusing
+      # type error.
+      - name: API types match backend/openapi.json
+        run: |
+          pnpm gen:api
+          git diff --exit-code -- src/lib/api/schema.d.ts
+
       - name: Lint
         run: pnpm lint
 
@@ -158,6 +167,3 @@ jobs:
 
       - name: Dependency audit
         run: pnpm audit --audit-level high
-
-      # TODO (M2/M3, when the API writes backend/openapi.json): regenerate src/lib/api/schema.d.ts with
-      # `pnpm gen:api` and fail on any `git diff`, so the API and the front end cannot drift.

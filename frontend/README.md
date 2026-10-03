@@ -37,14 +37,18 @@ pnpm format         # Prettier
 - **Filters live in the URL** (typed search params in `routes.tsx`), not in a global store.
 - `fetch` is resolved at call time in `src/lib/api/client.ts` so tests can replace it.
 
-## The API types are a placeholder
+## The API types are generated
 
-`src/lib/api/schema.d.ts` is hand-written to the session and settings contract until the API exists (M2). Then:
+`src/lib/api/schema.d.ts` is **generated; never edit it by hand**. The chain:
 
-1. The API writes `backend/openapi.json`.
-2. `pnpm gen:api` regenerates `schema.d.ts` with `--default-non-nullable false` (pair it with Pydantic
+1. The API writes `backend/openapi.json`: `python -m tradejournal.api.openapi` in `backend/` (a pytest test fails
+   if the committed file is stale).
+2. `pnpm gen:api` regenerates `schema.d.ts` from it, with `--default-non-nullable false` (paired with Pydantic
    `json_schema_serialization_defaults_required=True`; see doc 07 section 2).
-3. CI regenerates and **fails on any diff**, so the API and the front end cannot drift.
+3. CI regenerates the types and **fails on any diff**, so the API and the front end cannot drift.
+
+After changing an API model or route: run both commands and commit both generated files together with the change.
+The TypeScript compiler then points at every place in the front end that no longer fits.
 
 ## Conventions (for someone new to TypeScript)
 

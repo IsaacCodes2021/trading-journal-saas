@@ -14,7 +14,7 @@ it('reads the date range from the URL and shows the signed-in user', async () =>
     'fetch',
     vi.fn(async () =>
       json({
-        user: { id: 1, email: 'alice@example.test', display_name: 'Alice' },
+        user: { id: '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11', email: 'alice@example.test' },
         settings: {
           timezone: 'America/Los_Angeles',
           trading_day_timezone: 'America/New_York',
