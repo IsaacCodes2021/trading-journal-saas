@@ -1,11 +1,11 @@
 # Payment provider pre-clearance: email drafts (spike S5)
 
-**Status:** drafts only. Nothing has been sent. These go out from the owner's new payments email account once the placeholders below are filled in. **Filled in 2026-10-03:** the product name (Roundturn) and the seller (an individual; no company yet), from the owner decisions in issue 12. Source for the policies quoted: doc 08 section on payment providers (read 2026-10-02).
+**Status:** drafts only. Nothing has been sent. These go out from the owner's new payments email account once the placeholders below are filled in. **Filled in 2026-10-03:** the product name (Roundturn), the domain (roundturn.app, registered 2026-10-03) and the seller (an individual; no company yet), from the owner decisions in issue 12. **Send these only after the site at that address is live** (see `site/README.md`): the providers will open the address, and what they find must match what the email says. Source for the policies quoted: doc 08 section on payment providers (read 2026-10-02).
 
 **Why ask before building:** Stripe prohibits "funded prop trading" and needs approval for investment and brokerage services plus a catch-all "other financial services". Paddle prohibits trading platforms and trading signals or strategies. Lemon Squeezy lists neither and tells sellers to ask support first. A trading journal that analyzes the user's own trades should be outside all of these, but it sits near enough that an approval after the product is built would be an expensive surprise.
 
 **Placeholders to fill in** (these depend on the owner decisions in issue 12):
-- `[DOMAIN]` (waits for the domain registration), `[YOUR NAME]`, `[COUNTRY]`
+- `[YOUR NAME]`, `[COUNTRY]`
 - `[PRICE RANGE]`: leave out if undecided; the providers mostly need the product description.
 
 **Keep the wording accurate.** Do not claim anything the product does not do. The facts below are true of the design (docs 01, 04, 06).
@@ -18,7 +18,7 @@
 
 Hello,
 
-I am planning to launch a subscription web application, Roundturn ([DOMAIN]), first as a free invite-only beta and later with paid plans, and would like to confirm it fits your acceptable-use policy before I build the billing integration.
+I am planning to launch a subscription web application, Roundturn (roundturn.app), first as a free invite-only beta and later with paid plans, and would like to confirm it fits your acceptable-use policy before I build the billing integration.
 
 **What it is.** A journal and analytics tool for futures traders. A user uploads the trade history files they export from their own brokerage platform (for example a CSV), and the app shows statistics on that history: profit and loss, win rate, drawdown, performance by day and by instrument, and lets them attach notes and screenshots to individual trades. It is software for reviewing your own past results.
 
@@ -46,7 +46,7 @@ Hello,
 
 Before I apply for an account I would like to confirm that my product is an eligible business, because some financial categories on your restricted businesses list are close to it.
 
-**The product.** Roundturn ([DOMAIN]) is a web application that analyzes trading history for futures traders, to be offered first as a free invite-only beta and later as a subscription. Users upload files they export from their own brokerage platform, and the app computes statistics on those past trades (profit and loss, win rate, drawdown, results by day and instrument) and lets them add notes and screenshots. It is a record-keeping and self-review tool.
+**The product.** Roundturn (roundturn.app) is a web application that analyzes trading history for futures traders, to be offered first as a free invite-only beta and later as a subscription. Users upload files they export from their own brokerage platform, and the app computes statistics on those past trades (profit and loss, win rate, drawdown, results by day and instrument) and lets them add notes and screenshots. It is a record-keeping and self-review tool.
 
 **How it relates to your restricted list.**
 - It is not funded prop trading. I do not operate a proprietary trading firm and do not sell evaluations or funded accounts.
