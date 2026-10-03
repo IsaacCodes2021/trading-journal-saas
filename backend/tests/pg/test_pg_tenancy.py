@@ -20,7 +20,7 @@ from tradejournal.pg.session import Database
 # missing here fails the build instead of quietly escaping these tests.
 TENANT_TABLES = [
     "user_settings", "accounts", "fee_schedules", "imports", "trades", "fill_pairs", "import_fill_pairs",
-    "tag_groups", "tags", "trade_tags", "day_notes", "screenshots", "account_ledger",
+    "tag_groups", "tags", "trade_tags", "day_notes", "screenshots", "account_ledger", "user_usage",
 ]  # fmt: skip
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
@@ -72,9 +72,9 @@ def data(db, alice, tmp_path):
 # ---- layer 1: row-level security -------------------------------------------------------------------------------
 
 
-# What every new user starts with (tradejournal.pg.defaults): one settings row and three categories. Bob has his
+# What every new user starts with (tradejournal.pg.defaults): one settings row, one usage row and three categories. Bob has his
 # own, and must see exactly those and none of Alice's.
-BOBS_OWN_ROWS = {"user_settings": 1, "tag_groups": 3}
+BOBS_OWN_ROWS = {"user_settings": 1, "tag_groups": 3, "user_usage": 1}
 
 
 @pytest.mark.parametrize("table", TENANT_TABLES)

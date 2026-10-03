@@ -22,7 +22,7 @@ import psycopg
 
 from ..importer import FileImportReport, ImportReport, UndoReport
 from ..parser import parse_performance_csv
-from . import store
+from . import store, usage
 from .accounts import get_account
 from .settings import get_setting
 
@@ -40,6 +40,7 @@ def import_files(
     tz_name = get_setting(conn, "timezone")
     with conn.transaction():  # a savepoint inside the tenant session's transaction
         reports = [_import_file(conn, account_id, name, data, tz_name) for name, data in files]
+        usage.refresh(conn)
         if dry_run:
             raise psycopg.Rollback
     if dry_run:
@@ -199,6 +200,7 @@ def undo_import(conn: psycopg.Connection, import_id: int, *, dry_run: bool = Fal
         report.trades_changed = len(changed)
 
         conn.execute("UPDATE imports SET undone_at = clock_timestamp() WHERE id = %s", (import_id,))
+        usage.refresh(conn)
         if dry_run:
             raise psycopg.Rollback
     return report

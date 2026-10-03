@@ -24,6 +24,7 @@ from ..accounts import (
     archive_summary,  # noqa: F401  (pure; re-exported)
 )
 from ..finance import DEFAULT_FEE_KEY, ZERO, to_money
+from . import usage
 
 
 def create_account(
@@ -64,6 +65,7 @@ def create_account(
             _money_or_none(profit_target),
         ),
     ).fetchone()
+    usage.refresh(conn)
     return _account_from_row(row)
 
 

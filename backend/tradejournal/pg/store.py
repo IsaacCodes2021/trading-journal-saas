@@ -27,7 +27,7 @@ from ..grouping import group_fill_pairs, row_order
 from ..models import FillPair, TradeMetrics
 from ..store import RebuildResult
 from ..trades import build_trade
-from . import settings
+from . import settings, usage
 from .accounts import fee_schedule
 
 SOURCE = "tradovate_performance"  # the only import adapter so far (matches the column default)
@@ -250,6 +250,7 @@ def rebuild_account(conn: psycopg.Connection, account_id: int) -> RebuildResult:
         by_symbol[row["symbol"]].append(row["id"])
     for symbol, pair_ids in by_symbol.items():
         result.absorb(rebuild_trades(conn, account_id, symbol, pair_ids))
+    usage.refresh(conn)  # regrouping can merge trades away
     return result
 
 

@@ -30,6 +30,7 @@ from ..journal import (
     clean_notes,
     image_extension,
 )
+from . import usage
 
 
 def tag_groups(conn: psycopg.Connection) -> list[TagGroup]:
@@ -247,6 +248,7 @@ def add_screenshot(
     except BaseException:
         path.unlink(missing_ok=True)
         raise
+    usage.refresh(conn)
     return _screenshot(row)
 
 
@@ -259,7 +261,10 @@ def delete_screenshot(conn: psycopg.Connection, screenshot_id: int) -> str | Non
     """Forget a screenshot. Returns its file name so the caller can delete the file
     once the transaction has committed (see remove_file)."""
     row = conn.execute("DELETE FROM screenshots WHERE id = %s RETURNING stored_name", (screenshot_id,)).fetchone()
-    return row["stored_name"] if row else None
+    if row is None:
+        return None
+    usage.refresh(conn)
+    return row["stored_name"]
 
 
 def remove_file(folder: Path, stored_name: str) -> None:
