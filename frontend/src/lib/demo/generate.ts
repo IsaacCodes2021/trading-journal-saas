@@ -1,5 +1,5 @@
 import Decimal from 'decimal.js'
-import type { AccountRef, TagRef, TradeRow } from '../data/model'
+import type { AccountRef, FillPairRow, ScreenshotRef, TagGroupRef, TagRef, TradeRow } from '../data/model'
 
 /*
  * Sample data for the pages, until the real stats and trades endpoints exist (M3). Deterministic: the same seed gives
@@ -17,14 +17,25 @@ export const SAMPLE_ACCOUNTS: AccountRef[] = [
   { id: 4, name: 'Apex 50K #2', firm: 'Apex', account_type: 'evaluation' },
 ]
 
+export const SAMPLE_TAG_GROUPS: TagGroupRef[] = [
+  { id: 1, name: 'Setup' },
+  { id: 2, name: 'Mistake' },
+  { id: 3, name: 'Emotion' },
+]
+
 export const SAMPLE_TAGS = {
-  aPlus: { id: 1, name: 'A+ setup', color: '#6EA8FE' },
-  calm: { id: 2, name: 'Calm', color: '#34D399' },
-  fomo: { id: 3, name: 'FOMO', color: '#F5C26B' },
-  chased: { id: 4, name: 'Chased entry', color: '#F5C26B' },
-  oversized: { id: 5, name: 'Oversized', color: '#F5C26B' },
-  revenge: { id: 6, name: 'Revenge', color: '#F87171' },
-  againstTrend: { id: 7, name: 'Against trend', color: '#F87171' },
+  aPlus: { id: 1, group_id: 1, name: 'A+ setup', color: '#6EA8FE' },
+  openingRange: { id: 2, group_id: 1, name: 'Opening range', color: '#6EA8FE' },
+  pullback: { id: 3, group_id: 1, name: 'Pullback', color: '#6EA8FE' },
+  reversal: { id: 4, group_id: 1, name: 'Reversal', color: '#6EA8FE' },
+  fomo: { id: 5, group_id: 2, name: 'FOMO', color: '#F5C26B' },
+  chased: { id: 6, group_id: 2, name: 'Chased entry', color: '#F5C26B' },
+  oversized: { id: 7, group_id: 2, name: 'Oversized', color: '#F5C26B' },
+  againstTrend: { id: 8, group_id: 2, name: 'Against trend', color: '#F87171' },
+  calm: { id: 9, group_id: 3, name: 'Calm', color: '#34D399' },
+  anxious: { id: 10, group_id: 3, name: 'Anxious', color: '#F5C26B' },
+  revenge: { id: 11, group_id: 3, name: 'Revenge', color: '#F87171' },
+  overconfident: { id: 12, group_id: 3, name: 'Overconfident', color: '#F5C26B' },
 } satisfies Record<string, TagRef>
 
 interface Instrument {
@@ -169,3 +180,72 @@ function tagsFor(random: () => number, winner: boolean): TagRef[] {
 }
 
 export const SAMPLE_TRADES: readonly TradeRow[] = generateTrades()
+
+// ---- what the detail page adds to a trade ---------------------------------------------------------------------------
+
+const isoNoMillis = (ms: number) => new Date(ms).toISOString().replace('.000Z', 'Z')
+
+/**
+ * The fill pairs behind a trade. Derived from the trade itself, from its own seed, so the pairs always add up to the
+ * trade: the pair results sum to the gross result, the first pair enters when the trade does and the last exits when it
+ * does. (A trade of one contract is one pair; a larger one is up to three.)
+ */
+export function fillPairsFor(trade: TradeRow): FillPairRow[] {
+  const random = seeded(trade.id * 7919 + 13)
+  const count = Math.min(trade.total_qty, 1 + Math.floor(random() * 3))
+  const base = Math.floor(trade.total_qty / count)
+  const extra = trade.total_qty - base * count
+  const perContract = new Decimal(trade.gross_pnl).div(trade.total_qty)
+  const entryMs = new Date(trade.entry_at).getTime()
+  const exitMs = new Date(trade.exit_at).getTime()
+  const long = trade.direction === 'long'
+  return Array.from({ length: count }, (_, i) => {
+    const qty = base + (i < extra ? 1 : 0)
+    const enteredAt = isoNoMillis(entryMs + i * Math.floor(random() * 3) * 1000)
+    const exitedAt = isoNoMillis(exitMs - (count - 1 - i) * (1 + Math.floor(random() * 3)) * 1000)
+    return {
+      id: trade.id * 10 + i,
+      bought_at: long ? enteredAt : exitedAt,
+      sold_at: long ? exitedAt : enteredAt,
+      qty,
+      buy_price: long ? trade.avg_entry : trade.avg_exit,
+      sell_price: long ? trade.avg_exit : trade.avg_entry,
+      pnl: perContract.times(qty).toFixed(2),
+    }
+  })
+}
+
+/** Points per contract, positive when the move was in the trade's favour. */
+export function pointsFor(trade: TradeRow): string {
+  const move = new Decimal(trade.avg_exit).minus(trade.avg_entry)
+  return (trade.direction === 'long' ? move : move.neg()).toFixed(2)
+}
+
+const WINNER_NOTES = [
+  '<p><strong>Plan:</strong> long the retest of the opening range high after the first pullback held. Stop below the 09:35 low, target the prior day high.</p><p><strong>What happened:</strong> entry was clean, no chasing. Let it run to the target. Hesitated for a second before clicking, but the checklist was fully met.</p><ul><li>Waited for the pullback instead of buying the breakout</li><li>Stop placed before entry, size within the daily loss rule</li></ul><p><strong>Improve:</strong> take the same trade next time even when the previous one lost.</p>',
+  '<p><strong>Plan:</strong> trade the first pullback in the direction of the morning trend and nothing else.</p><p><strong>What happened:</strong> followed it. Took profit at the first target and stopped for the session.</p>',
+  '<p>Patient entry on a second test of the level. Stayed out of the first move, which would have been a chase.</p>',
+]
+
+const LOSER_NOTES = [
+  '<p><strong>What happened:</strong> entered late after the move had already started, then moved my stop back. Should have taken the first stop.</p><ul><li>Entry was not on the plan</li><li>Size was bigger than my rule</li></ul><p><strong>Improve:</strong> if I miss the entry, wait for the next setup instead of chasing.</p>',
+  '<p>Stopped out on the first pullback. The read was fine and the stop was fair; no change needed.</p>',
+  '<p><strong>What happened:</strong> traded again right after a loss to get it back. No setup, just frustration.</p><p><strong>Improve:</strong> after two losses in a row, step away for ten minutes.</p>',
+]
+
+/** A believable journal note for a trade the sample marks as having one. */
+export function notesFor(trade: TradeRow): string {
+  const pool = new Decimal(trade.net_pnl).isPositive() ? WINNER_NOTES : LOSER_NOTES
+  return pool[trade.id % pool.length] ?? ''
+}
+
+const SHOT_NAMES = ['entry.png', 'exit.png', 'context.png']
+
+export function screenshotsFor(trade: TradeRow): ScreenshotRef[] {
+  return Array.from({ length: trade.screenshot_count }, (_, i) => ({
+    id: trade.id * 10 + i,
+    original_name: SHOT_NAMES[i] ?? `shot-${i + 1}.png`,
+    created_at: trade.exit_at,
+    src: null,
+  }))
+}

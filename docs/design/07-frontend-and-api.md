@@ -134,6 +134,16 @@ Decisions and deviations from the plan in section 3 and 4:
 
 Next: Trade detail, Import, Settings (accounts, fees, rules, tags, preferences), Onboarding, then the sign-in and admin screens.
 
+**Slice 2 (2026-10-03): Trade detail.** Branch `fe/trade-detail`, from the canvas's TradeDetail screen. The page for `/trades/$tradeId` shows the result (net, gross, fees, points, hold time, trading day), the fill pairs with the arithmetic from gross to net, the notes, tags by group, screenshots (drop, browse or paste; full-size viewer with arrow keys and a confirmed delete) and a journal-status card. Previous and next follow the order and filters of the list the person came from, through a new `DataSource.neighbors` read (the future `GET /api/v1/trades/{id}/neighbors`). The page is its own lazily loaded chunk (16 KB gzipped); the entry chunk is 132 KB of the 150 KB budget, and importing DOMPurify into the entry chunk alone had cost 18 KB, which is why.
+
+Gaps and decisions:
+
+- **Notes are a plain-text box for now.** The rich-text editor (Tiptap) is an npm install, so it waits for approval. The box saves by itself 0.8 s after typing stops and on blur, shows Saved / Unsaved changes / Saving / failed with Try again, and escapes everything it saves. **It flattens formatting on edit (bold becomes plain), so it must not be connected to real notes**: the editor replaces it behind the same `saveNotes(id, html)` call.
+- **The canvas's "Reviewed" row has no backend field** (nothing in docs 03 or 05 or the code), so the status card shows Notes, Setup tag and Screenshots only. Adding a reviewed flag is a feature decision, not a front-end detail.
+- **Fill pair "P&L" is gross** (the export's own number); fees are charged per trade, so the table ends with Gross, Fees and Net rows. The canvas shows a per-pair "Net".
+- Tags can be several per group; the backend's `set_trade_tags` replaces a whole group, and the API in section 5 has add and remove per tag, which is what the page uses.
+- The sample journal (`lib/demo/journal.ts`) keeps edits in memory only, so a reload resets them; the banner says so.
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

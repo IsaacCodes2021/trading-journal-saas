@@ -120,8 +120,8 @@ function SampleDataBanner() {
   if (label === null) return null
   return (
     <div role="note" className="border-b border-warn-line bg-panel px-4 py-1.5 text-center text-xs text-warn sm:px-8">
-      <strong>{label}.</strong> These numbers are made up so the screens can be tried. Your own data arrives with the
-      next releases.
+      <strong>{label}.</strong> These numbers are made up so the screens can be tried, and changes you make are not
+      kept. Your own data arrives with the next releases.
     </div>
   )
 }
