@@ -1,6 +1,15 @@
 @import 'tailwindcss';
 @import './styles/tokens.css';
 
+/* IBM Plex, served from our own origin (the content security policy allows no font host). Latin only: other scripts
+   fall back to the system fonts in the stack. */
+@import '@fontsource/ibm-plex-sans/latin-400.css';
+@import '@fontsource/ibm-plex-sans/latin-500.css';
+@import '@fontsource/ibm-plex-sans/latin-600.css';
+@import '@fontsource/ibm-plex-mono/latin-400.css';
+@import '@fontsource/ibm-plex-mono/latin-500.css';
+@import '@fontsource/ibm-plex-mono/latin-600.css';
+
 /* Layered, so a utility class (text-muted, no-underline) always beats these defaults. */
 @layer base {
   html {
@@ -39,5 +48,45 @@
   /* Tables that do not fit scroll inside their card instead of widening the page. */
   .scroll-x {
     overflow-x: auto;
+  }
+}
+
+/*
+ * The notes editor and the rendered notes. Tiptap is told not to inject its own <style> (the content security policy
+ * would block it), so the few rules it needs are here. Lists get their markers back because the reset removes them.
+ */
+@layer components {
+  .notes-editor .ProseMirror {
+    min-height: 240px;
+    outline: none;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+
+  .notes-editor .ProseMirror p,
+  .notes-editor .ProseMirror ul,
+  .notes-editor .ProseMirror ol,
+  .notes-editor .ProseMirror blockquote {
+    margin: 0 0 0.75rem;
+  }
+
+  .notes-editor .ProseMirror ul {
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+
+  .notes-editor .ProseMirror ol {
+    list-style: decimal;
+    padding-left: 1.25rem;
+  }
+
+  .notes-editor .ProseMirror blockquote {
+    border-left: 3px solid var(--line-strong);
+    color: var(--muted);
+    padding-left: 0.75rem;
+  }
+
+  .notes-editor .ProseMirror a {
+    text-decoration: underline;
   }
 }

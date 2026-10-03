@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SAMPLE_TRADES, fillPairsFor, pointsFor } from '../../lib/demo/generate'
+import { SAMPLE_TRADES, fillPairsFor, notesFor, pointsFor } from '../../lib/demo/generate'
 import { resetDemoJournal } from '../../lib/demo/journal'
 import { demoSource } from '../../lib/demo/source'
 import { formatAmount, formatPnl, formatPoints } from '../../lib/format'
@@ -18,7 +18,6 @@ type Trade = (typeof SAMPLE_TRADES)[number]
 const first = (predicate: (t: Trade) => boolean): Trade => SAMPLE_TRADES.find(predicate) as Trade
 
 const blank = first((t) => !t.has_notes && t.screenshot_count === 0 && t.tags.length === 0)
-const noted = first((t) => t.has_notes && t.tags.length === 0)
 const pictured = first((t) => t.screenshot_count >= 2)
 const multiPair = first((t) => fillPairsFor(t).length >= 2)
 
@@ -111,27 +110,42 @@ describe('the trade page', () => {
 })
 
 describe('notes', () => {
-  it('shows the saved note as text', async () => {
-    await openTrade(noted.id)
+  const formatted = first((t) => t.has_notes && t.tags.length === 0 && notesFor(t).includes('<strong>'))
+
+  it('shows the saved note with its formatting', async () => {
+    await openTrade(formatted.id)
     const box = await screen.findByRole('textbox', { name: 'Notes' })
-    expect((box as HTMLTextAreaElement).value.length).toBeGreaterThan(10)
+    expect(box.querySelector('strong')).not.toBeNull()
+    expect(box.querySelector('ul')).not.toBeNull()
     expect(screen.getByText('Saved')).toBeInTheDocument()
+  })
+
+  it('offers the formatting tools, with the state of each', async () => {
+    await openTrade(blank.id)
+    const toolbar = await screen.findByRole('toolbar', { name: 'Formatting' })
+    for (const name of ['Bold', 'Italic', 'Underline', 'Bulleted list', 'Numbered list', 'Quote']) {
+      expect(within(toolbar).getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false')
+    }
+    expect(within(toolbar).getByRole('button', { name: 'Link' })).toBeInTheDocument()
+    expect(within(toolbar).getByRole('button', { name: 'Insert template' })).toBeInTheDocument()
   })
 
   it('saves by itself a moment after typing stops', async () => {
     const { user } = await openTrade(blank.id)
     const box = await screen.findByRole('textbox', { name: 'Notes' })
-    await user.type(box, 'Waited for the pullback.')
-    expect(screen.getByText('Unsaved changes')).toBeInTheDocument()
+    await user.click(box)
+    await user.keyboard('Waited for the pullback.')
+    expect(await screen.findByText('Unsaved changes')).toBeInTheDocument()
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument(), { timeout: 3000 })
     expect((await demoSource.trade(blank.id))?.notes_html).toBe('<p>Waited for the pullback.</p>')
   })
 
-  it('saves at once when the box loses focus, so moving on never drops a change', async () => {
+  it('saves at once when the editor loses focus, so moving on never drops a change', async () => {
     const { user } = await openTrade(blank.id)
     const box = await screen.findByRole('textbox', { name: 'Notes' })
-    await user.type(box, 'Quick note')
-    await user.tab()
+    await user.click(box)
+    await user.keyboard('Quick note')
+    await user.click(screen.getByRole('heading', { name: 'Fill pairs' })) // anywhere else
     await waitFor(async () => expect((await demoSource.trade(blank.id))?.notes_html).toBe('<p>Quick note</p>'))
     expect(await screen.findByText('Saved')).toBeInTheDocument()
   })
@@ -140,10 +154,11 @@ describe('notes', () => {
     const save = vi.spyOn(demoSource, 'saveNotes').mockRejectedValueOnce(new Error('offline'))
     const { user } = await openTrade(blank.id)
     const box = await screen.findByRole('textbox', { name: 'Notes' })
-    await user.type(box, 'Do not lose me')
-    await user.tab()
+    await user.click(box)
+    await user.keyboard('Do not lose me')
+    await user.click(screen.getByRole('heading', { name: 'Fill pairs' }))
     expect(await screen.findByText('Could not save. Your text is still here.')).toBeInTheDocument()
-    expect(box).toHaveValue('Do not lose me')
+    expect(box).toHaveTextContent('Do not lose me')
 
     await user.click(screen.getByRole('button', { name: 'Try again' }))
     await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument())
@@ -151,14 +166,27 @@ describe('notes', () => {
     expect((await demoSource.trade(blank.id))?.notes_html).toBe('<p>Do not lose me</p>')
   })
 
-  it('turns markup typed into a note into plain text, never into a tag', async () => {
+  it('inserts the template and saves it', async () => {
+    const { user } = await openTrade(blank.id)
+    await user.click(await screen.findByRole('button', { name: 'Insert template' }))
+    const box = screen.getByRole('textbox', { name: 'Notes' })
+    expect(box).toHaveTextContent('Plan:')
+    expect(box).toHaveTextContent('What happened:')
+    expect(box).toHaveTextContent('Improve:')
+    await user.click(screen.getByRole('heading', { name: 'Fill pairs' }))
+    await waitFor(async () =>
+      expect((await demoSource.trade(blank.id))?.notes_html).toContain('<strong>Plan:</strong>'),
+    )
+  })
+
+  it('never lets markup typed into a note become markup', async () => {
     const { user } = await openTrade(blank.id)
     const box = await screen.findByRole('textbox', { name: 'Notes' })
-    await user.type(box, '<b>hi</b>')
-    await user.tab()
-    await waitFor(async () =>
-      expect((await demoSource.trade(blank.id))?.notes_html).toBe('<p>&lt;b&gt;hi&lt;/b&gt;</p>'),
-    )
+    await user.click(box)
+    await user.keyboard('<img src=x onerror=alert(1)>')
+    await user.click(screen.getByRole('heading', { name: 'Fill pairs' }))
+    await waitFor(async () => expect((await demoSource.trade(blank.id))?.notes_html).toContain('&lt;img'))
+    expect((await demoSource.trade(blank.id))?.notes_html).not.toContain('<img')
   })
 })
 

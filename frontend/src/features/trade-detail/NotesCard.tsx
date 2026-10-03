@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import type { Editor } from '@tiptap/react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { Button, Card } from '../../components/ui/primitives'
 import type { TradeDetail } from '../../lib/data/model'
 import { useSaveNotes } from '../../lib/data/queries'
-import { htmlToText, textToHtml } from './notes'
+
+// The editor is the biggest piece of this page, so it loads after the rest of it has appeared.
+const NotesEditor = lazy(() => import('./NotesEditor'))
 
 const SAVE_AFTER_MS = 800
 
@@ -16,24 +19,27 @@ const STATUS_TEXT: Record<Status, string> = {
 }
 
 /**
- * The journal note for one trade. It saves by itself a moment after typing stops, and when the box loses focus (so
- * moving to the next trade never drops a change). The editor here is plain text until the rich-text editor is
- * installed; see notes.ts. Keyed by trade in the page, so each trade starts with its own text.
+ * The journal note for one trade. It saves by itself a moment after typing stops, and when the editor loses focus (so
+ * moving to the next trade never drops a change). Keyed by trade in the page, so each trade starts with its own text.
+ * `onEditor` hands the editor to a caller that wants to drive it (the tests do).
  */
-export function NotesCard({ trade }: { trade: TradeDetail }) {
+export function NotesCard({ trade, onEditor }: { trade: TradeDetail; onEditor?: (editor: Editor) => void }) {
   const save = useSaveNotes(trade.id)
-  const [text, setText] = useState(() => htmlToText(trade.notes_html))
   const [status, setStatus] = useState<Status>('saved')
-  const latest = useRef(text)
-  const saved = useRef(text)
+  const latest = useRef<string | null>(null) // what the editor holds now; null until it has started
+  const saved = useRef<string | null>(null) // what the server holds, as the editor writes it
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  const persist = (value: string) => {
+  const persist = () => {
+    clearTimeout(timer.current)
+    const value = latest.current
+    if (value === null) return
     if (value === saved.current) {
       setStatus('saved')
       return
     }
     setStatus('saving')
-    save.mutate(textToHtml(value), {
+    save.mutate(value, {
       onSuccess: () => {
         saved.current = value
         setStatus(latest.current === value ? 'saved' : 'unsaved')
@@ -42,13 +48,14 @@ export function NotesCard({ trade }: { trade: TradeDetail }) {
     })
   }
 
-  useEffect(() => {
-    if (text === saved.current) return
-    const timer = setTimeout(() => persist(text), SAVE_AFTER_MS)
-    return () => clearTimeout(timer)
-    // `persist` only reads refs and stable mutation callbacks; the text is what restarts the timer
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text])
+  const changed = (html: string) => {
+    latest.current = html
+    setStatus(html === saved.current ? 'saved' : 'unsaved')
+    clearTimeout(timer.current)
+    timer.current = setTimeout(persist, SAVE_AFTER_MS)
+  }
+
+  useEffect(() => () => clearTimeout(timer.current), [])
 
   return (
     <Card className="p-0" role="region" aria-label="Notes">
@@ -58,26 +65,26 @@ export function NotesCard({ trade }: { trade: TradeDetail }) {
         <span role="status" className="text-xs text-muted">
           {STATUS_TEXT[status]}
         </span>
-        {status === 'failed' ? <Button onClick={() => persist(text)}>Try again</Button> : null}
+        {status === 'failed' ? <Button onClick={persist}>Try again</Button> : null}
       </div>
-      <div className="px-5 py-4">
-        <textarea
-          aria-label="Notes"
-          value={text}
-          rows={10}
-          placeholder="What was the plan, what happened, what would you change?"
-          onChange={(event) => {
-            latest.current = event.target.value
-            setText(event.target.value)
-            setStatus(event.target.value === saved.current ? 'saved' : 'unsaved')
+      <Suspense
+        fallback={
+          <p role="status" className="m-0 min-h-[300px] px-5 py-4 text-muted">
+            Loading the editor…
+          </p>
+        }
+      >
+        <NotesEditor
+          html={trade.notes_html}
+          onChange={changed}
+          onBlur={persist}
+          onReady={(start, editor) => {
+            latest.current = start
+            saved.current = start
+            onEditor?.(editor)
           }}
-          onBlur={() => persist(text)}
-          className="min-h-[260px] w-full resize-y rounded-lg border border-line-strong bg-bg p-3 font-[inherit] text-[15px] leading-relaxed text-ink"
         />
-        <p className="mt-2 mb-0 text-xs text-muted">
-          Plain text for now. Bold, lists and links arrive with the rich-text editor.
-        </p>
-      </div>
+      </Suspense>
     </Card>
   )
 }
