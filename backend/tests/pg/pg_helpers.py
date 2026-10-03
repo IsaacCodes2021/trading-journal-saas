@@ -5,7 +5,30 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
+import psycopg
+
 from tradejournal.pg import accounts
+
+
+def record_statements(conn) -> list[str]:
+    """Start recording what a connection runs: one entry per ``execute`` or ``executemany`` call.
+
+    A batched ``executemany`` is one entry however many rows it carries, which is the point: the entries stand for
+    round trips, the cost that matters over a network.
+    """
+    log: list[str] = []
+
+    class Recording(psycopg.Cursor):
+        def execute(self, query, params=None, **kwargs):
+            log.append(str(query).split()[0].upper())
+            return super().execute(query, params, **kwargs)
+
+        def executemany(self, query, params_seq, **kwargs):
+            log.append(str(query).split()[0].upper() + " (batch)")
+            return super().executemany(query, params_seq, **kwargs)
+
+    conn.cursor_factory = Recording
+    return log
 
 
 def make_account(conn, name: str = "Apex 07", **kwargs):
