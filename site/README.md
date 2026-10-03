@@ -34,7 +34,8 @@ Payment providers will read this site, and so will users. Every claim has to be 
    - Protect with Cloudflare Access: off
    - API token: Create new token (Cloudflare's own flow; do not paste it anywhere)
    Press Deploy only after the pull request with the database id is merged, because the build reads `main`.
-3. **The domain.** The Worker's Settings, Domains & Routes, Add, Custom domain: `roundturn.app`, then `www.roundturn.app`. The domain is registered at Cloudflare, so the DNS records are created for you.
+3. **The domain.** The Worker's Settings, Domains & Routes, Add, Custom domain: `roundturn.app` (leave the subdomain empty; Production). The domain is registered at Cloudflare, so the DNS records are created for you. `www` is not served for now: it would need its own record and a redirect to the apex, so there is one copy of the site. `wrangler.jsonc` turns the `workers.dev` and preview addresses off; do not turn them on again in the dashboard, because the next deploy follows the file.
+   Also: SSL/TLS, Edge Certificates, **Always Use HTTPS** on, so plain `http://` requests are redirected.
 4. **The contact address.** Email Routing for `hello@roundturn.app` (and `payments@`) forwarding to your inbox, verified. Done 2026-10-03.
 5. **Abuse limit.** Security, WAF, Rate limiting rules: a rule for POST requests to `/api/waitlist`, a handful per minute per IP, action Block. The handler already refuses cross-site posts and honeypot fills; this caps volume.
 6. **Check it.** Open the `roundturn.workers.dev` address, submit your own address, and confirm a row appears (D1, the database's Console tab: `SELECT * FROM waitlist`). Submit it again and confirm there is still one row.
