@@ -265,3 +265,30 @@ You are the only existing user and the data is small (23 trades), so this is a o
 | `cli.py` | 2 | Becomes an operator tool: `--user`, plus `admin grant`, `revoke` and `list`, run as a one-off job with the owner-level database URL |
 | `ui/` | about 45 `open_db()` references | **Deleted after the SPA reaches parity.** Replaced by `api/` (about 60 routes, each behind `current_user` and `tenant_session`) and `frontend/` (doc 07) |
 | Tests | 16 files | New Postgres fixture (per-test transaction rollback), plus the schema lint and two-tenant suites. **Port the harness first**: green tests on Postgres are the proof the port is correct. Then route tests with FastAPI's test client, a two-tenant test generated from the OpenAPI document, and a test that connects as the admin role and proves it cannot read tenant tables |
+
+### 9.1 SQL audit of the current code (2026-10-02)
+
+Every SQL statement in `backend/tradejournal/` was read against the table above. The checklist is right on the whole; this adds what it missed. **"Verified"** means checked in the code or by running Python on this machine. **"Expected"** is my reading of Postgres rules, **not run** (no Postgres yet), so spike S2 should confirm each one.
+
+**Changes that give a wrong answer without an error (the dangerous kind)**
+
+| Where | What happens | Status |
+|---|---|---|
+| `journal.py:139` `dict(cursor.fetchall())` | With `dict_row`, each row is a two-key dict, and `dict()` of a list of those silently returns `{'color': 'count'}`. Every `in_use.get(color, 0)` is then 0, so every new tag gets the first preset color. Fix: build the dict from named columns | Verified (ran it) |
+| Case-insensitive `=` lookups: `accounts.py:181`, `journal.py:81, 90, 121` | `accounts.name`, `tag_groups.name` and `tags.name` are declared `COLLATE NOCASE`, so `WHERE name = ?` ignores case today. On Postgres it will not: a duplicate check for "setup" against "Setup" stops matching and the user gets a database error instead of the friendly message. The table above lists only the unique indexes and `ORDER BY` | Verified in the schema (`db.py`); Postgres behavior is standard |
+| Implicit `ORDER BY name`: `accounts.py:188`, `journal.py:75` | These sort case-insensitively only because of the column collation (no `COLLATE` in the query), so a search for `NOCASE` misses them. Use `ORDER BY lower(name)` | Verified |
+
+**Changes that fail loudly (the test suite will find them)**
+
+| Where | What happens | Status |
+|---|---|---|
+| `journal.py:108-113` | `GROUP BY tags.id` but `ORDER BY tag_groups.sort_order`. Postgres allows ungrouped columns only from the table whose primary key is grouped, and `sort_order` belongs to `tag_groups`. Expect "must appear in the GROUP BY clause". Fix: group by `tags.id, tag_groups.sort_order` | Expected |
+| `journal.py:366-369` | The alias-in-`HAVING` trap already listed above; the line is now 366 to 369, not 360 | Verified (location) |
+| Positional row access: `accounts.py:158`, `cli.py:94`, `journal.py:83`, `queries.py:103`, `store.py:233, 238, 240` | `sqlite3.Row` allows `row[0]` and `row["id"]`; `dict_row` allows only the name. The table above says "`sqlite3.Row` to `dict_row`, all call sites", which hides that these 7 sites also change. (`db.py:258` and `ui/pages/settings_page.py:129` go away with the rewrite and the UI deletion) | Verified |
+| 8 `cursor.lastrowid` sites | `accounts.py`, `importer.py`, `ledger.py` once each, `journal.py` three times, `store.py` twice. Covered by `RETURNING id` above; counted here so none is forgotten | Verified |
+
+**Not a problem** (checked and absent): `LIKE`, `strftime` or `date()` in SQL, `AUTOINCREMENT`, `IFNULL`, JSON functions. `GLOB` appears only in the migration that adds the tag color check. The one `LIMIT` (`importer.py:183`) is valid Postgres.
+
+**A concurrency question the checklist does not ask.** `store.rebuild_trades` reads every trade a new fill pair might touch, regroups them in Python, then writes. SQLite plus one user made that safe in practice (one writer at a time, one person). On Postgres, two overlapping writes for the same user (two tabs, a double-submitted import, a client retry after a timeout) can both read the old trades and both write, which can leave duplicate or orphaned trades. This is reasoning from `store.py:116-192`, not a reproduced failure. Proposed rule, to be confirmed in S2: every write path that regroups (import, undo import, `rebuild_account`, `recalculate_trades`, and anything that deletes fill pairs) first takes `pg_advisory_xact_lock` keyed on the user, inside `tenant_session`; the duplicate check in `importer.py:114` is replaced by `INSERT ... ON CONFLICT DO NOTHING RETURNING` on the per-user unique key. Add a test that runs the same import twice at once and expects exactly one set of rows.
+
+**Statement counts that matter for speed** (from the baseline benchmark, doc 05 section 7): `importer.py:114` looks up each pair with its own `SELECT`, `importer.py:121` inserts one pair at a time and `importer.py:131` links one pair at a time (about 3 statements a row); `store.py:129` fetches each seed pair with its own `SELECT`; `store.py:105` writes trades one at a time. Batch all of these in the port: one `SELECT ... WHERE (buy_fill_id, sell_fill_id) = ANY(...)` per file, `executemany` or `COPY` for inserts, `WHERE id = ANY(%s)` for the seed pairs.
