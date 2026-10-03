@@ -45,13 +45,6 @@ jobs:
       - name: Tests
         run: uv run --frozen pytest -q
 
-      # run.bat, run.sh and the Dockerfile install from requirements.txt. It is generated from
-      # uv.lock; if they ever disagree, regenerate it (command in the README, "Dependencies").
-      - name: requirements.txt matches uv.lock
-        run: |
-          uv export --frozen --no-dev --no-emit-project --no-header --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
-          diff requirements.txt "$RUNNER_TEMP/requirements.txt"
-
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
@@ -63,10 +56,15 @@ jobs:
 
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
-      # Checks the exact pinned versions against known vulnerabilities (requirements.txt is complete
-      # and hash-pinned, so no resolving or installing is needed).
+      # Checks the exact versions in uv.lock against known vulnerabilities. The export is complete and
+      # hash-pinned, so no resolving or installing is needed. It is produced here, never committed: a
+      # committed requirements.txt made Dependabot edit it instead of uv.lock.
+      - name: Export the runtime lock
+        working-directory: backend
+        run: uv export --frozen --no-dev --no-emit-project --no-header --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
+
       - name: pip-audit
-        run: uvx pip-audit --requirement backend/requirements.txt --no-deps --disable-pip
+        run: uvx pip-audit --requirement "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip
 
   secrets:
     name: Secret scan

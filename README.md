@@ -186,18 +186,11 @@ CI runs the same three on every pull request.
 ## Dependencies
 
 Versions are declared in `backend/pyproject.toml` and locked, with hashes, in
-`backend/uv.lock`. `backend/requirements.txt` is **generated** from the lock (runtime
-packages only) for `run.bat`, `run.sh` and the container image; don't edit it by hand.
-After changing dependencies, regenerate both:
-
-```powershell
-cd backend
-uv lock
-uv export --frozen --no-dev --no-emit-project --no-header --format requirements-txt -o requirements.txt
-```
-
-CI fails if `requirements.txt` and `uv.lock` disagree, and `pip-audit` checks the pinned
-versions for known vulnerabilities.
+`backend/uv.lock`. `run.bat`, `run.sh`, the container image and CI all install from the lock
+with `uv sync --frozen`, so they get exactly the locked versions. There is no committed
+`requirements.txt`: it used to be generated from the lock, and Dependabot edited it instead
+of `uv.lock`. After changing dependencies, run `uv lock` in `backend/` and commit both files.
+CI exports the lock to run `pip-audit` on the pinned versions for known vulnerabilities.
 
 The fixtures in `backend/tests/fixtures/` are copies of real exports. The main one,
 `01-05-2024-performance.csv`, has 14 rows that must collapse into 8 trades.
@@ -312,7 +305,7 @@ trading-journal/
   README.md
   data/                      your database (created on first run)
   backend/
-    requirements.txt
+    pyproject.toml, uv.lock  dependencies, locked with hashes
     tradejournal/
       finance.py             all money math and statistics (Decimal)
       parser.py              Tradovate Performance CSV -> fill pairs

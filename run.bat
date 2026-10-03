@@ -7,7 +7,10 @@ if not exist ".venv\Scripts\python.exe" (
     echo Setting up for the first time...
     py -3.12 -m venv .venv 2>nul || python -m venv .venv 2>nul || py -3 -m venv .venv || goto :no_python
 )
-".venv\Scripts\python.exe" -m pip install --quiet --disable-pip-version-check -r requirements.txt || goto :failed
+rem uv installs exactly the versions in uv.lock (with their hashes) into this environment.
+set "VIRTUAL_ENV=%cd%\.venv"
+".venv\Scripts\python.exe" -m pip install --quiet --disable-pip-version-check uv || goto :failed
+".venv\Scripts\uv.exe" sync --quiet --frozen --no-dev --no-install-project --active || goto :failed
 ".venv\Scripts\python.exe" -m tradejournal.ui %*
 goto :eof
 

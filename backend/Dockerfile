@@ -1,17 +1,23 @@
 # syntax=docker/dockerfile:1
 FROM python:3.12-slim
 
+# uv installs exactly what uv.lock says, and verifies the hashes recorded there. The image is pinned by
+# digest (the tag is for humans); Dependabot's docker updater moves both together.
+COPY --from=ghcr.io/astral-sh/uv:0.12.22@sha256:f513a91fc62fe7c17567eee97230dd198e43edb8a9fbecca843714a4358fe1bc /uv /usr/local/bin/uv
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_LINK_MODE=copy \
+    PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
 
-# Dependencies first so this layer is cached until requirements.txt changes. The file is generated
-# from uv.lock and carries hashes, so pip refuses anything that does not match.
-COPY requirements.txt .
-RUN pip install --require-hashes -r requirements.txt
+# Dependencies first so this layer is cached until the lock file changes. --frozen refuses to change
+# the lock; --no-dev leaves out pytest and ruff.
+COPY pyproject.toml uv.lock .python-version ./
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY tradejournal ./tradejournal
 

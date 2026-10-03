@@ -8,5 +8,8 @@ if [ ! -x .venv/bin/python ]; then
     # The project is tested on Python 3.12; prefer it when several versions are installed.
     if command -v python3.12 >/dev/null 2>&1; then python3.12 -m venv .venv; else python3 -m venv .venv; fi
 fi
-.venv/bin/python -m pip install --quiet --disable-pip-version-check -r requirements.txt
+# uv installs exactly the versions in uv.lock (with their hashes) into this environment.
+export VIRTUAL_ENV="$PWD/.venv"
+.venv/bin/python -m pip install --quiet --disable-pip-version-check uv
+.venv/bin/uv sync --quiet --frozen --no-dev --no-install-project --active
 exec .venv/bin/python -m tradejournal.ui "$@"
