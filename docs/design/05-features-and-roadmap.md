@@ -215,7 +215,7 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 
 ## 8. M2 progress (running log)
 
-Ported to Postgres so far, each with its SQLite tests carried over plus tenancy and constraint tests, and mutation-checked: `accounts` and `journal` (spike S2), then `ledger` and `settings`. Still to port: `store`, `queries`, `importer`.
+Ported to Postgres so far, each with its SQLite tests carried over plus tenancy and constraint tests, and mutation-checked: `accounts` and `journal` (spike S2), then `ledger` and `settings`, then `store`, `queries` and `importer` (with the per-user lock and batched writes; details in doc 03 section 9.1). 217 Postgres tests, 554 in all. Still to do in M2: re-run the benchmark on Postgres, `system_session` and its narrow roles, `user_usage`, `/readyz`, the local-data migration script, and the Postgres wiring of the API routes.
 
 Findings from the ledger and settings ports:
 
