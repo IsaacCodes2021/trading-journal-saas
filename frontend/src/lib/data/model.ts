@@ -172,6 +172,73 @@ export interface Neighbors {
   next: number | null
 }
 
+// ---- imports ----------------------------------------------------------------------------------------------------
+
+/** A line of the file that could not be used, with the line number a person can find in a spreadsheet. */
+export interface ImportIssue {
+  line: number
+  message: string
+}
+
+export type PairStatus = 'new' | 'duplicate' | 'other_account'
+
+/** One fill pair as the file states it (times as written in the file, in the timezone the settings name). */
+export interface PreviewRow {
+  line: number
+  status: PairStatus
+  /** For `other_account`: the account the pair is already stored under. */
+  account: string | null
+  symbol: string
+  bought_at: string
+  sold_at: string
+  qty: number
+  buy_price: string
+  sell_price: string
+  pnl: string
+}
+
+/** What importing a file would do, worked out without saving anything (the "dry run"). Mirrors `FileImportReport`. */
+export interface ImportPreview {
+  file_name: string
+  file_bytes: number
+  /** The whole file was refused (wrong kind of export, empty): a reason in words. */
+  fatal: string | null
+  rows_parsed: number // valid fill pairs read from the file
+  rows_added: number // of those, new to this account
+  duplicates: number // already stored in this account
+  duplicates_in_file: number // repeated within the file
+  duplicates_other_accounts: Record<string, number> // stored under another account, by account name
+  errors: ImportIssue[]
+  warnings: ImportIssue[]
+  trades_built: number // trades the new pairs would create or extend
+  rows: PreviewRow[] // the first rows, for the table
+  rows_shown_limit: number
+}
+
+/** One line of the import history. Mirrors the `imports` table. */
+export interface ImportRecord {
+  id: number
+  imported_at: string // ISO UTC
+  file_name: string
+  account: AccountRef
+  rows_added: number
+  trades_built: number
+  undone_at: string | null
+}
+
+/** What undoing an import would remove, before it is confirmed. Mirrors `UndoReport`. */
+export interface UndoPreview {
+  import_id: number
+  rows_removed: number
+  rows_kept: number // still contained in another import
+  trades_removed: number
+  trades_with_journal_removed: number // removed trades that had notes, tags or screenshots
+  trades_changed: number
+}
+
+/** Why a file was refused before it was even read, in words. */
+export class ImportRefused extends Error {}
+
 /** Why a screenshot was refused, in words for the person who chose it. */
 export class ScreenshotRefused extends Error {}
 
@@ -191,4 +258,10 @@ export interface DataSource {
   createTag(groupId: number, name: string): Promise<TagRef>
   addScreenshots(id: number, files: readonly File[]): Promise<ScreenshotRef[]>
   deleteScreenshot(id: number, screenshotId: number): Promise<void>
+  accounts(signal?: AbortSignal): Promise<AccountRef[]>
+  previewImport(accountId: number, file: File): Promise<ImportPreview>
+  commitImport(accountId: number, file: File): Promise<ImportRecord>
+  imports(signal?: AbortSignal): Promise<ImportRecord[]>
+  undoPreview(importId: number): Promise<UndoPreview>
+  undoImport(importId: number): Promise<void>
 }
