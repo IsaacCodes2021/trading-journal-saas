@@ -1,12 +1,11 @@
 # Payment provider pre-clearance: email drafts (spike S5)
 
-**Status:** drafts only. Nothing has been sent. These go out from the owner's new payments email account once the placeholders below are filled in. **Filled in 2026-10-03:** the product name (Roundturn), the domain (roundturn.app, registered 2026-10-03) and the seller (an individual; no company yet), from the owner decisions in issue 12. **Send these only after the site at that address is live** (see `site/README.md`): the providers will open the address, and what they find must match what the email says. Source for the policies quoted: doc 08 section on payment providers (read 2026-10-02).
+**Status:** drafts only. Nothing has been sent. These go out from the owner's new payments email account once the placeholders below are filled in. **Filled in 2026-10-03:** the product name (Roundturn), the domain (roundturn.app, registered 2026-10-03) and the seller (an individual; no company yet), from the owner decisions in issue 12. **The site is live** (2026-10-03, checked from outside: HTTPS, strict headers, no cookies, a tested waitlist), so these can go out. The providers will open roundturn.app, and what they find matches what the emails say. Remaining placeholders: `[YOUR NAME]` and `[COUNTRY]`, which are the sender's own facts. If the seller will trade under a name other than the sender's own (for example Northfield Labs), change the seller line to match before sending. Source for the policies quoted: doc 08 section on payment providers (read 2026-10-02).
 
 **Why ask before building:** Stripe prohibits "funded prop trading" and needs approval for investment and brokerage services plus a catch-all "other financial services". Paddle prohibits trading platforms and trading signals or strategies. Lemon Squeezy lists neither and tells sellers to ask support first. A trading journal that analyzes the user's own trades should be outside all of these, but it sits near enough that an approval after the product is built would be an expensive surprise.
 
 **Placeholders to fill in** (these depend on the owner decisions in issue 12):
 - `[YOUR NAME]`, `[COUNTRY]`
-- `[PRICE RANGE]`: leave out if undecided; the providers mostly need the product description.
 
 **Keep the wording accurate.** Do not claim anything the product does not do. The facts below are true of the design (docs 01, 04, 06).
 
@@ -28,13 +27,13 @@ I am planning to launch a subscription web application, Roundturn (roundturn.app
 - It does not give investment advice, trade signals, recommendations or price predictions, and it does not manage money for anyone.
 - It is not a proprietary trading firm and does not sell funded accounts or evaluations. Some users trade accounts from prop firms, and the app can record the rules of those accounts for their own tracking; it is informational and states that it may differ from the firm's official numbers.
 
-**Who sells it.** An individual, as a sole proprietor, in [COUNTRY]; no company has been formed yet. After the free beta the product will be billed as a monthly or annual software subscription ([PRICE RANGE]).
+**Who sells it.** An individual, as a sole proprietor, in [COUNTRY]; no company has been formed yet. After the free beta the product will be billed as a monthly or annual software subscription; the price is not set yet.
 
 Could you confirm that this type of product is acceptable to sell through Lemon Squeezy, and tell me if there is anything in the description, the marketing wording or the product that you would want changed? I am happy to share screenshots or a demo.
 
 Thank you,
 [YOUR NAME]
-[PAYMENTS EMAIL ADDRESS]
+payments@roundturn.app
 
 ---
 
@@ -54,13 +53,13 @@ Before I apply for an account I would like to confirm that my product is an elig
 - It does not provide investment advice, signals or recommendations, and it does not handle, hold or move customer funds. The only money involved is the customer's software subscription.
 - Marketing and the product describe past results of the user's own data only, and carry a disclaimer that the output is not investment advice.
 
-**The business.** An individual, as a sole proprietor, in [COUNTRY]; no company has been formed yet. Revenue will be a monthly or annual software subscription ([PRICE RANGE]) after the free beta.
+**The business.** An individual, as a sole proprietor, in [COUNTRY]; no company has been formed yet. Revenue will be a monthly or annual software subscription after the free beta; the price is not set yet.
 
 Please let me know whether this business is eligible to use Stripe, whether it falls under the "other financial services" category that needs approval, and what information you would need from me. I can provide a product demo, screenshots, terms of service and the privacy policy when they are ready.
 
 Thank you,
 [YOUR NAME]
-[PAYMENTS EMAIL ADDRESS]
+payments@roundturn.app
 
 ---
 
