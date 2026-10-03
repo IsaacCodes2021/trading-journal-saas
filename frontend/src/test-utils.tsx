@@ -61,7 +61,8 @@ export function stubApi(opts: ApiOptions = {}) {
   return saved
 }
 
-export type AppPath = '/' | '/trades' | '/import' | '/settings' | `/trades/${string}` | `/settings/${string}`
+export type AppPath =
+  '/' | '/trades' | '/import' | '/invite' | '/settings' | `/trades/${string}` | `/settings/${string}`
 
 export function openApp(to: AppPath, search: Record<string, string | number> = {}) {
   const query = new URLSearchParams(Object.entries(search).map(([key, value]) => [key, String(value)])).toString()
