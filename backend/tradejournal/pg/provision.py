@@ -3,10 +3,14 @@
     # PGPASSWORD holds the superuser's password; nothing is printed.
     python -m tradejournal.pg.provision --superuser-url postgresql://postgres@127.0.0.1:54318/postgres --env-file .env.test
 
-Production creates the same two roles once, by hand, on the managed database (doc 03 section 1):
+Production creates the same roles once, by hand, on the managed database (doc 03 section 1). Every one is a plain login
+role: not a superuser, no BYPASSRLS, no CREATEDB or CREATEROLE.
 
-- ``tj_owner`` owns the schema and runs migrations. It is not a superuser.
-- ``app_rw`` serves requests. It is not a superuser and lacks BYPASSRLS, so row-level security always applies to it.
+- ``tj_owner`` owns the schema and runs migrations.
+- ``app_rw`` serves requests as a tenant: row-level security always applies to it.
+- ``app_login``, ``app_webhook``, ``app_sweep`` and ``app_admin`` are the four ``system_session`` profiles. Each has its
+  own narrow grant list (migration 0004), and none has any grant on a tenant table except ``app_admin``'s read of the
+  usage counters.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ import argparse
 import secrets
 import string
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -23,7 +28,14 @@ from psycopg import sql
 
 OWNER_ROLE = "tj_owner"
 APP_ROLE = "app_rw"
+# system_session profile -> the database role it connects as
+SYSTEM_ROLES = {"login": "app_login", "webhook": "app_webhook", "sweep": "app_sweep", "admin": "app_admin"}
 DATABASES = {"test": "tj_test", "dev": "tj_dev"}
+_PASSWORD_KEYS = {
+    OWNER_ROLE: "TJ_OWNER_PASSWORD",
+    APP_ROLE: "TJ_APP_PASSWORD",
+    **{role: f"TJ_{profile.upper()}_PASSWORD" for profile, role in SYSTEM_ROLES.items()},
+}
 _ALPHABET = string.ascii_letters + string.digits  # URL-safe, so a password can sit in a connection string as is
 
 
@@ -31,10 +43,13 @@ def random_password(length: int = 32) -> str:
     return "".join(secrets.choice(_ALPHABET) for _ in range(length))
 
 
-def provision(superuser_url: str, *, owner_password: str, app_password: str) -> None:
-    """Idempotent: running it again re-applies the passwords and leaves existing roles and databases in place."""
+def provision(superuser_url: str, *, passwords: Mapping[str, str]) -> None:
+    """Idempotent: running it again re-applies the passwords and leaves existing roles and databases in place.
+
+    ``passwords`` maps each role name (``tj_owner``, ``app_rw``, and the system roles) to its password.
+    """
     with psycopg.connect(superuser_url, autocommit=True) as conn:
-        for role, password in ((OWNER_ROLE, owner_password), (APP_ROLE, app_password)):
+        for role, password in passwords.items():
             exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone()
             verb = "ALTER" if exists else "CREATE"
             # CREATE ROLE is a utility statement: it takes no bound parameters, so the password is quoted client side.
@@ -65,6 +80,11 @@ def read_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def password_key(role: str) -> str:
+    """The env file key holding a role's password: tj_owner -> TJ_OWNER_PASSWORD, app_login -> TJ_LOGIN_PASSWORD."""
+    return _PASSWORD_KEYS[role]
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--superuser-url", required=True, help="a superuser connection URL without the password")
@@ -72,21 +92,27 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     existing = read_env_file(args.env_file) if args.env_file else {}
-    owner_password = existing.get("TJ_OWNER_PASSWORD") or random_password()
-    app_password = existing.get("TJ_APP_PASSWORD") or random_password()
-    provision(args.superuser_url, owner_password=owner_password, app_password=app_password)
+    roles = [OWNER_ROLE, APP_ROLE, *SYSTEM_ROLES.values()]
+    passwords = {role: existing.get(password_key(role)) or random_password() for role in roles}
+    provision(args.superuser_url, passwords=passwords)
 
     if args.env_file:
         lines = ["# Local development credentials for synthetic data. Generated; never commit.", ""]
-        lines += [f"TJ_OWNER_PASSWORD={owner_password}", f"TJ_APP_PASSWORD={app_password}"]
+        lines += [f"{password_key(role)}={passwords[role]}" for role in roles]
         for label, database in DATABASES.items():
-            lines += [
-                f"TJ_{label.upper()}_OWNER_URL={url_for(args.superuser_url, OWNER_ROLE, owner_password, database)}",
-                f"TJ_{label.upper()}_APP_URL={url_for(args.superuser_url, APP_ROLE, app_password, database)}",
-            ]
+            lines.append(
+                f"TJ_{label.upper()}_OWNER_URL={url_for(args.superuser_url, OWNER_ROLE, passwords[OWNER_ROLE], database)}"
+            )
+            lines.append(
+                f"TJ_{label.upper()}_APP_URL={url_for(args.superuser_url, APP_ROLE, passwords[APP_ROLE], database)}"
+            )
+            for profile, role in SYSTEM_ROLES.items():
+                lines.append(
+                    f"TJ_{label.upper()}_{profile.upper()}_URL={url_for(args.superuser_url, role, passwords[role], database)}"
+                )
         args.env_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
         print(f"wrote {args.env_file} (contains passwords; it is gitignored)")
-    print(f"roles {OWNER_ROLE} and {APP_ROLE}, databases {', '.join(DATABASES.values())}: ready")
+    print(f"roles {', '.join(roles)}; databases {', '.join(DATABASES.values())}: ready")
     return 0
 
 

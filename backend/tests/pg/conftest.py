@@ -20,6 +20,7 @@ from tradejournal.pg import migrate as pg_migrate
 from tradejournal.pg.defaults import provision_defaults
 from tradejournal.pg.provision import read_env_file
 from tradejournal.pg.session import Database
+from tradejournal.pg.system import PROFILES, SystemDatabase
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env.test"
 
@@ -57,6 +58,21 @@ def app_url(pg_urls) -> str:
 def db(owner_url, app_url):
     """The request-serving pool: connects as app_rw, so row-level security applies."""
     database = Database(app_url, max_size=4)
+    database.open()
+    yield database
+    database.close()
+
+
+@pytest.fixture(scope="session")
+def system(owner_url):
+    """The four system_session pools, each connecting as its own narrow role."""
+    env = {**read_env_file(ENV_FILE), **os.environ}
+    urls = {profile: env.get(f"TJ_TEST_{profile.upper()}_URL") for profile in PROFILES}
+    if not all(urls.values()):
+        if env.get("TJ_REQUIRE_POSTGRES"):
+            pytest.fail("TJ_REQUIRE_POSTGRES is set but the TJ_TEST_<PROFILE>_URL system role URLs are not")
+        pytest.skip("no system role URLs: run python -m tradejournal.pg.provision")
+    database = SystemDatabase(urls, max_size=2)
     database.open()
     yield database
     database.close()
