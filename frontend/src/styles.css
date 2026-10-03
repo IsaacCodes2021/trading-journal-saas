@@ -1,9 +1,43 @@
 @import 'tailwindcss';
+@import './styles/tokens.css';
 
-:root {
-  color-scheme: light dark;
+/* Layered, so a utility class (text-muted, no-underline) always beats these defaults. */
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  a {
+    color: var(--accent);
+  }
+
+  a:hover {
+    color: var(--accent-hover);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
 
-body {
-  font-family: system-ui, sans-serif;
+@layer components {
+  /* Numbers line up in columns and do not jitter as they change. */
+  .num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tables that do not fit scroll inside their card instead of widening the page. */
+  .scroll-x {
+    overflow-x: auto;
+  }
 }

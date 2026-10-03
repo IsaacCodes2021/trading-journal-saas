@@ -1,0 +1,84 @@
+/*
+ * Design tokens, from the "Trading Journal Mockups" canvas (dark theme, sample data). The light theme is derived from
+ * them: same roles, same hue relationships, with contrast checked (text on its card at 4.5:1 or better).
+ *
+ * Components use the role names (`bg-panel`, `text-muted`, `border-line`, `text-pos`), never a raw colour, so a theme
+ * is only ever a different set of values here. `data-theme` on <html> picks the set.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: #141a22;
+  --raised: #1a222c; /* buttons, chips */
+  --line: #263040;
+  --line-soft: #1e2733; /* row separators */
+  --line-strong: #324055; /* axes, input borders */
+  --selected: #263040;
+  --text: #e8edf3;
+  --muted: #93a0b2;
+  --accent: #6ea8fe;
+  --accent-hover: #9cc3ff;
+  --accent-on: #07121f; /* text on an accent fill */
+  --pos: #34d399;
+  --neg: #f87171;
+  --warn: #f5c26b;
+  --warn-line: #4a3a1a;
+  --long-bg: #0f2a22;
+  --short-bg: #33191c;
+  --chip-selected-bg: #16283f;
+  --chip-selected-line: #3b6eb5;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --panel: #ffffff;
+  --raised: #eef2f7;
+  --line: #d3dae5;
+  --line-soft: #e6ebf2;
+  --line-strong: #b6c1d1;
+  --selected: #dfe7f3;
+  --text: #17202b;
+  --muted: #566476;
+  --accent: #1f5fd1;
+  --accent-hover: #174ba6;
+  --accent-on: #ffffff;
+  --pos: #0b7d55;
+  --neg: #b42318;
+  --warn: #8a5a00;
+  --warn-line: #e4cf9f;
+  --long-bg: #ddf3e8;
+  --short-bg: #fbe3e1;
+  --chip-selected-bg: #e3edff;
+  --chip-selected-line: #7fa4e6;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-soft: var(--line-soft);
+  --color-line-strong: var(--line-strong);
+  --color-selected: var(--selected);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-on: var(--accent-on);
+  --color-pos: var(--pos);
+  --color-neg: var(--neg);
+  --color-warn: var(--warn);
+  --color-warn-line: var(--warn-line);
+  --color-long-bg: var(--long-bg);
+  --color-short-bg: var(--short-bg);
+  --color-chip-selected-bg: var(--chip-selected-bg);
+  --color-chip-selected-line: var(--chip-selected-line);
+
+  /* IBM Plex is the design's typeface. It is used when installed; the fallbacks are the system stacks. Self-hosting
+     the font files (so the CSP's font-src 'self' holds) is a follow-up that needs a package. */
+  --font-sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}

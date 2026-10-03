@@ -1,0 +1,62 @@
+import type { Plugin } from 'vite'
+
+/*
+ * DEV ONLY (`apply: 'serve'`): answers the session calls so `pnpm dev` shows the signed-in app with no backend running.
+ * It never runs in `vite build`, and nothing here is bundled: the production build has no such code. Set
+ * TJ_DEV_API=real in the environment to proxy to the real API on :8000 instead.
+ */
+const ID = '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11'
+
+export function devSessionStub(enabled: boolean): Plugin {
+  const settings = {
+    timezone: 'America/New_York',
+    trading_day_timezone: 'America/New_York',
+    trading_day_start: '18:00',
+    theme: 'dark',
+  }
+  return {
+    name: 'tj-dev-session-stub',
+    apply: 'serve',
+    configureServer(server) {
+      if (!enabled) return
+      server.middlewares.use((request, response, next) => {
+        const path = (request.url ?? '').split('?')[0]
+        const send = (status: number, body?: unknown) => {
+          response.statusCode = status
+          response.setHeader('content-type', 'application/json')
+          response.end(body === undefined ? '' : JSON.stringify(body))
+        }
+        if (path === '/api/v1/session' && request.method === 'GET') {
+          return send(200, {
+            user: { id: ID, email: 'trader@example.test' },
+            settings,
+            plan: {
+              effective: 'pro',
+              source: 'grant',
+              expires_at: new Date(Date.now() + 9 * 86_400_000).toISOString(),
+            },
+            entitlements: {},
+            flags: { is_admin: false, mfa_fresh: false },
+            csrf_token: 'dev-token',
+            app_version: 'dev',
+          })
+        }
+        if (path === '/api/v1/settings' && request.method === 'PATCH') {
+          let raw = ''
+          request.on('data', (chunk: Buffer) => (raw += chunk.toString()))
+          request.on('end', () => {
+            try {
+              Object.assign(settings, JSON.parse(raw) as Partial<typeof settings>)
+              send(200, settings)
+            } catch {
+              send(422, { type: 'about:blank', title: 'Unprocessable', status: 422 })
+            }
+          })
+          return
+        }
+        if (path === '/auth/logout' && request.method === 'POST') return send(204)
+        next()
+      })
+    },
+  }
+}
