@@ -1,110 +1,131 @@
-import { createRootRoute, createRoute, createRouter, Link, Outlet } from '@tanstack/react-router'
-import { csrfHeader } from './lib/api/client'
+import {
+  createRootRoute,
+  createRoute,
+  createRouter,
+  Link,
+  Outlet,
+  useNavigate,
+  type RouterHistory,
+} from '@tanstack/react-router'
+import { AppShell } from './components/AppShell'
+import { Card } from './components/ui/primitives'
+import { DashboardPage } from './features/dashboard/DashboardPage'
+import { TradeLogPage } from './features/trades/TradeLogPage'
+import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
+import { parseFilters, pickFilters } from './lib/filters'
 import { useSession } from './lib/session'
 
-// ---- search params: filters live in the URL (replaces the old global filter singleton, doc 03 section 4) ------------
+/*
+ * The route tree. Each page's state lives in the URL (filters, search text, sort, page), so a view survives a reload and
+ * can be shared. A route keeps only the valid keys it finds (`pick…`); the page applies defaults (`parse…`), so a link
+ * can name just the keys it cares about.
+ */
 
-const PRESETS = ['7d', '30d', 'mtd', 'all'] as const
-export type Preset = (typeof PRESETS)[number]
-
-function parsePreset(value: unknown): Preset {
-  return PRESETS.find((p) => p === value) ?? 'all'
-}
-
-// ---- layout ------------------------------------------------------------------------------------------------------
-
-function Layout() {
-  const session = useSession()
-  const signOut = async () => {
-    await fetch('/auth/logout', { method: 'POST', headers: csrfHeader() })
-    window.location.assign('/')
-  }
-  if (session.isPending) return <p className="p-6">Loading…</p>
-  if (session.isError) return <p className="p-6">Redirecting to sign in…</p>
-  return (
-    <div className="mx-auto max-w-5xl p-6">
-      <header className="mb-6 flex items-center gap-4 border-b pb-3">
-        <nav className="flex gap-4" aria-label="Main">
-          <Link to="/" search={{ preset: 'all' }} className="font-semibold">
-            Dashboard
-          </Link>
-          <Link to="/trades" search={{ preset: 'all' }} className="font-semibold">
-            Trade log
-          </Link>
-        </nav>
-        <span className="ml-auto text-sm" data-testid="who">
-          {session.data.user.email}
-        </span>
-        <button type="button" onClick={signOut} className="rounded border px-2 py-1 text-sm">
-          Sign out
-        </button>
-      </header>
+const rootRoute = createRootRoute({
+  component: () => (
+    <AppShell>
       <Outlet />
-    </div>
-  )
-}
+    </AppShell>
+  ),
+})
 
-const rootRoute = createRootRoute({ component: Layout })
+// ---- dashboard -------------------------------------------------------------------------------------------------
 
-// ---- pages (placeholders: the real ones are rebuilt in M4, see doc 07 section 5) --------------------------------------
-
-function PresetPicker({ to, current }: { to: '/' | '/trades'; current: Preset }) {
+function DashboardRoute() {
+  const navigate = useNavigate({ from: '/' })
   return (
-    <div className="mb-4 flex gap-2" role="group" aria-label="Date range">
-      {PRESETS.map((p) => (
-        <Link
-          key={p}
-          to={to}
-          search={{ preset: p }}
-          className={`rounded border px-2 py-1 text-sm ${p === current ? 'font-bold' : ''}`}
-        >
-          {p}
-        </Link>
-      ))}
-    </div>
-  )
-}
-
-function Dashboard() {
-  const preset = dashboardRoute.useSearch().preset ?? 'all'
-  return (
-    <section>
-      <h1 className="mb-3 text-xl font-bold">Dashboard</h1>
-      <PresetPicker to="/" current={preset} />
-      <p data-testid="preset">Range: {preset}</p>
-    </section>
+    <DashboardPage
+      filters={parseFilters(dashboardRoute.useSearch())}
+      onFilters={(next) => void navigate({ search: next })}
+    />
   )
 }
 
 const dashboardRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  validateSearch: (search: Record<string, unknown>): { preset?: Preset } => ({ preset: parsePreset(search['preset']) }),
-  component: Dashboard,
+  validateSearch: pickFilters,
+  component: DashboardRoute,
 })
 
-function TradeLog() {
-  const preset = tradesRoute.useSearch().preset ?? 'all'
+// ---- trade log -------------------------------------------------------------------------------------------------
+
+function TradesRoute() {
+  const navigate = useNavigate({ from: '/trades' })
+  const session = useSession()
   return (
-    <section>
-      <h1 className="mb-3 text-xl font-bold">Trade log</h1>
-      <PresetPicker to="/trades" current={preset} />
-      <p data-testid="preset">Range: {preset}</p>
-    </section>
+    <TradeLogPage
+      search={parseTradeSearch(tradesRoute.useSearch())}
+      timeZone={session.data?.settings.timezone ?? 'UTC'}
+      onSearch={(next) => void navigate({ search: next })}
+    />
   )
 }
 
 const tradesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/trades',
-  validateSearch: (search: Record<string, unknown>): { preset?: Preset } => ({ preset: parsePreset(search['preset']) }),
-  component: TradeLog,
+  validateSearch: pickTradeSearch,
+  component: TradesRoute,
 })
 
-// ---- router ------------------------------------------------------------------------------------------------------
+// ---- screens that are designed but not built yet ---------------------------------------------------------------
 
-const routeTree = rootRoute.addChildren([dashboardRoute, tradesRoute])
-export const router = createRouter({ routeTree })
+function NextUp({ title, children }: { title: string; children: string }) {
+  return (
+    <Card className="mx-auto mt-8 max-w-xl p-8 text-center" role="status">
+      <h1 className="m-0 text-xl font-semibold">{title}</h1>
+      <p className="mt-2 text-muted">{children}</p>
+      <Link to="/" className="mt-4 inline-block">
+        Back to the dashboard
+      </Link>
+    </Card>
+  )
+}
+
+const tradeDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/trades/$tradeId',
+  validateSearch: pickTradeSearch,
+  component: () => (
+    <NextUp title="Trade detail">
+      Notes, tags, screenshots and the fill pairs for one trade are the next screen to be built.
+    </NextUp>
+  ),
+})
+
+const importRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/import',
+  validateSearch: pickFilters,
+  component: () => (
+    <NextUp title="Import">
+      Uploading a Tradovate export, previewing it and undoing an import are built after the trade screens.
+    </NextUp>
+  ),
+})
+
+const settingsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings',
+  validateSearch: pickFilters,
+  component: () => (
+    <NextUp title="Settings">
+      Accounts, fees, prop firm rules, tags and preferences are built after the import screen.
+    </NextUp>
+  ),
+})
+
+// ---- router ----------------------------------------------------------------------------------------------------
+
+const routeTree = rootRoute.addChildren([dashboardRoute, tradesRoute, tradeDetailRoute, importRoute, settingsRoute])
+
+/** The app's router. Tests make their own, each with its own history, so no test sees another's location. */
+export function createAppRouter(history?: RouterHistory) {
+  return createRouter({ routeTree, ...(history ? { history } : {}) })
+}
+
+export const router = createAppRouter()
 
 declare module '@tanstack/react-router' {
   interface Register {

@@ -1,5 +1,7 @@
 # Your journal data stays local
 data/
+# ...but the front end's `lib/data` folder is source code (the data-source interface the pages read through).
+!frontend/src/lib/data/
 
 # Secrets and local config. Only the template is tracked.
 .env
