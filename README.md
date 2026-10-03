@@ -195,6 +195,29 @@ CI exports the lock to run `pip-audit` on the pinned versions for known vulnerab
 The fixtures in `backend/tests/fixtures/` are copies of real exports. The main one,
 `01-05-2024-performance.csv`, has 14 rows that must collapse into 8 trades.
 
+## Hosted API (work in progress)
+
+The hosted version replaces the NiceGUI screens with a JSON API and a React app on one origin
+([design](docs/design/README.md)). Today `backend/tradejournal/api/` has the skeleton only (security headers,
+error format, CSRF check, the `Money` type, serving the built front end); the data endpoints arrive with the
+Postgres port in M2.
+
+```powershell
+cd backend
+uv run uvicorn tradejournal.api.app:create_app --factory --port 8000    # needs `pnpm build` in frontend/ to serve pages
+uv run python -m tradejournal.api.openapi                              # rewrites backend/openapi.json
+```
+
+Settings come from environment variables (`ApiConfig` in `api/config.py`). Development needs none.
+
+| Variable | Meaning |
+|---|---|
+| `TJ_ENV` | `development` (default) or `production`, which refuses to start without the settings below |
+| `TJ_APP_ORIGIN` | Where browsers reach the app, such as `https://app.example.com`: no path, no trailing slash |
+| `TJ_SESSION_SECRET` | At least 32 bytes as hex; `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `TJ_WEB_DIST` | The built front end (default `frontend/dist`) |
+| `TJ_APP_VERSION` | The build id, sent as `X-App-Version` (CI sets the git sha) |
+
 ## Command line (optional)
 
 Everything the Import and Settings screens do is also available from the command
