@@ -183,4 +183,6 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 
 **Not done.** GitHub Issues and the project board (they need your go-ahead), and branch protection (GitHub Pro).
 
+**Amendment (2026-10-02):** the generated `requirements.txt` above was removed. Dependabot's `uv` updater edited it instead of `uv.lock` (pull requests #1 and #2 changed only that file), which broke pip resolution and the "agrees with the lock" check. The Dockerfile now installs with `uv sync --frozen` from a digest-pinned `uv` image, the launchers install `uv` into their environment, and CI exports the lock only to run `pip-audit`.
+
 **Next:** M1.

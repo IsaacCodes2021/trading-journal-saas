@@ -180,7 +180,7 @@ Prices are from third-party summaries ([Render](https://render.com/articles/rail
 
 **Back end** (implemented in M0, except the Postgres service which arrives in M2):
 
-1. `uv sync --frozen` from a **lock file with hashes**; `requirements.txt` is generated from it and CI checks they agree.
+1. `uv sync --frozen` from a **lock file with hashes**. (Amended 2026-10-02: the container image and the local launchers install from the lock too. A generated `requirements.txt` was committed at first and is gone, because Dependabot edited it instead of `uv.lock`; CI exports the lock to run `pip-audit`.)
 2. `ruff check` and `ruff format --check`, with ruff's `S` rules (bandit-style security checks; the free substitute for CodeQL on a private Free repo).
 3. `pytest` (SQLite today; against a **Postgres service container**, same major version as production, from M2).
 4. `pip-audit` on the pinned versions.
