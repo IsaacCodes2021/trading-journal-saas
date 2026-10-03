@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roundturn: a trading journal for futures traders</title>
+<meta name="description" content="Roundturn is a journal and analytics tool for futures traders. Upload your own trade history, review every round turn, and keep notes and screenshots. Free invite-only beta: join the waitlist.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="wrap">
+  <a class="brand" href="/">Roundturn</a>
+  <nav aria-label="Main">
+    <a href="/about/">About</a>
+    <a href="/privacy/">Privacy</a>
+  </nav>
+</header>
+
+<main>
+  <section class="wrap hero">
+    <h1>Review every round turn.</h1>
+    <p class="lead">Roundturn is a journal and analytics tool for futures traders. Upload the trade history you export from your own platform and see what it says: profit and loss, win rate, drawdown, and results by day and by instrument. Add notes and screenshots to any trade.</p>
+
+    <form id="join" class="join" action="/api/waitlist" method="post">
+      <label for="email">Email address</label>
+      <div class="row">
+        <input id="email" name="email" type="email" required autocomplete="email" maxlength="254" placeholder="you@example.com">
+        <button type="submit">Join the waitlist</button>
+      </div>
+      <div class="trap" aria-hidden="true">
+        <label for="website">Leave this field empty</label>
+        <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+      </div>
+      <p class="fine" id="join-status" role="status" aria-live="polite">Free during the invite-only beta. You get one email when your invite is ready, and nothing else. <a href="/privacy/">How your address is handled</a>.</p>
+    </form>
+  </section>
+
+  <section class="wrap">
+    <div class="status">
+      <strong>Status: in development.</strong> The hosted version is not open yet. The first invitations will go to people on the waitlist.
+    </div>
+  </section>
+
+  <section class="wrap" aria-labelledby="does">
+    <h2 id="does">What it does</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Import your own history</h3>
+        <p>Upload the Performance export from your Tradovate account. Re-importing the same rows never duplicates them, and any import can be undone.</p>
+      </div>
+      <div class="card">
+        <h3>One trade, one round turn</h3>
+        <p>A round turn is one complete trade, from the entry to the exit. Roundturn combines the scale-ins and scale-outs in your export into single trades, so the numbers match how you actually traded.</p>
+      </div>
+      <div class="card">
+        <h3>Statistics you can check</h3>
+        <p>Net profit and loss after your fees, win rate, drawdown, and results by day and by instrument. Money is computed exactly, not rounded along the way.</p>
+      </div>
+      <div class="card">
+        <h3>Notes, tags and screenshots</h3>
+        <p>Write down what you saw and why you took the trade, tag your setups and mistakes, and attach a chart image to any trade.</p>
+      </div>
+      <div class="card">
+        <h3>Prop account tracking</h3>
+        <p>If you trade accounts from a prop firm, record their rules and fees to follow your own progress. It is for your tracking only and may differ from the firm's official numbers.</p>
+      </div>
+      <div class="card">
+        <h3>Your data stays yours</h3>
+        <p>Roundturn never asks for broker passwords or keys, and each user's data is separated from everyone else's at the database level.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" aria-labelledby="not">
+    <h2 id="not">What it is not</h2>
+    <ul class="not">
+      <li>It does not place or route trades, and it does not connect to your broker or exchange account.</li>
+      <li>It gives no investment advice, trade signals, recommendations or price predictions.</li>
+      <li>It does not hold, move or manage anyone's money.</li>
+      <li>It is not a proprietary trading firm and does not sell funded accounts or evaluations.</li>
+    </ul>
+    <p class="fine">More on the <a href="/about/">about page</a>, including the risk disclosure.</p>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+  <p>Roundturn is not affiliated with Tradovate or any broker, exchange or prop firm.</p>
+  <p>Contact: <a href="mailto:hello@roundturn.app">hello@roundturn.app</a> · <a href="/about/">About</a> · <a href="/privacy/">Privacy</a></p>
+</footer>
+
+<script src="/waitlist.js" defer></script>
+</body>
+</html>
