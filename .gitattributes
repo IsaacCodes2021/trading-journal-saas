@@ -10,6 +10,10 @@
 # files), so no line-ending conversion on any platform, including the Linux CI runner.
 backend/tests/fixtures/*.csv -text
 
+# The front end is formatted by Prettier, which wants LF. Keep LF in the working tree on Windows too, or
+# `pnpm format:check` fails on a fresh checkout.
+frontend/** text eol=lf
+
 # Binary assets
 *.png binary
 *.jpg binary
