@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import {
   createRootRoute,
   createRoute,
@@ -8,12 +9,17 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router'
 import { AppShell } from './components/AppShell'
-import { Card } from './components/ui/primitives'
+import { Card, Spinner } from './components/ui/primitives'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { TradeLogPage } from './features/trades/TradeLogPage'
 import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
 import { parseFilters, pickFilters } from './lib/filters'
 import { useSession } from './lib/session'
+
+// Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
+const TradeDetailPage = lazy(() =>
+  import('./features/trade-detail/TradeDetailPage').then((m) => ({ default: m.TradeDetailPage })),
+)
 
 /*
  * The route tree. Each page's state lives in the URL (filters, search text, sort, page), so a view survives a reload and
@@ -69,6 +75,29 @@ const tradesRoute = createRoute({
   component: TradesRoute,
 })
 
+// ---- trade detail ----------------------------------------------------------------------------------------------
+
+function TradeDetailRoute() {
+  const { tradeId } = tradeDetailRoute.useParams()
+  const session = useSession()
+  return (
+    <Suspense fallback={<Spinner label="Loading the trade" />}>
+      <TradeDetailPage
+        tradeId={/^\d+$/.test(tradeId) ? Number(tradeId) : null}
+        search={parseTradeSearch(tradeDetailRoute.useSearch())}
+        timeZone={session.data?.settings.timezone ?? 'UTC'}
+      />
+    </Suspense>
+  )
+}
+
+const tradeDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/trades/$tradeId',
+  validateSearch: pickTradeSearch,
+  component: TradeDetailRoute,
+})
+
 // ---- screens that are designed but not built yet ---------------------------------------------------------------
 
 function NextUp({ title, children }: { title: string; children: string }) {
@@ -82,17 +111,6 @@ function NextUp({ title, children }: { title: string; children: string }) {
     </Card>
   )
 }
-
-const tradeDetailRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/trades/$tradeId',
-  validateSearch: pickTradeSearch,
-  component: () => (
-    <NextUp title="Trade detail">
-      Notes, tags, screenshots and the fill pairs for one trade are the next screen to be built.
-    </NextUp>
-  ),
-})
 
 const importRoute = createRoute({
   getParentRoute: () => rootRoute,

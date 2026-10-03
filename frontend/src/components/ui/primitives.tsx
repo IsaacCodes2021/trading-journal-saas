@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react'
+import type { ComponentProps, HTMLAttributes, ReactNode } from 'react'
 import { formatPnl, pnlTone } from '../../lib/format'
 import type { Direction } from '../../lib/filters'
 import { cx } from './cx'
@@ -8,7 +8,7 @@ export function Card({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return <div className={cx('rounded-[10px] border border-line bg-panel', className)} {...rest} />
 }
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = ComponentProps<'button'> & {
   variant?: 'default' | 'primary' | 'ghost'
   /** A square icon button: it must have an aria-label. */
   icon?: boolean

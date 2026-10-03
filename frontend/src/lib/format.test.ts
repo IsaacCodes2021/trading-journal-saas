@@ -3,10 +3,13 @@ import {
   daysLeft,
   formatAmount,
   formatAxisMoney,
+  formatClock,
   formatDay,
   formatDuration,
   formatPercent,
   formatPnl,
+  formatPoints,
+  formatPrice,
   formatRatio,
   formatTradeTime,
   pluralize,
@@ -46,6 +49,21 @@ describe('money display', () => {
   })
 })
 
+describe('prices and points', () => {
+  it('signs points and keeps the typographic minus', () => {
+    expect(formatPoints('19.5')).toBe('+19.50')
+    expect(formatPoints('-4.25')).toBe(`${MINUS}4.25`)
+    expect(formatPoints('0.00')).toBe('0.00')
+  })
+
+  it('groups a price without changing its decimals', () => {
+    expect(formatPrice('20412.25')).toBe('20,412.25')
+    expect(formatPrice('72.1')).toBe('72.1')
+    expect(formatPrice('5864')).toBe('5,864')
+    expect(formatPrice('9007199254740993.25')).toBe('9,007,199,254,740,993.25')
+  })
+})
+
 describe('ratios and durations', () => {
   it('formats a percentage and a ratio, with a dash when a ratio is undefined', () => {
     expect(formatPercent(0.583)).toBe('58.3%')
@@ -66,6 +84,11 @@ describe('dates', () => {
   it("shows a trade time in the viewer's time zone", () => {
     expect(formatTradeTime('2026-09-30T13:41:00Z', 'America/New_York')).toBe('Sep 30 · 09:41')
     expect(formatTradeTime('2026-09-30T13:41:00Z', 'America/Los_Angeles')).toBe('Sep 30 · 06:41')
+  })
+
+  it('shows a clock time to the second in the viewer’s time zone', () => {
+    expect(formatClock('2026-09-30T13:41:07Z', 'America/New_York')).toBe('09:41:07')
+    expect(formatClock('2026-09-30T13:41:07Z', 'UTC')).toBe('13:41:07')
   })
 
   it('shows a trading day without shifting it by a time zone', () => {

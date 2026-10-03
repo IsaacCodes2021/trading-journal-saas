@@ -14,8 +14,14 @@ export interface AccountRef {
   account_type: AccountType
 }
 
+export interface TagGroupRef {
+  id: number
+  name: string // "Setup", "Mistake", "Emotion"
+}
+
 export interface TagRef {
   id: number
+  group_id: number
   name: string
   color: string // "#rrggbb"
 }
@@ -128,6 +134,47 @@ export interface FilterOptions {
   symbol_roots: string[]
 }
 
+/** One row of the broker's export: a buy fill matched to a sell fill. Several of them make one trade. */
+export interface FillPairRow {
+  id: number
+  bought_at: string // ISO UTC
+  sold_at: string
+  qty: number
+  buy_price: string
+  sell_price: string
+  pnl: string // this pair's gross result: before fees, which are charged per trade
+}
+
+export interface ScreenshotRef {
+  id: number
+  original_name: string
+  created_at: string // ISO UTC
+  /** Same-origin URL of the image; null in the sample data, which has no real pictures. */
+  src: string | null
+}
+
+/** Everything the detail page shows about one trade. */
+export interface TradeDetail extends TradeRow {
+  points: string // per contract, positive = favourable
+  fill_pairs: FillPairRow[]
+  notes_html: string // sanitized again on render, whatever the server did
+  screenshots: ScreenshotRef[]
+}
+
+export interface TagCatalog {
+  groups: TagGroupRef[]
+  tags: TagRef[]
+}
+
+/** The trades either side of one in the list the user came from, so the arrows follow the list's sort and filters. */
+export interface Neighbors {
+  previous: number | null
+  next: number | null
+}
+
+/** Why a screenshot was refused, in words for the person who chose it. */
+export class ScreenshotRefused extends Error {}
+
 /** Where the pages get data. The only implementation today is the sample-data source; the API one replaces it. */
 export interface DataSource {
   /** Shown as a banner on every page, so sample numbers are never mistaken for real ones. */
@@ -135,4 +182,13 @@ export interface DataSource {
   dashboard(filters: Filters, signal?: AbortSignal): Promise<DashboardData>
   trades(query: TradesQuery, signal?: AbortSignal): Promise<TradesPage>
   filterOptions(signal?: AbortSignal): Promise<FilterOptions>
+  /** Null when there is no such trade (or it is not this user's: the two look the same from outside). */
+  trade(id: number, signal?: AbortSignal): Promise<TradeDetail | null>
+  neighbors(id: number, query: TradesQuery, signal?: AbortSignal): Promise<Neighbors>
+  tagCatalog(signal?: AbortSignal): Promise<TagCatalog>
+  saveNotes(id: number, html: string): Promise<void>
+  setTradeTag(id: number, tagId: number, on: boolean): Promise<void>
+  createTag(groupId: number, name: string): Promise<TagRef>
+  addScreenshots(id: number, files: readonly File[]): Promise<ScreenshotRef[]>
+  deleteScreenshot(id: number, screenshotId: number): Promise<void>
 }

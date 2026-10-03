@@ -3,13 +3,16 @@ import type {
   DashboardData,
   DataSource,
   FilterOptions,
+  Neighbors,
+  TradeDetail,
   TradeRow,
   TradeSort,
   TradesPage,
   TradesQuery,
 } from '../data/model'
 import type { Filters } from '../filters'
-import { SAMPLE_ACCOUNTS, SAMPLE_TRADES } from './generate'
+import { SAMPLE_ACCOUNTS, SAMPLE_TRADES, fillPairsFor, pointsFor } from './generate'
+import * as journal from './journal'
 import {
   accountSummaries,
   applyFilters,
@@ -70,15 +73,49 @@ function matches(trade: TradeRow, q: string): boolean {
   )
 }
 
+/** Every trade matching the filters and search, in the requested order. */
+function listFor(query: TradesQuery): TradeRow[] {
+  const withChanges = SAMPLE_TRADES.map(journal.withJournal)
+  const filtered = applyFilters(withChanges, query, LAST_DAY).filter((t) => matches(t, query.q ?? ''))
+  return sortTrades(filtered, query.sort)
+}
+
 function trades(query: TradesQuery): TradesPage {
-  const filtered = applyFilters(SAMPLE_TRADES, query, LAST_DAY).filter((t) => matches(t, query.q ?? ''))
-  const ordered = sortTrades(filtered, query.sort)
+  const ordered = listFor(query)
   const start = (Math.max(1, query.page) - 1) * query.per_page
   return {
     items: ordered.slice(start, start + query.per_page),
-    total: filtered.length,
-    net_pnl: filtered.reduce((total, t) => total.plus(t.net_pnl), new Decimal(0)).toFixed(2),
+    total: ordered.length,
+    net_pnl: ordered.reduce((total, t) => total.plus(t.net_pnl), new Decimal(0)).toFixed(2),
   }
+}
+
+const find = (id: number): TradeRow | undefined => SAMPLE_TRADES.find((t) => t.id === id)
+
+function detail(id: number): TradeDetail | null {
+  const trade = find(id)
+  if (!trade) return null
+  return {
+    ...journal.withJournal(trade),
+    points: pointsFor(trade),
+    fill_pairs: fillPairsFor(trade),
+    notes_html: journal.notesOf(trade),
+    screenshots: journal.screenshotsOf(trade),
+  }
+}
+
+function neighbors(id: number, query: TradesQuery): Neighbors {
+  const ids = listFor(query).map((t) => t.id)
+  const at = ids.indexOf(id)
+  if (at < 0) return { previous: null, next: null }
+  return { previous: ids[at - 1] ?? null, next: ids[at + 1] ?? null }
+}
+
+/** The trade a write is about, or a refusal that reads like the server's 404. */
+function target(id: number): TradeRow {
+  const trade = find(id)
+  if (!trade) throw new Error('That trade does not exist.')
+  return trade
 }
 
 function filterOptions(): FilterOptions {
@@ -93,4 +130,21 @@ export const demoSource: DataSource = {
   dashboard: (filters) => Promise.resolve(dashboard(filters)),
   trades: (query) => Promise.resolve(trades(query)),
   filterOptions: () => Promise.resolve(filterOptions()),
+  trade: (id) => Promise.resolve(detail(id)),
+  neighbors: (id, query) => Promise.resolve(neighbors(id, query)),
+  tagCatalog: () => Promise.resolve(journal.tagCatalog()),
+  saveNotes: (id, html) => run(() => journal.saveNotes(target(id), html)),
+  setTradeTag: (id, tagId, on) => run(() => journal.setTradeTag(target(id), tagId, on)),
+  createTag: (groupId, name) => run(() => journal.createTag(groupId, name)),
+  addScreenshots: (id, files) => run(() => journal.addScreenshots(target(id), files)),
+  deleteScreenshot: (id, screenshotId) => run(() => journal.deleteScreenshot(target(id), screenshotId)),
+}
+
+/** Runs a write and answers as a promise, so a refusal arrives as a rejection, as it will from the server. */
+function run<T>(write: () => T): Promise<T> {
+  try {
+    return Promise.resolve(write())
+  } catch (error) {
+    return Promise.reject(error instanceof Error ? error : new Error('The change was refused.'))
+  }
 }

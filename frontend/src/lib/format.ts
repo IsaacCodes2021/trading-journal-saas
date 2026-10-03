@@ -19,6 +19,13 @@ export function formatPnl(value: string): string {
   return (tone === 'pos' ? '+' : MINUS) + magnitude
 }
 
+/** "+19.50", "−4.25" (typographic minus), "0.00": a signed number of price points, from a decimal string. */
+export function formatPoints(value: string): string {
+  const tone = pnlTone(value)
+  const magnitude = new Decimal(value).abs().toFixed(2)
+  return tone === 'flat' ? '0.00' : (tone === 'pos' ? '+' : MINUS) + magnitude
+}
+
 /** A magnitude with no sign, for "after $612.40 fees" and axis labels. */
 export function formatAmount(value: string): string {
   return formatMoney(new Decimal(value).abs().toFixed(2))
@@ -64,6 +71,25 @@ export function formatTradeTime(iso: string, timeZone: string): string {
     date,
   )
   return `${day} · ${time}`
+}
+
+/** "09:41:07" in the user's timezone, from an ISO UTC timestamp. */
+export function formatClock(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone,
+  }).format(new Date(iso))
+}
+
+/** A price with thousands separators and the decimals it already has: "20412.25" to "20,412.25", "72.1" stays "72.1". */
+export function formatPrice(value: string): string {
+  const decimals = value.split('.')[1]?.length ?? 0
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(
+    value as unknown as number, // Intl reads a decimal string exactly; the cast is only for the compiler
+  )
 }
 
 /** "Sep 30" from a trading day, "2026-09-30". A trading day has no time zone, so it is formatted as UTC. */
