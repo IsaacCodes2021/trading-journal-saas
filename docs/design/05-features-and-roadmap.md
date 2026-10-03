@@ -184,3 +184,29 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 **Not done.** GitHub Issues and the project board (they need your go-ahead), and branch protection (GitHub Pro).
 
 **Next:** M1.
+
+## 7. Baseline benchmark (measured 2026-10-02, before any Postgres work)
+
+`backend/benchmarks/baseline.py` generates seeded synthetic Tradovate exports and times the existing SQLite code. It is the "before" number for the M2 benchmark in section 3: re-run the same scenarios on the Postgres port and compare. Machine: Ryzen 5 3600, 16 GB, Windows 10, Python 3.12.1, SQLite 3.43.1, local SSD, one process, warm cache, no HTTP. Data: one account, 4 instruments, 20 trades a day, 10% of trades scaled in with a second fill pair (so 10,000 trades are 11,031 fill pairs).
+
+| Scenario | Result | Target (doc 01) |
+|---|---|---|
+| Import one file of 5,506 rows into an empty journal | 1.22 s (parse alone 0.31 s) | under 10 s for 5,000 rows |
+| Dry-run preview of that same file (all duplicates) | 0.37 s | none |
+| Import one day (20 trades) into a 10,000-trade journal | 12 ms median | none |
+| `load_trades`, all 10,000 trades | 390 ms median, 410 ms p95 | none |
+| Summary, daily results, score and equity curve over those trades | 45 ms median | none |
+| **Dashboard data (accounts, load, compute) at 10,000 trades** | **448 ms median, 458 ms p95** | p95 under 800 ms |
+| `load_trades`, one month | 14 ms | none |
+| `rebuild_account` (repair tool), 11,031 pairs | 16.1 s (about 1.5 ms a pair, linear) | none |
+| `undo_import` of 2,743 rows | 80 ms | none |
+
+**What this tells us** (measured numbers first, then inferences):
+
+1. **Measured: the current code meets both targets with room to spare on a local database**, 8 times under on import and 1.8 times under on the dashboard. The margin is thin on the dashboard once the real costs are added.
+2. **Measured: loading rows is 87% of the dashboard time (390 of 448 ms).** The compute step is cheap. Not profiled, but the likely cause is building 10,000 records from TEXT columns (about 11 `Decimal` and date parses each).
+3. **Inference, not measured: the importer will miss its target on a network database unless it is rewritten to batch.** It runs about 3 statements per row (look up the pair, insert it, link it to the import), about 16,500 for this file. At 0.5 to 1 ms per round trip to a managed Postgres that is 8 to 16 s, over the 10 s target. The M2 port should look up existing pairs in one query per file and insert with `executemany` or `COPY`. Verify in spike S2 with a measured round trip.
+4. **Design consequence for M3: the dashboard endpoint returns aggregates, not trades.** Shipping 10,000 trades as JSON to the browser was not benchmarked and would add serialization and transfer on top of the 390 ms. The trade log is paginated on the server. If Python aggregation is still too slow on Render's smaller CPU, the fallback in doc 02 applies: SQL aggregation, or cached per-user summary rows.
+5. **Design consequence for M2: `rebuild_account` and `recalculate_trades` must be background jobs when hosted**, not work done inside a web request (16 s at one heavy user's size).
+
+**Not covered:** concurrent users, HTTP and JSON overhead, Postgres (that is the point of re-running it), multiple accounts, filters other than one month, and the other pages. The synthetic grouping may differ from real exports (real days have more scale-ins and reversals).
