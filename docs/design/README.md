@@ -78,12 +78,12 @@ Full reasoning and "what would change my mind" in [06-decisions.md](06-decisions
 
 Each has a default; I will proceed on the defaults until you say otherwise.
 
-1. **Business model.** Free forever, paid, or free beta then paid? *Default: free invite-only beta, then free tier + paid Pro.*
-2. **Legal entity.** Personal or an LLC? It affects the payment-provider account, Terms of Service and tax. *Default: personal for beta; talk to an accountant/lawyer before taking money.*
-3. **Name and domain.** "Trading Journal" is generic. The domain drives cookies, email sending and branding. *Default: pick one before M5.*
-4. **Where are your users?** US-only, or EU too (GDPR, EU data region)? *Default: US region, GDPR-ready deletion and export.*
-5. **Hours per week.** Turns the effort estimates into a calendar. *Default: part-time, about 15 h/week, so roughly 7 to 10 months to private beta and 10 to 15 months to public launch.*
-6. **Budget ceiling** per month for infrastructure. *Default: $60.*
+1. **Business model.** Free forever, paid, or free beta then paid? *Default: free invite-only beta, then free tier + paid Pro.* **Decided 2026-10-03: the default.**
+2. **Legal entity.** Personal or an LLC? It affects the payment-provider account, Terms of Service and tax. *Default: personal for beta; talk to an accountant/lawyer before taking money.* **Decided 2026-10-03: the default (personal for the beta).**
+3. **Name and domain.** "Trading Journal" is generic. The domain drives cookies, email sending and branding. *Default: pick one before M5.* **Decided 2026-10-03: the product is called Roundturn.** A futures term for one complete trade, which is what the app builds from fill pairs. On 2026-10-03 the registries showed roundturn.app, .io, .co, .dev, .net and getroundturn.com unregistered (roundturn.com is taken), and a web search found no existing product with the name. Not yet done: registering the domain (the owner's purchase), and a trademark search. The word is a common industry term, so it is weak as a trademark and shares search results with glossary pages. The repository keeps the name trading-journal-saas.
+4. **Where are your users?** US-only, or EU too (GDPR, EU data region)? *Default: US region, GDPR-ready deletion and export.* **Decided 2026-10-03: the default.**
+5. **Hours per week.** Turns the effort estimates into a calendar. *Default: part-time, about 15 h/week, so roughly 7 to 10 months to private beta and 10 to 15 months to public launch.* **Not answered: the default stands.**
+6. **Budget ceiling** per month for infrastructure. *Default: $60.* **Not answered: the default stands.**
 7. **Schedule appetite.** If 7 to 10 months to beta is too long, the cheapest levers are in doc 05 section 3 (a reduced settings UI at beta saves about 30 to 50 hours).
 
 ## Sources and verification status
