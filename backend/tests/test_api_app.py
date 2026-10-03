@@ -126,6 +126,17 @@ def test_navigations_get_index_html_and_must_revalidate(client):
         assert response.headers["cache-control"] == "no-cache"
 
 
+def test_head_requests_work_for_pages_and_assets(client):
+    # Uptime monitors and `curl -I` use HEAD; same status and headers as GET, no body.
+    page = client.head("/trades", headers=HTML)
+    assert page.status_code == 200
+    assert page.headers["cache-control"] == "no-cache"
+    assert "content-security-policy" in page.headers
+    assert page.content == b""
+    assert client.head("/assets/app-abc123.js").headers["cache-control"] == "public, max-age=31536000, immutable"
+    assert client.head("/api/v1/nope", headers=HTML).status_code == 404
+
+
 def test_a_missing_script_or_image_is_a_404_not_index_html(client):
     assert client.get("/missing.js", headers={"accept": "*/*"}).status_code == 404
     assert client.get("/assets/missing.js").status_code == 404

@@ -185,7 +185,7 @@ Prices are from third-party summaries ([Render](https://render.com/articles/rail
 3. `pytest` (SQLite today; against a **Postgres service container**, same major version as production, from M2).
 4. `pip-audit` on the pinned versions.
 5. `gitleaks` (pinned binary, full history).
-6. `docker build` (no push) plus an import smoke test.
+6. `docker build` (no push), then the container is **started** and fetched from (amended 2026-10-03): `/healthz`, an SPA route, the security headers, the immutable asset cache header; the image must refuse to start unconfigured (it defaults to production mode) and run as a non-root user.
 
 **Front end** (added with the SPA scaffold in M1):
 

@@ -103,13 +103,43 @@ jobs:
         with:
           persist-credentials: false
 
+      # The context is the repository root: the image builds the front end too (backend/Dockerfile).
       - name: Build
-        run: docker build --tag tradejournal:ci backend
+        run: docker build --file backend/Dockerfile --tag tradejournal:ci .
 
-      # Smoke test: the image's dependencies are complete and the app imports. (It does not start
-      # the server: the bind address is still hardcoded to 127.0.0.1, which is an M2 change.)
-      - name: Import smoke test
-        run: docker run --rm tradejournal:ci python -c "import tradejournal.ui.app"
+      # Really start it, and fetch pages from it: the API answers, the built SPA is served with the security
+      # headers, and hashed assets are cached for a year.
+      - name: Starts and serves
+        run: |
+          docker run --detach --name tj --publish 8000:8000 \
+            --env TJ_ENV=development --env TJ_APP_ORIGIN=http://localhost:8000 tradejournal:ci
+          for _ in $(seq 1 30); do curl --fail --silent http://localhost:8000/healthz > /dev/null && break; sleep 1; done
+          curl --fail --silent http://localhost:8000/healthz | grep --quiet '"status":"ok"'
+          curl --fail --silent --header 'Accept: text/html' http://localhost:8000/trades | grep --quiet 'id="root"'
+          headers=$(curl --fail --silent --head --header 'Accept: text/html' http://localhost:8000/)
+          echo "$headers" | grep --ignore-case --quiet "^content-security-policy:.*script-src 'self'"
+          echo "$headers" | grep --ignore-case --quiet '^x-content-type-options: nosniff'
+          asset=$(curl --fail --silent --header 'Accept: text/html' http://localhost:8000/ | grep --only-matching '/assets/[^"]*\.js' | head -1)
+          test -n "$asset"
+          curl --fail --silent --head "http://localhost:8000$asset" \
+            | grep --ignore-case --quiet 'cache-control: public, max-age=31536000, immutable'
+
+      # Fail closed: the image defaults to production mode, which must refuse to start without its settings.
+      - name: Refuses to start unconfigured
+        run: |
+          set +e
+          output=$(docker run --rm tradejournal:ci 2>&1)
+          status=$?
+          set -e
+          test "$status" -ne 0
+          echo "$output" | grep --quiet 'TJ_SESSION_SECRET is required in production'
+
+      - name: Runs as an unprivileged user
+        run: test "$(docker run --rm --entrypoint id tradejournal:ci -u)" = "10001"
+
+      - name: Container log (on failure)
+        if: failure()
+        run: docker logs tj || true
 
   frontend:
     name: Front end
