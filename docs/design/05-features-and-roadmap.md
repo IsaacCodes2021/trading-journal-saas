@@ -213,9 +213,35 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 
 **Not covered:** concurrent users, HTTP and JSON overhead, Postgres (that is the point of re-running it), multiple accounts, filters other than one month, and the other pages. The synthetic grouping may differ from real exports (real days have more scale-ins and reversals).
 
-## 8. M2 progress (running log)
+## 8. The same scenarios on Postgres (measured 2026-10-03)
 
-Ported to Postgres so far, each with its SQLite tests carried over plus tenancy and constraint tests, and mutation-checked: `accounts` and `journal` (spike S2), then `ledger` and `settings`, then `store`, `queries` and `importer` (with the per-user lock and batched writes; details in doc 03 section 9.1). 217 Postgres tests, 554 in all. Still to do in M2: re-run the benchmark on Postgres, `system_session` and its narrow roles, `user_usage`, `/readyz`, the local-data migration script, and the Postgres wiring of the API routes.
+`backend/benchmarks/baseline_pg.py` runs the section 7 scenarios through the `tradejournal.pg` modules as one tenant, on PostgreSQL 18.6 on the same machine, with the same seed and data. `--latency-ms N` sleeps N ms before every statement (a batched `executemany` counts once) to model a database a network hop away. Statement counts are printed. It empties the test database first.
+
+| Scenario | SQLite (section 7) | Postgres, local | Modelled +1 ms a statement | Modelled +3 ms | Target |
+|---|---|---|---|---|---|
+| Import one file of 5,506 rows | 1.22 s | **3.82 s** (138 statements) | 3.97 s | 4.24 s | under 10 s |
+| Dry-run re-import of that file | 0.37 s | 0.56 s (9) | 0.57 s | 0.61 s | none |
+| Import one day (20 trades) into 10,000 trades | 12 ms | 24 ms | 90 ms | 163 ms | none |
+| `load_trades`, all 10,000 trades | 390 ms | 186 ms | 189 ms | 192 ms | none |
+| **Dashboard data (accounts, load, compute)** | 448 ms median, 458 p95 | **223 ms median, 254 p95** | 230, 259 | 231, 263 | p95 under 800 ms |
+| `load_trades`, one month | 14 ms | 6.8 ms | 9.8 ms | 14 ms | none |
+| `rebuild_account`, 11,031 pairs | 16.1 s | 2.0 s (323 statements) | 2.50 s | 3.07 s | none |
+| `undo_import` of 2,743 rows | 80 ms | 140 ms (11) | 160 ms | 180 ms | none |
+
+**What this says** (measured numbers first):
+
+1. **Measured: both targets hold with margin on Postgres**, locally and at a modelled 3 ms a statement: the 5,506-row import takes 3.8 to 4.2 s against 10 s, and the dashboard's p95 is about 260 ms against 800 ms.
+2. **Measured: the import is about 3 times slower than SQLite locally, and nearly indifferent to latency** (3.82 s to 4.24 s for 3 ms on 138 statements). The cost is the database's own work: in a profile, about 3.2 of 4.7 s was inside statements, mostly the batch insert of fill pairs and the statements that assign pairs to trades, which rewrite indexed columns and check foreign keys. Not tuned: the margin is wide, and `COPY` or fewer indexes are the options if it is needed.
+3. **Arithmetic, not run: the doc 05 section 7 inference was right.** The SQLite importer's design (about 3 statements a row, about 16,500 for this file) would add about 16.5 s for every millisecond of latency. The batched port makes 138 statements, so a millisecond adds 0.14 s. The per-row design was never run on Postgres.
+4. **Measured: Postgres reads are faster, because rows arrive typed.** Loading 10,000 trades takes 186 ms against 390 ms, since there are no dates or decimals to parse from text. The dashboard is 2 times faster.
+5. **Measured: stale statistics cost 60 ms right after a bulk load.** Run before autovacuum had analyzed the tables, one-day imports took 82 ms against 22 ms (`--no-analyze` shows it). Autovacuum normally catches up within about a minute. If the first reads after a signup's big upload matter, the import job can run `ANALYZE` on `fill_pairs` and `trades` itself. Not done.
+6. **`rebuild_account` fell from 16 s to 2 s** because it now writes trades in batches. It still holds the user's lock for its duration, so it stays a background job in the design.
+
+**Not covered:** a real network (this is a sleep before each statement: no TLS, no connection pooler, no packet loss), Python and Postgres sharing one machine's CPU (a managed database would not), Render's smaller CPUs, concurrent users, HTTP and JSON overhead, and multiple accounts. Run-to-run variation: one run built the large journal in 16.9 s and another in 9.9 s; the other numbers moved by about 10%.
+
+## 9. M2 progress (running log)
+
+Ported to Postgres so far, each with its SQLite tests carried over plus tenancy and constraint tests, and mutation-checked: `accounts` and `journal` (spike S2), then `ledger` and `settings`, then `store`, `queries` and `importer` (with the per-user lock and batched writes; details in doc 03 section 9.1). 217 Postgres tests, 554 in all. The benchmark was re-run on Postgres (section 8): both targets hold. Still to do in M2: `system_session` and its narrow roles, `user_usage`, `/readyz`, the local-data migration script, and the Postgres wiring of the API routes.
 
 Findings from the ledger and settings ports:
 
