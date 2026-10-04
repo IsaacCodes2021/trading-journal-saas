@@ -263,8 +263,16 @@ The tenant API is built in slices, each one a route family plus the tests that p
 - **The dashboard** (`api/dashboard.py`, a pure function over trade records) arranges `finance.py`'s results; no statistic is defined twice. Money leaves as cents strings, including `"0.00"` for an empty journal (never `"0"` or `"-0.00"`); ratios are plain numbers.
 - Tested against a real Postgres through the request role: the numbers by hand on five trades, every filter, the preset arithmetic in two timezones, archived accounts, and two users who never see each other (including a user naming another's account ids). Two mutations (a preset from the server's date; archived always shown) are each caught.
 
+**Slice 2 (2026-10-04): the trade log, one trade's page, the tag catalog.** `GET /api/v1/trades`, `/trades/{id}`, `/trades/{id}/neighbors` and `/tags`.
+
+- **The log** takes the shared filters plus `q` (a case-insensitive substring of the contract, its root, the account's name or a tag's name), `sort` (`date`, `account`, `symbol`, `direction`, `qty`, `hold`, `net_pnl`; a leading `-` reverses; the default is `-date`, newest first by entry time), `limit` (1 to 200, default 50) and `offset`. It answers `{items, total, net_pnl}`: the count and the net result are for everything the filters match, not the page. Equal values are ordered by id, so paging never repeats or skips a trade. It is built in memory from the filtered trades (doc 05 section 8 measured that as cheap) and moves to SQL only if a measurement says so.
+- **A trade's page** adds its fill pairs, `points`, notes, tags and screenshot records. Another user's trade and a missing one are the same 404 (row-level security hides the row). **Screenshot images are not served yet** (`src` is null; the file route is M6, with the object store), the records are real.
+- **Neighbors** reuse the log's filters, search and order, so the arrows on a trade's page follow the list the person came from; a trade outside that list has none.
+- **The tag catalog** lists groups and tags, each tag with its trade count (the tags page will need it).
+- Tested on the real sample export (8 trades from 14 fill pairs, some scaled in or out): paging covers every trade once, each of the seven sorts and its exact reverse, search and the totals that follow it, the journal flags, the 404s, isolation. Three mutations (search ignoring tags, the total counting only the page, the sort direction ignored) are each caught.
+
 Decisions and gaps:
 
 - `show_archived` defaults to **false** (as the NiceGUI app did); the front end's filter bar has no toggle yet, so a person whose evaluation account was archived sees it vanish from the dashboard until the toggle is added (a front-end task, listed with the API source work).
 - The sign-in pieces are still the in-memory fakes in tests; the real session store is M5. A development sign-in and a Postgres-backed account service (so `/session` and `/settings` work against the real database) are the next slice.
-- Not built yet: trades list and detail, tags and notes, import, account writes, fees, ledger, rule tracker.
+- Not built yet: writes (notes, tags, import, accounts, fees, ledger), import history and undo, the rule tracker and account progress, business totals.

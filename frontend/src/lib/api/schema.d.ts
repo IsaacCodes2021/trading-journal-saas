@@ -95,6 +95,86 @@ export interface paths {
         patch: operations["patch_settings"];
         trace?: never;
     };
+    "/api/v1/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Tag Catalog
+         * @description Every group and tag, each tag with the number of trades that carry it.
+         */
+        get: operations["get_tag_catalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trades": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Trades
+         * @description One page of the trade log, with the total count and net result of everything the filters match.
+         */
+        get: operations["list_trades"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trades/{trade_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trade
+         * @description Everything about one trade. Another user's trade and a missing one are both a 404: they look the same.
+         */
+        get: operations["get_trade"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/trades/{trade_id}/neighbors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Trade Neighbors
+         * @description The trades either side of this one in the list the person came from (same filters, search and order).
+         */
+        get: operations["get_trade_neighbors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -171,6 +251,19 @@ export interface components {
             /** Trade Count */
             trade_count: number;
         };
+        /** CatalogTagOut */
+        CatalogTagOut: {
+            /** Color */
+            color: string;
+            /** Group Id */
+            group_id: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Trade Count */
+            trade_count: number;
+        };
         /** DailyResultOut */
         DailyResultOut: {
             /**
@@ -235,6 +328,41 @@ export interface components {
             /** Message */
             message: string;
         };
+        /**
+         * FillPairOut
+         * @description One row of the broker's export: a buy fill matched to a sell fill. Several of them make one trade.
+         */
+        FillPairOut: {
+            /**
+             * Bought At
+             * Format: date-time
+             */
+            bought_at: string;
+            /**
+             * Buy Price
+             * @example -475.00
+             */
+            buy_price: string;
+            /** Id */
+            id: number;
+            /**
+             * Pnl
+             * @example -475.00
+             */
+            pnl: string;
+            /** Qty */
+            qty: number;
+            /**
+             * Sell Price
+             * @example -475.00
+             */
+            sell_price: string;
+            /**
+             * Sold At
+             * Format: date-time
+             */
+            sold_at: string;
+        };
         /** FilterOptionsOut */
         FilterOptionsOut: {
             /** Firms */
@@ -248,6 +376,16 @@ export interface components {
             is_admin: boolean;
             /** Mfa Fresh */
             mfa_fresh: boolean;
+        };
+        /**
+         * NeighborsOut
+         * @description The trades either side of one in the list the person came from; null at either end.
+         */
+        NeighborsOut: {
+            /** Next */
+            next: number | null;
+            /** Previous */
+            previous: number | null;
         };
         /** PerformanceScoreOut */
         PerformanceScoreOut: {
@@ -292,6 +430,20 @@ export interface components {
             rule: string;
             /** Score */
             score: number;
+        };
+        /** ScreenshotOut */
+        ScreenshotOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Id */
+            id: number;
+            /** Original Name */
+            original_name: string;
+            /** Src */
+            src: string | null;
         };
         /** SessionOut */
         SessionOut: {
@@ -407,6 +559,184 @@ export interface components {
             win_rate: number | null;
             /** Winning Days */
             winning_days: number;
+        };
+        /** TagCatalogOut */
+        TagCatalogOut: {
+            /** Groups */
+            groups: components["schemas"]["TagGroupOut"][];
+            /** Tags */
+            tags: components["schemas"]["CatalogTagOut"][];
+        };
+        /** TagGroupOut */
+        TagGroupOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** TagOut */
+        TagOut: {
+            /** Color */
+            color: string;
+            /** Group Id */
+            group_id: number;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** TradeDetailOut */
+        TradeDetailOut: {
+            account: components["schemas"]["AccountRefOut"];
+            /**
+             * Avg Entry
+             * @example -475.00
+             */
+            avg_entry: string;
+            /**
+             * Avg Exit
+             * @example -475.00
+             */
+            avg_exit: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "long" | "short";
+            /**
+             * Entry At
+             * Format: date-time
+             */
+            entry_at: string;
+            /**
+             * Exit At
+             * Format: date-time
+             */
+            exit_at: string;
+            /**
+             * Fees
+             * @example -475.00
+             */
+            fees: string;
+            /** Fill Pairs */
+            fill_pairs: components["schemas"]["FillPairOut"][];
+            /**
+             * Gross Pnl
+             * @example -475.00
+             */
+            gross_pnl: string;
+            /** Has Notes */
+            has_notes: boolean;
+            /** Hold Seconds */
+            hold_seconds: number;
+            /** Id */
+            id: number;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Notes Html */
+            notes_html: string;
+            /**
+             * Points
+             * @example -475.00
+             */
+            points: string;
+            /** Screenshot Count */
+            screenshot_count: number;
+            /** Screenshots */
+            screenshots: components["schemas"]["ScreenshotOut"][];
+            /** Symbol */
+            symbol: string;
+            /** Symbol Root */
+            symbol_root: string;
+            /** Tags */
+            tags: components["schemas"]["TagOut"][];
+            /** Total Qty */
+            total_qty: number;
+            /**
+             * Trade Day
+             * Format: date
+             */
+            trade_day: string;
+        };
+        /** TradeOut */
+        TradeOut: {
+            account: components["schemas"]["AccountRefOut"];
+            /**
+             * Avg Entry
+             * @example -475.00
+             */
+            avg_entry: string;
+            /**
+             * Avg Exit
+             * @example -475.00
+             */
+            avg_exit: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "long" | "short";
+            /**
+             * Entry At
+             * Format: date-time
+             */
+            entry_at: string;
+            /**
+             * Exit At
+             * Format: date-time
+             */
+            exit_at: string;
+            /**
+             * Fees
+             * @example -475.00
+             */
+            fees: string;
+            /**
+             * Gross Pnl
+             * @example -475.00
+             */
+            gross_pnl: string;
+            /** Has Notes */
+            has_notes: boolean;
+            /** Hold Seconds */
+            hold_seconds: number;
+            /** Id */
+            id: number;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Screenshot Count */
+            screenshot_count: number;
+            /** Symbol */
+            symbol: string;
+            /** Symbol Root */
+            symbol_root: string;
+            /** Tags */
+            tags: components["schemas"]["TagOut"][];
+            /** Total Qty */
+            total_qty: number;
+            /**
+             * Trade Day
+             * Format: date
+             */
+            trade_day: string;
+        };
+        /** TradesPageOut */
+        TradesPageOut: {
+            /** Items */
+            items: components["schemas"]["TradeOut"][];
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Total */
+            total: number;
         };
         /** UserOut */
         UserOut: {
@@ -660,6 +990,251 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_tag_catalog: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagCatalogOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_trades: {
+        parameters: {
+            query?: {
+                preset?: "all" | "7d" | "30d" | "90d" | "mtd" | "last_month" | "ytd";
+                start?: string | null;
+                end?: string | null;
+                account_type?: ("evaluation" | "funded") | null;
+                show_archived?: boolean;
+                firms?: string[];
+                account_ids?: number[];
+                symbol_roots?: string[];
+                direction?: ("long" | "short") | null;
+                q?: string;
+                sort?: "date" | "-date" | "account" | "-account" | "symbol" | "-symbol" | "direction" | "-direction" | "qty" | "-qty" | "hold" | "-hold" | "net_pnl" | "-net_pnl";
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradesPageOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_trade: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trade_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TradeDetailOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_trade_neighbors: {
+        parameters: {
+            query?: {
+                preset?: "all" | "7d" | "30d" | "90d" | "mtd" | "last_month" | "ytd";
+                start?: string | null;
+                end?: string | null;
+                account_type?: ("evaluation" | "funded") | null;
+                show_archived?: boolean;
+                firms?: string[];
+                account_ids?: number[];
+                symbol_roots?: string[];
+                direction?: ("long" | "short") | null;
+                q?: string;
+                sort?: "date" | "-date" | "account" | "-account" | "symbol" | "-symbol" | "direction" | "-direction" | "qty" | "-qty" | "hold" | "-hold" | "net_pnl" | "-net_pnl";
+            };
+            header?: never;
+            path: {
+                trade_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NeighborsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

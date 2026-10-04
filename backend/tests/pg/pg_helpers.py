@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import psycopg
+from api_fakes import make_services
+from fastapi.testclient import TestClient
 
+from tradejournal.api.app import create_app
+from tradejournal.api.config import ApiConfig
+from tradejournal.api.deps import SESSION_COOKIE
 from tradejournal.pg import accounts
 
 
@@ -58,3 +64,38 @@ def make_trades(conn, account_id: int, count: int = 8, *, day: date = date(2024,
         ).fetchone()
         ids.append(row["id"])
     return ids
+
+
+ORIGIN = "https://app.example.com"
+NOON_UTC = datetime(2024, 3, 22, 12, 0, tzinfo=UTC)
+
+
+def api_client(db, user_id, *, now: datetime = NOON_UTC) -> TestClient:
+    """A browser signed in as `user_id`, on a server whose clock says `now`."""
+    services, sessions, _ = make_services()
+    token, _ = sessions.sign_in(user_id)
+    config = ApiConfig(app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=b"k" * 32)
+    app = create_app(config, services, database=db, clock=lambda: now)
+    return TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}"})
+
+
+def add_trade(conn, account_id: int, day: date, net: str, *, nth: int = 0, root: str = "NQ", direction: str = "long"):
+    """One closed trade on trading day `day`: $4.00 of fees, so gross is net + 4."""
+    exit_at = datetime(day.year, day.month, day.day, 15, nth, tzinfo=UTC)
+    conn.execute(
+        """INSERT INTO trades (account_id, symbol, symbol_root, direction, entry_at, exit_at, trade_date,
+               hold_seconds, total_qty, max_position, fill_pair_count, tick_size, avg_entry, avg_exit,
+               points, ticks, gross_pnl, fees, net_pnl)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 60, 1, 1, 1, 0.25, 100, 101, 1, 4, %s, 4, %s)""",
+        (
+            account_id,
+            f"{root}H4",
+            root,
+            direction,
+            exit_at - timedelta(seconds=60),
+            exit_at,
+            day,
+            Decimal(net) + 4,
+            Decimal(net),
+        ),
+    )
