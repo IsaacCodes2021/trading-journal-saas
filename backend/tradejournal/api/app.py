@@ -8,8 +8,9 @@ settings first, then the tenant API (doc 07 section 5).
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -17,10 +18,11 @@ from fastapi.responses import JSONResponse
 from ..pg.readiness import DatabaseReadiness
 from ..pg.session import Database
 from .config import ApiConfig
+from .deps import utc_now
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .ports import ReadinessCheck, Services
-from .routers import session
+from .routers import accounts, session, stats
 from .security import SecurityHeadersMiddleware
 from .spa import mount_spa
 
@@ -28,26 +30,39 @@ API_VERSION = "1"  # the contract's version (`/api/v1`), not the build: that is 
 
 
 def create_app(
-    config: ApiConfig | None = None, services: Services | None = None, readiness: ReadinessCheck | None = None
+    config: ApiConfig | None = None,
+    services: Services | None = None,
+    readiness: ReadinessCheck | None = None,
+    *,
+    database: Database | None = None,
+    clock: Callable[[], datetime] = utc_now,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
     what a deployment looks like until sign-in is built (M5).
 
-    `readiness` answers `/readyz`. Left out, it is built from `config.database_url` (the pool is opened at startup and
-    closed at shutdown); with no URL either, a development process is ready and a production one is not."""
+    `database` is the request role's pool, used by the tenant routes. Left out, it is built from
+    `config.database_url` (opened at startup, closed at shutdown); with no URL either, those routes answer 503. A
+    `database` passed in is the caller's to open and close (tests do).
+
+    `readiness` answers `/readyz`. Left out, it is built from the database when there is one; with neither, a
+    development process is ready and a production one is not.
+
+    `clock` says what instant it is now. It exists so tests can prove what "today" means for a date preset."""
     config = config or ApiConfig.from_env()
-    database = Database(config.database_url) if readiness is None and config.database_url else None
-    if database is not None:
+    owned = database is None and config.database_url is not None
+    if owned:
+        database = Database(config.database_url)  # type: ignore[arg-type]  # not None: `owned` checked it
+    if readiness is None and database is not None:
         readiness = DatabaseReadiness(database)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        if database is not None:
+        if owned and database is not None:
             database.open(wait=False)  # a database that is briefly away is reported by /readyz, not a failure to boot
         try:
             yield
         finally:
-            if database is not None:
+            if owned and database is not None:
                 database.close()
 
     # No interactive docs and no served schema: the SPA does not need them, and `python -m tradejournal.api.openapi`
@@ -65,6 +80,8 @@ def create_app(
     )
     app.state.config = config
     app.state.services = services
+    app.state.database = database
+    app.state.clock = clock
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)
@@ -89,5 +106,7 @@ def create_app(
         return JSONResponse(body, status_code=200 if ready else 503, headers={"Cache-Control": "no-store"})
 
     app.include_router(session.router)
+    app.include_router(accounts.router)
+    app.include_router(stats.router)
     mount_spa(app, config.web_dist)  # last, so it never shadows a route above
     return app

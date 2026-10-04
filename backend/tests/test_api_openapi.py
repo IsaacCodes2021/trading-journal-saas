@@ -40,16 +40,19 @@ def test_check_fails_when_the_file_is_stale_or_missing(tmp_path, monkeypatch, ca
     assert openapi.main(["--check"]) == 0
 
 
-def test_the_session_routes_are_in_the_schema():
+def test_the_routes_are_in_the_schema():
     paths = spec()["paths"]
     assert set(paths["/api/v1/session"]) == {"get"}
     assert set(paths["/api/v1/settings"]) == {"patch"}
+    assert set(paths["/api/v1/accounts"]) == {"get"}
+    assert set(paths["/api/v1/dashboard"]) == {"get"}
+    assert set(paths["/api/v1/filter-options"]) == {"get"}
     assert "/healthz" not in paths  # server plumbing, not part of the contract the SPA codes against
 
 
 def test_operation_ids_are_the_unique_handler_names():
     ids = [operation["operationId"] for path in spec()["paths"].values() for operation in path.values()]
-    assert sorted(ids) == ["get_session", "patch_settings"]
+    assert sorted(ids) == ["get_dashboard", "get_filter_options", "get_session", "list_accounts", "patch_settings"]
     assert len(ids) == len(set(ids))  # two handlers with one name would silently merge in the generated client
 
 

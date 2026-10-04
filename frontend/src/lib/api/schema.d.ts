@@ -4,6 +4,63 @@
  */
 
 export interface paths {
+    "/api/v1/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Accounts
+         * @description Every account, by name. Archived ones (passed, failed or closed) are included unless `include_archived=false`.
+         */
+        get: operations["list_accounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dashboard
+         * @description The headline numbers, equity curves, daily results, score and per-account results for the filtered trades.
+         */
+        get: operations["get_dashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filter-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Filter Options */
+        get: operations["get_filter_options"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -42,6 +99,135 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccountOut
+         * @description Everything stored about an account (the rules too). Mirrors `accounts.Account`.
+         */
+        AccountOut: {
+            /** Account Size */
+            account_size: string | null;
+            /**
+             * Account Type
+             * @enum {string}
+             */
+            account_type: "evaluation" | "funded";
+            /** Archive Note */
+            archive_note: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Daily Loss Limit */
+            daily_loss_limit: string | null;
+            /** Ended On */
+            ended_on: string | null;
+            /** Firm */
+            firm: string;
+            /** Id */
+            id: number;
+            /** Max Drawdown */
+            max_drawdown: string | null;
+            /** Name */
+            name: string;
+            /** Outcome */
+            outcome: ("passed" | "failed" | "closed") | null;
+            /** Profit Target */
+            profit_target: string | null;
+            /**
+             * Starting Balance
+             * @example -475.00
+             */
+            starting_balance: string;
+            /** Trail Lock Enabled */
+            trail_lock_enabled: boolean;
+            /** Trail Lock Level */
+            trail_lock_level: string | null;
+            /** Trailing Type */
+            trailing_type: ("eod" | "intraday") | null;
+        };
+        /** AccountRefOut */
+        AccountRefOut: {
+            /**
+             * Account Type
+             * @enum {string}
+             */
+            account_type: "evaluation" | "funded";
+            /** Firm */
+            firm: string;
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
+        /** AccountSummaryOut */
+        AccountSummaryOut: {
+            account: components["schemas"]["AccountRefOut"];
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Trade Count */
+            trade_count: number;
+        };
+        /** DailyResultOut */
+        DailyResultOut: {
+            /**
+             * Day
+             * Format: date
+             */
+            day: string;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Trade Count */
+            trade_count: number;
+        };
+        /** DashboardOut */
+        DashboardOut: {
+            /** Accounts */
+            accounts: components["schemas"]["AccountSummaryOut"][];
+            /** Daily */
+            daily: components["schemas"]["DailyResultOut"][];
+            /** Equity By Day */
+            equity_by_day: components["schemas"]["EquityPointOut"][];
+            /** Equity By Trade */
+            equity_by_trade: components["schemas"]["EquityPointOut"][];
+            range: components["schemas"]["DateRangeOut"] | null;
+            score: components["schemas"]["PerformanceScoreOut"] | null;
+            summary: components["schemas"]["SummaryOut"];
+        };
+        /** DateRangeOut */
+        DateRangeOut: {
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+        };
+        /** EquityPointOut */
+        EquityPointOut: {
+            /** At */
+            at: string;
+            /**
+             * Drawdown
+             * @example -475.00
+             */
+            drawdown: string;
+            /**
+             * Equity
+             * @example -475.00
+             */
+            equity: string;
+        };
         /** FieldError */
         FieldError: {
             /** Field */
@@ -49,12 +235,26 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** FilterOptionsOut */
+        FilterOptionsOut: {
+            /** Firms */
+            firms: string[];
+            /** Symbol Roots */
+            symbol_roots: string[];
+        };
         /** FlagsOut */
         FlagsOut: {
             /** Is Admin */
             is_admin: boolean;
             /** Mfa Fresh */
             mfa_fresh: boolean;
+        };
+        /** PerformanceScoreOut */
+        PerformanceScoreOut: {
+            /** Axes */
+            axes: components["schemas"]["ScoreAxisOut"][];
+            /** Overall */
+            overall: number;
         };
         /** PlanOut */
         PlanOut: {
@@ -83,6 +283,15 @@ export interface components {
              * @default about:blank
              */
             type: string;
+        };
+        /** ScoreAxisOut */
+        ScoreAxisOut: {
+            /** Name */
+            name: string;
+            /** Rule */
+            rule: string;
+            /** Score */
+            score: number;
         };
         /** SessionOut */
         SessionOut: {
@@ -131,6 +340,74 @@ export interface components {
             /** Trading Day Timezone */
             trading_day_timezone?: string | null;
         };
+        /**
+         * SummaryOut
+         * @description Mirrors `finance.Summary`, plus how many accounts the trades came from.
+         */
+        SummaryOut: {
+            /** Account Count */
+            account_count: number;
+            /** Avg Loss */
+            avg_loss: string | null;
+            /** Avg Win */
+            avg_win: string | null;
+            /** Breakeven Count */
+            breakeven_count: number;
+            /** Expectancy */
+            expectancy: string | null;
+            /**
+             * Fees
+             * @example -475.00
+             */
+            fees: string;
+            /**
+             * Gross Pnl
+             * @example -475.00
+             */
+            gross_pnl: string;
+            /** Largest Loss */
+            largest_loss: string | null;
+            /** Largest Win */
+            largest_win: string | null;
+            /** Losing Days */
+            losing_days: number;
+            /** Loss Count */
+            loss_count: number;
+            /**
+             * Max Drawdown
+             * @example -475.00
+             */
+            max_drawdown: string;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Profit Factor */
+            profit_factor: number | null;
+            /**
+             * Total Lost
+             * @example -475.00
+             */
+            total_lost: string;
+            /**
+             * Total Won
+             * @example -475.00
+             */
+            total_won: string;
+            /** Trade Count */
+            trade_count: number;
+            /** Trading Days */
+            trading_days: number;
+            /** Win Count */
+            win_count: number;
+            /** Win Loss Ratio */
+            win_loss_ratio: number | null;
+            /** Win Rate */
+            win_rate: number | null;
+            /** Winning Days */
+            winning_days: number;
+        };
         /** UserOut */
         UserOut: {
             /** Email */
@@ -150,6 +427,159 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    list_accounts: {
+        parameters: {
+            query?: {
+                include_archived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_dashboard: {
+        parameters: {
+            query?: {
+                preset?: "all" | "7d" | "30d" | "90d" | "mtd" | "last_month" | "ytd";
+                start?: string | null;
+                end?: string | null;
+                account_type?: ("evaluation" | "funded") | null;
+                show_archived?: boolean;
+                firms?: string[];
+                account_ids?: number[];
+                symbol_roots?: string[];
+                direction?: ("long" | "short") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DashboardOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_filter_options: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilterOptionsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_session: {
         parameters: {
             query?: never;

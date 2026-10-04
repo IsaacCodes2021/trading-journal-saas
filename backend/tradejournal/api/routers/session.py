@@ -7,17 +7,12 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, HTTPException
 
 from ...auth.csrf import csrf_token
-from ..deps import ConfigDep, ServicesDep, SessionDep, WriteSessionDep
-from ..schemas import FlagsOut, Problem, SessionOut, SettingsOut, SettingsPatch
+from ..deps import ERROR_RESPONSES, ConfigDep, ServicesDep, SessionDep, WriteSessionDep
+from ..schemas import FlagsOut, SessionOut, SettingsOut, SettingsPatch
 
 MFA_FRESH_FOR = timedelta(minutes=15)  # doc 03 section 4: admin routes ask for MFA no older than this
 
-router = APIRouter(
-    prefix="/api/v1",
-    tags=["session"],
-    # What the handlers in errors.py actually return, so the generated client types its errors correctly.
-    responses={401: {"model": Problem}, 403: {"model": Problem}, 422: {"model": Problem}},
-)
+router = APIRouter(prefix="/api/v1", tags=["session"], responses=ERROR_RESPONSES)
 
 
 @router.get("/session", response_model=SessionOut)
