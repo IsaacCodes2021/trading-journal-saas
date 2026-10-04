@@ -4,13 +4,23 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Form, HTTPException, Request, UploadFile
 
+from ...auth.iphash import hash_ip
 from ...importer import UndoReport
 from ...journal import clean_filename
 from ...pg import importer as pg_importer
 from ...timeutil import zone
-from ..deps import ERROR_RESPONSES, ImportSlot, TenantDep, WriteTenantDep, limited_per_person
+from ..config import ApiConfig
+from ..deps import (
+    ERROR_RESPONSES,
+    ConfigDep,
+    ImportSlot,
+    ServicesDep,
+    TenantDep,
+    WriteTenantDep,
+    limited_per_person,
+)
 from ..refusals import refusals, sentence
 from ..schemas import Problem
 from ..schemas.imports import (
@@ -40,6 +50,10 @@ def _read(file: UploadFile) -> tuple[str, bytes]:
     if len(data) > MAX_IMPORT_BYTES:
         raise HTTPException(413, "That file is too large to import (10 MB at most).")
     return clean_filename(file.filename)[:200] or "export.csv", data
+
+
+def _ip(request: Request, config: ApiConfig) -> str | None:
+    return hash_ip(config.session_secret, request.client.host if request.client else None)
 
 
 def _record(row: dict) -> ImportRecordOut:
@@ -118,7 +132,14 @@ def preview_import(account_id: AccountField, file: UploadFile, tenant: WriteTena
     status_code=201,
     dependencies=[limited_per_person(lambda limits: limits.import_commit), ImportSlot],
 )
-def import_file(account_id: AccountField, file: UploadFile, tenant: WriteTenantDep) -> ImportRecordOut:
+def import_file(
+    account_id: AccountField,
+    file: UploadFile,
+    request: Request,
+    tenant: WriteTenantDep,
+    services: ServicesDep,
+    config: ConfigDep,
+) -> ImportRecordOut:
     """Import the file into the account. Rows already stored are left alone, so importing a file twice is safe."""
     name, data = _read(file)
     with refusals(what="account"), tenant.session() as conn:
@@ -126,6 +147,13 @@ def import_file(account_id: AccountField, file: UploadFile, tenant: WriteTenantD
         if report.fatal:
             raise HTTPException(422, sentence(report.fatal))  # nothing was written for a refused file
         row = next(r for r in pg_importer.list_imports(conn, account_id) if r["id"] == report.import_id)
+    # What is recorded is counts only, never the file's name or anything in it (the log holds no one's content).
+    services.audit.record(
+        tenant.user_id,
+        "import",
+        ip_hash=_ip(request, config),
+        meta={"import_id": row["id"], "rows_added": row["rows_added"], "trades_built": row["trades_affected"]},
+    )
     return _record(row)
 
 
@@ -153,6 +181,15 @@ def undo_preview(import_id: PathId, tenant: WriteTenantDep) -> UndoPreviewOut:
 
 
 @router.post("/imports/{import_id}/undo", response_model=UndoPreviewOut, dependencies=[ImportSlot])
-def undo_import(import_id: PathId, tenant: WriteTenantDep) -> UndoPreviewOut:
+def undo_import(
+    import_id: PathId, request: Request, tenant: WriteTenantDep, services: ServicesDep, config: ConfigDep
+) -> UndoPreviewOut:
     """Remove what the import brought in (rows another import also holds stay) and regroup what is left."""
-    return _undo(import_id, tenant, dry_run=False)
+    done = _undo(import_id, tenant, dry_run=False)
+    services.audit.record(
+        tenant.user_id,
+        "import_undone",
+        ip_hash=_ip(request, config),
+        meta={"import_id": import_id, "rows_removed": done.rows_removed, "trades_removed": done.trades_removed},
+    )
+    return done

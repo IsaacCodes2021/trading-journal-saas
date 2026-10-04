@@ -165,6 +165,8 @@ const ACTIONS: Record<string, string> = {
   logout_everywhere: 'Signed out everywhere else',
   session_revoked: 'Signed one place out',
   export: 'Downloaded their data',
+  import: 'Imported a file',
+  import_undone: 'Undid an import',
   deletion_requested: 'Asked to delete the account',
   deletion_cancelled: 'Cancelled the deletion by signing in',
   grant_redeemed: 'Used a plan code',

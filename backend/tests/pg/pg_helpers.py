@@ -77,13 +77,19 @@ def write_headers(session) -> dict[str, str]:
     return {"sec-fetch-site": "same-origin", "x-csrf-token": csrf_token(SECRET, session.id)}
 
 
-def api_client(db, user_id, *, now: datetime = NOON_UTC) -> TestClient:
-    """A browser signed in as `user_id`, on a server whose clock says `now`."""
+def api_client_with_services(db, user_id, *, now: datetime = NOON_UTC):
+    """`api_client`, and the in-memory services behind it, so a test can read what the server recorded (`.audit.events`)."""
     services, sessions, _ = make_services()
     token, session = sessions.sign_in(user_id)
     config = ApiConfig(app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=SECRET)
     app = create_app(config, services, database=db, clock=lambda: now)
-    return TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}", **write_headers(session)})
+    client = TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}", **write_headers(session)})
+    return client, services
+
+
+def api_client(db, user_id, *, now: datetime = NOON_UTC) -> TestClient:
+    """A browser signed in as `user_id`, on a server whose clock says `now`."""
+    return api_client_with_services(db, user_id, now=now)[0]
 
 
 def add_trade(conn, account_id: int, day: date, net: str, *, nth: int = 0, root: str = "NQ", direction: str = "long"):

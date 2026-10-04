@@ -8,6 +8,7 @@ import io
 import pytest
 from helpers import HEADER, SAMPLE, fixture_bytes, fixture_lines
 from pg_helpers import api_client as api
+from pg_helpers import api_client_with_services as api_with_services
 from pg_helpers import make_account
 
 from tradejournal.api.routers import imports as imports_router
@@ -157,6 +158,59 @@ def test_rows_another_import_also_holds_stay_when_one_is_undone(db, alice, two_a
     assert trade_count(client) > 0
     assert client.post(f"/api/v1/imports/{morning['id']}/undo").json()["rows_removed"] == 13
     assert trade_count(client) == 0
+
+
+# ---- what the audit log is told -----------------------------------------------------------------------------------------
+
+
+def test_an_import_and_an_undo_are_recorded_as_counts_and_never_name_the_file(db, alice, two_accounts):
+    client, services = api_with_services(db, alice)
+    record = upload(client, "/api/v1/imports", two_accounts[0], name="my secret strategy week.csv").json()
+    assert services.audit.events == [
+        {
+            "user_id": alice,
+            "action": "import",
+            "ip_hash": services.audit.events[0]["ip_hash"],
+            "meta": {"import_id": record["id"], "rows_added": 14, "trades_built": 8},
+        }
+    ]
+    assert services.audit.events[0]["ip_hash"]  # the address is kept only as a keyed hash
+    assert "secret strategy" not in str(services.audit.events)
+    client.post(f"/api/v1/imports/{record['id']}/undo")
+    assert [(e["action"], e["meta"]) for e in services.audit.events[1:]] == [
+        ("import_undone", {"import_id": record["id"], "rows_removed": 14, "trades_removed": 8})
+    ]
+
+
+def test_a_second_import_of_the_same_file_is_recorded_too_with_nothing_added(db, alice, two_accounts):
+    client, services = api_with_services(db, alice)
+    upload(client, "/api/v1/imports", two_accounts[0])
+    upload(client, "/api/v1/imports", two_accounts[0])
+    assert [(e["action"], e["meta"]["rows_added"]) for e in services.audit.events] == [("import", 14), ("import", 0)]
+
+
+def test_a_preview_changes_nothing_so_it_is_not_recorded(db, alice, two_accounts):
+    client, services = api_with_services(db, alice)
+    record = upload(client, "/api/v1/imports", two_accounts[0]).json()
+    services.audit.events.clear()
+    assert upload(client, "/api/v1/imports/preview", two_accounts[0]).status_code == 200
+    assert client.post(f"/api/v1/imports/{record['id']}/undo-preview").status_code == 200
+    assert services.audit.events == []
+
+
+def test_a_refused_import_or_undo_is_not_recorded_as_one_that_happened(db, alice, bob, two_accounts):
+    client, services = api_with_services(db, alice)
+    assert (
+        upload(client, "/api/v1/imports", two_accounts[0], data=b"not,a,performance,export\n1,2,3,4\n").status_code
+        == 422
+    )
+    assert client.post("/api/v1/imports/999999/undo").status_code == 404
+    record = upload(client, "/api/v1/imports", two_accounts[0]).json()
+    services.audit.events.clear()
+    as_bob, bobs = api_with_services(db, bob)
+    assert as_bob.post(f"/api/v1/imports/{record['id']}/undo").status_code == 404  # someone else's
+    assert upload(as_bob, "/api/v1/imports", two_accounts[0]).status_code == 404
+    assert bobs.audit.events == [] and services.audit.events == []
 
 
 # ---- whose files, and what is refused ---------------------------------------------------------------------------------
