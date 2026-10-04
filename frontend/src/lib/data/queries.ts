@@ -4,7 +4,10 @@ import type {
   AccountDetailsInput,
   AccountRulesInput,
   ArchiveInput,
+  DataSource,
   NewLedgerEntry,
+  TagCatalog,
+  TagEdit,
   TradeDetail,
   TradesQuery,
 } from './model'
@@ -111,6 +114,45 @@ export function useAddTag(id: number) {
     const tag = await source.createTag(groupId, name)
     await source.setTradeTag(id, tag.id, true)
     return tag
+  })
+}
+
+/**
+ * The tags screen's changes. Each answers with the whole catalog as it is afterwards, which replaces the cached one at
+ * once; the trade log and a trade's page show tags too, so those refetch.
+ */
+function useCatalogWrite<Variables>(write: (source: DataSource, variables: Variables) => Promise<TagCatalog>) {
+  const source = useDataSource()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (variables: Variables) => write(source, variables),
+    onSuccess: (catalog) => {
+      queryClient.setQueryData(['tag-catalog', source.label], catalog)
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['trade'] }),
+        queryClient.invalidateQueries({ queryKey: ['trades'] }),
+      ])
+    },
+  })
+}
+
+export const useCreateGroup = () => useCatalogWrite((source, name: string) => source.createGroup(name))
+export const useRenameGroup = () =>
+  useCatalogWrite((source, v: { id: number; name: string }) => source.renameGroup(v.id, v.name))
+export const useDeleteGroup = () => useCatalogWrite((source, id: number) => source.deleteGroup(id))
+export const useEditTag = () =>
+  useCatalogWrite((source, v: { id: number; edit: TagEdit }) => source.editTag(v.id, v.edit))
+export const useMergeTag = () =>
+  useCatalogWrite((source, v: { id: number; intoId: number }) => source.mergeTag(v.id, v.intoId))
+export const useDeleteTag = () => useCatalogWrite((source, id: number) => source.deleteTag(id))
+
+/** A new tag in a category (the tag's own page makes one and tags the trade; here it only joins the catalog). */
+export function useCreateTag() {
+  const source = useDataSource()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupId, name }: { groupId: number; name: string }) => source.createTag(groupId, name),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tag-catalog'] }),
   })
 }
 

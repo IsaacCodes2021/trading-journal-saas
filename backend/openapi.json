@@ -654,6 +654,24 @@
         "title": "CatalogTagOut",
         "type": "object"
       },
+      "ColorPresetOut": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "color",
+          "name"
+        ],
+        "title": "ColorPresetOut",
+        "type": "object"
+      },
       "DailyResultOut": {
         "properties": {
           "day": {
@@ -1914,11 +1932,25 @@
       },
       "TagCatalogOut": {
         "properties": {
+          "custom_colors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Custom Colors",
+            "type": "array"
+          },
           "groups": {
             "items": {
               "$ref": "#/components/schemas/TagGroupOut"
             },
             "title": "Groups",
+            "type": "array"
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/ColorPresetOut"
+            },
+            "title": "Presets",
             "type": "array"
           },
           "tags": {
@@ -1931,9 +1963,58 @@
         },
         "required": [
           "groups",
-          "tags"
+          "tags",
+          "presets",
+          "custom_colors"
         ],
         "title": "TagCatalogOut",
+        "type": "object"
+      },
+      "TagEditIn": {
+        "additionalProperties": false,
+        "description": "Rename, recolour or move a tag to another category: the whole tag, as it should now be.",
+        "properties": {
+          "color": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Color",
+            "type": "string"
+          },
+          "group_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "group_id",
+          "color"
+        ],
+        "title": "TagEditIn",
+        "type": "object"
+      },
+      "TagGroupIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "TagGroupIn",
         "type": "object"
       },
       "TagGroupOut": {
@@ -1952,6 +2033,22 @@
           "name"
         ],
         "title": "TagGroupOut",
+        "type": "object"
+      },
+      "TagMergeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "into_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Into Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "into_id"
+        ],
+        "title": "TagMergeIn",
         "type": "object"
       },
       "TagOut": {
@@ -4449,9 +4546,267 @@
         ]
       }
     },
+    "/api/v1/tag-groups": {
+      "post": {
+        "operationId": "create_tag_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Create Tag Group",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/tag-groups/{group_id}": {
+      "delete": {
+        "description": "Delete a category, its tags, and those tags' links to trades (the trades themselves stay).",
+        "operationId": "delete_tag_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Group Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Tag Group",
+        "tags": [
+          "tags"
+        ]
+      },
+      "put": {
+        "operationId": "rename_tag_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "group_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Group Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Rename Tag Group",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
     "/api/v1/tags": {
       "get": {
-        "description": "Every group and tag, each tag with the number of trades that carry it.",
+        "description": "Every category and tag (each with the number of trades that carry it) and the colours on offer.",
         "operationId": "get_tag_catalog",
         "responses": {
           "200": {
@@ -4483,6 +4838,26 @@
               }
             },
             "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "422": {
             "content": {
@@ -4568,6 +4943,279 @@
         "summary": "Create Tag",
         "tags": [
           "journal"
+        ]
+      }
+    },
+    "/api/v1/tags/{tag_id}": {
+      "delete": {
+        "description": "Delete a tag everywhere, including from the trades that carry it.",
+        "operationId": "delete_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Tag Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Tag",
+        "tags": [
+          "tags"
+        ]
+      },
+      "put": {
+        "description": "Rename, recolour or move a tag. The trades carrying it keep it; a name already used in the target category is\na conflict (merge the two instead).",
+        "operationId": "edit_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Tag Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagEditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Edit Tag",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/tags/{tag_id}/merge": {
+      "post": {
+        "description": "Move every trade from this tag to another, then delete this one. A trade that carried both keeps one.",
+        "operationId": "merge_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Tag Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagMergeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Merge Tag",
+        "tags": [
+          "tags"
         ]
       }
     },

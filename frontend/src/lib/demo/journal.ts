@@ -1,6 +1,6 @@
-import type { ScreenshotRef, TagCatalog, TagRef, TradeRow } from '../data/model'
+import type { ColorPreset, ScreenshotRef, TagCatalog, TagEdit, TagGroupRef, TagRef, TradeRow } from '../data/model'
 import { ScreenshotRefused } from '../data/model'
-import { SAMPLE_TAGS, SAMPLE_TAG_GROUPS, notesFor, screenshotsFor } from './generate'
+import { SAMPLE_TAGS, SAMPLE_TAG_GROUPS, SAMPLE_TRADES, notesFor, screenshotsFor } from './generate'
 
 /*
  * The sample journal: notes, tags and screenshots a person can change while trying the screens. It is in memory only:
@@ -20,23 +20,63 @@ export const SCREENSHOT_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/
 const TAG_COLOR = '#6EA8FE'
 const MAX_TAG_NAME = 40
 
+/** The colours on offer for a tag: the same nine as the server's. */
+export const TAG_COLOR_PRESETS: ColorPreset[] = [
+  { color: '#2a78d6', name: 'Blue' },
+  { color: '#6e5adc', name: 'Violet' },
+  { color: '#0ca30c', name: 'Green' },
+  { color: '#eb6834', name: 'Orange' },
+  { color: '#e87ba4', name: 'Pink' },
+  { color: '#1baf7a', name: 'Aqua' },
+  { color: '#d03b3b', name: 'Red' },
+  { color: '#eda100', name: 'Amber' },
+  { color: '#898781', name: 'Gray' },
+]
+
+const freshGroups = (): TagGroupRef[] => SAMPLE_TAG_GROUPS.map((g) => ({ ...g }))
+const freshTags = (): TagRef[] => Object.values(SAMPLE_TAGS).map((t) => ({ ...t }))
+
 let entries = new Map<number, Entry>()
-let extraTags: TagRef[] = []
+let groups = freshGroups()
+let tags = freshTags()
+let nextTagId = 100
+let nextGroupId = 100
 let nextShotId = 1_000_000
 
 /** Back to the generated state. For tests; a page reload does the same. */
 export function resetDemoJournal(): void {
   entries = new Map()
-  extraTags = []
+  groups = freshGroups()
+  tags = freshTags()
+  nextTagId = 100
+  nextGroupId = 100
   nextShotId = 1_000_000
 }
 
 export function allTags(): TagRef[] {
-  return [...Object.values(SAMPLE_TAGS), ...extraTags]
+  return tags
+}
+
+/** How many trades carry each tag, counting the generated trades with the journal's changes applied. */
+function usage(): Map<number, number> {
+  const counts = new Map<number, number>()
+  for (const trade of SAMPLE_TRADES) {
+    const ids = entries.get(trade.id)?.tagIds ?? trade.tags.map((t) => t.id)
+    for (const id of new Set(ids)) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return counts
 }
 
 export function tagCatalog(): TagCatalog {
-  return { groups: SAMPLE_TAG_GROUPS, tags: allTags() }
+  const counts = usage()
+  const presets = new Set(TAG_COLOR_PRESETS.map((p) => p.color))
+  const shown = tags.filter((t) => groups.some((g) => g.id === t.group_id))
+  return {
+    groups: groups.map((g) => ({ ...g })),
+    tags: shown.map((t) => ({ ...t, color: t.color.toLowerCase(), trade_count: counts.get(t.id) ?? 0 })),
+    presets: TAG_COLOR_PRESETS,
+    custom_colors: [...new Set(shown.map((t) => t.color.toLowerCase()).filter((c) => !presets.has(c)))],
+  }
 }
 
 function entryFor(trade: TradeRow): Entry {
@@ -56,12 +96,13 @@ export function hasText(html: string): boolean {
   return /\S/.test(html.replace(/<[^>]*>/g, ''))
 }
 
-/** A generated trade with the journal's changes applied. */
+/** A generated trade with the journal's changes applied, its tags always read from the current catalog. */
 export function withJournal(trade: TradeRow): TradeRow {
   const entry = entries.get(trade.id)
-  if (!entry) return trade
-  const tags = entry.tagIds.flatMap((id) => allTags().filter((t) => t.id === id))
-  return { ...trade, tags, has_notes: hasText(entry.notes), screenshot_count: entry.screenshots.length }
+  const ids = entry ? entry.tagIds : trade.tags.map((t) => t.id)
+  const own = ids.flatMap((id) => tags.filter((t) => t.id === id))
+  if (!entry) return { ...trade, tags: own }
+  return { ...trade, tags: own, has_notes: hasText(entry.notes), screenshot_count: entry.screenshots.length }
 }
 
 export function notesOf(trade: TradeRow): string {
@@ -82,17 +123,86 @@ export function setTradeTag(trade: TradeRow, tagId: number, on: boolean): void {
   entry.tagIds = on ? [...without, tagId] : without
 }
 
+function cleanName(raw: string): string {
+  const name = raw.split(/\s+/).filter(Boolean).join(' ')
+  if (!name) throw new Error('Name is empty.')
+  if (name.length > MAX_TAG_NAME) throw new Error(`Keep names under ${MAX_TAG_NAME} characters.`)
+  return name
+}
+
+const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase()
+
 /** A tag in a group, found by name (ignoring case) or made. Names are trimmed and their spaces collapsed. */
 export function createTag(groupId: number, rawName: string): TagRef {
-  const name = rawName.split(/\s+/).filter(Boolean).join(' ')
-  if (!name) throw new Error('Give the tag a name.')
-  if (name.length > MAX_TAG_NAME) throw new Error(`Tag names are at most ${MAX_TAG_NAME} characters.`)
-  if (!SAMPLE_TAG_GROUPS.some((g) => g.id === groupId)) throw new Error('Choose a group for the tag.')
-  const existing = allTags().find((t) => t.group_id === groupId && t.name.toLowerCase() === name.toLowerCase())
+  const name = cleanName(rawName)
+  if (!groups.some((g) => g.id === groupId)) throw new Error('That category does not exist.')
+  const existing = tags.find((t) => t.group_id === groupId && sameName(t.name, name))
   if (existing) return existing
-  const tag: TagRef = { id: 100 + extraTags.length, group_id: groupId, name, color: TAG_COLOR }
-  extraTags = [...extraTags, tag]
+  const tag: TagRef = { id: nextTagId++, group_id: groupId, name, color: TAG_COLOR }
+  tags = [...tags, tag]
   return tag
+}
+
+// ---- managing categories and tags (the tags screen) -----------------------------------------------------------------
+
+function groupNamed(name: string, except?: number): TagGroupRef | undefined {
+  return groups.find((g) => g.id !== except && sameName(g.name, name))
+}
+
+export function createGroup(rawName: string): void {
+  const name = cleanName(rawName)
+  if (groupNamed(name)) throw new Error(`There is already a category called ${name}.`)
+  groups = [...groups, { id: nextGroupId++, name }]
+}
+
+export function renameGroup(id: number, rawName: string): void {
+  if (!groups.some((g) => g.id === id)) throw new Error('That category does not exist.')
+  const name = cleanName(rawName)
+  if (groupNamed(name, id)) throw new Error(`There is already a category called ${name}.`)
+  groups = groups.map((g) => (g.id === id ? { ...g, name } : g))
+}
+
+/** Takes the category's tags with it (and so their links to trades); the trades stay. */
+export function deleteGroup(id: number): void {
+  if (!groups.some((g) => g.id === id)) throw new Error('That category does not exist.')
+  groups = groups.filter((g) => g.id !== id)
+  tags = tags.filter((t) => t.group_id !== id)
+}
+
+/** "#ABC" is "#aabbcc"; anything that is not a hex colour is refused in the server's words. */
+function cleanColor(raw: string): string {
+  const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(raw.trim())
+  const digits = match?.[1]?.toLowerCase()
+  if (!digits) throw new Error(`Not a hex color like #2a78d6: '${raw}'.`)
+  return '#' + (digits.length === 6 ? digits : [...digits].map((c) => c + c).join(''))
+}
+
+export function editTag(id: number, edit: TagEdit): void {
+  if (!tags.some((t) => t.id === id)) throw new Error('That tag does not exist.')
+  if (!groups.some((g) => g.id === edit.group_id)) throw new Error('That category does not exist.')
+  const name = cleanName(edit.name)
+  const clash = tags.find((t) => t.id !== id && t.group_id === edit.group_id && sameName(t.name, name))
+  if (clash) throw new Error(`There is already a tag called ${clash.name}.`)
+  const color = cleanColor(edit.color)
+  tags = tags.map((t) => (t.id === id ? { ...t, name, group_id: edit.group_id, color } : t))
+}
+
+/** Every trade with the first tag gets the second instead (once, if it had both), then the first is deleted. */
+export function mergeTag(id: number, intoId: number): void {
+  if (!tags.some((t) => t.id === id) || !tags.some((t) => t.id === intoId)) throw new Error('That tag does not exist.')
+  if (id === intoId) throw new Error("Can't merge a tag into itself.")
+  for (const trade of SAMPLE_TRADES) {
+    const entry = entryFor(trade)
+    if (!entry.tagIds.includes(id)) continue
+    entry.tagIds = [...entry.tagIds.filter((tagId) => tagId !== id && tagId !== intoId), intoId]
+  }
+  deleteTag(id)
+}
+
+/** Removes the tag everywhere; trades that carried it simply no longer show it. */
+export function deleteTag(id: number): void {
+  if (!tags.some((t) => t.id === id)) throw new Error('That tag does not exist.')
+  tags = tags.filter((t) => t.id !== id)
 }
 
 /** Checks each file the way the server will (type and size; the server also reads the bytes), then keeps all or none. */

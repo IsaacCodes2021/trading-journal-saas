@@ -99,9 +99,9 @@ describe('the sample journal', () => {
   })
 
   it('refuses an empty name, a long one and an unknown group', async () => {
-    await expect(demoSource.createTag(1, '   ')).rejects.toThrow('Give the tag a name')
-    await expect(demoSource.createTag(1, 'x'.repeat(41))).rejects.toThrow('at most 40')
-    await expect(demoSource.createTag(99, 'Fine')).rejects.toThrow('Choose a group')
+    await expect(demoSource.createTag(1, '   ')).rejects.toThrow('Name is empty.')
+    await expect(demoSource.createTag(1, 'x'.repeat(41))).rejects.toThrow('Keep names under 40 characters.')
+    await expect(demoSource.createTag(99, 'Fine')).rejects.toThrow('That category does not exist.')
   })
 
   it('adds and deletes screenshots, and refuses the wrong kind of file, all or nothing', async () => {
@@ -133,5 +133,83 @@ describe('the sample journal', () => {
     expect(await demoSource.neighbors(ordered[0] ?? 0, query)).toEqual({ previous: null, next: ordered[1] })
     const filtered = { ...query, symbol_roots: ['NOPE'] }
     expect(await demoSource.neighbors(ordered[0] ?? 0, filtered)).toEqual({ previous: null, next: null })
+  })
+})
+
+describe('managing categories and tags', () => {
+  const carrying = (tagId: number) => SAMPLE_TRADES.filter((t) => t.tags.some((tag) => tag.id === tagId)).length
+  const tagOf = async (id: number) => (await demoSource.tagCatalog()).tags.find((t) => t.id === id)
+
+  it('counts the trades that carry each tag, and offers the presets and the colours already in use', async () => {
+    const catalog = await demoSource.tagCatalog()
+    expect(catalog.tags.find((t) => t.id === SAMPLE_TAGS.fomo.id)?.trade_count).toBe(carrying(SAMPLE_TAGS.fomo.id))
+    expect(catalog.presets.map((p) => p.name)).toContain('Blue')
+    expect(catalog.custom_colors).toContain('#6ea8fe') // the sample tags' own colours are not presets, and are lowercase
+  })
+
+  it('renames, recolours and moves a tag everywhere it is shown, normalizing the colour', async () => {
+    const catalog = await demoSource.editTag(SAMPLE_TAGS.fomo.id, {
+      name: '  Fear of   missing out ',
+      group_id: 3,
+      color: '#ABC',
+    })
+    const changed = catalog.tags.find((t) => t.id === SAMPLE_TAGS.fomo.id)
+    expect(changed).toMatchObject({ name: 'Fear of missing out', group_id: 3, color: '#aabbcc' })
+    const log = await demoSource.trades({ preset: 'all', sort: 'date', page: 1, per_page: 500 })
+    const shown = log.items.flatMap((row) => row.tags).filter((t) => t.id === SAMPLE_TAGS.fomo.id)
+    expect(shown.length).toBeGreaterThan(0)
+    expect(shown.every((t) => t.name === 'Fear of missing out' && t.color === '#aabbcc')).toBe(true)
+  })
+
+  it("refuses a clash, a bad name, colour or category, in the server's words, and changes nothing", async () => {
+    const edit = { name: 'Chased entry', group_id: 2, color: '#2a78d6' }
+    await expect(demoSource.editTag(SAMPLE_TAGS.fomo.id, edit)).rejects.toThrow(
+      'There is already a tag called Chased entry.',
+    )
+    await expect(demoSource.editTag(SAMPLE_TAGS.fomo.id, { ...edit, name: ' ' })).rejects.toThrow('Name is empty.')
+    await expect(demoSource.editTag(SAMPLE_TAGS.fomo.id, { ...edit, name: 'FOMO', color: 'blue' })).rejects.toThrow(
+      'Not a hex color',
+    )
+    await expect(demoSource.editTag(SAMPLE_TAGS.fomo.id, { ...edit, name: 'FOMO', group_id: 99 })).rejects.toThrow(
+      'That category does not exist.',
+    )
+    await expect(demoSource.editTag(999, edit)).rejects.toThrow('That tag does not exist.')
+    expect((await tagOf(SAMPLE_TAGS.fomo.id))?.name).toBe('FOMO')
+  })
+
+  it('merges one tag into another once per trade, then deletes the first', async () => {
+    const from = SAMPLE_TAGS.fomo.id
+    const into = SAMPLE_TAGS.chased.id
+    const union = new Set(
+      SAMPLE_TRADES.filter((t) => t.tags.some((tag) => tag.id === from || tag.id === into)).map((t) => t.id),
+    ).size
+    const catalog = await demoSource.mergeTag(from, into)
+    expect(catalog.tags.some((t) => t.id === from)).toBe(false)
+    expect(catalog.tags.find((t) => t.id === into)?.trade_count).toBe(union)
+    await expect(demoSource.mergeTag(into, into)).rejects.toThrow("Can't merge a tag into itself.")
+    const log = await demoSource.trades({ preset: 'all', sort: 'date', page: 1, per_page: 500 })
+    for (const row of log.items) expect(row.tags.filter((t) => t.id === into).length).toBeLessThanOrEqual(1)
+    expect(log.items.some((row) => row.tags.some((t) => t.id === from))).toBe(false)
+  })
+
+  it('deletes a tag from its trades, and a category with its tags, leaving the trades', async () => {
+    const afterTag = await demoSource.deleteTag(SAMPLE_TAGS.calm.id)
+    expect(afterTag.tags.some((t) => t.id === SAMPLE_TAGS.calm.id)).toBe(false)
+    const afterGroup = await demoSource.deleteGroup(2)
+    expect(afterGroup.groups.map((g) => g.name)).toEqual(['Setup', 'Emotion'])
+    expect(afterGroup.tags.every((t) => t.group_id !== 2)).toBe(true)
+    const log = await demoSource.trades({ preset: 'all', sort: 'date', page: 1, per_page: 500 })
+    expect(log.total).toBe(SAMPLE_TRADES.length)
+    expect(log.items.every((row) => row.tags.every((t) => t.group_id !== 2 && t.id !== SAMPLE_TAGS.calm.id))).toBe(true)
+  })
+
+  it('adds and renames categories, refusing a name another has in any capitalization', async () => {
+    const added = await demoSource.createGroup('  Market   regime ')
+    expect(added.groups.at(-1)?.name).toBe('Market regime')
+    await expect(demoSource.createGroup('setup')).rejects.toThrow('There is already a category called setup.')
+    const id = added.groups.at(-1)?.id ?? 0
+    expect((await demoSource.renameGroup(id, 'Regime')).groups.at(-1)?.name).toBe('Regime')
+    await expect(demoSource.renameGroup(id, 'MISTAKE')).rejects.toThrow('There is already a category called MISTAKE.')
+    await expect(demoSource.renameGroup(99, 'x')).rejects.toThrow('That category does not exist.')
   })
 })

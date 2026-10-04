@@ -2,15 +2,6 @@ import { SectionHeader, SectionNextUp } from './SettingsLayout'
 
 /** Sections that are designed (the Design canvas) and have their routes planned, but are built after this one. */
 
-export function TagsSoon() {
-  return (
-    <>
-      <SectionHeader title="Tags">Group, rename, recolour and merge the tags you use on trades.</SectionHeader>
-      <SectionNextUp title="Tags">Managing tags is the next screen to be built.</SectionNextUp>
-    </>
-  )
-}
-
 export function PrivacySoon() {
   return (
     <>

@@ -307,8 +307,15 @@ The tenant API is built in slices, each one a route family plus the tests that p
 - Tested against a real Postgres (19 tests): preview equals import, row statuses across two accounts, times in three zones, the row limit, refused files, line numbers, the record and a repeat import adding nothing, undo preview then undo, shared rows surviving one undo, isolation, bad ids and missing files, the size limit, forged requests. Four mutations (the undo preview really undoing, times shown in UTC, another account's row shown as a duplicate, the preview saving) are each caught.
 - Checked in a browser on a throwaway user: choose a file, see the real preview, confirm the import, see it in the history, open "Undo", see "This removes 14 fill pairs and 8 trades", confirm, see it marked Undone.
 
+**Slice 7 (2026-10-04): managing tags.** `POST /api/v1/tag-groups`, `PUT` and `DELETE /tag-groups/{id}`, `PUT` and `DELETE /tags/{id}`, `POST /tags/{id}/merge`; `GET /api/v1/tags` now also returns the colours on offer.
+
+- **Every change answers with the whole catalog** as it is afterwards (categories, tags with their trade counts, the nine preset colours, and the colours already on the person's tags that are not presets, to reuse), read in the same transaction as the change and built after it, so the tags screen needs no second request and a bug building the answer cannot pass for a refusal.
+- **Rules**: a tag or category name is unique per person in any capitalization (a clash is a 409 in words: "There is already a tag called ORB."; a tag is unique within its category, so the same name may exist in two categories); a blank or overlong name is a 422; a colour is "#rrggbb" or "#rgb" (stored as "#aabbcc"), anything else is a 422; moving a tag to another category keeps it on its trades; merging moves every trade to the surviving tag once (a trade that had both keeps one) and refuses merging a tag into itself; deleting a tag takes it off its trades, deleting a category takes its tags and their links with it, and the trades themselves always stay.
+- **Someone else's category or tag is a 404 wherever it is named**, including as the target of a move or a merge, checked up front so it never reaches a composite foreign key as a 500.
+- Tested against a real Postgres (20 tests); three mutations (the target category not checked, a tag-name clash not checked, a merge that is really a delete) are each caught.
+
 Decisions and gaps:
 
 - `show_archived` defaults to **false** (as the NiceGUI app did); the front end's filter bar has no toggle yet, so a person whose evaluation account was archived sees it vanish from the dashboard until the toggle is added (a front-end task, listed with the API source work).
 - Sessions are still the in-memory fakes in tests and the fixed development cookie locally; the real session store is M5.
-- Not built yet: tag management (rename, recolour, merge, delete), the full rule tracker, re-running past imports in a corrected CSV zone, a per-user rate limit on imports (M6). Screenshots wait for the object store (M6). Account entitlements (a plan's account limit) arrive with billing.
+- Not built yet: the full rule tracker, re-running past imports in a corrected CSV zone, a per-user rate limit on imports (M6). Screenshots wait for the object store (M6). Account entitlements (a plan's account limit) arrive with billing.

@@ -161,9 +161,28 @@ export interface TradeDetail extends TradeRow {
   screenshots: ScreenshotRef[]
 }
 
+/** A tag with how many trades carry it, for the tags screen. */
+export interface CatalogTag extends TagRef {
+  trade_count: number
+}
+
+export interface ColorPreset {
+  color: string // "#rrggbb"
+  name: string // "Blue"
+}
+
 export interface TagCatalog {
   groups: TagGroupRef[]
-  tags: TagRef[]
+  tags: CatalogTag[]
+  presets: ColorPreset[] // the colours on offer for a tag
+  custom_colors: string[] // colours already on tags that are not presets, oldest first, so they can be reused
+}
+
+/** A tag as it should now be: the whole thing, saved at once. */
+export interface TagEdit {
+  name: string
+  group_id: number
+  color: string
 }
 
 /** The trades either side of one in the list the user came from, so the arrows follow the list's sort and filters. */
@@ -368,6 +387,13 @@ export interface DataSource {
   saveNotes(id: number, html: string): Promise<void>
   setTradeTag(id: number, tagId: number, on: boolean): Promise<void>
   createTag(groupId: number, name: string): Promise<TagRef>
+  // Managing the tags themselves. Each answers with the whole catalog as it is afterwards.
+  createGroup(name: string): Promise<TagCatalog>
+  renameGroup(id: number, name: string): Promise<TagCatalog>
+  deleteGroup(id: number): Promise<TagCatalog>
+  editTag(id: number, edit: TagEdit): Promise<TagCatalog>
+  mergeTag(id: number, intoId: number): Promise<TagCatalog>
+  deleteTag(id: number): Promise<TagCatalog>
   addScreenshots(id: number, files: readonly File[]): Promise<ScreenshotRef[]>
   deleteScreenshot(id: number, screenshotId: number): Promise<void>
   accounts(signal?: AbortSignal): Promise<AccountRef[]>

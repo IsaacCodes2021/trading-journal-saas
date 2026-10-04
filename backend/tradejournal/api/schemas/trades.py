@@ -59,9 +59,16 @@ class TagGroupOut(ApiModel):
     name: str  # "Setup", "Mistake", "Emotion"
 
 
+class ColorPresetOut(ApiModel):
+    color: str  # "#rrggbb"
+    name: str  # "Blue"
+
+
 class TagCatalogOut(ApiModel):
     groups: list[TagGroupOut]
     tags: list[CatalogTagOut]
+    presets: list[ColorPresetOut]  # the colours offered for a tag
+    custom_colors: list[str]  # colours already on the person's tags that are not presets, oldest first, to reuse
 
 
 class TradeOut(ApiModel):
@@ -139,3 +146,25 @@ class NewTagIn(ApiModel):
 
     group_id: RowId
     name: Annotated[str, Field(min_length=1, max_length=200)]  # trimmed and checked again by the server (its own limit)
+
+
+class TagGroupIn(ApiModel):
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+    name: Annotated[str, Field(min_length=1, max_length=200)]  # trimmed and checked again by the server
+
+
+class TagEditIn(ApiModel):
+    """Rename, recolour or move a tag to another category: the whole tag, as it should now be."""
+
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+    name: Annotated[str, Field(min_length=1, max_length=200)]
+    group_id: RowId
+    color: Annotated[str, Field(min_length=1, max_length=20)]  # "#rrggbb" or "#rgb"
+
+
+class TagMergeIn(ApiModel):
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+    into_id: RowId  # the tag that stays; every trade carrying this one carries that one instead

@@ -242,7 +242,7 @@ describe('tags', () => {
     await user.click(await within(card).findByRole('button', { name: '+ Add tag' }))
     await user.type(screen.getByLabelText('Tag name'), '   ')
     await user.click(screen.getByRole('button', { name: 'Add tag' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Give the tag a name.')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Name is empty.')
   })
 })
 
