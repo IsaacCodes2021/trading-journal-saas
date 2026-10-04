@@ -57,5 +57,7 @@ describe('the words for what the log says', () => {
   it('knows the person’s own events too', () => {
     expect(actionText('login')).toBe('Signed in')
     expect(actionText('export')).toBe('Downloaded their data')
+    expect(actionText('import')).toBe('Imported a file')
+    expect(actionText('import_undone')).toBe('Undid an import')
   })
 })

@@ -74,24 +74,24 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 
 ### Authentication and sessions
 - [ ] **GATE** Hosted IdP configured: email verification required, breached-password check on, MFA available, brute-force protection on
-- [ ] **GATE** Callback validates `state`, `nonce`, PKCE, ID-token `iss/aud/exp`; requires `email_verified`; exact redirect-URI allow-list
-- [ ] **GATE** Cookie flags and `__Host-` prefix; session rotation; server-side revocation; idle and absolute timeouts
-- [ ] **GATE** CSRF: `Origin` / `Sec-Fetch-Site` check and `X-CSRF-Token` enforced on every unsafe route; no CORS middleware (tests generated from the OpenAPI document)
+- [ ] **GATE** Callback validates `state`, `nonce`, PKCE, ID-token `iss/aud/exp`; requires `email_verified`; exact redirect-URI allow-list (**the code is built and tested** (`auth/flow.py`, `auth/kinde.py`, `tests/pg/test_pg_auth_flow.py`); what is left is the owner's: the exact callback and logout URLs in the Kinde application, checked in a real sign-in run, `docs/runbooks/try-real-sign-in.md`)
+- [x] **GATE** Cookie flags and `__Host-` prefix; session rotation; server-side revocation; idle and absolute timeouts (2026-10-04; section 4.1 and `tests/pg/test_pg_sessions.py`)
+- [x] **GATE** CSRF: `Origin` / `Sec-Fetch-Site` check and `X-CSRF-Token` enforced on every unsafe route; no CORS middleware (tests generated from the OpenAPI document) (2026-10-03; `tests/test_api_gates.py`, which now also runs for the operator routes)
 - [ ] Re-authentication for email change, MFA change and account deletion (**account deletion built 2026-10-04**: a sign-in within ten minutes, checked in the callback; email and MFA changes happen at the IdP)
-- [ ] **GATE (admin)** `is_admin` writable only by the owner-level CLI (column-level grants verified in CI); admin routes require MFA within 15 minutes; admin idle timeout 15 minutes (**built 2026-10-04**: the command `python -m tradejournal.pg.users make-operator`, no API role can write the column, and the 15-minute rule on every route; the idle timer is covered by it, as the MFA rule is stricter)
-- [ ] **GATE (admin)** The `app_admin` role cannot SELECT any tenant table (a CI test connects as it); admin responses contain no trade, note or screenshot fields (OpenAPI scan); every admin mutation and user-detail view lands in `audit_log`
+- [x] **GATE (admin)** `is_admin` writable only by the owner-level CLI (column-level grants verified in CI); admin routes require MFA within 15 minutes; admin idle timeout 15 minutes (**built 2026-10-04**: the command `python -m tradejournal.pg.users make-operator`, no API role can write the column, and the 15-minute rule on every route; the idle timer is covered by it, as the MFA rule is stricter)
+- [x] **GATE (admin)** The `app_admin` role cannot SELECT any tenant table (a CI test connects as it); admin responses contain no trade, note or screenshot fields (OpenAPI scan); every admin mutation and user-detail view lands in `audit_log` (2026-10-04; `tests/pg/test_pg_admin.py`, `tests/test_api_admin_contract.py`)
 
 ### Access control and tenancy
-- [ ] **GATE** `app_rw` is not superuser and lacks `BYPASSRLS` (checked in CI)
-- [ ] **GATE** Schema lint passes: RLS enabled and forced, policy present, index leads with `user_id`, on every tenant table
-- [ ] **GATE** Two-tenant suite passes for every domain function and `/files/{id}`
-- [ ] **GATE** No tenant route can reach `system_session`, and no admin route can reach `tenant_session` (import-boundary test)
+- [x] **GATE** `app_rw` is not superuser and lacks `BYPASSRLS` (checked in CI) (`tests/pg/test_pg_schema.py`, `test_pg_system_roles.py`)
+- [x] **GATE** Schema lint passes: RLS enabled and forced, policy present, index leads with `user_id`, on every tenant table (`tests/pg/test_pg_schema.py`)
+- [ ] **GATE** Two-tenant suite passes for every domain function and `/files/{id}` (**domain functions: `tests/pg/test_pg_tenancy.py`; every route that names a row: `tests/pg/test_pg_api_two_tenants.py`, generated from the OpenAPI document**; `/files/{id}` has no route yet, it comes with screenshots in M6)
+- [x] **GATE** No tenant route can reach `system_session`, and no admin route can reach `tenant_session` (import-boundary test) (`tests/test_import_boundary.py`)
 - [ ] Entitlement checks live in the domain/service layer; the effective plan is computed and never stored, so webhooks cannot overwrite an override
 
 ### Input, output, files
 - [x] **GATE** Notes sanitized on write and read; XSS payload tests (2026-10-04: `nh3` on write, DOMPurify on render, the same list pinned by a test; 58 tests in `tests/test_api_sanitize.py`)
 - [ ] **GATE** Upload limits at the edge, the route and the streaming reader; pixel cap; CSV row cap; import concurrency limit (**CSV row cap and import concurrency limit built 2026-10-04**; the pixel cap comes with screenshots (M6) and the edge cap at deploy)
-- [ ] **GATE** No raw HTML injection outside `SafeHtml` (ESLint `react/no-danger` plus a CI grep for `dangerouslySetInnerHTML` and `innerHTML`)
+- [x] **GATE** No raw HTML injection outside `SafeHtml` (ESLint `react/no-danger` plus a CI grep for `dangerouslySetInnerHTML` and `innerHTML`) (`frontend/scripts/check-security.mjs` fails the build on `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval` and `new Function` outside the one allowed place, and has its own tests)
 - [ ] Private bucket; no public object URLs; presigned URLs 60 s
 
 ### Transport and headers
@@ -99,16 +99,16 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 - [ ] **GATE** A strict CSP sent as a header by the API (not a `<meta>` tag), starting from `default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'`, plus `nosniff`, `Referrer-Policy` and `Permissions-Policy`. **Spike S1 result:** this policy works with Vite output, Tailwind 4, React, ECharts and Tiptap with two fixes (a plain-text ECharts tooltip formatter; Tiptap `injectCSS: false`) and **no `style-src-attr` exception**. Still open: `img-src` must allow the R2 host if `/files/{id}` redirects there (spike S3), and CSP report delivery, which did not work from the embedded browser (S1 used the console and a Playwright test that fails on any violation, with a control proving it catches one)
 
 ### Secrets and supply chain
-- [ ] **GATE** No secrets in the repo; gitleaks green; `.env.example` only
+- [x] **GATE** No secrets in the repo; gitleaks green; `.env.example` only (CI *Secret scan*, pinned binary and checksum, full history; `check-security.mjs` also refuses a committed `.env` in `frontend/`)
 - [ ] **GATE** Separate credentials per environment; DB `owner` role used only by the migration step
-- [ ] Lock files with hashes (`uv.lock`, `pnpm-lock.yaml`); Dependabot on for uv, npm, Actions and Docker; `pip-audit` and `pnpm audit` green; GitHub Actions pinned by SHA
-- [ ] **GATE** pnpm configured with dependency lifecycle scripts blocked (any allow-listed build script reviewed) and a `minimumReleaseAge`; `pnpm install --frozen-lockfile` in CI and the Dockerfile
-- [ ] **GATE** No secrets in `VITE_*` variables or the bundle (CI grep); source maps not served publicly
+- [x] Lock files with hashes (`uv.lock`, `pnpm-lock.yaml`); Dependabot on for uv, npm, Actions and Docker; `pip-audit` and `pnpm audit` green; GitHub Actions pinned by SHA (`.github/dependabot.yml`; CI *Dependency audit* and *Front end*; the actions are pinned to full commit SHAs and the Postgres service image by digest)
+- [x] **GATE** pnpm configured with dependency lifecycle scripts blocked (any allow-listed build script reviewed) and a `minimumReleaseAge`; `pnpm install --frozen-lockfile` in CI and the Dockerfile (`pnpm-workspace.yaml`: `strictDepBuilds: true`, `minimumReleaseAge: 1440`)
+- [x] **GATE** No secrets in `VITE_*` variables or the bundle (CI grep); source maps not served publicly (`check-security.mjs`: no `import.meta.env.VITE_*` or `process.env` in the source, no `.map` file or `sourceMappingURL` in the build)
 - [ ] 2FA with a hardware key or authenticator app on GitHub, host, Cloudflare, registrar, IdP, payment provider
 
 ### Resilience, logging, privacy
 - [ ] **GATE** Backups configured; **one successful restore drill** documented
-- [ ] Audit log events written (login, failure, change, import, undo, export, delete, admin)
+- [x] Audit log events written (login, failure, change, import, undo, export, delete, admin) (2026-10-04: sign-up, sign-in and refused sign-in, sign-out, a place or everywhere signed out, **import and undo (counts only, never a file name)**, export, deletion asked for and cancelled, plan codes used and refused, and every operator action; the person's own edits to their journal are deliberately not logged: they are theirs and frequent)
 - [ ] Sentry scrubbing verified against a real error payload
 - [ ] Export and deletion work end to end, including R2 prefix and IdP user (**built 2026-10-04 except the R2 prefix**, which waits for the files feature, M6)
 - [ ] Privacy Policy, Terms, financial disclaimer, subprocessor list reviewed by a professional
