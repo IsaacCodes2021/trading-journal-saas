@@ -5,6 +5,7 @@ import {
   createRouter,
   Outlet,
   redirect,
+  useLocation,
   useNavigate,
   type RouterHistory,
 } from '@tanstack/react-router'
@@ -23,6 +24,7 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
   name: K,
 ) => lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType })))
 
+const InvitePage = lazy(() => import('./features/invite/InvitePage').then((m) => ({ default: m.InvitePage })))
 const ImportPage = lazy(() => import('./features/imports/ImportPage').then((m) => ({ default: m.ImportPage })))
 const TradeDetailPage = lazy(() =>
   import('./features/trade-detail/TradeDetailPage').then((m) => ({ default: m.TradeDetailPage })),
@@ -34,13 +36,20 @@ const TradeDetailPage = lazy(() =>
  * can name just the keys it cares about.
  */
 
-const rootRoute = createRootRoute({
-  component: () => (
+/** Pages that work before sign-in: no session is asked for, and the app's header and menu are not shown. */
+const PUBLIC_PAGES = /^\/invite(?:\/|$)/
+
+function Root() {
+  const { pathname } = useLocation()
+  if (PUBLIC_PAGES.test(pathname)) return <Outlet />
+  return (
     <AppShell>
       <Outlet />
     </AppShell>
-  ),
-})
+  )
+}
+
+const rootRoute = createRootRoute({ component: Root })
 
 // ---- dashboard -------------------------------------------------------------------------------------------------
 
@@ -121,6 +130,24 @@ const importRoute = createRoute({
   path: '/import',
   validateSearch: pickFilters,
   component: ImportRoute,
+})
+
+// ---- invite (before sign-in) -------------------------------------------------------------------------------------
+
+const inviteRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/invite',
+  // An invite email links here with the code in the address: /invite?code=TJ-7KQ2-M9XA
+  validateSearch: (search: Record<string, unknown>): { code?: string } =>
+    typeof search['code'] === 'string' && search['code'] !== '' ? { code: search['code'].slice(0, 64) } : {},
+  component: function InviteRoute() {
+    const { code } = inviteRoute.useSearch()
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <InvitePage {...(code ? { code } : {})} />
+      </Suspense>
+    )
+  },
 })
 
 // ---- settings --------------------------------------------------------------------------------------------------
@@ -217,6 +244,7 @@ const routeTree = rootRoute.addChildren([
   tradesRoute,
   tradeDetailRoute,
   importRoute,
+  inviteRoute,
   settingsRoute.addChildren([settingsIndexRoute, preferencesRoute, accountsRoute, tagsRoute, planRoute, privacyRoute]),
 ])
 

@@ -173,6 +173,12 @@ Gaps and decisions:
 - Money typed into a box is read by `parseAmount` (cents, no minus sign, empty means "not set"); the server remains the authority and its refusals are shown in words.
 - The sample fees are the ones the sample trades were built on, so changing one does not change the trades yet (the real server recalculates).
 
+**Slice 5a (2026-10-03): Invite / sign-in page.** Branch `fe/invite-screen`, from the canvas's "Invite required / sign in" screen at `/invite` (also `/invite?code=TJ-7KQ2-M9XA` from an invite email). It is **public**: the root layout shows no app header and asks for no session on this path. The code is tidied (trimmed, capitals, spaces as dashes) and checked only for its shape, then the browser goes to `/auth/login?invite=<code>`; "Sign in" goes to `/auth/login?next=/`. Whether a code is real and unused is the server's decision, reported when the person returns from the identity provider.
+
+Open points: the server contract for invite-gated sign-up (`/auth/login?invite=` is an assumption, to settle with the Kinde work, issue S1b); the **Terms page does not exist yet** on the marketing site, so that link will 404 until it is published (doc 04 launch gates); the waitlist link goes to the marketing site's `#join` form.
+
+**Not built yet from the canvas:** Onboarding (five steps: confirm timezone, first account, how to export, upload, dashboard; note the backend has one `timezone` setting, while the canvas separates your zone from the CSV's zone, so that needs a `csv_timezone` setting or the per-import `source_timezone` doc 03 mentions), Admin users and plan override, Admin overview, codes and audit (both read; designs match doc 03 and ADR-012), and Tags management (no canvas screen).
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.
