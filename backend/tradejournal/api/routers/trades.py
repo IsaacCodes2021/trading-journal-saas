@@ -82,7 +82,10 @@ def get_trade(trade_id: PathId, tenant: TenantDep) -> TradeDetailOut:
 def get_trade_neighbors(
     trade_id: PathId, query: TradeListFiltersQuery, tenant: TenantDep, clock: ClockDep
 ) -> NeighborsOut:
-    """The trades either side of this one in the list the person came from (same filters, search and order)."""
+    """The trades either side of this one in the list the person came from (same filters, search and order). A trade
+    that is not theirs and one that does not exist are both a 404, as for the trade itself: they look the same."""
     with tenant.session() as conn:
+        if pg_queries.load_trade(conn, trade_id) is None:
+            raise HTTPException(404, "That trade does not exist.")
         rows = _ordered_rows(conn, query, clock())
     return neighbors_in(rows, trade_id)

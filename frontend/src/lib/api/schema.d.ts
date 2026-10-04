@@ -973,7 +973,8 @@ export interface paths {
         };
         /**
          * Get Trade Neighbors
-         * @description The trades either side of this one in the list the person came from (same filters, search and order).
+         * @description The trades either side of this one in the list the person came from (same filters, search and order). A trade
+         *     that is not theirs and one that does not exist are both a 404, as for the trade itself: they look the same.
          */
         get: operations["get_trade_neighbors"];
         put?: never;

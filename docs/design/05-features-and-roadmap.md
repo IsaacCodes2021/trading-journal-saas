@@ -318,7 +318,8 @@ Decisions and gaps:
 
 - `show_archived` defaults to **false** (as the NiceGUI app did); the front end's filter bar has no toggle yet, so a person whose evaluation account was archived sees it vanish from the dashboard until the toggle is added (a front-end task, listed with the API source work).
 - Sessions are still the in-memory fakes in tests and the fixed development cookie locally; the real session store is M5.
-- Not built yet: the full rule tracker, re-running past imports in a corrected CSV zone, a per-user rate limit on imports (M6). Screenshots wait for the object store (M6). Account entitlements (a plan's account limit) arrive with billing.
+- **The route-level two-tenant suite (the M3 exit criterion) is built (2026-10-04)**: `tests/pg/test_pg_api_two_tenants.py`, generated from the OpenAPI document, so a route added later is attacked without anyone remembering to add it (doc 04 gates table). It found one inconsistency, fixed in the same change: `GET /trades/{id}/neighbors` answered 200 with an empty result for another person's trade (the old test asserted that); it now follows the one rule every other route does, a row that is not yours does not exist (404), and the old test says so.
+- Not built yet: the full rule tracker, re-running past imports in a corrected CSV zone. (The per-user rate limit on imports listed here was built in M6: doc 05 section 11.) Screenshots wait for the object store (M6). Account entitlements (a plan's account limit) arrive with billing.
 
 ## 11. M5 progress (running log)
 
