@@ -41,6 +41,12 @@ class ApiConfig:
     # Development sign-in: every request is this user. It exists so the app can be run against a local database before
     # real sign-in is built (M5); the configuration refuses it in production.
     dev_user_id: UUID | None = None
+    # Sign-in through Kinde (ADR-003). All three or none: with none, /auth/login answers 503 and nobody can sign in.
+    kinde_domain: str | None = None  # https://<tenant>.kinde.com, or the custom domain
+    kinde_client_id: str | None = None
+    kinde_client_secret: str | None = field(default=None, repr=False)
+    # "invite": a new person needs a valid invitation code (the private beta). "open": anyone may sign up.
+    signup_mode: str = "invite"
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
@@ -48,6 +54,21 @@ class ApiConfig:
         for name, url in (("TJ_DATABASE_URL", self.database_url), ("TJ_LOGIN_DATABASE_URL", self.login_database_url)):
             if url is not None and urlsplit(url).scheme not in ("postgresql", "postgres"):
                 raise ConfigError(f"{name} must be a postgresql:// URL")
+        kinde = (self.kinde_domain, self.kinde_client_id, self.kinde_client_secret)
+        if any(kinde) and not all(kinde):
+            raise ConfigError("TJ_KINDE_DOMAIN, TJ_KINDE_CLIENT_ID and TJ_KINDE_CLIENT_SECRET go together")
+        if self.kinde_domain is not None:
+            domain = urlsplit(self.kinde_domain)
+            if (
+                domain.scheme != "https"
+                or not domain.netloc
+                or domain.path.strip("/")
+                or domain.query
+                or domain.fragment
+            ):
+                raise ConfigError("TJ_KINDE_DOMAIN must look like https://your-tenant.kinde.com (no path)")
+        if self.signup_mode not in ("invite", "open"):
+            raise ConfigError("TJ_SIGNUP_MODE must be 'invite' or 'open'")
         if self.dev_user_id is not None:
             if self.production:
                 raise ConfigError("TJ_DEV_USER_ID is for development only: it signs every request in as that user")
@@ -81,6 +102,14 @@ class ApiConfig:
             values["database_url"] = env["TJ_DATABASE_URL"]
         if env.get("TJ_LOGIN_DATABASE_URL"):
             values["login_database_url"] = env["TJ_LOGIN_DATABASE_URL"]
+        for key, name in (
+            ("TJ_KINDE_DOMAIN", "kinde_domain"),
+            ("TJ_KINDE_CLIENT_ID", "kinde_client_id"),
+            ("TJ_KINDE_CLIENT_SECRET", "kinde_client_secret"),
+            ("TJ_SIGNUP_MODE", "signup_mode"),
+        ):
+            if env.get(key):
+                values[name] = env[key].strip()
         if env.get("TJ_DEV_USER_ID"):
             try:
                 values["dev_user_id"] = UUID(env["TJ_DEV_USER_ID"])

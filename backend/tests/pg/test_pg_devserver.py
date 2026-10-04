@@ -5,16 +5,15 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
-from test_pg_account_service import login_url  # noqa: F401  (a session fixture shared with the account service tests)
 
 from tradejournal.api.devserver import DevServerError, build_config, main, pick_user
 
 
-def test_with_no_choice_it_is_the_only_user(login_url, alice):  # noqa: F811
+def test_with_no_choice_it_is_the_only_user(login_url, alice):
     assert pick_user(login_url, None) == alice
 
 
-def test_an_empty_or_shared_database_needs_a_choice(login_url, owner, alice, bob):  # noqa: F811
+def test_an_empty_or_shared_database_needs_a_choice(login_url, owner, alice, bob):
     with pytest.raises(DevServerError, match="2 users"):
         pick_user(login_url, None)
     assert pick_user(login_url, str(bob)) == bob  # naming one resolves it
@@ -23,14 +22,14 @@ def test_an_empty_or_shared_database_needs_a_choice(login_url, owner, alice, bob
         pick_user(login_url, None)
 
 
-def test_a_named_user_must_exist_and_be_an_id(login_url, alice):  # noqa: F811
+def test_a_named_user_must_exist_and_be_an_id(login_url, alice):
     with pytest.raises(DevServerError, match="no such user"):
         pick_user(login_url, str(uuid4()))
     with pytest.raises(DevServerError, match="UUID"):
         pick_user(login_url, "alice")
 
 
-def test_the_config_comes_from_the_env_file_and_is_for_development(tmp_path, login_url, alice, app_url):  # noqa: F811
+def test_the_config_comes_from_the_env_file_and_is_for_development(tmp_path, login_url, alice, app_url):
     env_file = tmp_path / "env"
     env_file.write_text(f"TJ_DEV_APP_URL={app_url}\nTJ_DEV_LOGIN_URL={login_url}\n", encoding="utf-8")
     config = build_config(env_file, origin="http://localhost:5173", user_id=None)

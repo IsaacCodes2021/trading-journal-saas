@@ -20,7 +20,27 @@ cd backend
 - It signs in as **the one user in the database**; with several, add `--user-id <id>`.
 - It listens on `127.0.0.1:8000` and expects the browser at `http://localhost:5173` (the front end's dev server). Writes are checked against that origin, exactly as in production; use `--origin` if you serve the front end somewhere else.
 
-The sign-in is a development stand-in: the API's configuration refuses `TJ_DEV_USER_ID` when `TJ_ENV=production`, and a cookie with any other value gets a 401. Real sign-in (Kinde) arrives in M5.
+The sign-in is a development stand-in: the API's configuration refuses `TJ_DEV_USER_ID` when `TJ_ENV=production`, and a cookie with any other value gets a 401.
+
+### Real sign-in (Kinde)
+
+The real flow is in the API (`/auth/login`, `/auth/callback`, `POST /auth/logout`) and is switched on by three settings, all or none:
+
+| Setting | What it is |
+|---|---|
+| `TJ_KINDE_DOMAIN` | `https://<your-tenant>.kinde.com`, or the custom domain; https, no path |
+| `TJ_KINDE_CLIENT_ID` | the Kinde application's client id |
+| `TJ_KINDE_CLIENT_SECRET` | its client secret (a secret: host secret store only, never the repository, never a chat) |
+| `TJ_SIGNUP_MODE` | `invite` (the default: a new person needs a code) or `open` |
+
+In the Kinde application, set the **allowed callback URL** to exactly `<TJ_APP_ORIGIN>/auth/callback` and the **allowed logout redirect URL** to `<TJ_APP_ORIGIN>/`. With the settings unset the two sign-in routes answer 503 and nobody can sign in. Make an invitation with the schema owner's address in `TJ_OWNER_URL`:
+
+```powershell
+cd backend
+.venv\Scripts\python.exe -m tradejournal.pg.invites create --label "Sam" --email sam@example.com
+```
+
+It prints the code once; only a hash is stored. Tests never contact Kinde: they use a fake provider (`backend/tests/fake_idp.py`).
 
 ## 3. The front end
 
