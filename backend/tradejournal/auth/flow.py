@@ -39,6 +39,7 @@ from .signed import sign, unsign
 
 LOGIN_PURPOSE = "login-state"
 CALLBACK_PATH = "/auth/callback"
+SIGNED_OUT_PATH = "/invite"  # where a person lands after signing out: the page that needs no session
 
 # The short codes a failed sign-in carries to the page (`/invite?error=...`). None of them says more than it must.
 ERR_EXPIRED = "expired"  # the attempt timed out or its cookie was missing: just try again
@@ -239,4 +240,5 @@ class AuthFlow:
         self._sessions.revoke(token)
         with self._system.system_session("login") as conn:
             audit.record(conn, "logout", user_id=user_id, ip_hash=ip_hash)
-        return self._idp.logout_url(return_to=f"{self._origin}/") or "/"
+        # Back to the public page: "/" needs a session, so it would send the person straight to the provider's sign-in.
+        return self._idp.logout_url(return_to=f"{self._origin}{SIGNED_OUT_PATH}") or SIGNED_OUT_PATH

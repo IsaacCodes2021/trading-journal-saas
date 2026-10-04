@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { liveData } from './live-data'
+import { devApi, liveData } from './live-data'
 
 describe('which data the pages read', () => {
   it('is the real API in every build, whatever the development setting says', () => {
@@ -17,5 +17,22 @@ describe('which data the pages read', () => {
     for (const command of ['build', 'serve'] as const) {
       for (const realApi of [true, false]) expect(liveData(command, 'test', realApi)).toBe(false)
     }
+  })
+})
+
+describe('what the dev server talks to', () => {
+  it('is no backend at all unless asked', () => {
+    for (const value of [undefined, '', 'stub', 'REAL', 'yes', 'true']) expect(devApi(value)).toBe('stub')
+  })
+
+  it('is the development-user API for "real" and the real Kinde sign-in for "signin"', () => {
+    expect(devApi('real')).toBe('dev-user')
+    expect(devApi('signin')).toBe('signin')
+  })
+
+  it('reads the real API in both of those, and the dev-user cookie is for the first only', () => {
+    for (const value of ['real', 'signin'])
+      expect(liveData('serve', 'development', devApi(value) !== 'stub')).toBe(true)
+    expect(liveData('serve', 'development', devApi(undefined) !== 'stub')).toBe(false)
   })
 })
