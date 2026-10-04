@@ -7,11 +7,16 @@ user's status or make an operator (column-level grants, migration 0004), whateve
 
 from __future__ import annotations
 
+import argparse
+import os
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
 import psycopg
+
+from . import audit
 
 
 @dataclass(frozen=True)
@@ -58,3 +63,49 @@ def record_login(conn: psycopg.Connection, user_id: UUID, email: str, *, now: da
             )
     except psycopg.errors.UniqueViolation:
         raise EmailTaken(email) from None
+
+
+def set_operator(owner_conn: psycopg.Connection, email: str, *, operator: bool) -> tuple[UUID, bool] | None:
+    """Make an existing account an operator (or stop it being one), as the schema owner: the only way, because no role the
+    API runs as may write `users.is_admin` (migration 0004). Returns the account's id and whether anything changed, or None
+    if there is no such account. A change is written to the audit log as `cli:owner`."""
+    row = owner_conn.execute(
+        "SELECT id, is_admin FROM users WHERE lower(email) = lower(%s)", (email.strip(),)
+    ).fetchone()
+    if row is None:
+        return None
+    if row["is_admin"] == operator:
+        return row["id"], False
+    owner_conn.execute("UPDATE users SET is_admin = %s WHERE id = %s", (operator, row["id"]))
+    audit.record(
+        owner_conn, "operator_granted" if operator else "operator_removed", user_id=row["id"], actor="cli:owner"
+    )
+    return row["id"], True
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Make an account an operator, or stop it being one (as the schema owner)."
+    )
+    parser.add_argument("command", choices=["make-operator", "remove-operator"])
+    parser.add_argument("--email", required=True, help="the account's email address (it must have signed in once)")
+    args = parser.parse_args(argv)
+    url = os.environ.get("TJ_OWNER_URL")
+    if not url:
+        print("TJ_OWNER_URL is not set", file=sys.stderr)
+        return 2
+    with psycopg.connect(url, autocommit=True, row_factory=psycopg.rows.dict_row) as conn:
+        result = set_operator(conn, args.email, operator=args.command == "make-operator")
+    if result is None:
+        print("There is no account with that email address. It has to sign in once first.", file=sys.stderr)
+        return 1
+    _, changed = result
+    print(
+        ("Done." if changed else "Nothing to change: it was already so.")
+        + " The operator tools also need two-step verification."
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

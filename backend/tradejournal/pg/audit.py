@@ -13,6 +13,7 @@ import psycopg
 
 ACTOR_USER = "user"
 ACTOR_SYSTEM = "system"
+ACTOR_ADMIN = "admin"  # an operator acting on someone else's account; `by` is the operator
 
 
 def record(
@@ -21,12 +22,16 @@ def record(
     *,
     user_id: UUID | None = None,
     actor: str = ACTOR_USER,
+    by: UUID | None = None,
     ip_hash: str | None = None,
     meta: dict[str, str | int | bool | None] | None = None,
 ) -> None:
+    """Write one event. `user_id` is who it is about; `by` is who did it when that is not the same person (an operator).
+    For a person's own actions `by` is left out and they are both."""
+    actor_id = by if by is not None else (user_id if actor == ACTOR_USER else None)
     conn.execute(
         "INSERT INTO audit_log (user_id, actor_user_id, actor, action, ip_hash, meta) VALUES (%s, %s, %s, %s, %s, %s)",
-        (user_id, user_id if actor == ACTOR_USER else None, actor, action, ip_hash, json.dumps(meta or {})),
+        (user_id, actor_id, actor, action, ip_hash, json.dumps(meta or {})),
     )
 
 

@@ -36,6 +36,9 @@ export interface ApiOptions {
   settings?: Partial<typeof SETTINGS>
   /** Whether the person signed in again within the last ten minutes (needed to delete the account). Default: yes. */
   recentlyAuthenticated?: boolean
+  /** The person is an operator (default: no), and confirmed two-step verification in the last 15 minutes (default: yes). */
+  operator?: boolean
+  mfaFresh?: boolean
   /** Answer a request to delete the account with this instead of scheduling it for 2026-10-11. */
   deletion?: { status: number; body: object }
   /** The recent-activity list `GET /api/v1/activity` answers with, newest first. Default: none yet. */
@@ -50,7 +53,11 @@ export function sessionBody(opts: ApiOptions = {}) {
     settings: { ...SETTINGS, ...opts.settings, theme: opts.theme ?? 'dark' },
     plan: opts.plan ?? { effective: 'free', source: 'free', expires_at: null },
     entitlements: opts.entitlements ?? {},
-    flags: { is_admin: false, mfa_fresh: false, recently_authenticated: opts.recentlyAuthenticated ?? true },
+    flags: {
+      is_admin: opts.operator ?? false,
+      mfa_fresh: opts.mfaFresh ?? false,
+      recently_authenticated: opts.recentlyAuthenticated ?? true,
+    },
     csrf_token: 'tok',
     app_version: 'test',
   }
@@ -93,7 +100,15 @@ export function stubApi(opts: ApiOptions = {}) {
 }
 
 export type AppPath =
-  '/' | '/trades' | '/import' | '/invite' | '/welcome' | '/settings' | `/trades/${string}` | `/settings/${string}`
+  | '/'
+  | '/trades'
+  | '/import'
+  | '/invite'
+  | '/welcome'
+  | '/settings'
+  | '/admin'
+  | `/trades/${string}`
+  | `/settings/${string}`
 
 export function openApp(to: AppPath, search: Record<string, string | number> = {}) {
   const query = new URLSearchParams(Object.entries(search).map(([key, value]) => [key, String(value)])).toString()

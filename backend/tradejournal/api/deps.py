@@ -16,7 +16,7 @@ from fastapi import Depends, HTTPException, Request
 from ..auth.csrf import check_csrf, csrf_token
 from ..pg.session import Database
 from .config import ApiConfig
-from .ports import AuthSession, Services
+from .ports import AdminService, AuthSession, Services
 from .ratelimit import RateLimits, Rule, client_address, wait_text
 from .schemas import Problem
 
@@ -92,6 +92,46 @@ def require_csrf(request: Request, session: SessionDep, config: ConfigDep) -> Au
 
 
 WriteSessionDep = Annotated[AuthSession, Depends(require_csrf)]
+
+ADMIN_MFA_FOR = timedelta(
+    minutes=15
+)  # how fresh two-step verification must be for an operator to do anything (ADR-012)
+
+
+def _admin(session: AuthSession, services: Services, now: datetime) -> AuthSession:
+    account = services.accounts.load(session.user_id)
+    if account is None:
+        raise HTTPException(401, "Not signed in.")
+    if not account.is_admin:
+        raise HTTPException(403, "This is for operators only.")
+    if session.mfa_at is None or now - session.mfa_at > ADMIN_MFA_FOR:
+        raise HTTPException(403, "Confirm it is you with two-step verification first.")
+    return session
+
+
+def require_admin(request: Request, session: SessionDep, services: ServicesDep) -> AuthSession:
+    """An operator signed in with two-step verification in the last 15 minutes. Signed in first (401 for anyone else), then
+    an operator (403), then fresh (403: the page sends them to confirm again)."""
+    return _admin(session, services, request.app.state.clock())
+
+
+def require_admin_write(request: Request, session: WriteSessionDep, services: ServicesDep) -> AuthSession:
+    """`require_admin` for a route that changes something: the CSRF and origin checks run first (after sign-in), so a forged
+    request is refused whether or not the caller is an operator."""
+    return _admin(session, services, request.app.state.clock())
+
+
+AdminDep = Annotated[AuthSession, Depends(require_admin)]
+WriteAdminDep = Annotated[AuthSession, Depends(require_admin_write)]
+
+
+def get_admin_service(services: ServicesDep) -> AdminService:
+    if services.admin is None:
+        raise HTTPException(503, "The operator tools are not set up on this server yet.")
+    return services.admin
+
+
+AdminServiceDep = Annotated[AdminService, Depends(get_admin_service)]
 
 
 def limited_per_person(pick: Callable[[RateLimits], Rule]):

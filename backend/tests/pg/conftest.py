@@ -93,6 +93,13 @@ def sweep_url(owner_url) -> str:
     return env["TJ_TEST_SWEEP_URL"]
 
 
+@pytest.fixture(scope="session")
+def admin_url(owner_url) -> str:
+    """The address the operator's role (app_admin) connects with."""
+    env = {**read_env_file(ENV_FILE), **os.environ}
+    return env["TJ_TEST_ADMIN_URL"]
+
+
 @pytest.fixture
 def owner(owner_url):
     """An owner connection (it can create users and read everything), on an emptied database."""

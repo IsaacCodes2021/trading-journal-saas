@@ -87,15 +87,21 @@ def test_the_database_itself_keeps_a_date_and_a_pending_status_together(owner, a
 # ---- who may do what ----------------------------------------------------------------------------------------------------
 
 
-def test_only_the_sign_in_role_can_ask_or_cancel_and_it_cannot_write_status_any_other_way(owner, system, alice):
+def test_only_the_sign_in_and_operator_roles_can_ask_or_cancel_and_neither_can_write_status_any_other_way(
+    owner, system, alice
+):
     for function, args in (("request_account_deletion", "(uuid, timestamptz)"), ("cancel_account_deletion", "(uuid)")):
-        for role in ("app_rw", "app_webhook", "app_sweep", "app_admin"):
+        for role in ("app_rw", "app_webhook", "app_sweep"):
             assert not owner.execute(
                 f"SELECT has_function_privilege(%s, '{function}{args}', 'EXECUTE') AS ok", (role,)
             ).fetchone()["ok"], (role, function)  # noqa: S608
-        assert owner.execute(
-            f"SELECT has_function_privilege('app_login', '{function}{args}', 'EXECUTE') AS ok"
-        ).fetchone()["ok"]  # noqa: S608
+        for role in ("app_login", "app_admin"):  # a person's own request, and an operator's (migration 0011)
+            assert owner.execute(
+                f"SELECT has_function_privilege(%s, '{function}{args}', 'EXECUTE') AS ok", (role,)
+            ).fetchone()["ok"], (role, function)  # noqa: S608
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), system.system_session("admin") as conn:
+        # The operator may write `status` (to suspend), but not the date, so it cannot mark a deletion by hand: it uses the function.
+        conn.execute("UPDATE users SET deletion_scheduled_at = now() WHERE id = %s", (alice,))
     with pytest.raises(psycopg.errors.InsufficientPrivilege), system.system_session(LOGIN) as conn:
         conn.execute(
             "UPDATE users SET status = 'pending_deletion' WHERE id = %s", (alice,)

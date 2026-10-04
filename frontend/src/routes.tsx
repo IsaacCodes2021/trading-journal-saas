@@ -20,6 +20,7 @@ import { parseFilters, pickFilters } from './lib/filters'
 import { parseStep, type StepNumber } from './features/onboarding/steps'
 import { deletionDay, signInErrorOf, type SignInErrorCode } from './lib/auth'
 import { useSession } from './lib/session'
+import { pickAdminSearch, queryOf, searchOf } from './features/admin/search'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
 const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends keyof T>(
@@ -28,6 +29,8 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
 ) => lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType })))
 
 const InvitePage = lazy(() => import('./features/invite/InvitePage').then((m) => ({ default: m.InvitePage })))
+const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => ({ default: m.AdminShell })))
+const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
 const OnboardingPage = lazy(() =>
   import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
 )
@@ -48,9 +51,21 @@ const PUBLIC_PAGES = /^\/invite(?:\/|$)/
 /** The first-run setup keeps the person's attention: a small header with one way out, and no navigation. */
 const FOCUSED_PAGES = /^\/welcome(?:\/|$)/
 
+/** The operator's tools have a frame of their own, so they are never mistaken for the journal. */
+const ADMIN_PAGES = /^\/admin(?:\/|$)/
+
 function Root() {
   const { pathname } = useLocation()
   if (PUBLIC_PAGES.test(pathname)) return <Outlet />
+  if (ADMIN_PAGES.test(pathname)) {
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <AdminShell>
+          <Outlet />
+        </AdminShell>
+      </Suspense>
+    )
+  }
   if (FOCUSED_PAGES.test(pathname)) {
     return (
       <AppShell
@@ -203,6 +218,29 @@ const inviteRoute = createRoute({
   },
 })
 
+// ---- operator ---------------------------------------------------------------------------------------------------
+
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin',
+  validateSearch: pickAdminSearch,
+  component: function AdminUsersRoute() {
+    const search = pickAdminSearch(adminRoute.useSearch()) // the router keeps what it could not validate too
+    const navigate = useNavigate({ from: '/admin' })
+    const query = queryOf(search)
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <UsersPage
+          query={query}
+          selected={search.user ?? null}
+          onQuery={(next) => void navigate({ search: searchOf(next, search.user ?? null), replace: true })}
+          onSelect={(id) => void navigate({ search: searchOf(query, id) })}
+        />
+      </Suspense>
+    )
+  },
+})
+
 // ---- settings --------------------------------------------------------------------------------------------------
 
 const SettingsLayout = lazyNamed(() => import('./features/settings/SettingsLayout'), 'SettingsLayout')
@@ -323,6 +361,7 @@ const routeTree = rootRoute.addChildren([
   importRoute,
   welcomeRoute,
   inviteRoute,
+  adminRoute,
   settingsRoute.addChildren([
     settingsIndexRoute,
     preferencesRoute,

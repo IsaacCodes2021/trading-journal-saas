@@ -41,6 +41,9 @@ class ApiConfig:
     # The `login` system role's URL (app_login): finds a user by id or identity at sign-in. Held apart from the request
     # role because it can read the users table, which the request role cannot (doc 03 section 1).
     login_database_url: str | None = field(default=None, repr=False)
+    admin_database_url: str | None = field(
+        default=None, repr=False
+    )  # the operator's role (app_admin); none: no operator tools
     # Development sign-in: every request is this user. It exists so the app can be run against a local database before
     # real sign-in is built (M5); the configuration refuses it in production.
     dev_user_id: UUID | None = None
@@ -58,7 +61,11 @@ class ApiConfig:
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
             raise ConfigError("body size limits must be positive")
-        for name, url in (("TJ_DATABASE_URL", self.database_url), ("TJ_LOGIN_DATABASE_URL", self.login_database_url)):
+        for name, url in (
+            ("TJ_DATABASE_URL", self.database_url),
+            ("TJ_LOGIN_DATABASE_URL", self.login_database_url),
+            ("TJ_ADMIN_DATABASE_URL", self.admin_database_url),
+        ):
             if url is not None and urlsplit(url).scheme not in ("postgresql", "postgres"):
                 raise ConfigError(f"{name} must be a postgresql:// URL")
         kinde = (self.kinde_domain, self.kinde_client_id, self.kinde_client_secret)
@@ -111,6 +118,8 @@ class ApiConfig:
             values["database_url"] = env["TJ_DATABASE_URL"]
         if env.get("TJ_LOGIN_DATABASE_URL"):
             values["login_database_url"] = env["TJ_LOGIN_DATABASE_URL"]
+        if env.get("TJ_ADMIN_DATABASE_URL"):
+            values["admin_database_url"] = env["TJ_ADMIN_DATABASE_URL"]
         for key, name in (
             ("TJ_KINDE_DOMAIN", "kinde_domain"),
             ("TJ_KINDE_CLIENT_ID", "kinde_client_id"),

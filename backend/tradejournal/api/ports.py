@@ -14,6 +14,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
+from .schemas.admin import AdminUserDetailOut, AdminUserListOut, AdminUserOut
 
 # What /readyz asks: (ready, {check name: a short state such as "ok" or "unreachable"}). The states are public, so they
 # are words and never error text, hosts or addresses.
@@ -129,8 +130,57 @@ class AuditLog(Protocol):
         ...
 
 
+class AdminRefusal(Exception):
+    """The operator asked for something that cannot or must not be done; `detail` is a sentence safe to show them."""
+
+    def __init__(self, status: int, detail: str) -> None:
+        super().__init__(detail)
+        self.status = status
+        self.detail = detail
+
+
+class AdminService(Protocol):
+    """What an operator does with accounts (doc 07 section 6). Everything takes the operator's id (`actor`) and the target's;
+    every change, and every look at one person's detail, is written to the audit log by the implementation. Nothing here
+    returns anything a person wrote: counters, plans and account facts only. A refusal raises `AdminRefusal`."""
+
+    def list_users(self, *, q: str | None, status: str | None, limit: int, offset: int) -> AdminUserListOut: ...
+
+    def user_detail(self, actor: UUID, target: UUID, *, ip_hash: str | None = None) -> AdminUserDetailOut: ...
+
+    def suspend(self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None) -> AdminUserOut: ...
+
+    def unsuspend(self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None) -> AdminUserOut: ...
+
+    def revoke_sessions(self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None) -> int: ...
+
+    def schedule_deletion(
+        self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None
+    ) -> AdminUserOut: ...
+
+    def cancel_deletion(
+        self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None
+    ) -> AdminUserOut: ...
+
+    def set_override(
+        self,
+        actor: UUID,
+        target: UUID,
+        plan: str,
+        expires_at: datetime | None,
+        reason: str,
+        *,
+        ip_hash: str | None = None,
+    ) -> AdminUserOut: ...
+
+    def revoke_override(
+        self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None
+    ) -> AdminUserOut: ...
+
+
 @dataclass(frozen=True)
 class Services:
     sessions: SessionStore
     accounts: AccountService
     audit: AuditLog
+    admin: AdminService | None = None  # the operator's tools; routes answer 503 where there are none

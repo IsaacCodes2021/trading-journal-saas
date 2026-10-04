@@ -53,7 +53,7 @@ export function devSessionStub(enabled: boolean): Plugin {
               expires_at: new Date(Date.now() + 9 * 86_400_000).toISOString(),
             },
             entitlements: {},
-            flags: { is_admin: false, mfa_fresh: false, recently_authenticated: true },
+            flags: { is_admin: true, mfa_fresh: true, recently_authenticated: true },
             csrf_token: 'dev-token',
             app_version: 'dev',
           })
@@ -82,6 +82,84 @@ export function devSessionStub(enabled: boolean): Plugin {
             return send(200, { sessions: places, ended: before - places.length })
           }
           return send(200, { sessions: places, ended: 0 })
+        }
+        if (path.startsWith('/api/admin/v1/')) {
+          // Sample accounts for the operator screens, so they can be tried with no backend. Changes are echoed, not kept.
+          const day = (days: number) => new Date(now - days * 86_400_000).toISOString()
+          const sample = (
+            n: number,
+            email: string,
+            extra: Record<string, unknown> = {},
+            plan: Record<string, unknown> = { effective: 'free', source: 'free', expires_at: null },
+          ) => ({
+            id: `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`,
+            email,
+            status: 'active',
+            is_admin: false,
+            created_at: day(40 + n),
+            last_login_at: day(n),
+            deletion_scheduled_at: null,
+            plan,
+            usage: {
+              accounts: n % 5,
+              trades: n * 173,
+              screenshots: n,
+              storage_bytes: n * 6_400_000,
+              last_import_at: null,
+            },
+            ...extra,
+          })
+          const people = [
+            sample(1, 'owner@example.com', { is_admin: true }),
+            sample(2, 'dana.k@example.com', {}, { effective: 'pro', source: 'override', expires_at: day(-90) }),
+            sample(3, 'marcus.t@example.com'),
+            sample(4, 'priya.n@example.com', {}, { effective: 'pro', source: 'grant', expires_at: day(-30) }),
+            sample(5, 'leo.w@example.com', { status: 'suspended' }),
+            sample(6, 'sam.r@example.com', { status: 'pending_deletion', deletion_scheduled_at: day(-6) }),
+          ]
+          if (path === '/api/admin/v1/users' && request.method === 'GET') {
+            const query = new URL(request.url ?? '', 'http://x').searchParams
+            const q = (query.get('q') ?? '').toLowerCase()
+            const status = query.get('status')
+            const hits = people.filter((p) => (!q || p.email.includes(q)) && (!status || p.status === status))
+            return send(200, { users: hits, total: hits.length, limit: 25, offset: 0 })
+          }
+          const found = people.find((p) => path.includes(p.id))
+          if (!found)
+            return send(404, {
+              type: 'about:blank',
+              title: 'Not Found',
+              status: 404,
+              detail: 'There is no such account.',
+            })
+          if (request.method === 'GET') {
+            return send(200, {
+              user: found,
+              active_sessions: 2,
+              overrides:
+                found.plan.source === 'override'
+                  ? [
+                      {
+                        id: 1,
+                        plan: 'pro',
+                        expires_at: day(-90),
+                        reason: 'Beta tester, import bug goodwill',
+                        created_by: 'admin:x',
+                        created_at: day(12),
+                        revoked_at: null,
+                        revoked_by: null,
+                        revoke_reason: null,
+                      },
+                    ]
+                  : [],
+              redemptions: [],
+              events: [
+                { id: 3, at: day(0.1), actor: 'admin', action: 'admin_viewed_user', by: ID, meta: {} },
+                { id: 2, at: day(2), actor: 'user', action: 'login', by: null, meta: {} },
+              ],
+            })
+          }
+          return path.endsWith('/revoke-sessions') ? send(200, { ended: 2 }) : send(200, found)
         }
         if (path === '/api/v1/grants/redeem' && request.method === 'POST') {
           // Only GR-TEST-CODE works in the stub; anything else gets the one sentence the server gives.

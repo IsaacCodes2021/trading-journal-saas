@@ -288,9 +288,9 @@ def test_the_request_role_has_no_access_at_all(db, alice, table):
         conn.execute(f"SELECT * FROM {table}")  # noqa: S608 (fixed table names)
 
 
-@pytest.mark.parametrize("profile", ["webhook", "sweep", "admin"])
+@pytest.mark.parametrize("profile", ["webhook", "sweep"])
 @pytest.mark.parametrize("table", ["grant_codes", "grant_redemptions", "plan_overrides"])
-def test_the_other_system_roles_cannot_read_them_yet(system, profile, table):
+def test_the_roles_that_have_no_business_with_plans_cannot_read_them(system, profile, table):
     with system.system_session(profile) as conn, pytest.raises(psycopg.errors.InsufficientPrivilege):
         conn.execute(f"SELECT * FROM {table}")  # noqa: S608 (fixed table names)
 
