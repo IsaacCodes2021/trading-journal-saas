@@ -11,6 +11,7 @@ import {
   type RouterHistory,
 } from '@tanstack/react-router'
 import { AppShell } from './components/AppShell'
+import { NotFound, RouteError } from './components/RouteError'
 import { Spinner } from './components/ui/primitives'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { TradeLogPage } from './features/trades/TradeLogPage'
@@ -393,7 +394,12 @@ const routeTree = rootRoute.addChildren([
 
 /** The app's router. Tests make their own, each with its own history, so no test sees another's location. */
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, ...(history ? { history } : {}) })
+  return createRouter({
+    routeTree,
+    defaultErrorComponent: RouteError,
+    defaultNotFoundComponent: NotFound,
+    ...(history ? { history } : {}),
+  })
 }
 
 export const router = createAppRouter()
