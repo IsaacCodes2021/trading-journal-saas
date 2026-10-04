@@ -52,6 +52,7 @@ from .routers import (
 )
 from .security import SecurityHeadersMiddleware
 from .sessions import PgSessionStore
+from .slots import ImportSlots
 from .spa import mount_spa
 
 API_VERSION = "1"  # the contract's version (`/api/v1`), not the build: that is `ApiConfig.app_version`
@@ -156,6 +157,7 @@ def create_app(
     app.state.auth = auth_flow
     app.state.clock = clock
     app.state.limiter = limiter or RateLimiter()
+    app.state.import_slots = ImportSlots(config.max_concurrent_imports)
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)

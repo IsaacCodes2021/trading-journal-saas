@@ -10,7 +10,7 @@ from ...importer import UndoReport
 from ...journal import clean_filename
 from ...pg import importer as pg_importer
 from ...timeutil import zone
-from ..deps import ERROR_RESPONSES, TenantDep, WriteTenantDep, limited_per_person
+from ..deps import ERROR_RESPONSES, ImportSlot, TenantDep, WriteTenantDep, limited_per_person
 from ..refusals import refusals, sentence
 from ..schemas import Problem
 from ..schemas.imports import (
@@ -70,7 +70,7 @@ def _undo_out(report: UndoReport) -> UndoPreviewOut:
 @router.post(
     "/imports/preview",
     response_model=ImportPreviewOut,
-    dependencies=[limited_per_person(lambda limits: limits.import_preview)],
+    dependencies=[limited_per_person(lambda limits: limits.import_preview), ImportSlot],
 )
 def preview_import(account_id: AccountField, file: UploadFile, tenant: WriteTenantDep) -> ImportPreviewOut:
     """What importing this file into this account would do: counts, problems, and the first rows with a status each.
@@ -116,7 +116,7 @@ def preview_import(account_id: AccountField, file: UploadFile, tenant: WriteTena
     "/imports",
     response_model=ImportRecordOut,
     status_code=201,
-    dependencies=[limited_per_person(lambda limits: limits.import_commit)],
+    dependencies=[limited_per_person(lambda limits: limits.import_commit), ImportSlot],
 )
 def import_file(account_id: AccountField, file: UploadFile, tenant: WriteTenantDep) -> ImportRecordOut:
     """Import the file into the account. Rows already stored are left alone, so importing a file twice is safe."""
@@ -146,13 +146,13 @@ def _undo(import_id: int, tenant: WriteTenantDep, *, dry_run: bool) -> UndoPrevi
     return _undo_out(report)
 
 
-@router.post("/imports/{import_id}/undo-preview", response_model=UndoPreviewOut)
+@router.post("/imports/{import_id}/undo-preview", response_model=UndoPreviewOut, dependencies=[ImportSlot])
 def undo_preview(import_id: PathId, tenant: WriteTenantDep) -> UndoPreviewOut:
     """What undoing the import would remove, without removing it."""
     return _undo(import_id, tenant, dry_run=True)
 
 
-@router.post("/imports/{import_id}/undo", response_model=UndoPreviewOut)
+@router.post("/imports/{import_id}/undo", response_model=UndoPreviewOut, dependencies=[ImportSlot])
 def undo_import(import_id: PathId, tenant: WriteTenantDep) -> UndoPreviewOut:
     """Remove what the import brought in (rows another import also holds stay) and regroup what is left."""
     return _undo(import_id, tenant, dry_run=False)

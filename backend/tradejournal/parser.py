@@ -20,6 +20,10 @@ from .models import Direction, FillPair
 from .symbols import parse_symbol
 from .timeutil import parse_local_timestamp
 
+# The most data lines one file may have (doc 04, S7). A Performance export is a few hundred to a few thousand rows; the
+# 10 MB upload cap alone would still let a file of very short rows through, and every row is parsed in memory.
+MAX_ROWS = 50_000
+
 REQUIRED_COLUMNS = (
     "symbol", "_priceFormat", "_priceFormatType", "_tickSize", "buyFillId", "sellFillId",
     "qty", "buyPrice", "sellPrice", "pnl", "boughtTimestamp", "soldTimestamp", "duration",
@@ -87,6 +91,12 @@ def parse_performance_csv(data: bytes | str, tz_name: str) -> ParseResult:
     header_problem = _check_header(text)
     if header_problem:
         return ParseResult(fatal=header_problem)
+    rows = len(text.splitlines()) - 1  # every line after the header, blank ones too: they are read all the same
+    if rows > MAX_ROWS:
+        return ParseResult(
+            fatal=f"That file has {rows:,} rows, and one import takes at most {MAX_ROWS:,}. "
+            "Export a shorter period (by month, say) and import the parts one at a time."
+        )
 
     try:
         frame = pd.read_csv(io.StringIO(text), dtype=str, keep_default_na=False, skip_blank_lines=False)
