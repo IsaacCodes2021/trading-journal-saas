@@ -1,4 +1,5 @@
 import type { ImportIssue } from '../data/model'
+import { REQUIRED_COLUMNS } from '../tradovate'
 
 /*
  * A reader for Tradovate "Performance" exports, for the sample import only. The real parser is the backend's
@@ -7,21 +8,7 @@ import type { ImportIssue } from '../data/model'
  * are the backend's. Nothing here leaves the browser.
  */
 
-export const REQUIRED_COLUMNS = [
-  'symbol',
-  '_priceFormat',
-  '_priceFormatType',
-  '_tickSize',
-  'buyFillId',
-  'sellFillId',
-  'qty',
-  'buyPrice',
-  'sellPrice',
-  'pnl',
-  'boughtTimestamp',
-  'soldTimestamp',
-  'duration',
-] as const
+export { REQUIRED_COLUMNS }
 
 /** Splits CSV text into rows of fields: quoted fields, doubled quotes, and line breaks inside quotes (RFC 4180). */
 export function splitCsv(text: string): string[][] {

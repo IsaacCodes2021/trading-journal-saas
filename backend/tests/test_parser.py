@@ -151,3 +151,21 @@ def test_header_only_file_has_no_rows():
 )
 def test_parse_duration(text, seconds):
     assert parse_duration(text) == seconds
+
+
+def test_the_front_end_tells_people_the_same_columns_and_size_limit_the_server_enforces():
+    """`frontend/src/lib/tradovate.ts` shows the required columns and the largest file; if the parser or the import
+    route changes, this fails until the front end says the same."""
+    import re
+    from pathlib import Path
+
+    from tradejournal.api.routers.imports import MAX_IMPORT_BYTES
+    from tradejournal.parser import REQUIRED_COLUMNS
+
+    source = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "tradovate.ts").read_text(
+        encoding="utf-8"
+    )
+    block = source.split("export const REQUIRED_COLUMNS = [")[1].split("] as const")[0]
+    assert tuple(re.findall(r"'([^']+)'", block)) == tuple(REQUIRED_COLUMNS)
+    megabytes = int(re.search(r"export const MAX_CSV_MB = (\d+)", source).group(1))
+    assert megabytes * 1024 * 1024 == MAX_IMPORT_BYTES

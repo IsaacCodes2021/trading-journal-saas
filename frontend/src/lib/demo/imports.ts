@@ -3,6 +3,7 @@ import { ImportRefused } from '../data/model'
 import { countTrades, parsePerformanceCsv, type ParsedPair } from './csv'
 import { SAMPLE_ACCOUNTS } from './generate'
 import { accountRef } from './accounts'
+import { MAX_CSV_MB } from '../tradovate'
 
 /*
  * The sample import: reads a real Performance export in the browser (nothing is uploaded), checks it the way the
@@ -11,7 +12,7 @@ import { accountRef } from './accounts'
  * the file to the server, which does all of this with the real parser and the real timezone.
  */
 
-export const MAX_CSV_BYTES = 5 * 1024 * 1024
+export const MAX_CSV_BYTES = MAX_CSV_MB * 1024 * 1024
 export const MAX_CSV_ROWS = 50_000
 export const PREVIEW_ROWS_SHOWN = 100
 
@@ -74,7 +75,7 @@ const keyOf = (p: ParsedPair) => `${p.buyFillId}-${p.sellFillId}`
 
 function checkFile(file: File): void {
   if (!/\.csv$/i.test(file.name)) throw new ImportRefused(`${file.name || 'That file'} is not a .csv file.`)
-  if (file.size > MAX_CSV_BYTES) throw new ImportRefused(`${file.name} is larger than 5 MB.`)
+  if (file.size > MAX_CSV_BYTES) throw new ImportRefused(`${file.name} is larger than ${MAX_CSV_MB} MB.`)
 }
 
 async function read(accountId: number, file: File) {

@@ -3,6 +3,7 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  Link,
   Outlet,
   redirect,
   useLocation,
@@ -16,6 +17,7 @@ import { TradeLogPage } from './features/trades/TradeLogPage'
 import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
 import { isTab, type Tab } from './features/accounts/tabs'
 import { parseFilters, pickFilters } from './lib/filters'
+import { parseStep, type StepNumber } from './features/onboarding/steps'
 import { signInErrorOf, type SignInErrorCode } from './lib/auth'
 import { useSession } from './lib/session'
 
@@ -26,6 +28,9 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
 ) => lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType })))
 
 const InvitePage = lazy(() => import('./features/invite/InvitePage').then((m) => ({ default: m.InvitePage })))
+const OnboardingPage = lazy(() =>
+  import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
+)
 const ImportPage = lazy(() => import('./features/imports/ImportPage').then((m) => ({ default: m.ImportPage })))
 const TradeDetailPage = lazy(() =>
   import('./features/trade-detail/TradeDetailPage').then((m) => ({ default: m.TradeDetailPage })),
@@ -40,9 +45,26 @@ const TradeDetailPage = lazy(() =>
 /** Pages that work before sign-in: no session is asked for, and the app's header and menu are not shown. */
 const PUBLIC_PAGES = /^\/invite(?:\/|$)/
 
+/** The first-run setup keeps the person's attention: a small header with one way out, and no navigation. */
+const FOCUSED_PAGES = /^\/welcome(?:\/|$)/
+
 function Root() {
   const { pathname } = useLocation()
   if (PUBLIC_PAGES.test(pathname)) return <Outlet />
+  if (FOCUSED_PAGES.test(pathname)) {
+    return (
+      <AppShell
+        focused
+        action={
+          <Link to="/" className="text-muted">
+            Skip setup for now
+          </Link>
+        }
+      >
+        <Outlet />
+      </AppShell>
+    )
+  }
   return (
     <AppShell>
       <Outlet />
@@ -119,9 +141,13 @@ const tradeDetailRoute = createRoute({
 
 function ImportRoute() {
   const session = useSession()
+  const settings = session.data?.settings
   return (
     <Suspense fallback={<Spinner label="Loading the import page" />}>
-      <ImportPage timeZone={session.data?.settings.timezone ?? 'UTC'} />
+      <ImportPage
+        timeZone={settings?.timezone ?? 'UTC'}
+        csvTimeZone={settings?.csv_timezone ?? settings?.timezone ?? 'UTC'}
+      />
     </Suspense>
   )
 }
@@ -131,6 +157,27 @@ const importRoute = createRoute({
   path: '/import',
   validateSearch: pickFilters,
   component: ImportRoute,
+})
+
+// ---- first-run setup -------------------------------------------------------------------------------------------
+
+const welcomeRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/welcome',
+  // The step is in the address, so Back and reload work and a step can be linked to.
+  validateSearch: (search: Record<string, unknown>): { step?: StepNumber } => {
+    const step = parseStep(search['step'])
+    return step === 1 ? {} : { step }
+  },
+  component: function WelcomeRoute() {
+    const navigate = useNavigate({ from: '/welcome' })
+    const step = parseStep(welcomeRoute.useSearch().step)
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <OnboardingPage step={step} onStep={(next) => void navigate({ search: next === 1 ? {} : { step: next } })} />
+      </Suspense>
+    )
+  },
 })
 
 // ---- invite (before sign-in) -------------------------------------------------------------------------------------
@@ -255,6 +302,7 @@ const routeTree = rootRoute.addChildren([
   tradesRoute,
   tradeDetailRoute,
   importRoute,
+  welcomeRoute,
   inviteRoute,
   settingsRoute.addChildren([
     settingsIndexRoute,

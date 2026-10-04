@@ -145,7 +145,19 @@ function SampleDataBanner() {
   )
 }
 
-export function AppShell({ children }: { children: ReactNode }) {
+/**
+ * The frame of every signed-in page. `focused` is for a flow that should hold the person's attention (the first-run
+ * setup): just the name, one link (`action`) and the account menu, with no navigation and no sample-data banner.
+ */
+export function AppShell({
+  children,
+  focused = false,
+  action,
+}: {
+  children: ReactNode
+  focused?: boolean
+  action?: ReactNode
+}) {
   const session = useSession()
   const search = useSearch({ strict: false })
   const theme = session.data?.settings.theme
@@ -155,6 +167,23 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (session.isPending) return <Spinner label="Loading" />
   if (session.isError) return <p className="p-6">Redirecting to sign in…</p>
+  if (focused) {
+    return (
+      <div className="min-h-screen bg-bg text-ink">
+        <header className="border-b border-line bg-panel">
+          <div className="mx-auto flex min-h-14 max-w-[1100px] items-center gap-4 px-4 sm:px-8">
+            <div className="flex grow items-center gap-2.5 text-base font-semibold">
+              <span aria-hidden="true" className="inline-block size-[22px] rounded-md bg-accent" />
+              Roundturn
+            </div>
+            {action}
+            <AccountMenu email={session.data.user.email} />
+          </div>
+        </header>
+        <main className="mx-auto flex max-w-[1100px] flex-col gap-4 px-4 pt-8 pb-14 sm:px-8 sm:pt-10">{children}</main>
+      </div>
+    )
+  }
   const filters = filtersOf(parseFilters(search as Record<string, unknown>))
   return (
     <div className="min-h-screen bg-bg text-ink">

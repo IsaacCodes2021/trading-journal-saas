@@ -30,7 +30,10 @@ const tile = (label: string) =>
 describe('the import page', () => {
   it('says what it does, names the account and the timezone the file is read in, and shows the history', async () => {
     await openImport()
-    expect(screen.getByText(/Nothing is saved until you confirm the preview/)).toBeInTheDocument()
+    expect(screen.getByText(/Upload a Tradovate Performance CSV/)).toHaveTextContent(/every import can be undone/)
+    // The hint states the server's real limit, and does not claim the file stays on the device (the real source uploads it).
+    expect(screen.getByText(/Up to 10 MB\. Nothing is saved until you confirm the preview\./)).toBeInTheDocument()
+    expect(screen.queryByText(/read on your device/)).not.toBeInTheDocument()
     const select = await screen.findByLabelText('Import into account')
     await waitFor(() =>
       expect(
@@ -214,5 +217,22 @@ describe('undoing an import', () => {
     await user.click(await within(dialog).findByRole('button', { name: 'Undo this import' }))
     expect(await within(dialog).findByText('The import could not be undone. Nothing was changed.')).toBeInTheDocument()
     expect((await demoSource.imports())[0]?.undone_at).toBeNull()
+  })
+})
+
+describe('the zone the file is read in', () => {
+  it('is the CSV zone when one is set, and the history stays in the zone times are shown in', async () => {
+    stubApi({ settings: { csv_timezone: 'America/Chicago' } })
+    openApp('/import')
+    await screen.findByRole('heading', { name: 'Import trades' })
+    expect(await screen.findByText('America/Chicago')).toBeInTheDocument()
+    expect(screen.queryByText('America/Los_Angeles')).not.toBeInTheDocument()
+  })
+
+  it('is the own zone when there is no separate CSV zone', async () => {
+    stubApi()
+    openApp('/import')
+    await screen.findByRole('heading', { name: 'Import trades' })
+    expect(await screen.findByText('America/Los_Angeles')).toBeInTheDocument()
   })
 })
