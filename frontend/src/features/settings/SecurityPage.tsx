@@ -1,4 +1,5 @@
 import { Button, Card, Spinner } from '../../components/ui/primitives'
+import { activityText, useActivity } from '../../lib/activity'
 import { formatTradeTime, pluralize } from '../../lib/format'
 import { useSession } from '../../lib/session'
 import { useActiveSessions, useEndOtherSessions, useEndSession, type ActiveSession } from '../../lib/sessions'
@@ -42,7 +43,48 @@ function Row({
   )
 }
 
-/** Where the account is signed in, with a way to end any of them, or all but this one. */
+/** What has happened to the account lately: the server's own record, as sentences, in the person's timezone. */
+function RecentActivity({ timeZone }: { timeZone: string }) {
+  const activity = useActivity()
+  return (
+    <Card className="p-0" role="region" aria-label="Recent activity">
+      <h2 className="m-0 border-b border-line px-5 py-3.5 text-base font-semibold">Recent activity</h2>
+      {activity.isPending ? <Spinner label="Loading recent activity" /> : null}
+      {activity.isError ? (
+        <p className="m-0 px-5 py-4 text-neg" role="alert">
+          {messageOf(activity.error)}
+        </p>
+      ) : null}
+      {activity.data ? (
+        activity.data.events.length === 0 ? (
+          <p className="m-0 px-5 py-4 text-muted">Nothing yet.</p>
+        ) : (
+          <ul className="m-0 list-none divide-y divide-line-soft p-0">
+            {activity.data.events.map((event) => (
+              <li
+                key={`${event.at}-${event.kind}`}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-5 py-3"
+              >
+                <span className={event.kind === 'sign_in_refused' ? 'text-warn' : undefined}>
+                  {activityText(event)}
+                </span>
+                <time dateTime={event.at} className="text-[13px] text-muted">
+                  {formatTradeTime(event.at, timeZone)}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+      <p className="m-0 border-t border-line px-5 py-3.5 text-[13px] text-muted">
+        Only you can see this list. If something here was not you, sign out everywhere else, and change your password
+        where you sign in.
+      </p>
+    </Card>
+  )
+}
+
+/** Where the account is signed in, with a way to end any of them, or all but this one; and what has happened lately. */
 export function SecurityPage() {
   const sessions = useActiveSessions()
   const account = useSession()
@@ -62,7 +104,9 @@ export function SecurityPage() {
 
   return (
     <>
-      <SectionHeader title="Security">Where your account is signed in right now.</SectionHeader>
+      <SectionHeader title="Security">
+        Where your account is signed in, and what has happened to it lately.
+      </SectionHeader>
       {sessions.isPending ? <Spinner label="Loading your sign-ins" /> : null}
       {sessions.isError ? (
         <Card className="px-5 py-4 text-neg" role="alert">
@@ -111,6 +155,7 @@ export function SecurityPage() {
           {done}
         </div>
       ) : null}
+      <RecentActivity timeZone={timeZone} />
     </>
   )
 }

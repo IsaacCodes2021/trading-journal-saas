@@ -28,3 +28,9 @@ def record(
         "INSERT INTO audit_log (user_id, actor_user_id, actor, action, ip_hash, meta) VALUES (%s, %s, %s, %s, %s, %s)",
         (user_id, user_id if actor == ACTOR_USER else None, actor, action, ip_hash, json.dumps(meta or {})),
     )
+
+
+def activity(conn: psycopg.Connection, user_id: UUID, limit: int = 30) -> list[dict]:
+    """A person's own recent events, newest first: `{id, at, action, ended, mfa}` and nothing else. The database function
+    does the filtering (only this person's rows, only the kinds a person may see, at most 100); see migration 0009."""
+    return conn.execute("SELECT id, at, action, ended, mfa FROM my_activity(%s, %s)", (user_id, limit)).fetchall()

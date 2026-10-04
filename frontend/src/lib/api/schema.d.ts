@@ -234,6 +234,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Recent Activity
+         * @description What has happened to this account lately.
+         */
+        get: operations["recent_activity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/business-totals": {
         parameters: {
             query?: never;
@@ -897,6 +917,38 @@ export interface components {
              * @description Working sessions, most recently used first
              */
             sessions: components["schemas"]["ActiveSessionOut"][];
+        };
+        /** ActivityListOut */
+        ActivityListOut: {
+            /**
+             * Events
+             * @description This account's own events, newest first
+             */
+            events: components["schemas"]["ActivityOut"][];
+        };
+        /** ActivityOut */
+        ActivityOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Ended
+             * @description For "sign_out_everywhere": how many other places were signed out
+             */
+            ended: number | null;
+            /**
+             * Kind
+             * @description What happened; the page chooses the words
+             * @enum {string}
+             */
+            kind: "sign_up" | "sign_in" | "sign_in_refused" | "sign_out" | "other_sign_out" | "sign_out_everywhere" | "export" | "deletion_requested" | "deletion_cancelled";
+            /**
+             * Mfa
+             * @description For "sign_in" and "sign_up": whether two-step verification was used
+             */
+            mfa: boolean | null;
         };
         /** ArchiveIn */
         ArchiveIn: {
@@ -2769,6 +2821,65 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    recent_activity: {
+        parameters: {
+            query?: {
+                /** @description How many events, newest first */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActivityListOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

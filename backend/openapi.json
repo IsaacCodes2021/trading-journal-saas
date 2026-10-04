@@ -556,6 +556,80 @@
         "title": "ActiveSessionsOut",
         "type": "object"
       },
+      "ActivityListOut": {
+        "properties": {
+          "events": {
+            "description": "This account's own events, newest first",
+            "items": {
+              "$ref": "#/components/schemas/ActivityOut"
+            },
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "title": "ActivityListOut",
+        "type": "object"
+      },
+      "ActivityOut": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "ended": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For \"sign_out_everywhere\": how many other places were signed out",
+            "title": "Ended"
+          },
+          "kind": {
+            "description": "What happened; the page chooses the words",
+            "enum": [
+              "sign_up",
+              "sign_in",
+              "sign_in_refused",
+              "sign_out",
+              "other_sign_out",
+              "sign_out_everywhere",
+              "export",
+              "deletion_requested",
+              "deletion_cancelled"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "mfa": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For \"sign_in\" and \"sign_up\": whether two-step verification was used",
+            "title": "Mfa"
+          }
+        },
+        "required": [
+          "at",
+          "kind",
+          "ended",
+          "mfa"
+        ],
+        "title": "ActivityOut",
+        "type": "object"
+      },
       "ArchiveIn": {
         "additionalProperties": false,
         "properties": {
@@ -3987,6 +4061,84 @@
         "summary": "Update Account Rules",
         "tags": [
           "accounts"
+        ]
+      }
+    },
+    "/api/v1/activity": {
+      "get": {
+        "description": "What has happened to this account lately.",
+        "operationId": "recent_activity",
+        "parameters": [
+          {
+            "description": "How many events, newest first",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "description": "How many events, newest first",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Recent Activity",
+        "tags": [
+          "activity"
         ]
       }
     },

@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from tradejournal.api.ports import Account, AuthSession, Services, SessionInfo
+from tradejournal.api.ports import Account, ActivityEvent, AuthSession, Services, SessionInfo
 from tradejournal.api.schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
 
 
@@ -129,9 +129,15 @@ class FakeAccounts:
 class FakeAudit:
     def __init__(self) -> None:
         self.events: list[dict] = []
+        self.activity: dict[UUID, list[ActivityEvent]] = {}  # what each person may see, newest first
+        self.asked: list[tuple[UUID, int]] = []  # (person, limit) of every `recent` call
 
     def record(self, user_id: UUID, action: str, *, ip_hash: str | None = None, meta: dict | None = None) -> None:
         self.events.append({"user_id": user_id, "action": action, "ip_hash": ip_hash, "meta": meta or {}})
+
+    def recent(self, user_id: UUID, limit: int = 30) -> list[ActivityEvent]:
+        self.asked.append((user_id, limit))
+        return self.activity.get(user_id, [])[:limit]
 
 
 def make_services() -> tuple[Services, FakeSessions, FakeAccounts]:

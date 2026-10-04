@@ -38,6 +38,8 @@ export interface ApiOptions {
   recentlyAuthenticated?: boolean
   /** Answer a request to delete the account with this instead of scheduling it for 2026-10-11. */
   deletion?: { status: number; body: object }
+  /** The recent-activity list `GET /api/v1/activity` answers with, newest first. Default: none yet. */
+  activity?: object[]
 }
 
 export function sessionBody(opts: ApiOptions = {}) {
@@ -61,6 +63,9 @@ export function stubApi(opts: ApiOptions = {}) {
       if (request.method === 'POST' && new URL(request.url).pathname === '/api/v1/account/deletion') {
         if (opts.deletion) return json(opts.deletion.body, opts.deletion.status)
         return json({ scheduled_for: '2026-10-11T03:20:00Z' })
+      }
+      if (request.method === 'GET' && new URL(request.url).pathname === '/api/v1/activity') {
+        return json({ events: opts.activity ?? [] })
       }
       if (request.method === 'PATCH') {
         const body = (await request.clone().json()) as Record<string, string>

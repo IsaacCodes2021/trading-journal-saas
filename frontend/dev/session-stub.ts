@@ -83,6 +83,26 @@ export function devSessionStub(enabled: boolean): Plugin {
           }
           return send(200, { sessions: places, ended: 0 })
         }
+        if (path === '/api/v1/activity' && request.method === 'GET') {
+          // A few sample events, newest first, so the Recent activity card can be seen with no backend.
+          const event = (hours: number, kind: string, extra: Record<string, unknown> = {}) => ({
+            at: ago(hours),
+            kind,
+            ended: null,
+            mfa: null,
+            ...extra,
+          })
+          return send(200, {
+            events: [
+              event(0.2, 'sign_in', { mfa: true }),
+              event(3, 'sign_in', { mfa: false }),
+              event(5, 'sign_out_everywhere', { ended: 2 }),
+              event(30, 'sign_in_refused'),
+              event(52, 'export'),
+              event(200, 'sign_up', { mfa: false }),
+            ],
+          })
+        }
         if (path === '/api/v1/account/deletion' && request.method === 'POST') {
           // Nothing is deleted in the stub: it only answers with the date a real server would give.
           return send(200, { scheduled_for: new Date(now + 7 * 86_400_000).toISOString() })
