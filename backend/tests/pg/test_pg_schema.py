@@ -7,7 +7,7 @@ says it meant.
 from __future__ import annotations
 
 import pytest
-from test_pg_tenancy import TENANT_TABLES
+from test_pg_tenancy import SYSTEM_TABLES, TENANT_TABLES
 
 OWNER_ROLE, APP_ROLE = "tj_owner", "app_rw"
 
@@ -24,7 +24,8 @@ def tenant_tables_in_catalog(conn) -> set[str]:
 
 def test_the_list_the_tenant_tests_use_matches_the_catalog(owner):
     # If you add a table with a user_id, add it to TENANT_TABLES in test_pg_tenancy.py so it is isolation-tested.
-    assert tenant_tables_in_catalog(owner) == set(TENANT_TABLES)
+    assert tenant_tables_in_catalog(owner) - set(SYSTEM_TABLES) == set(TENANT_TABLES)
+    assert set(SYSTEM_TABLES) <= tenant_tables_in_catalog(owner)  # and the system list names real tables
 
 
 def test_the_request_role_is_neither_superuser_nor_able_to_bypass_rls(owner):
