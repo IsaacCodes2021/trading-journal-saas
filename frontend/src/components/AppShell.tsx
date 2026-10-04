@@ -41,7 +41,7 @@ function PlanChip({ plan }: { plan: Session['plan'] }) {
   )
 }
 
-function ThemeButton({ theme }: { theme: Theme }) {
+export function ThemeButton({ theme }: { theme: Theme }) {
   const save = useSaveTheme()
   const target = otherTheme(theme)
   const onClick = () => {
@@ -89,7 +89,7 @@ function initialsOf(email: string): string {
   )
 }
 
-function AccountMenu({ email }: { email: string }) {
+export function AccountMenu({ email, operator = false }: { email: string; operator?: boolean }) {
   const [leaving, setLeaving] = useState(false)
   const [failed, setFailed] = useState(false)
   const leave = async () => {
@@ -115,6 +115,11 @@ function AccountMenu({ email }: { email: string }) {
           <div data-testid="who" className="px-2 text-[13px] break-all">
             {email}
           </div>
+          {operator ? (
+            <Link to="/admin" className="px-2 py-1 text-[13px]">
+              Operator tools
+            </Link>
+          ) : null}
           <Button onClick={leave} disabled={leaving}>
             Sign out
           </Button>
@@ -212,7 +217,7 @@ export function AppShell({
           <div className="ml-auto flex items-center gap-3 sm:ml-0">
             <PlanChip plan={session.data.plan} />
             <ThemeButton theme={session.data.settings.theme} />
-            <AccountMenu email={session.data.user.email} />
+            <AccountMenu email={session.data.user.email} operator={session.data.flags.is_admin} />
           </div>
         </div>
       </header>

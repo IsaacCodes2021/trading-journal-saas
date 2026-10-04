@@ -46,6 +46,23 @@ cd backend
 
 It prints the code once; only a hash is stored. Tests never contact Kinde: they use a fake provider (`backend/tests/fake_idp.py`).
 
+### The operator tools
+
+`/admin` (the account menu shows "Operator tools" to operators only) lists accounts, shows each one's plan and counters (never trades, notes or screenshots), and lets an operator suspend or restore someone, end their sessions, schedule or cancel a deletion, and give or take a plan. Every change asks why and is kept in the audit log with who did it. To use it:
+
+1. **Switch on two-step verification on your own Kinde account.** The tools refuse an operator without a second factor from the last 15 minutes (the page sends you through Kinde to confirm it again).
+2. Sign in once, then make the account an operator, as the schema owner (`TJ_OWNER_URL`):
+
+```powershell
+cd backend
+.venv\Scripts\python.exe -m tradejournal.pg.users make-operator --email you@example.com
+.venv\Scripts\python.exe -m tradejournal.pg.users remove-operator --email you@example.com
+```
+
+3. Give the API the operator's database role: `TJ_ADMIN_DATABASE_URL` (the `app_admin` role, created with the others; on this machine the `TJ_DEV_ADMIN_URL` line of `backend/.env.test`). Without it the tools answer 503.
+
+An operator cannot change their own account or another operator's (use the command above), and there is no way to see a person's trades, notes or screenshots from here, by design.
+
 ### Handing out plan codes
 
 A plan code gives a person a plan for some days when they type it on Settings > Plan & billing, or when they sign up with an invite that carries one. Making codes needs the schema owner's connection (`TJ_OWNER_URL`):

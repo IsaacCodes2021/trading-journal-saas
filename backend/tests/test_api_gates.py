@@ -3,6 +3,7 @@ remembering to write its test (doc 04 section 4: "CSRF enforced on every unsafe 
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -28,7 +29,11 @@ PUBLIC: set[tuple[str, str]] = set()
 def build_app(tmp_path):
     services, sessions, accounts = make_services()
     config = ApiConfig(app_origin=ORIGIN, web_dist=tmp_path / "none", session_secret=SECRET)
-    token, session = sessions.sign_in(accounts.add("gate@example.test").user.id)
+    # An operator who has just confirmed two-step verification, so the positive control below (a correct request must not
+    # be refused) holds for the operator routes as well; the checks that matter for them (strangers, ordinary people, a
+    # stale verification) are in test_api_admin_contract.py.
+    operator = accounts.add("gate@example.test", is_admin=True)
+    token, session = sessions.sign_in(operator.user.id, mfa_at=datetime.now(UTC))
     return create_app(config, services), token, session
 
 

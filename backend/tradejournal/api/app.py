@@ -21,6 +21,7 @@ from ..auth.kinde import KindeProvider
 from ..pg.readiness import DatabaseReadiness
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
+from .admin_service import PgAdminService
 from .audit import PgAuditLog
 from .config import ApiConfig
 from .deps import utc_now
@@ -34,6 +35,7 @@ from .routers import (
     account,
     accounts,
     activity,
+    admin_users,
     auth,
     export,
     grants,
@@ -90,9 +92,17 @@ def create_app(
         services = dev_services(config.dev_user_id, database, system)
     elif services is None and database is not None and config.login_database_url:
         # Real sessions, and, when Kinde is configured, real sign-in. Without Kinde nobody can sign in yet.
-        system = SystemDatabase({"login": config.login_database_url})
+        urls = {"login": config.login_database_url}
+        if config.admin_database_url:  # the operator's tools exist only where their database role does
+            urls["admin"] = config.admin_database_url
+        system = SystemDatabase(urls)
         store = PgSessionStore(system)
-        services = Services(sessions=store, accounts=PgAccountService(database, system), audit=PgAuditLog(system))
+        services = Services(
+            sessions=store,
+            accounts=PgAccountService(database, system),
+            audit=PgAuditLog(system),
+            admin=PgAdminService(system, store, clock=clock) if config.admin_database_url else None,
+        )
         if idp is None and config.kinde_domain and config.kinde_client_id and config.kinde_client_secret:
             idp = KindeProvider(
                 domain=config.kinde_domain, client_id=config.kinde_client_id, client_secret=config.kinde_client_secret
@@ -167,6 +177,7 @@ def create_app(
     app.include_router(session.router)
     app.include_router(sessions.router)
     app.include_router(account.router)
+    app.include_router(admin_users.router)
     app.include_router(activity.router)
     app.include_router(grants.router)
     app.include_router(export.router)

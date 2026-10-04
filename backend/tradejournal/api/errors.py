@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import ApiConfig
+from .ports import AdminRefusal
 from .schemas import PROBLEM_MEDIA_TYPE, FieldError, Problem
 from .security import security_headers
 
@@ -37,6 +38,10 @@ def install_error_handlers(app: FastAPI, config: ApiConfig) -> None:
         if detail == HTTPStatus(exc.status_code).phrase:
             detail = None  # Starlette fills in the phrase for plain 404s and 405s; it only repeats the title
         return problem_response(exc.status_code, detail, headers=exc.headers)
+
+    @app.exception_handler(AdminRefusal)
+    async def admin_refusal(request: Request, exc: AdminRefusal) -> JSONResponse:
+        return problem_response(exc.status, exc.detail)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:
