@@ -35,6 +35,7 @@ from .routers import (
     account,
     accounts,
     activity,
+    admin_codes,
     admin_users,
     auth,
     export,
@@ -178,6 +179,7 @@ def create_app(
     app.include_router(sessions.router)
     app.include_router(account.router)
     app.include_router(admin_users.router)
+    app.include_router(admin_codes.router)
     app.include_router(activity.router)
     app.include_router(grants.router)
     app.include_router(export.router)

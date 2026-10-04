@@ -117,6 +117,198 @@ export function devSessionStub(enabled: boolean): Plugin {
             sample(5, 'leo.w@example.com', { status: 'suspended' }),
             sample(6, 'sam.r@example.com', { status: 'pending_deletion', deletion_scheduled_at: day(-6) }),
           ]
+          // Sample codes, events and numbers for the Codes & audit screen. Making or revoking one is echoed, not kept.
+          const invites = [
+            {
+              id: 4,
+              label: 'Beta testers, October',
+              email: null,
+              max_uses: 20,
+              used: 7,
+              expires_at: day(-14),
+              revoked_at: null,
+              created_at: day(9),
+              grant_code_id: 2,
+              grant_label: 'Beta testers, 90 days of Pro',
+              status: 'works',
+            },
+            {
+              id: 3,
+              label: 'Dana K.',
+              email: 'dana.k@example.com',
+              max_uses: 1,
+              used: 1,
+              expires_at: null,
+              revoked_at: null,
+              created_at: day(31),
+              grant_code_id: null,
+              grant_label: null,
+              status: 'used_up',
+            },
+            {
+              id: 2,
+              label: 'Podcast listeners',
+              email: null,
+              max_uses: 50,
+              used: 12,
+              expires_at: day(3),
+              revoked_at: null,
+              created_at: day(40),
+              grant_code_id: null,
+              grant_label: null,
+              status: 'expired',
+            },
+            {
+              id: 1,
+              label: 'Sent to the wrong person',
+              email: null,
+              max_uses: 1,
+              used: 0,
+              expires_at: null,
+              revoked_at: day(44),
+              created_at: day(45),
+              grant_code_id: null,
+              grant_label: null,
+              status: 'revoked',
+            },
+          ]
+          const grantCodes = [
+            {
+              id: 2,
+              label: 'Beta testers, 90 days of Pro',
+              plan: 'pro',
+              days: 90,
+              max_redemptions: 20,
+              used: 7,
+              expires_at: day(-60),
+              created_by: 'admin:x',
+              created_at: day(9),
+              revoked_at: null,
+              status: 'works',
+            },
+            {
+              id: 1,
+              label: 'Conference giveaway',
+              plan: 'pro',
+              days: 30,
+              max_redemptions: null,
+              used: 31,
+              expires_at: day(20),
+              created_by: 'cli:owner',
+              created_at: day(60),
+              revoked_at: null,
+              status: 'expired',
+            },
+          ]
+          const person = (email: string) => ({ user_id: '00000000-0000-4000-8000-000000000002', user_email: email })
+          const events = [
+            {
+              id: 9,
+              at: day(0.1),
+              actor: 'admin',
+              action: 'admin_invite_created',
+              actor_email: 'owner@example.com',
+              user_id: null,
+              user_email: null,
+              meta: { invite: 4, label: 'Beta testers, October', max_uses: 20, grant: 2 },
+            },
+            {
+              id: 8,
+              at: day(0.4),
+              actor: 'admin',
+              action: 'admin_viewed_user',
+              actor_email: 'owner@example.com',
+              ...person('dana.k@example.com'),
+              meta: {},
+            },
+            {
+              id: 7,
+              at: day(1),
+              actor: 'user',
+              action: 'login',
+              actor_email: null,
+              ...person('dana.k@example.com'),
+              meta: { mfa: true },
+            },
+            {
+              id: 6,
+              at: day(2),
+              actor: 'admin',
+              action: 'admin_plan_override_set',
+              actor_email: 'owner@example.com',
+              ...person('dana.k@example.com'),
+              meta: { plan: 'pro', reason: 'Beta tester, import bug goodwill' },
+            },
+            {
+              id: 5,
+              at: day(3),
+              actor: 'user',
+              action: 'grant_redeemed',
+              actor_email: null,
+              ...person('priya.n@example.com'),
+              meta: { plan: 'pro', days: 30 },
+            },
+            {
+              id: 4,
+              at: day(5),
+              actor: 'user',
+              action: 'grant_refused',
+              actor_email: null,
+              ...person('marcus.t@example.com'),
+              meta: { why: 'not_found' },
+            },
+            {
+              id: 3,
+              at: day(8),
+              actor: 'admin',
+              action: 'admin_suspended',
+              actor_email: 'owner@example.com',
+              ...person('leo.w@example.com'),
+              meta: { reason: 'Chargeback dispute' },
+            },
+          ]
+          if (path === '/api/admin/v1/metrics/overview' && request.method === 'GET') {
+            return send(200, {
+              accounts: 64,
+              signups_7d: 18,
+              active_7d: 41,
+              active: 60,
+              suspended: 2,
+              pending_deletion: 2,
+              pro: 7,
+              free: 57,
+              open_invites: 1,
+              open_grant_codes: 1,
+            })
+          }
+          if (path === '/api/admin/v1/invites' && request.method === 'GET') {
+            return send(200, { invites, total: invites.length, limit: 25, offset: 0 })
+          }
+          if (path === '/api/admin/v1/grant-codes' && request.method === 'GET') {
+            return send(200, { grant_codes: grantCodes, total: grantCodes.length, limit: 25, offset: 0 })
+          }
+          if (path === '/api/admin/v1/audit' && request.method === 'GET') {
+            const query = new URL(request.url ?? '', 'http://x').searchParams
+            const action = query.get('action')
+            const q = (query.get('q') ?? '').toLowerCase()
+            const hits = events.filter(
+              (e) =>
+                (!action || e.action === action) &&
+                (!q || `${e.actor_email ?? ''} ${e.user_email ?? ''} ${e.action}`.toLowerCase().includes(q)),
+            )
+            return send(200, { events: hits, next_before: null })
+          }
+          if (path === '/api/admin/v1/invites' && request.method === 'POST') {
+            return send(200, { code: 'INV-SAMPLE-CODE1', invite: { ...invites[0], id: 5, used: 0 } })
+          }
+          if (path === '/api/admin/v1/grant-codes' && request.method === 'POST') {
+            return send(200, { code: 'GR-SAMPLE-CODE', grant_code: { ...grantCodes[0], id: 3, used: 0 } })
+          }
+          if (path.endsWith('/revoke') && path.includes('/invites/'))
+            return send(200, { ...invites[0], status: 'revoked' })
+          if (path.endsWith('/revoke') && path.includes('/grant-codes/')) {
+            return send(200, { ...grantCodes[0], status: 'revoked' })
+          }
           if (path === '/api/admin/v1/users' && request.method === 'GET') {
             const query = new URL(request.url ?? '', 'http://x').searchParams
             const q = (query.get('q') ?? '').toLowerCase()

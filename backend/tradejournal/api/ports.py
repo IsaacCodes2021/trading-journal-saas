@@ -14,7 +14,19 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
-from .schemas.admin import AdminUserDetailOut, AdminUserListOut, AdminUserOut
+from .schemas.admin import (
+    AdminUserDetailOut,
+    AdminUserListOut,
+    AdminUserOut,
+    AuditPageOut,
+    CreatedGrantCodeOut,
+    CreatedInviteOut,
+    GrantCodeListOut,
+    GrantCodeOut,
+    InviteListOut,
+    InviteOut,
+    OverviewOut,
+)
 
 # What /readyz asks: (ready, {check name: a short state such as "ok" or "unreachable"}). The states are public, so they
 # are words and never error text, hosts or addresses.
@@ -176,6 +188,53 @@ class AdminService(Protocol):
     def revoke_override(
         self, actor: UUID, target: UUID, reason: str, *, ip_hash: str | None = None
     ) -> AdminUserOut: ...
+
+    def list_invites(self, *, limit: int, offset: int) -> InviteListOut: ...
+
+    def create_invite(
+        self,
+        actor: UUID,
+        *,
+        label: str,
+        email: str | None,
+        max_uses: int,
+        days: int | None,
+        grant_code_id: int | None,
+        ip_hash: str | None = None,
+    ) -> CreatedInviteOut: ...
+
+    def revoke_invite(self, actor: UUID, invite_id: int, reason: str, *, ip_hash: str | None = None) -> InviteOut: ...
+
+    def list_grant_codes(self, *, limit: int, offset: int) -> GrantCodeListOut: ...
+
+    def create_grant_code(
+        self,
+        actor: UUID,
+        *,
+        label: str,
+        plan: str,
+        days: int,
+        max_redemptions: int | None,
+        expires_in_days: int | None,
+        ip_hash: str | None = None,
+    ) -> CreatedGrantCodeOut: ...
+
+    def revoke_grant_code(
+        self, actor: UUID, grant_id: int, reason: str, *, ip_hash: str | None = None
+    ) -> GrantCodeOut: ...
+
+    def audit(
+        self,
+        *,
+        action: str | None,
+        q: str | None,
+        actor: str | None,
+        days: int | None,
+        limit: int,
+        before: int | None,
+    ) -> AuditPageOut: ...
+
+    def overview(self) -> OverviewOut: ...
 
 
 @dataclass(frozen=True)

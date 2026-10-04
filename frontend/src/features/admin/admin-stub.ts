@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import type { AdminUser, AdminUserDetail } from '../../lib/admin'
+import type { AuditEvent, GrantCode, Invite, Overview } from '../../lib/adminCodes'
 import { json, stubApi, type ApiOptions } from '../../test-utils'
 
 /** Test helpers for the operator screens: an in-memory `/api/admin/v1` that behaves like the server's, and what it was asked. */
@@ -28,6 +29,61 @@ export const detail = (u: AdminUser, over: Partial<AdminUserDetail> = {}): Admin
   ...over,
 })
 
+export const invite = (id: number, label: string, over: Partial<Invite> = {}): Invite => ({
+  id,
+  label,
+  email: null,
+  max_uses: 1,
+  used: 0,
+  expires_at: null,
+  revoked_at: null,
+  created_at: '2026-09-22T10:00:00Z',
+  grant_code_id: null,
+  grant_label: null,
+  status: 'works',
+  ...over,
+})
+
+export const grant = (id: number, label: string, over: Partial<GrantCode> = {}): GrantCode => ({
+  id,
+  label,
+  plan: 'pro',
+  days: 90,
+  max_redemptions: null,
+  used: 0,
+  expires_at: null,
+  created_by: 'admin:x',
+  created_at: '2026-09-22T10:00:00Z',
+  revoked_at: null,
+  status: 'works',
+  ...over,
+})
+
+export const event = (id: number, action: string, over: Partial<AuditEvent> = {}): AuditEvent => ({
+  id,
+  at: '2026-10-02T08:14:00Z',
+  actor: 'user',
+  action,
+  actor_email: null,
+  user_id: null,
+  user_email: null,
+  meta: {},
+  ...over,
+})
+
+export const OVERVIEW: Overview = {
+  accounts: 64,
+  signups_7d: 18,
+  active_7d: 41,
+  active: 60,
+  suspended: 2,
+  pending_deletion: 2,
+  pro: 7,
+  free: 57,
+  open_invites: 3,
+  open_grant_codes: 1,
+}
+
 export interface Call {
   method: string
   path: string
@@ -45,11 +101,20 @@ export interface AdminStubOptions extends ApiOptions {
   listFails?: { status: number; detail: string }
   /** Answer a look at one account with this problem. */
   detailFails?: { status: number; detail: string }
+  invites?: Invite[]
+  grantCodes?: GrantCode[]
+  /** Newest first, as the server gives them. */
+  auditEvents?: AuditEvent[]
+  overview?: Overview
+  /** Answer the overview, the invites, the plan codes or the log with a problem. */
+  codesFail?: { status: number; detail: string }
 }
 
 /** Replaces `fetch`: the app's usual calls (as an operator who just verified, unless told otherwise) plus the operator API. */
 export function stubAdmin(options: AdminStubOptions = {}) {
-  const { users = [], details = {}, changeFails, listFails, detailFails, ...api } = options
+  const { users = [], details = {}, changeFails, listFails, detailFails, ...rest } = options
+  const { invites = [], grantCodes = [], auditEvents = [], overview = OVERVIEW, codesFail, ...api } = rest
+  let nextId = 100
   stubApi({ operator: true, mfaFresh: true, ...api })
   const inner = globalThis.fetch
   const calls: Call[] = []
@@ -78,6 +143,50 @@ export function stubAdmin(options: AdminStubOptions = {}) {
           (u) => (!q || u.email.toLowerCase().includes(q) || u.id === q) && (!status || u.status === status),
         )
         return json({ users: matching.slice(offset, offset + limit), total: matching.length, limit, offset })
+      }
+      const [, , , , section, rawId, verb] = url.pathname.split('/')
+      if (codesFail && ['invites', 'grant-codes', 'audit', 'metrics'].includes(section ?? '')) return problem(codesFail)
+      if (url.pathname === '/api/admin/v1/metrics/overview') return json(overview)
+      if (url.pathname === '/api/admin/v1/audit') {
+        const q = (url.searchParams.get('q') ?? '').toLowerCase()
+        const action = url.searchParams.get('action')
+        const actor = url.searchParams.get('actor')
+        const before = Number(url.searchParams.get('before') ?? Infinity)
+        const limit = Number(url.searchParams.get('limit') ?? 50)
+        const matching = auditEvents.filter(
+          (e) =>
+            e.id < before &&
+            (!action || e.action === action) &&
+            (!actor || e.actor === actor) &&
+            (!q || (e.user_email ?? '').includes(q) || (e.actor_email ?? '').includes(q)),
+        )
+        const page = matching.slice(0, limit)
+        return json({ events: page, next_before: matching.length > limit ? (page[page.length - 1]?.id ?? null) : null })
+      }
+      if (section === 'invites' || section === 'grant-codes') {
+        const list = section === 'invites' ? invites : grantCodes
+        if (request.method === 'GET') {
+          const limit = Number(url.searchParams.get('limit') ?? 50)
+          const offset = Number(url.searchParams.get('offset') ?? 0)
+          const rows = list.slice(offset, offset + limit)
+          return json(
+            section === 'invites'
+              ? { invites: rows, total: list.length, limit, offset }
+              : { grant_codes: rows, total: list.length, limit, offset },
+          )
+        }
+        if (changeFails) return problem(changeFails)
+        if (verb === 'revoke') {
+          const found = list.find((c) => String(c.id) === rawId)
+          return found
+            ? json({ ...found, status: 'revoked', revoked_at: '2026-10-04T12:00:00Z' })
+            : problem({ status: 404, detail: 'There is no such code.' })
+        }
+        nextId += 1
+        const sent = body as { label?: string }
+        return section === 'invites'
+          ? json({ invite: invite(nextId, sent.label ?? ''), code: 'TJ-NEW1-CODE' })
+          : json({ grant_code: grant(nextId, sent.label ?? ''), code: 'GR-NEW1-CODE' })
       }
       const id = url.pathname.split('/')[5] ?? ''
       if (request.method === 'GET') {

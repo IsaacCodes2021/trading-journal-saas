@@ -145,6 +145,10 @@ export function formatBytes(bytes: number): string {
 /** The words for what the log calls each thing an operator or the system did. Anything else is shown as it is written. */
 const ACTIONS: Record<string, string> = {
   admin_viewed_user: 'An operator looked at this account',
+  admin_invite_created: 'Invite made',
+  admin_invite_revoked: 'Invite revoked',
+  admin_grant_code_created: 'Plan code made',
+  admin_grant_code_revoked: 'Plan code revoked',
   admin_suspended: 'Suspended',
   admin_unsuspended: 'Restored',
   admin_sessions_revoked: 'Sessions ended',
@@ -167,6 +171,9 @@ const ACTIONS: Record<string, string> = {
   grant_refused: 'A plan code was refused',
   account_deleted: 'Account deleted',
 }
+
+/** Every kind of event the page has words for, in alphabetical order of its name, for the log's filter. */
+export const ACTION_NAMES: string[] = Object.keys(ACTIONS).sort((a, b) => actionText(a).localeCompare(actionText(b)))
 
 export function actionText(action: string): string {
   return ACTIONS[action] ?? action.replaceAll('_', ' ')

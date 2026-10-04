@@ -21,6 +21,7 @@ import { parseStep, type StepNumber } from './features/onboarding/steps'
 import { deletionDay, signInErrorOf, type SignInErrorCode } from './lib/auth'
 import { useSession } from './lib/session'
 import { pickAdminSearch, queryOf, searchOf } from './features/admin/search'
+import { pickCodesSearch } from './features/admin/codesSearch'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
 const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends keyof T>(
@@ -30,6 +31,7 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
 
 const InvitePage = lazy(() => import('./features/invite/InvitePage').then((m) => ({ default: m.InvitePage })))
 const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => ({ default: m.AdminShell })))
+const CodesPage = lazy(() => import('./features/admin/CodesPage').then((m) => ({ default: m.CodesPage })))
 const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
 const OnboardingPage = lazy(() =>
   import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
@@ -241,6 +243,21 @@ const adminRoute = createRoute({
   },
 })
 
+const adminCodesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/codes',
+  validateSearch: pickCodesSearch,
+  component: function AdminCodesRoute() {
+    const search = pickCodesSearch(adminCodesRoute.useSearch()) // the router keeps what it could not validate too
+    const navigate = useNavigate({ from: '/admin/codes' })
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <CodesPage search={search} onSearch={(next) => void navigate({ search: next, replace: true })} />
+      </Suspense>
+    )
+  },
+})
+
 // ---- settings --------------------------------------------------------------------------------------------------
 
 const SettingsLayout = lazyNamed(() => import('./features/settings/SettingsLayout'), 'SettingsLayout')
@@ -362,6 +379,7 @@ const routeTree = rootRoute.addChildren([
   welcomeRoute,
   inviteRoute,
   adminRoute,
+  adminCodesRoute,
   settingsRoute.addChildren([
     settingsIndexRoute,
     preferencesRoute,

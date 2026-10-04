@@ -21,6 +21,11 @@ PREFIX = "/api/admin/v1"
 SOMEONE = UUID("11111111-2222-3333-4444-555555555555")
 NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 
+# What an operator may send: the words and numbers that describe a decision or a code, never free-form data.
+ALLOWED_INPUT = {
+    "reason", "plan", "expires_at", "label", "email", "max_uses", "days", "grant_code_id", "max_redemptions", "expires_in_days",
+}  # fmt: skip
+
 # Words that mean something a person wrote or traded. A counter may be named after what it counts ("trades": 40), but
 # no property of an operator response may be one of these, and nothing may carry a list or an object of them.
 FORBIDDEN = {
@@ -89,7 +94,7 @@ def response_property_names(spec, operation):
 def test_there_are_operator_routes_to_check(spec):
     paths = {(m, p) for m, p, _ in admin_operations(spec)}
     assert ("GET", f"{PREFIX}/users") in paths and ("GET", f"{PREFIX}/users/{{user_id}}") in paths
-    assert len(paths) >= 9, "the contract checks pass because they found almost nothing"
+    assert len(paths) >= 17, "the contract checks pass because they found almost nothing"
 
 
 def test_no_operator_response_carries_anything_a_person_wrote_or_traded(spec):
@@ -118,14 +123,14 @@ def test_the_scan_would_notice_a_forbidden_field(spec):
 
 
 def test_every_operator_request_body_is_small_and_has_no_free_form_object(spec):
-    """An operator can send a reason, a plan and a date: nothing that could carry a tenant's data back in."""
+    """An operator can send a reason, a plan, a date, a label and the numbers of a code: nothing that could carry a tenant's data back in."""
     for method, path, operation in admin_operations(spec):
         body = operation.get("requestBody")
         if body is None:
             continue
         schema = body["content"]["application/json"]["schema"]
         names = resolve(spec, schema)
-        assert names <= {"reason", "plan", "expires_at"}, f"{method} {path} accepts {sorted(names)}"
+        assert names <= ALLOWED_INPUT, f"{method} {path} accepts {sorted(names - ALLOWED_INPUT)}"
 
 
 def test_every_operator_response_says_it_can_be_refused_for_the_three_reasons(spec):
@@ -150,7 +155,7 @@ def person(app, *, admin, mfa_ago: timedelta | None):
 
 def request(app, method, path, headers, operation):
     client = TestClient(app, base_url=ORIGIN)
-    filled = path.replace("{user_id}", str(SOMEONE))
+    filled = path.replace("{user_id}", str(SOMEONE)).replace("{invite_id}", "1").replace("{grant_id}", "1")
     body = None
     if "requestBody" in operation:
         body = {"reason": "x", "plan": "pro"}
@@ -175,7 +180,7 @@ def test_every_operator_route_refuses_a_stranger_an_ordinary_person_and_an_opera
             got = request(app, method, path, headers, operation).status_code
             assert got == expected, f"{method} {path} for a {who}: {got}, expected {expected}"
             checked += 1
-    assert checked >= 9 * len(cases)
+    assert checked >= 17 * len(cases)
 
 
 def test_every_operator_write_refuses_a_forged_request_from_a_real_operator(app, spec):

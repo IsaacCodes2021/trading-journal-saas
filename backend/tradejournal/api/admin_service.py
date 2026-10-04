@@ -13,14 +13,18 @@ command line, not by each other). Looking is allowed.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import psycopg
 
 from ..pg import admin as pg_admin
+from ..pg import admin_codes as pg_codes
+from ..pg import admin_log as pg_log
 from ..pg import audit as pg_audit
 from ..pg import deletion as pg_deletion
+from ..pg import invites as pg_invites
+from ..pg import plans as pg_plans
 from ..pg.system import SystemDatabase
 from .ports import AdminRefusal, SessionStore
 from .schemas import PlanOut
@@ -28,8 +32,17 @@ from .schemas.admin import (
     AdminUserDetailOut,
     AdminUserListOut,
     AdminUserOut,
+    AuditEventOut,
+    AuditPageOut,
+    CreatedGrantCodeOut,
+    CreatedInviteOut,
     EventOut,
+    GrantCodeListOut,
+    GrantCodeOut,
+    InviteListOut,
+    InviteOut,
     OverrideOut,
+    OverviewOut,
     RedemptionOut,
     UsageOut,
 )
@@ -38,6 +51,8 @@ ADMIN = "admin"
 SELF_REFUSED = "You cannot do that to your own account."
 OPERATOR_REFUSED = "That account is an operator. Operators are changed with the command line, not here."
 NOT_FOUND = "There is no such account."
+NO_INVITE = "There is no such invite."
+NO_GRANT = "There is no such plan code."
 
 
 def user_out(row: pg_admin.UserRow) -> AdminUserOut:
@@ -57,6 +72,38 @@ def user_out(row: pg_admin.UserRow) -> AdminUserOut:
             storage_bytes=row.usage.storage_bytes,
             last_import_at=row.usage.last_import_at,
         ),
+    )
+
+
+def invite_out(row: pg_codes.InviteRow, now: datetime) -> InviteOut:
+    return InviteOut(
+        id=row.id,
+        label=row.label,
+        email=row.email,
+        max_uses=row.max_uses,
+        used=row.used,
+        expires_at=row.expires_at,
+        revoked_at=row.revoked_at,
+        created_at=row.created_at,
+        grant_code_id=row.grant_code_id,
+        grant_label=row.grant_label,
+        status=row.status(now),  # type: ignore[arg-type]
+    )
+
+
+def grant_out(row: pg_codes.GrantRow, now: datetime) -> GrantCodeOut:
+    return GrantCodeOut(
+        id=row.id,
+        label=row.label,
+        plan=row.plan,  # type: ignore[arg-type]  # a CHECK constraint holds it to 'pro'
+        days=row.days,
+        max_redemptions=row.max_redemptions,
+        used=row.used,
+        expires_at=row.expires_at,
+        created_by=row.created_by,
+        created_at=row.created_at,
+        revoked_at=row.revoked_at,
+        status=row.status(now),  # type: ignore[arg-type]
     )
 
 
@@ -189,6 +236,172 @@ class PgAdminService:
             self._record(conn, "admin_plan_override_revoked", actor, target, ip_hash, reason=reason)
             return self._reload(conn, target)
 
+    # ---- invites and plan codes --------------------------------------------------------------------------------------
+
+    def list_invites(self, *, limit: int, offset: int) -> InviteListOut:
+        now = self._clock()
+        with self._system.system_session(ADMIN) as conn:
+            rows, total = pg_codes.list_invites(conn, limit=limit, offset=offset)
+        return InviteListOut(invites=[invite_out(r, now) for r in rows], total=total, limit=limit, offset=offset)
+
+    def create_invite(
+        self,
+        actor: UUID,
+        *,
+        label: str,
+        email: str | None,
+        max_uses: int,
+        days: int | None,
+        grant_code_id: int | None,
+        ip_hash: str | None = None,
+    ) -> CreatedInviteOut:
+        now = self._clock()
+        code = pg_invites.generate_code()
+        with self._system.system_session(ADMIN) as conn:
+            if grant_code_id is not None and not pg_codes.grant_exists(conn, grant_code_id, now=now):
+                raise AdminRefusal(422, "That plan code does not exist, has expired or has been revoked.")
+            invite_id = pg_codes.create_invite(
+                conn,
+                code_hash=pg_invites.hash_code(code),
+                label=label,
+                email=email.lower() if email else None,
+                max_uses=max_uses,
+                expires_at=now + timedelta(days=days) if days else None,
+                grant_code_id=grant_code_id,
+            )
+            # The record says what was made and never the code, nor whom it was for.
+            self._record(
+                conn,
+                "admin_invite_created",
+                actor,
+                None,
+                ip_hash,
+                invite=invite_id,
+                label=label,
+                max_uses=max_uses,
+                days=days,
+                grant=grant_code_id,
+                for_one_address=email is not None,
+            )
+            row = pg_codes.get_invite(conn, invite_id)
+        if row is None:
+            raise AdminRefusal(404, NO_INVITE)
+        return CreatedInviteOut(invite=invite_out(row, now), code=code)
+
+    def revoke_invite(self, actor: UUID, invite_id: int, reason: str, *, ip_hash: str | None = None) -> InviteOut:
+        now = self._clock()
+        with self._system.system_session(ADMIN) as conn:
+            if pg_codes.get_invite(conn, invite_id) is None:
+                raise AdminRefusal(404, NO_INVITE)
+            if not pg_codes.revoke_invite(conn, invite_id, now=now):
+                raise AdminRefusal(409, "That invite is already revoked.")
+            self._record(conn, "admin_invite_revoked", actor, None, ip_hash, invite=invite_id, reason=reason)
+            row = pg_codes.get_invite(conn, invite_id)
+        if row is None:
+            raise AdminRefusal(404, NO_INVITE)
+        return invite_out(row, now)
+
+    def list_grant_codes(self, *, limit: int, offset: int) -> GrantCodeListOut:
+        now = self._clock()
+        with self._system.system_session(ADMIN) as conn:
+            rows, total = pg_codes.list_grant_codes(conn, limit=limit, offset=offset)
+        return GrantCodeListOut(grant_codes=[grant_out(r, now) for r in rows], total=total, limit=limit, offset=offset)
+
+    def create_grant_code(
+        self,
+        actor: UUID,
+        *,
+        label: str,
+        plan: str,
+        days: int,
+        max_redemptions: int | None,
+        expires_in_days: int | None,
+        ip_hash: str | None = None,
+    ) -> CreatedGrantCodeOut:
+        now = self._clock()
+        code = pg_plans.generate_code()
+        with self._system.system_session(ADMIN) as conn:
+            grant_id = pg_codes.create_grant_code(
+                conn,
+                code_hash=pg_invites.hash_code(code),
+                label=label,
+                plan=plan,
+                days=days,
+                max_redemptions=max_redemptions,
+                expires_at=now + timedelta(days=expires_in_days) if expires_in_days else None,
+                created_by=_by(actor),
+            )
+            self._record(
+                conn,
+                "admin_grant_code_created",
+                actor,
+                None,
+                ip_hash,
+                grant=grant_id,
+                label=label,
+                plan=plan,
+                days=days,
+                max_redemptions=max_redemptions,
+            )
+            row = pg_codes.get_grant_code(conn, grant_id)
+        if row is None:
+            raise AdminRefusal(404, NO_GRANT)
+        return CreatedGrantCodeOut(grant_code=grant_out(row, now), code=code)
+
+    def revoke_grant_code(self, actor: UUID, grant_id: int, reason: str, *, ip_hash: str | None = None) -> GrantCodeOut:
+        now = self._clock()
+        with self._system.system_session(ADMIN) as conn:
+            if pg_codes.get_grant_code(conn, grant_id) is None:
+                raise AdminRefusal(404, NO_GRANT)
+            if not pg_codes.revoke_grant_code(conn, grant_id, now=now):
+                raise AdminRefusal(409, "That plan code is already revoked.")
+            self._record(conn, "admin_grant_code_revoked", actor, None, ip_hash, grant=grant_id, reason=reason)
+            row = pg_codes.get_grant_code(conn, grant_id)
+        if row is None:
+            raise AdminRefusal(404, NO_GRANT)
+        return grant_out(row, now)
+
+    # ---- the log and the overview ------------------------------------------------------------------------------------
+
+    def audit(
+        self,
+        *,
+        action: str | None,
+        q: str | None,
+        actor: str | None,
+        days: int | None,
+        limit: int,
+        before: int | None,
+    ) -> AuditPageOut:
+        limit = max(1, min(limit, pg_log.PAGE_MAX))
+        since = self._clock() - timedelta(days=days) if days else None
+        with self._system.system_session(ADMIN) as conn:
+            rows = pg_log.audit_events(
+                conn, action=action, q=q, actor=actor, since=since, limit=limit + 1, before=before
+            )
+        page = rows[:limit]
+        return AuditPageOut(
+            events=[
+                AuditEventOut(
+                    id=r.id,
+                    at=r.at,
+                    actor=r.actor,
+                    action=r.action,
+                    actor_email=r.actor_email,
+                    user_id=r.user_id,
+                    user_email=r.user_email,
+                    meta=r.meta,
+                )
+                for r in page
+            ],
+            next_before=page[-1].id if len(rows) > limit and page else None,
+        )
+
+    def overview(self) -> OverviewOut:
+        with self._system.system_session(ADMIN) as conn:
+            o = pg_log.overview(conn, now=self._clock())
+        return OverviewOut(**vars(o))
+
     # ---- the rules and the record ------------------------------------------------------------------------------------
 
     def _may_change(self, conn: psycopg.Connection, actor: UUID, target: UUID) -> None:
@@ -208,7 +421,7 @@ class PgAdminService:
         return user_out(detail.user)
 
     def _record(
-        self, conn: psycopg.Connection, action: str, actor: UUID, target: UUID, ip_hash: str | None, **meta
+        self, conn: psycopg.Connection, action: str, actor: UUID, target: UUID | None, ip_hash: str | None, **meta
     ) -> None:
         pg_audit.record(
             conn, action, user_id=target, actor=pg_audit.ACTOR_ADMIN, by=actor, ip_hash=ip_hash, meta=meta or None

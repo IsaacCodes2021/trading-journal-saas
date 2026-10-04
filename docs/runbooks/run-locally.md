@@ -63,6 +63,8 @@ cd backend
 
 An operator cannot change their own account or another operator's (use the command above), and there is no way to see a person's trades, notes or screenshots from here, by design.
 
+**Codes & audit** (`/admin/codes`, next to Users) shows the numbers (accounts, sign-ups and sign-ins this week, Free and Pro, the invites and plan codes that still work), makes and revokes **invites** and **plan codes**, and reads the audit log. A new code is shown **once**, in a banner with a Copy button: only its hash is stored, so a lost code cannot be looked up, only revoked and made again. A plan code gives Pro for some days, but what Pro includes is not decided yet, so it unlocks nothing yet. The log filters by what happened, who did it and how far back, and searches by part of an address or an exact account id; revoking something always asks why, and the reason is kept in the log.
+
 ### Handing out plan codes
 
 A plan code gives a person a plan for some days when they type it on Settings > Plan & billing, or when they sign up with an invite that carries one. Making codes needs the schema owner's connection (`TJ_OWNER_URL`):

@@ -89,7 +89,7 @@ def _like(text: str) -> str:
     return "%" + re.sub(r"([\\%_])", r"\\\1", text) + "%"
 
 
-def _plans(conn: psycopg.Connection, ids: list[UUID], now: datetime) -> dict[UUID, EffectivePlan]:
+def plans_for(conn: psycopg.Connection, ids: list[UUID], now: datetime) -> dict[UUID, EffectivePlan]:
     """The effective plan of each person, from two queries for the whole page rather than two for each person."""
     overrides = {
         r["user_id"]: Override(r["plan"], r["expires_at"])
@@ -113,7 +113,7 @@ _USER_COLUMNS = """u.id, u.email, u.status, u.is_admin, u.created_at, u.last_log
 
 
 def _rows(conn: psycopg.Connection, rows: list[dict], now: datetime) -> list[UserRow]:
-    plans = _plans(conn, [r["id"] for r in rows], now)
+    plans = plans_for(conn, [r["id"] for r in rows], now)
     return [
         UserRow(
             id=r["id"],
