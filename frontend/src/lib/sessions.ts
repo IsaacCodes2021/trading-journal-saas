@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, unwrap } from './api/client'
+import { ACTIVITY_KEY } from './activity'
 import type { components } from './api/schema'
 
 export type ActiveSessions = components['schemas']['ActiveSessionsOut']
@@ -22,7 +23,10 @@ export function useEndSession() {
   return useMutation({
     mutationFn: (id: string) =>
       unwrap(api.DELETE('/api/v1/sessions/{session_id}', { params: { path: { session_id: id } } })),
-    onSuccess: (list) => queryClient.setQueryData<ActiveSessions>(KEY, list),
+    onSuccess: (list) => {
+      queryClient.setQueryData<ActiveSessions>(KEY, list)
+      void queryClient.invalidateQueries({ queryKey: ACTIVITY_KEY }) // signing a place out is an event of its own
+    },
   })
 }
 
@@ -31,6 +35,9 @@ export function useEndOtherSessions() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: () => unwrap(api.DELETE('/api/v1/sessions')),
-    onSuccess: (list) => queryClient.setQueryData<ActiveSessions>(KEY, list),
+    onSuccess: (list) => {
+      queryClient.setQueryData<ActiveSessions>(KEY, list)
+      void queryClient.invalidateQueries({ queryKey: ACTIVITY_KEY })
+    },
   })
 }

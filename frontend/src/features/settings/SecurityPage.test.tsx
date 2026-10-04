@@ -26,11 +26,15 @@ interface Options {
   listFails?: boolean
   /** Answer ending one with this problem. */
   endFails?: { status: number; detail: string }
+  /** What the recent-activity list says (newest first). Default: nothing yet. */
+  activity?: object[]
+  /** Answer the recent-activity list with a problem. */
+  activityFails?: boolean
 }
 
 /** The app's usual calls, plus an in-memory `/api/v1/sessions` that behaves like the server's. */
 function stubSessions(initial: ActiveSession[], options: Options = {}) {
-  stubApi()
+  stubApi(options.activity ? { activity: options.activity } : {})
   const inner = globalThis.fetch
   const state = { rows: [...initial] }
   const calls: { method: string; path: string; csrf: string | null }[] = []
@@ -38,6 +42,11 @@ function stubSessions(initial: ActiveSession[], options: Options = {}) {
     'fetch',
     vi.fn(async (input: Request) => {
       const url = new URL(input.url)
+      if (url.pathname === '/api/v1/activity') {
+        calls.push({ method: input.method, path: url.pathname, csrf: input.headers.get('x-csrf-token') })
+        if (options.activityFails) return json({ title: 'Internal Server Error', status: 500, detail: null }, 500)
+        return inner(input)
+      }
       if (!url.pathname.startsWith('/api/v1/sessions')) return inner(input)
       calls.push({ method: input.method, path: url.pathname, csrf: input.headers.get('x-csrf-token') })
       const answer = (ended: number) => json({ sessions: state.rows, ended })
@@ -113,7 +122,11 @@ describe('the security section', () => {
     await list()
     await user.click(screen.getByRole('button', { name: 'Sign out everywhere else' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Signed out of 2 other places.')
-    await waitFor(() => expect(within(screen.getByRole('region')).getAllByRole('listitem')).toHaveLength(1))
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('region', { name: 'Where you are signed in' })).getAllByRole('listitem'),
+      ).toHaveLength(1),
+    )
     expect(screen.getByRole('button', { name: 'Sign out everywhere else' })).toBeDisabled() // nothing left to end
     expect(calls.filter((c) => c.method === 'DELETE')).toEqual([
       { method: 'DELETE', path: '/api/v1/sessions', csrf: 'tok' },
@@ -151,5 +164,91 @@ describe('the security section', () => {
     await open()
     const nav = screen.getByRole('navigation', { name: 'Settings sections' })
     expect(within(nav).getByRole('link', { name: 'Security' })).toHaveAttribute('aria-current', 'page')
+  })
+})
+
+const EVENTS = [
+  { at: '2026-10-04T18:30:00Z', kind: 'sign_out_everywhere', ended: 2, mfa: null },
+  { at: '2026-10-04T16:05:00Z', kind: 'sign_in', ended: null, mfa: true },
+  { at: '2026-10-03T08:00:00Z', kind: 'sign_in_refused', ended: null, mfa: null },
+  { at: '2026-10-02T08:00:00Z', kind: 'export', ended: null, mfa: null },
+]
+
+const activity = () => screen.findByRole('region', { name: 'Recent activity' })
+
+describe('recent activity', () => {
+  it('lists what has happened to the account in words, newest first, timed in the account time zone', async () => {
+    stubSessions([LAPTOP], { activity: EVENTS })
+    await open()
+    const items = within(await activity()).getAllByRole('listitem')
+    expect(items.map((item) => item.textContent)).toEqual([
+      'Signed out of 2 other placesOct 4 · 11:30',
+      'Signed in with two-step verificationOct 4 · 09:05',
+      'A sign-in to your account was refusedOct 3 · 01:00',
+      'Downloaded your dataOct 2 · 01:00',
+    ])
+  })
+
+  it('gives each time as a machine-readable date as well', async () => {
+    stubSessions([LAPTOP], { activity: EVENTS })
+    await open()
+    const times = within(await activity()).getAllByText(/Oct/)
+    expect(times[1]).toHaveAttribute('datetime', '2026-10-04T16:05:00Z')
+  })
+
+  it('says nothing yet when there is nothing', async () => {
+    stubSessions([LAPTOP])
+    await open()
+    expect(within(await activity()).getByText('Nothing yet.')).toBeInTheDocument()
+    expect(within(await activity()).queryByRole('listitem')).not.toBeInTheDocument()
+  })
+
+  it('says so, in the card, when the list cannot be loaded, and the sign-ins above still show', async () => {
+    stubSessions([LAPTOP, PHONE], { activityFails: true })
+    await open()
+    expect(await within(await activity()).findByRole('alert')).toHaveTextContent(
+      'The server had a problem. Try again in a moment.',
+    )
+    expect(within(await list()).getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('marks a refused sign-in so it stands out, and no other row', async () => {
+    stubSessions([LAPTOP], { activity: EVENTS })
+    await open()
+    const items = within(await activity()).getAllByRole('listitem')
+    const warned = items.filter((item) => item.querySelector('.text-warn'))
+    expect(warned).toHaveLength(1)
+    expect(warned[0]).toHaveTextContent('A sign-in to your account was refused')
+  })
+
+  it('says only the person can see it, and what to do when something is not theirs', async () => {
+    stubSessions([LAPTOP])
+    await open()
+    expect(within(await activity()).getByText(/Only you can see this list/)).toBeInTheDocument()
+    expect(within(await activity()).getByText(/sign out everywhere else/)).toBeInTheDocument()
+  })
+
+  it('asks for it once on opening, and again after signing out everywhere else, since that is an event too', async () => {
+    const calls = stubSessions([LAPTOP, PHONE], { activity: EVENTS })
+    const { user } = await open()
+    await activity()
+    expect(calls.filter((c) => c.path === '/api/v1/activity')).toHaveLength(1)
+    await user.click(screen.getByRole('button', { name: 'Sign out everywhere else' }))
+    await waitFor(() => expect(calls.filter((c) => c.path === '/api/v1/activity')).toHaveLength(2))
+  })
+
+  it('asks again after signing one place out too', async () => {
+    const calls = stubSessions([LAPTOP, PHONE], { activity: EVENTS })
+    const { user } = await open()
+    await activity()
+    await user.click(screen.getByRole('button', { name: 'Sign out Safari on iPhone' }))
+    await waitFor(() => expect(calls.filter((c) => c.path === '/api/v1/activity')).toHaveLength(2))
+  })
+
+  it('only reads: no change is sent for it, and no CSRF token is needed', async () => {
+    const calls = stubSessions([LAPTOP], { activity: EVENTS })
+    await open()
+    await activity()
+    expect(calls.filter((c) => c.path === '/api/v1/activity').map((c) => c.method)).toEqual(['GET'])
   })
 })

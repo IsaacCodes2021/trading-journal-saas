@@ -87,6 +87,16 @@ class AccountService(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class ActivityEvent:
+    """Something that happened to a person's own account, as far as they may see it (never an address or the log's details)."""
+
+    at: datetime
+    kind: str  # a word from `api.audit.ACTIVITY_KINDS`
+    ended: int | None  # for "signed out everywhere else": how many places
+    mfa: bool | None  # for a sign-in: whether it used two-step verification
+
+
 class AuditLog(Protocol):
     def record(
         self,
@@ -98,6 +108,10 @@ class AuditLog(Protocol):
     ) -> None:
         """Write one security event about this person to the append-only log. `meta` is for small facts (a count, a
         size), never for anything a person wrote."""
+        ...
+
+    def recent(self, user_id: UUID, limit: int = 30) -> list[ActivityEvent]:
+        """This person's own recent events, newest first (at most 100)."""
         ...
 
 
