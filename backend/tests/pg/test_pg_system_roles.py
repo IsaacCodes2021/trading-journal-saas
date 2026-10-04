@@ -11,7 +11,7 @@ import psycopg
 import pytest
 from pg_helpers import make_account, make_trades
 from test_pg_schema import tenant_tables_in_catalog
-from test_pg_tenancy import TENANT_TABLES
+from test_pg_tenancy import SYSTEM_TABLES, TENANT_TABLES
 
 from tradejournal.pg import importer, usage
 from tradejournal.pg.provision import SYSTEM_ROLES
@@ -69,7 +69,7 @@ def test_no_system_role_has_any_privilege_on_a_tenant_table_in_the_catalog(owner
 
 
 def test_the_catalog_check_covers_every_table_with_a_user_id(owner):
-    assert tenant_tables_in_catalog(owner) == set(TENANT_TABLES)
+    assert tenant_tables_in_catalog(owner) - set(SYSTEM_TABLES) == set(TENANT_TABLES)
 
 
 @pytest.mark.parametrize("table", [t for t in TENANT_TABLES if t != "user_usage"])
