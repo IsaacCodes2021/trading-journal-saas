@@ -99,6 +99,40 @@ def update_account(
     return get_account(conn, account_id)
 
 
+def update_rules(
+    conn: psycopg.Connection,
+    account_id: int,
+    *,
+    profit_target: Decimal | None,
+    max_drawdown: Decimal | None,
+    trailing_type: str | None,
+    trail_lock_enabled: bool,
+    trail_lock_level: Decimal | None,
+    daily_loss_limit: Decimal | None,
+) -> Account:
+    """Set the firm's rules for an account. None means "not tracked". A trailing lock needs the level it locks at,
+    and a level without the lock is dropped, so the stored rules never contradict each other."""
+    get_account(conn, account_id)
+    if trailing_type is not None and trailing_type not in TRAILING_TYPES:
+        raise ValueError(f"trailing type must be one of {', '.join(TRAILING_TYPES)}")
+    if trail_lock_enabled and trail_lock_level is None:
+        raise ValueError("give the level at which the trailing stops, or switch the lock off")
+    conn.execute(
+        """UPDATE accounts SET profit_target = %s, max_drawdown = %s, trailing_type = %s, trail_lock_enabled = %s,
+               trail_lock_level = %s, daily_loss_limit = %s WHERE id = %s""",
+        (
+            _money_or_none(profit_target),
+            _money_or_none(max_drawdown),
+            trailing_type,
+            trail_lock_enabled,
+            _money_or_none(trail_lock_level) if trail_lock_enabled else None,
+            _money_or_none(daily_loss_limit),
+            account_id,
+        ),
+    )
+    return get_account(conn, account_id)
+
+
 def archive_account(
     conn: psycopg.Connection, account_id: int, *, outcome: str, ended_on: date, note: str = ""
 ) -> Account:

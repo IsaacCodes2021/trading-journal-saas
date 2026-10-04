@@ -1,6 +1,70 @@
 {
   "components": {
     "schemas": {
+      "AccountDetailsIn": {
+        "additionalProperties": false,
+        "properties": {
+          "account_size": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Size"
+          },
+          "account_type": {
+            "enum": [
+              "evaluation",
+              "funded"
+            ],
+            "title": "Account Type",
+            "type": "string"
+          },
+          "firm": {
+            "enum": [
+              "Apex",
+              "Bulenox",
+              "Lucid",
+              "My Funded Futures",
+              "Take Profit",
+              "Tradeify",
+              "Other"
+            ],
+            "title": "Firm",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "starting_balance": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Starting Balance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "firm",
+          "account_type",
+          "account_size",
+          "starting_balance"
+        ],
+        "title": "AccountDetailsIn",
+        "type": "object"
+      },
       "AccountOut": {
         "description": "Everything stored about an account (the rules too). Mirrors `accounts.Account`.",
         "properties": {
@@ -185,6 +249,86 @@
         "title": "AccountOut",
         "type": "object"
       },
+      "AccountOverviewOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountOut"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/AccountProgressOut"
+          }
+        },
+        "required": [
+          "account",
+          "progress"
+        ],
+        "title": "AccountOverviewOut",
+        "type": "object"
+      },
+      "AccountProgressOut": {
+        "description": "How an account is doing against its rules, worked out from its closed trades.",
+        "properties": {
+          "drawdown_left": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawdown Left"
+          },
+          "last_trading_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Trading Day"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "target_progress": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Progress"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "net_pnl",
+          "trade_count",
+          "target_progress",
+          "drawdown_left",
+          "last_trading_day"
+        ],
+        "title": "AccountProgressOut",
+        "type": "object"
+      },
       "AccountRefOut": {
         "properties": {
           "account_type": {
@@ -217,6 +361,101 @@
         "title": "AccountRefOut",
         "type": "object"
       },
+      "AccountRulesIn": {
+        "additionalProperties": false,
+        "description": "A rule left null is not tracked for the account.",
+        "properties": {
+          "daily_loss_limit": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Loss Limit"
+          },
+          "max_drawdown": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown"
+          },
+          "profit_target": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Target"
+          },
+          "trail_lock_enabled": {
+            "title": "Trail Lock Enabled",
+            "type": "boolean"
+          },
+          "trail_lock_level": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trail Lock Level"
+          },
+          "trailing_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "eod",
+                  "intraday"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trailing Type"
+          }
+        },
+        "required": [
+          "profit_target",
+          "max_drawdown",
+          "trailing_type",
+          "trail_lock_enabled",
+          "trail_lock_level",
+          "daily_loss_limit"
+        ],
+        "title": "AccountRulesIn",
+        "type": "object"
+      },
       "AccountSummaryOut": {
         "properties": {
           "account": {
@@ -241,6 +480,103 @@
           "net_pnl"
         ],
         "title": "AccountSummaryOut",
+        "type": "object"
+      },
+      "ArchiveIn": {
+        "additionalProperties": false,
+        "properties": {
+          "ended_on": {
+            "format": "date",
+            "title": "Ended On",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "passed",
+              "failed",
+              "closed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "outcome",
+          "ended_on",
+          "note"
+        ],
+        "title": "ArchiveIn",
+        "type": "object"
+      },
+      "BusinessTotalsOut": {
+        "description": "Across every account, archived ones included: is the prop business itself profitable?",
+        "properties": {
+          "accounts_without_cost": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accounts Without Cost",
+            "type": "array"
+          },
+          "costs": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Costs",
+            "type": "string"
+          },
+          "evaluations_failed": {
+            "title": "Evaluations Failed",
+            "type": "integer"
+          },
+          "evaluations_passed": {
+            "title": "Evaluations Passed",
+            "type": "integer"
+          },
+          "net": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net",
+            "type": "string"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "payouts": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Payouts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evaluations_passed",
+          "evaluations_failed",
+          "pass_rate",
+          "costs",
+          "payouts",
+          "net",
+          "accounts_without_cost"
+        ],
+        "title": "BusinessTotalsOut",
         "type": "object"
       },
       "CatalogTagOut": {
@@ -421,6 +757,24 @@
         "title": "EquityPointOut",
         "type": "object"
       },
+      "FeeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "rate": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Rate",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rate"
+        ],
+        "title": "FeeIn",
+        "type": "object"
+      },
       "FieldError": {
         "properties": {
           "field": {
@@ -539,6 +893,61 @@
         "title": "FlagsOut",
         "type": "object"
       },
+      "LedgerEntryOut": {
+        "properties": {
+          "account_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Account Id",
+            "type": "integer"
+          },
+          "amount": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "entry_date": {
+            "format": "date",
+            "title": "Entry Date",
+            "type": "string"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "evaluation_fee",
+              "reset_fee",
+              "activation_fee",
+              "monthly_fee",
+              "other_cost",
+              "payout"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "kind",
+          "amount",
+          "entry_date",
+          "note"
+        ],
+        "title": "LedgerEntryOut",
+        "type": "object"
+      },
       "NeighborsOut": {
         "description": "The trades either side of one in the list the person came from; null at either end.",
         "properties": {
@@ -570,6 +979,49 @@
           "next"
         ],
         "title": "NeighborsOut",
+        "type": "object"
+      },
+      "NewLedgerEntryIn": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "entry_date": {
+            "format": "date",
+            "title": "Entry Date",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "evaluation_fee",
+              "reset_fee",
+              "activation_fee",
+              "monthly_fee",
+              "other_cost",
+              "payout"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "amount",
+          "entry_date",
+          "note"
+        ],
+        "title": "NewLedgerEntryIn",
         "type": "object"
       },
       "NewTagIn": {
@@ -1581,6 +2033,82 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/account-overviews": {
+      "get": {
+        "description": "Every account with its progress against the firm's rules (closed trades only; see `api/progress.py`).",
+        "operationId": "get_account_overviews",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountOverviewOut"
+                  },
+                  "title": "Response Get Account Overviews",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Account Overviews",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
     "/api/v1/accounts": {
       "get": {
         "description": "Every account, by name. Archived ones (passed, failed or closed) are included unless `include_archived=false`.",
@@ -1632,6 +2160,26 @@
             },
             "description": "Forbidden"
           },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "422": {
             "content": {
               "application/json": {
@@ -1644,6 +2192,1108 @@
           }
         },
         "summary": "List Accounts",
+        "tags": [
+          "accounts"
+        ]
+      },
+      "post": {
+        "description": "A new account with no rules and no fees yet (set those next).",
+        "operationId": "create_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDetailsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Create Account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}": {
+      "put": {
+        "description": "Change an account's name, firm, type, size and starting balance. Changing the type reclassifies its trades.",
+        "operationId": "update_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountDetailsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Update Account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/archive": {
+      "post": {
+        "description": "Mark an account as finished (an evaluation passes, fails or is closed; a funded account fails or is closed).\nIts trades stay; views leave them out unless asked.",
+        "operationId": "archive_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Archive Account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/fees": {
+      "get": {
+        "description": "Dollars per contract, round trip, by contract root (\"NQ\"); `*` is the rate for any other contract.",
+        "operationId": "get_fees",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Get Fees",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Fees",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/fees/{symbol_root}": {
+      "delete": {
+        "description": "Remove a contract's own rate (it falls back to `*`). Stored trades are recalculated in the same change.",
+        "operationId": "remove_fee",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "symbol_root",
+            "required": true,
+            "schema": {
+              "maxLength": 12,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9*]+$",
+              "title": "Symbol Root",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Remove Fee",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Remove Fee",
+        "tags": [
+          "accounts"
+        ]
+      },
+      "put": {
+        "description": "Set the rate for a contract root. The account's stored trades are recalculated in the same change.",
+        "operationId": "set_fee",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "symbol_root",
+            "required": true,
+            "schema": {
+              "maxLength": 12,
+              "minLength": 1,
+              "pattern": "^[A-Za-z0-9*]+$",
+              "title": "Symbol Root",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Set Fee",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Set Fee",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/ledger": {
+      "get": {
+        "description": "The account's costs and payouts, oldest first.",
+        "operationId": "get_ledger",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerEntryOut"
+                  },
+                  "title": "Response Get Ledger",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Ledger",
+        "tags": [
+          "accounts"
+        ]
+      },
+      "post": {
+        "description": "Record money spent on the account (a fee) or received from it (a payout). The amount is always positive.",
+        "operationId": "add_ledger_entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewLedgerEntryIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerEntryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Add Ledger Entry",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/ledger/{entry_id}": {
+      "delete": {
+        "description": "Delete one entry and answer with what is left of the account's ledger.",
+        "operationId": "delete_ledger_entry",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Entry Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LedgerEntryOut"
+                  },
+                  "title": "Response Delete Ledger Entry",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Ledger Entry",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/restore": {
+      "post": {
+        "operationId": "restore_account",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Restore Account",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/rules": {
+      "put": {
+        "description": "Set the firm's rules (profit target, drawdown, trailing, daily loss limit). A rule left null is not tracked.",
+        "operationId": "update_account_rules",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountRulesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Update Account Rules",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/business-totals": {
+      "get": {
+        "description": "Across every account, archived ones included: what the accounts cost, what they paid out, how evaluations ended.",
+        "operationId": "get_business_totals",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BusinessTotalsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Business Totals",
         "tags": [
           "accounts"
         ]
