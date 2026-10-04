@@ -159,10 +159,12 @@ def test_a_missing_trade_and_another_users_trade_are_the_same_404(db, alice, bob
     assert api(db, alice).get("/api/v1/trades/999999").status_code == 404
     theirs = api(db, bob).get(f"/api/v1/trades/{imported['journaled']}")
     assert theirs.status_code == 404 and theirs.headers["content-type"] == "application/problem+json"
-    assert api(db, bob).get(f"/api/v1/trades/{imported['journaled']}/neighbors").json() == {
-        "previous": None,
-        "next": None,
-    }
+    # The neighbors of a trade that is not the caller's are the same 404 too (they used to be an empty answer, which
+    # said nothing either, but the two routes now follow one rule: a row that is not yours does not exist).
+    missing = api(db, alice).get("/api/v1/trades/999999/neighbors")
+    foreign = api(db, bob).get(f"/api/v1/trades/{imported['journaled']}/neighbors")
+    assert missing.status_code == foreign.status_code == 404
+    assert missing.json() == foreign.json()
 
 
 def test_neighbors_follow_the_order_filters_and_search_of_the_list_the_person_came_from(db, alice, imported):
