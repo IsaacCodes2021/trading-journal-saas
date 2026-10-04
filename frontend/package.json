@@ -1,6 +1,9 @@
 {
   "name": "tradejournal-frontend",
   "private": true,
+  "sideEffects": [
+    "**/*.css"
+  ],
   "version": "0.0.0",
   "type": "module",
   "packageManager": "pnpm@12.8.1",
