@@ -93,3 +93,122 @@ class OverrideIn(ApiModel):
 
 class EndedOut(ApiModel):
     ended: int = Field(description="How many sessions were ended")
+
+
+# ---- invites and plan codes ------------------------------------------------------------------------------------------------
+
+CodeStatus = Literal["works", "used_up", "expired", "revoked"]
+Label = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
+
+
+class InviteOut(ApiModel):
+    id: int
+    label: str
+    email: str | None = Field(description="If set, only this address may use it")
+    max_uses: int
+    used: int
+    expires_at: datetime | None
+    revoked_at: datetime | None
+    created_at: datetime
+    grant_code_id: int | None = Field(description="The plan code whose plan a person gets when they sign up with it")
+    grant_label: str | None
+    status: CodeStatus
+
+
+class InviteListOut(ApiModel):
+    invites: list[InviteOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class InviteIn(ApiModel):
+    label: Label = ""
+    email: (
+        Annotated[
+            str, StringConstraints(strip_whitespace=True, min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
+        ]
+        | None
+    ) = None
+    max_uses: int = Field(default=1, ge=1, le=1000)
+    days: int | None = Field(
+        default=None, ge=1, le=365, description="It stops working after this many days; none means it does not expire"
+    )
+    grant_code_id: int | None = Field(default=None, ge=1, le=2**63 - 1)
+
+
+class CreatedInviteOut(ApiModel):
+    invite: InviteOut
+    code: str = Field(description="The code itself. It is shown this once and only its hash is kept")
+
+
+class GrantCodeOut(ApiModel):
+    id: int
+    label: str
+    plan: Literal["pro"]
+    days: int
+    max_redemptions: int | None
+    used: int
+    expires_at: datetime | None
+    created_by: str
+    created_at: datetime
+    revoked_at: datetime | None
+    status: CodeStatus
+
+
+class GrantCodeListOut(ApiModel):
+    grant_codes: list[GrantCodeOut]
+    total: int
+    limit: int
+    offset: int
+
+
+class GrantCodeIn(ApiModel):
+    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    plan: Literal["pro"] = "pro"
+    days: int = Field(ge=1, le=3650, description="How long the plan lasts once it is redeemed")
+    max_redemptions: int | None = Field(
+        default=None, ge=1, le=1_000_000, description="How many people may use it; none means any number"
+    )
+    expires_in_days: int | None = Field(
+        default=None, ge=1, le=3650, description="The code stops working after this many days"
+    )
+
+
+class CreatedGrantCodeOut(ApiModel):
+    grant_code: GrantCodeOut
+    code: str = Field(description="The code itself. It is shown this once and only its hash is kept")
+
+
+# ---- the audit log and the overview -----------------------------------------------------------------------------------------
+
+
+class AuditEventOut(ApiModel):
+    id: int
+    at: datetime
+    actor: str = Field(description="user, admin, system or cli:<name>")
+    action: str
+    actor_email: str | None = Field(description="The operator, when an operator did it")
+    user_id: UUID | None
+    user_email: str | None = Field(description="Who it is about; none once that account is deleted")
+    meta: dict[str, str | int | bool | None]
+
+
+class AuditPageOut(ApiModel):
+    events: list[AuditEventOut] = Field(description="Newest first")
+    next_before: int | None = Field(
+        description="Pass this as `before` to read the next page; none when there is no more"
+    )
+
+
+class OverviewOut(ApiModel):
+    accounts: int
+    signups_7d: int
+    active_7d: int = Field(description="Accounts that signed in during the last 7 days")
+    active: int
+    suspended: int
+    pending_deletion: int
+    pro: int
+    free: int
+    open_invites: int = Field(description="Invites that still work")
+    open_grant_codes: int = Field(description="Plan codes that still work")

@@ -10,7 +10,10 @@ import { useSession } from '../../lib/session'
 /** How often the page asks again whether the second factor is still fresh (it lasts 15 minutes, then the server refuses). */
 const RECHECK_MS = 60_000
 
-const NAV = [{ to: '/admin', label: 'Users' }] as const
+const NAV = [
+  { to: '/admin', label: 'Users', exact: true },
+  { to: '/admin/codes', label: 'Codes & audit', exact: false },
+] as const
 
 /**
  * The operator's frame: its own header (so it is never mistaken for the journal), and a gate. Only an operator gets past
@@ -47,6 +50,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               <Link
                 key={item.to}
                 to={item.to}
+                activeOptions={{ exact: item.exact, includeSearch: false }}
                 className="flex h-12 items-center border-b-2 border-transparent px-3.5 whitespace-nowrap text-muted no-underline hover:text-ink data-[status=active]:border-warn data-[status=active]:text-ink sm:h-14"
               >
                 {item.label}

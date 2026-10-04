@@ -16,38 +16,14 @@ from tradejournal.api.admin_service import (
     NOT_FOUND,
     OPERATOR_REFUSED,
     SELF_REFUSED,
-    PgAdminService,
 )
 from tradejournal.api.pg_services import PgAccountService
 from tradejournal.api.ports import AdminRefusal
-from tradejournal.api.sessions import PgSessionStore
 from tradejournal.pg import audit, plans, users
 from tradejournal.pg import sessions as pg_sessions
-from tradejournal.pg.defaults import provision_defaults
 
 NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 DAY = timedelta(days=1)
-
-
-@pytest.fixture
-def op(owner, db):
-    """An operator: an account the owner's command has made one."""
-    user = owner.execute(
-        "INSERT INTO users (idp_subject, email, is_admin) VALUES ('idp|op@example.test', 'op@example.test', true) RETURNING id"
-    ).fetchone()["id"]
-    with db.tenant_session(user) as conn:
-        provision_defaults(conn)
-    return user
-
-
-@pytest.fixture
-def store(system):
-    return PgSessionStore(system, clock=lambda: NOW)
-
-
-@pytest.fixture
-def service(system, store):
-    return PgAdminService(system, store, clock=lambda: NOW)
 
 
 def sign_in(system, user, **kwargs):

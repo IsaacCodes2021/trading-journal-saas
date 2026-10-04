@@ -4,6 +4,134 @@
  */
 
 export interface paths {
+    "/api/admin/v1/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Audit
+         * @description The audit log, newest first. An event that names an account shows its email; nothing here is a person's own data.
+         */
+        get: operations["audit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/grant-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Grant Codes
+         * @description Plan codes, newest first: how many people used each, and whether it still works.
+         */
+        get: operations["list_grant_codes"];
+        put?: never;
+        /**
+         * Create Grant Code
+         * @description Make a plan code. The code is in this answer and nowhere else, ever.
+         */
+        post: operations["create_grant_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/grant-codes/{grant_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Grant Code
+         * @description Stop a plan code being used. People who already used it keep their plan.
+         */
+        post: operations["revoke_grant_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/invites": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Invites
+         * @description Invites, newest first: how many times each was used, and whether it still works.
+         */
+        get: operations["list_invites"];
+        put?: never;
+        /**
+         * Create Invite
+         * @description Make an invite. The code is in this answer and nowhere else, ever.
+         */
+        post: operations["create_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/invites/{invite_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Invite
+         * @description Stop an invite being used. People who already signed up with it keep their accounts.
+         */
+        post: operations["revoke_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/metrics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Overview
+         * @description Accounts by status, who signed up and signed in this week, how many are on Pro, and the invites and codes that work.
+         */
+        get: operations["overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/v1/users": {
         parameters: {
             query?: never;
@@ -1219,6 +1347,52 @@ export interface components {
              */
             outcome: "passed" | "failed" | "closed";
         };
+        /** AuditEventOut */
+        AuditEventOut: {
+            /** Action */
+            action: string;
+            /**
+             * Actor
+             * @description user, admin, system or cli:<name>
+             */
+            actor: string;
+            /**
+             * Actor Email
+             * @description The operator, when an operator did it
+             */
+            actor_email: string | null;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Id */
+            id: number;
+            /** Meta */
+            meta: {
+                [key: string]: string | number | boolean | null;
+            };
+            /**
+             * User Email
+             * @description Who it is about; none once that account is deleted
+             */
+            user_email: string | null;
+            /** User Id */
+            user_id: string | null;
+        };
+        /** AuditPageOut */
+        AuditPageOut: {
+            /**
+             * Events
+             * @description Newest first
+             */
+            events: components["schemas"]["AuditEventOut"][];
+            /**
+             * Next Before
+             * @description Pass this as `before` to read the next page; none when there is no more
+             */
+            next_before: number | null;
+        };
         /** Body_import_file */
         Body_import_file: {
             /** Account Id */
@@ -1281,6 +1455,24 @@ export interface components {
             color: string;
             /** Name */
             name: string;
+        };
+        /** CreatedGrantCodeOut */
+        CreatedGrantCodeOut: {
+            /**
+             * Code
+             * @description The code itself. It is shown this once and only its hash is kept
+             */
+            code: string;
+            grant_code: components["schemas"]["GrantCodeOut"];
+        };
+        /** CreatedInviteOut */
+        CreatedInviteOut: {
+            /**
+             * Code
+             * @description The code itself. It is shown this once and only its hash is kept
+             */
+            code: string;
+            invite: components["schemas"]["InviteOut"];
         };
         /** DailyResultOut */
         DailyResultOut: {
@@ -1456,6 +1648,77 @@ export interface components {
             /** Recently Authenticated */
             recently_authenticated: boolean;
         };
+        /** GrantCodeIn */
+        GrantCodeIn: {
+            /**
+             * Days
+             * @description How long the plan lasts once it is redeemed
+             */
+            days: number;
+            /**
+             * Expires In Days
+             * @description The code stops working after this many days
+             */
+            expires_in_days?: number | null;
+            /** Label */
+            label: string;
+            /**
+             * Max Redemptions
+             * @description How many people may use it; none means any number
+             */
+            max_redemptions?: number | null;
+            /**
+             * Plan
+             * @default pro
+             * @constant
+             */
+            plan?: "pro";
+        };
+        /** GrantCodeListOut */
+        GrantCodeListOut: {
+            /** Grant Codes */
+            grant_codes: components["schemas"]["GrantCodeOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** GrantCodeOut */
+        GrantCodeOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Days */
+            days: number;
+            /** Expires At */
+            expires_at: string | null;
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /** Max Redemptions */
+            max_redemptions: number | null;
+            /**
+             * Plan
+             * @constant
+             */
+            plan: "pro";
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "works" | "used_up" | "expired" | "revoked";
+            /** Used */
+            used: number;
+        };
         /**
          * ImportIssueOut
          * @description A line of the file that could not be used, numbered the way a spreadsheet numbers it.
@@ -1518,6 +1781,76 @@ export interface components {
             trades_built: number;
             /** Undone At */
             undone_at: string | null;
+        };
+        /** InviteIn */
+        InviteIn: {
+            /**
+             * Days
+             * @description It stops working after this many days; none means it does not expire
+             */
+            days?: number | null;
+            /** Email */
+            email?: string | null;
+            /** Grant Code Id */
+            grant_code_id?: number | null;
+            /**
+             * Label
+             * @default
+             */
+            label?: string;
+            /**
+             * Max Uses
+             * @default 1
+             */
+            max_uses?: number;
+        };
+        /** InviteListOut */
+        InviteListOut: {
+            /** Invites */
+            invites: components["schemas"]["InviteOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Total */
+            total: number;
+        };
+        /** InviteOut */
+        InviteOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Email
+             * @description If set, only this address may use it
+             */
+            email: string | null;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Grant Code Id
+             * @description The plan code whose plan a person gets when they sign up with it
+             */
+            grant_code_id: number | null;
+            /** Grant Label */
+            grant_label: string | null;
+            /** Id */
+            id: number;
+            /** Label */
+            label: string;
+            /** Max Uses */
+            max_uses: number;
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "works" | "used_up" | "expired" | "revoked";
+            /** Used */
+            used: number;
         };
         /** LedgerEntryOut */
         LedgerEntryOut: {
@@ -1639,6 +1972,38 @@ export interface components {
             revoked_at: string | null;
             /** Revoked By */
             revoked_by: string | null;
+        };
+        /** OverviewOut */
+        OverviewOut: {
+            /** Accounts */
+            accounts: number;
+            /** Active */
+            active: number;
+            /**
+             * Active 7D
+             * @description Accounts that signed in during the last 7 days
+             */
+            active_7d: number;
+            /** Free */
+            free: number;
+            /**
+             * Open Grant Codes
+             * @description Plan codes that still work
+             */
+            open_grant_codes: number;
+            /**
+             * Open Invites
+             * @description Invites that still work
+             */
+            open_invites: number;
+            /** Pending Deletion */
+            pending_deletion: number;
+            /** Pro */
+            pro: number;
+            /** Signups 7D */
+            signups_7d: number;
+            /** Suspended */
+            suspended: number;
         };
         /** PerformanceScoreOut */
         PerformanceScoreOut: {
@@ -2138,6 +2503,636 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    audit: {
+        parameters: {
+            query?: {
+                /** @description Exactly this kind of event */
+                action?: string | null;
+                /** @description Part of an email address, or an account id */
+                q?: string | null;
+                /** @description user, admin, system or cli:<name> */
+                actor?: string | null;
+                /** @description Only the last this many days */
+                days?: number | null;
+                limit?: number;
+                /** @description The last event id already seen, to read the next page */
+                before?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditPageOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_grant_codes: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantCodeListOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_grant_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantCodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedGrantCodeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    revoke_grant_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grant_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantCodeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_invites: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteListOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedInviteOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    revoke_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invite_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OverviewOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_users: {
         parameters: {
             query?: {

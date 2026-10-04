@@ -107,6 +107,7 @@ export type AppPath =
   | '/welcome'
   | '/settings'
   | '/admin'
+  | '/admin/codes'
   | `/trades/${string}`
   | `/settings/${string}`
 

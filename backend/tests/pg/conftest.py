@@ -8,6 +8,7 @@ folder is skipped, so the rest of the suite still runs anywhere.
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -144,3 +145,33 @@ def account(conn):
     )
     accounts.set_fee(conn, created.id, "*", Decimal("4.00"))
     return created
+
+
+# ---- the operator's tools, shared by the operator tests ---------------------------------------------------------------------
+
+OPERATOR_NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)  # what the operator service believes the time is
+
+
+@pytest.fixture
+def op(owner, db):
+    """An operator: an account the owner's command has made one."""
+    user = owner.execute(
+        "INSERT INTO users (idp_subject, email, is_admin) VALUES ('idp|op@example.test', 'op@example.test', true) RETURNING id"
+    ).fetchone()["id"]
+    with db.tenant_session(user) as conn:
+        provision_defaults(conn)
+    return user
+
+
+@pytest.fixture
+def store(system):
+    from tradejournal.api.sessions import PgSessionStore
+
+    return PgSessionStore(system, clock=lambda: OPERATOR_NOW)
+
+
+@pytest.fixture
+def service(system, store):
+    from tradejournal.api.admin_service import PgAdminService
+
+    return PgAdminService(system, store, clock=lambda: OPERATOR_NOW)
