@@ -53,6 +53,7 @@ describe('the delete-account card', () => {
     const box = within(await dialog())
     expect(box.getByRole('heading', { name: 'Delete your account?' })).toBeInTheDocument()
     expect(box.getByText('permanently deleted 7 days from now')).toBeInTheDocument()
+    expect(box.getByText(/accounts, trades, notes, tags, screenshots and import history/)).toBeInTheDocument()
     expect(box.getByText(/signed out everywhere, straight away/)).toBeInTheDocument()
     expect(box.getByText('sign in again before then')).toBeInTheDocument()
     expect(box.getByRole('link', { name: 'Download your data' })).toHaveAttribute('href', '/api/v1/export')

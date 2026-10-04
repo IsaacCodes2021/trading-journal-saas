@@ -256,9 +256,51 @@ def test_the_sweep_role_can_see_exactly_what_it_needs_and_the_outbox(system, ali
         conn.execute("INSERT INTO identity_removals (idp_subject) VALUES ('kp_one')")
         conn.execute("UPDATE identity_removals SET attempts = 1, last_error = 'x'")
         conn.execute("DELETE FROM identity_removals")
+        conn.execute("INSERT INTO file_removals (prefix) VALUES ('u/0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10/')")
+        conn.execute("UPDATE file_removals SET attempts = 1, last_error = 'OSError'")
+        conn.execute("SELECT prefix FROM file_removals")
+        conn.execute("DELETE FROM file_removals")
     for role in (LOGIN, "webhook", "admin"):
-        with pytest.raises(psycopg.errors.InsufficientPrivilege), system.system_session(role) as conn:
-            conn.execute("SELECT * FROM identity_removals")
+        for table in ("identity_removals", "file_removals"):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege), system.system_session(role) as conn:
+                conn.execute(f"SELECT * FROM {table}")  # noqa: S608 (fixed table names)
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE file_removals SET prefix = 'u/0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10/'",  # only the retry columns may change
+        "UPDATE file_removals SET created_at = now()",
+    ],
+)
+def test_the_sweep_role_may_only_touch_the_retry_columns_of_the_file_outbox(system, statement):
+    with pytest.raises(psycopg.errors.InsufficientPrivilege), system.system_session(SWEEP) as conn:
+        conn.execute(statement)
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "",
+        "u/",
+        "u/not-a-uuid/",
+        "../etc/",
+        "u/0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10",
+        "x/0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10/",
+    ],
+)
+def test_the_file_outbox_takes_only_the_folder_of_a_person(system, prefix):
+    with pytest.raises(psycopg.errors.CheckViolation), system.system_session(SWEEP) as conn:
+        conn.execute("INSERT INTO file_removals (prefix) VALUES (%s)", (prefix,))
+
+
+def test_the_file_outbox_is_a_system_table_that_names_no_user(owner):
+    columns = [
+        r["column_name"]
+        for r in owner.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'file_removals'")
+    ]
+    assert "user_id" not in columns and set(columns) == {"prefix", "created_at", "attempts", "last_error"}
+    assert "file_removals" not in set(TENANT_TABLES) | set(SYSTEM_TABLES)
 
 
 def test_the_outbox_is_a_system_table_that_names_no_user(owner):

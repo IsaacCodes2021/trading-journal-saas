@@ -34,7 +34,8 @@ export function PrivacyPage({
           A manifest lists every file with its size and checksum. Amounts and prices are exact, and times are in UTC.
         </p>
         <p className="m-0 text-muted">
-          Screenshots are listed by name and date; the image files are added when screenshots are available.
+          Your screenshots come with it as image files, named by the id in the screenshots list. If a file could not be
+          found, the manifest says which one.
         </p>
         <div>
           <a

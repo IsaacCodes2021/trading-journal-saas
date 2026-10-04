@@ -12,7 +12,7 @@ import pytest
 from api_fakes import FakeAudit, FakeSessions
 from fastapi.testclient import TestClient
 from helpers import SAMPLE, fixture_bytes
-from pg_helpers import NOON_UTC, ORIGIN, SECRET, make_account
+from pg_helpers import NOON_UTC, ORIGIN, PNG_1X1, SECRET, make_account
 
 from tradejournal.api.app import create_app
 from tradejournal.api.config import ApiConfig
@@ -21,34 +21,45 @@ from tradejournal.api.pg_services import PgAccountService
 from tradejournal.api.ports import Services
 from tradejournal.api.routers import export as export_router
 from tradejournal.auth.iphash import hash_ip
+from tradejournal.filestore import LocalFileStore
 from tradejournal.pg import export as pg_export
 from tradejournal.pg import importer, journal
+from tradejournal.pg import screenshots as shots
 
 
 class World:
-    def __init__(self, db, system, user_id) -> None:
+    def __init__(self, db, system, user_id, files_dir: Path | None = None) -> None:
         self.audit = FakeAudit()
         sessions = FakeSessions()
         self.token, _ = sessions.sign_in(user_id)
         self.services = Services(sessions=sessions, accounts=PgAccountService(db, system), audit=self.audit)
         config = ApiConfig(
-            app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=SECRET, app_version="v-test"
+            app_origin=ORIGIN,
+            web_dist=Path("/nonexistent"),
+            session_secret=SECRET,
+            app_version="v-test",
+            files_dir=files_dir,
         )
         self.app = create_app(config, self.services, database=db, clock=lambda: NOON_UTC)
         self.client = TestClient(self.app, base_url=ORIGIN, raise_server_exceptions=False)
         self.client.cookies.set(SESSION_COOKIE, self.token)
+        self.shot_id = 0
 
 
 @pytest.fixture
-def world(db, system, alice, bob):
+def world(db, system, alice, bob, tmp_path):
+    store = LocalFileStore(tmp_path / "files")
     with db.tenant_session(alice) as conn:
         account = make_account(conn, "Apex 07")
         importer.import_files(conn, account.id, [(SAMPLE, fixture_bytes(SAMPLE))])
         first = conn.execute("SELECT id FROM trades ORDER BY id LIMIT 1").fetchone()["id"]
         journal.set_notes(conn, first, "<p>my note</p>")
+        shot = shots.add(conn, store, alice, first, "entry.png", PNG_1X1 + b"alice-image")
     with db.tenant_session(bob) as conn:
         make_account(conn, "Bob Secret Account")
-    return World(db, system, alice)
+    made = World(db, system, alice, tmp_path / "files")
+    made.shot_id = shot.id
+    return made
 
 
 def zip_of(response) -> dict[str, bytes]:
@@ -85,6 +96,22 @@ def test_the_profile_and_the_manifest_come_from_this_server_and_this_moment(worl
     assert manifest["exported_at"] == "2024-03-22T12:00:00Z" and manifest["app_version"] == "v-test"
 
 
+def test_the_zip_holds_the_image_files_when_the_server_keeps_them(world):
+    files = zip_of(world.client.get("/api/v1/export"))
+    assert files[f"screenshots/{world.shot_id}.png"] == PNG_1X1 + b"alice-image"
+    manifest = json.loads(files["manifest.json"])
+    assert manifest["screenshot_files"] == {"included": True, "count": 1, "missing": []}
+    assert manifest["files"][f"screenshots/{world.shot_id}.png"]["bytes"] == len(PNG_1X1) + len(b"alice-image")
+
+
+def test_a_server_with_nowhere_to_keep_files_says_the_zip_has_no_images(world, db, system, alice):
+    bare = World(db, system, alice)  # no files folder
+    files = zip_of(bare.client.get("/api/v1/export"))
+    assert json.loads(files["manifest.json"])["screenshot_files"] == {"included": False, "count": 0, "missing": []}
+    assert not [name for name in files if name.startswith("screenshots/")]
+    assert bare.audit.events[0]["meta"]["screenshots"] == 0
+
+
 def test_it_needs_a_session(world):
     for headers in ({}, {"cookie": f"{SESSION_COOKIE}=not-a-real-token"}):
         anonymous = TestClient(world.app, base_url=ORIGIN, headers=headers)
@@ -97,9 +124,10 @@ def test_each_download_is_written_to_the_audit_log_with_facts_and_no_content(wor
     assert event["action"] == "export" and event["user_id"] == alice
     assert event["ip_hash"] == hash_ip(SECRET, "testclient")
     assert (
-        set(event["meta"]) == {"bytes", "trades", "notes"}
+        set(event["meta"]) == {"bytes", "trades", "notes", "screenshots"}
         and event["meta"]["trades"] > 0
         and event["meta"]["notes"] == 1
+        and event["meta"]["screenshots"] == 1  # a count: never a file name
     )
     assert "Apex" not in json.dumps(event, default=str) and "my note" not in json.dumps(event, default=str)
 

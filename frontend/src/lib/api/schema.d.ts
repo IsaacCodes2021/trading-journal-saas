@@ -605,7 +605,8 @@ export interface paths {
         };
         /**
          * Download Export
-         * @description Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, and a manifest with checksums.
+         * @description Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, the screenshot files, and a
+         *     manifest with checksums.
          */
         get: operations["download_export"];
         put?: never;

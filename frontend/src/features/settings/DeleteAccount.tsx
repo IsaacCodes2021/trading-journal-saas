@@ -40,7 +40,7 @@ function Dialog({ email, recent, onClose }: { email: string; recent: boolean; on
         <h2 className="m-0 text-base font-semibold">Delete your account?</h2>
         <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5">
           <li>
-            Your account and everything in it (accounts, trades, notes, tags and import history) is{' '}
+            Your account and everything in it (accounts, trades, notes, tags, screenshots and import history) is{' '}
             <strong>permanently deleted 7 days from now</strong>.
           </li>
           <li>You are signed out everywhere, straight away.</li>
