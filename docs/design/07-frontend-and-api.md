@@ -190,6 +190,11 @@ Still to build: re-running past imports in a corrected zone (each import already
 - **New filter: Show archived** (`show_archived` in the address, a checkbox in the filter bar). The server hides trades of archived accounts by default, as the old app did; without the toggle the real dashboard showed 2 of 23 trades. The sample source ignores it (its numbers are fixed and many tests rely on them).
 - Screenshot images are still placeholders: the server sends the records but no image address until the file route exists (M6).
 
+**Slice 7 (2026-10-04): the API data source, for the writes.** `apiSource.ts` now connects notes, trade tags and new tags, account details, rules, archive and restore, fees, the ledger, the account progress overviews and the business totals. Only the import (preview, commit, history, undo) and screenshots still fail with "... is not connected to the server yet": the importer must first report a status for each row, and image files wait for the object store (M6). A refusal reaches the page as an `ApiError` carrying the server's own sentence, which every form already shows (`error instanceof Error && error.message`).
+
+- **Checked in a browser** against a throwaway user (the real sample export, removed afterwards): a note typed into the editor was saved (`PUT` 200) and read back; a new tag was made and put on the trade (`POST` 201, `PUT` 200); the accounts page showed the account, its net result and the business totals; adding an account under a taken name in another capitalization showed "You already have an account with that name." in the dialog. The writes carry the CSRF token and a same-origin request through the Vite proxy, as in production.
+- 19 tests on the source (the method, path, body and CSRF header of every write, `*` kept as it is in a fee's address, refusals as sentences, the not-connected calls making no request).
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

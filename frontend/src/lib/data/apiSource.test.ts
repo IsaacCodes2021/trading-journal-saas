@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError } from '../api/client'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ApiError, setCsrfToken } from '../api/client'
 import { NotConnectedError, apiSource } from './apiSource'
 import type { TradesQuery } from './model'
 
@@ -131,15 +131,158 @@ describe('the small reads', () => {
 })
 
 describe('what is not connected yet', () => {
-  it('says so in words, for writes and for the screens still on sample data', async () => {
+  it('says so in words for importing and screenshots, without trying the network', async () => {
     const asked = serve(() => json({}))
-    await expect(apiSource.saveNotes(1, '<p>x</p>')).rejects.toBeInstanceOf(NotConnectedError)
+    await expect(apiSource.imports()).rejects.toBeInstanceOf(NotConnectedError)
     await expect(apiSource.imports()).rejects.toThrow('The import history is not connected to the server yet.')
-    await expect(apiSource.setFee(1, 'NQ', '4.00')).rejects.toThrow('Changing a fee')
-    expect(asked).toHaveLength(0) // it did not even try the network
+    await expect(apiSource.addScreenshots(1, [])).rejects.toThrow('Adding a screenshot')
+    await expect(apiSource.previewImport(1, new File([''], 'x.csv'))).rejects.toThrow('Importing')
+    await expect(apiSource.undoImport(1)).rejects.toThrow('Undoing an import')
+    expect(asked).toHaveLength(0)
   })
 
   it('is not labelled as sample data', () => {
     expect(apiSource.label).toBeNull()
+  })
+})
+
+interface Seen {
+  method: string
+  path: string
+  body: unknown
+  csrf: string | null
+}
+
+/** Answer every call with `answer`, remembering what was sent: the method, the path, the JSON body and the CSRF header. */
+function record(answer: (seen: Seen) => Response) {
+  const seen: Seen[] = []
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async (request: Request) => {
+      const text = await request.clone().text()
+      const call: Seen = {
+        method: request.method,
+        path: new URL(request.url).pathname,
+        body: text ? JSON.parse(text) : undefined,
+        csrf: request.headers.get('x-csrf-token'),
+      }
+      seen.push(call)
+      return answer(call)
+    }),
+  )
+  return seen
+}
+
+const problem = (status: number, detail: string) =>
+  json({ title: 'Unprocessable Entity', status, detail, errors: null }, status)
+
+describe('the journal writes', () => {
+  beforeEach(() => setCsrfToken('tok'))
+
+  it("aves a note, with the session's CSRF token", async () => {
+    const seen = record(() => json({ notes_html: '<p>x</p>' }))
+    await apiSource.saveNotes(7, '<p>x</p>')
+    expect(seen).toEqual([{ method: 'PUT', path: '/api/v1/trades/7/notes', body: { html: '<p>x</p>' }, csrf: 'tok' }])
+  })
+
+  it('puts a tag on with PUT and takes it off with DELETE', async () => {
+    const seen = record(() => json([]))
+    await apiSource.setTradeTag(7, 3, true)
+    await apiSource.setTradeTag(7, 3, false)
+    expect(seen.map((s) => [s.method, s.path])).toEqual([
+      ['PUT', '/api/v1/trades/7/tags/3'],
+      ['DELETE', '/api/v1/trades/7/tags/3'],
+    ])
+  })
+
+  it("akes a tag and returns it, and a refused name reaches the page as the server's sentence", async () => {
+    const tag = { id: 9, group_id: 2, name: 'FOMO', color: '#ff0000' }
+    const seen = record(() => json(tag, 201))
+    expect(await apiSource.createTag(2, 'FOMO')).toEqual(tag)
+    expect(seen[0]).toMatchObject({ method: 'POST', path: '/api/v1/tags', body: { group_id: 2, name: 'FOMO' } })
+    record(() => problem(422, 'Name is empty.'))
+    await expect(apiSource.createTag(2, ' ')).rejects.toMatchObject({ message: 'Name is empty.', status: 422 })
+  })
+})
+
+describe('the account writes', () => {
+  beforeEach(() => setCsrfToken('tok'))
+  const account = { id: 4, name: 'Apex 11' }
+  const details = {
+    name: 'Apex 11',
+    firm: 'Apex',
+    account_type: 'evaluation' as const,
+    account_size: '50000.00',
+    starting_balance: '50000.00',
+  }
+
+  it('adds, changes, rules, archives and restores an account', async () => {
+    const seen = record(() => json(account))
+    await apiSource.createAccount(details)
+    await apiSource.updateAccount(4, details)
+    const rules = {
+      profit_target: '3000.00',
+      max_drawdown: null,
+      trailing_type: null,
+      trail_lock_enabled: false,
+      trail_lock_level: null,
+      daily_loss_limit: null,
+    }
+    await apiSource.updateRules(4, rules)
+    const archive = { outcome: 'passed' as const, ended_on: '2024-03-01', note: 'done' }
+    await apiSource.archiveAccount(4, archive)
+    await apiSource.restoreAccount(4)
+    expect(seen.map((s) => [s.method, s.path, s.csrf])).toEqual([
+      ['POST', '/api/v1/accounts', 'tok'],
+      ['PUT', '/api/v1/accounts/4', 'tok'],
+      ['PUT', '/api/v1/accounts/4/rules', 'tok'],
+      ['POST', '/api/v1/accounts/4/archive', 'tok'],
+      ['POST', '/api/v1/accounts/4/restore', 'tok'],
+    ])
+    expect(seen[0]?.body).toEqual(details)
+    expect(seen[2]?.body).toEqual(rules)
+    expect(seen[3]?.body).toEqual(archive)
+  })
+
+  it("hows a refused change as the server's own sentence", async () => {
+    record(() => problem(409, 'You already have an account with that name.'))
+    await expect(apiSource.createAccount(details)).rejects.toMatchObject({
+      message: 'You already have an account with that name.',
+      status: 409,
+    })
+  })
+
+  it('reads and changes fees, keeping "*" (any other contract) as it is in the address', async () => {
+    const seen = record(() => json({ '*': '4.00' }))
+    expect(await apiSource.fees(4)).toEqual({ '*': '4.00' })
+    await apiSource.setFee(4, '*', '1.00')
+    await apiSource.removeFee(4, 'NQ')
+    expect(seen.map((s) => [s.method, s.path])).toEqual([
+      ['GET', '/api/v1/accounts/4/fees'],
+      ['PUT', '/api/v1/accounts/4/fees/*'],
+      ['DELETE', '/api/v1/accounts/4/fees/NQ'],
+    ])
+    expect(seen[1]?.body).toEqual({ rate: '1.00' })
+  })
+
+  it('reads, adds to and deletes from the ledger', async () => {
+    const entry = { kind: 'payout' as const, amount: '1500.00', entry_date: '2024-04-01', note: '' }
+    const seen = record((call) => json(call.method === 'POST' ? { id: 1, account_id: 4, ...entry } : []))
+    expect(await apiSource.ledger(4)).toEqual([])
+    expect(await apiSource.addLedgerEntry(4, entry)).toMatchObject({ id: 1, amount: '1500.00' })
+    await apiSource.deleteLedgerEntry(4, 1)
+    expect(seen.map((s) => [s.method, s.path])).toEqual([
+      ['GET', '/api/v1/accounts/4/ledger'],
+      ['POST', '/api/v1/accounts/4/ledger'],
+      ['DELETE', '/api/v1/accounts/4/ledger/1'],
+    ])
+    expect(seen[1]?.body).toEqual(entry)
+  })
+
+  it('reads the progress overviews and the business totals', async () => {
+    const seen = record(() => json([]))
+    await apiSource.accountOverviews()
+    await apiSource.businessTotals()
+    expect(seen.map((s) => s.path)).toEqual(['/api/v1/account-overviews', '/api/v1/business-totals'])
   })
 })
