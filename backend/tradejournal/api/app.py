@@ -22,7 +22,7 @@ from .deps import utc_now
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .ports import ReadinessCheck, Services
-from .routers import accounts, session, stats
+from .routers import accounts, session, stats, tags, trades
 from .security import SecurityHeadersMiddleware
 from .spa import mount_spa
 
@@ -108,5 +108,7 @@ def create_app(
     app.include_router(session.router)
     app.include_router(accounts.router)
     app.include_router(stats.router)
+    app.include_router(trades.router)
+    app.include_router(tags.router)
     mount_spa(app, config.web_dist)  # last, so it never shadows a route above
     return app

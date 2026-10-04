@@ -12,6 +12,7 @@ from decimal import Decimal
 from .. import finance
 from ..queries import TradeRecord
 from ..timeutil import to_utc_iso
+from .cents import cents
 from .schemas.journal import (
     AccountRefOut,
     AccountSummaryOut,
@@ -36,14 +37,14 @@ def build_dashboard(trades: Sequence[TradeRecord]) -> DashboardOut:
         range=DateRangeOut(start=days[0].day, end=days[-1].day) if days else None,
         summary=_summary(summary, account_count=len({t.account_id for t in trades})),
         equity_by_trade=[
-            EquityPointOut(at=to_utc_iso(trade.exit_at), equity=_money(point.equity), drawdown=_money(point.drawdown))
+            EquityPointOut(at=to_utc_iso(trade.exit_at), equity=cents(point.equity), drawdown=cents(point.drawdown))
             for trade, point in zip(trades, by_trade, strict=True)
         ],
         equity_by_day=[
-            EquityPointOut(at=day.day.isoformat(), equity=_money(point.equity), drawdown=_money(point.drawdown))
+            EquityPointOut(at=day.day.isoformat(), equity=cents(point.equity), drawdown=cents(point.drawdown))
             for day, point in zip(days, by_day, strict=True)
         ],
-        daily=[DailyResultOut(day=d.day, net_pnl=_money(d.net_pnl), trade_count=d.trade_count) for d in days],
+        daily=[DailyResultOut(day=d.day, net_pnl=cents(d.net_pnl), trade_count=d.trade_count) for d in days],
         score=PerformanceScoreOut(
             overall=float(score.overall),
             axes=[ScoreAxisOut(name=a.name, score=float(a.score), rule=a.rule) for a in score.axes],
@@ -54,16 +55,9 @@ def build_dashboard(trades: Sequence[TradeRecord]) -> DashboardOut:
     )
 
 
-def _money(value: Decimal) -> Decimal:
-    """Money crosses the API as cents ("0.00", never "0" or "-0.00"). Sums of nothing are a bare zero and averages
-    divide, so every money value passes through here on its way out."""
-    rounded = finance.to_money(value)
-    return rounded if rounded != 0 else finance.ZERO.quantize(finance.CENT)
-
-
 def _cents(value: Decimal | None) -> Decimal | None:
-    """`_money` for a value that may be undefined (no wins, no trades)."""
-    return None if value is None else _money(value)
+    """`cents` for a value that may be undefined (no wins, no trades)."""
+    return None if value is None else cents(value)
 
 
 def _ratio(value: Decimal | None) -> float | None:
@@ -77,11 +71,11 @@ def _summary(s: finance.Summary, *, account_count: int) -> SummaryOut:
         win_count=s.win_count,
         loss_count=s.loss_count,
         breakeven_count=s.breakeven_count,
-        gross_pnl=_money(s.gross_pnl),
-        fees=_money(s.fees),
-        net_pnl=_money(s.net_pnl),
-        total_won=_money(s.total_won),
-        total_lost=_money(s.total_lost),
+        gross_pnl=cents(s.gross_pnl),
+        fees=cents(s.fees),
+        net_pnl=cents(s.net_pnl),
+        total_won=cents(s.total_won),
+        total_lost=cents(s.total_lost),
         win_rate=_ratio(s.win_rate),
         profit_factor=_ratio(s.profit_factor),
         avg_win=_cents(s.avg_win),
@@ -93,7 +87,7 @@ def _summary(s: finance.Summary, *, account_count: int) -> SummaryOut:
         trading_days=s.trading_days,
         winning_days=s.winning_days,
         losing_days=s.losing_days,
-        max_drawdown=_money(s.max_drawdown),
+        max_drawdown=cents(s.max_drawdown),
     )
 
 
@@ -113,7 +107,7 @@ def _account_summaries(trades: Sequence[TradeRecord]) -> list[AccountSummaryOut]
                 account_type=first.account_type,
             ),
             trade_count=count,
-            net_pnl=_money(net),
+            net_pnl=cents(net),
         )
         for first, count, net in rows
     ]

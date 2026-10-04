@@ -243,6 +243,39 @@
         "title": "AccountSummaryOut",
         "type": "object"
       },
+      "CatalogTagOut": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "group_id",
+          "name",
+          "color",
+          "trade_count"
+        ],
+        "title": "CatalogTagOut",
+        "type": "object"
+      },
       "DailyResultOut": {
         "properties": {
           "day": {
@@ -406,6 +439,64 @@
         "title": "FieldError",
         "type": "object"
       },
+      "FillPairOut": {
+        "description": "One row of the broker's export: a buy fill matched to a sell fill. Several of them make one trade.",
+        "properties": {
+          "bought_at": {
+            "format": "date-time",
+            "title": "Bought At",
+            "type": "string"
+          },
+          "buy_price": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Buy Price",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Pnl",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "sell_price": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Sell Price",
+            "type": "string"
+          },
+          "sold_at": {
+            "format": "date-time",
+            "title": "Sold At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "bought_at",
+          "sold_at",
+          "qty",
+          "buy_price",
+          "sell_price",
+          "pnl"
+        ],
+        "title": "FillPairOut",
+        "type": "object"
+      },
       "FilterOptionsOut": {
         "properties": {
           "firms": {
@@ -446,6 +537,39 @@
           "mfa_fresh"
         ],
         "title": "FlagsOut",
+        "type": "object"
+      },
+      "NeighborsOut": {
+        "description": "The trades either side of one in the list the person came from; null at either end.",
+        "properties": {
+          "next": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          }
+        },
+        "required": [
+          "previous",
+          "next"
+        ],
+        "title": "NeighborsOut",
         "type": "object"
       },
       "PerformanceScoreOut": {
@@ -578,6 +702,42 @@
           "rule"
         ],
         "title": "ScoreAxisOut",
+        "type": "object"
+      },
+      "ScreenshotOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "original_name": {
+            "title": "Original Name",
+            "type": "string"
+          },
+          "src": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Src"
+          }
+        },
+        "required": [
+          "id",
+          "original_name",
+          "created_at",
+          "src"
+        ],
+        "title": "ScreenshotOut",
         "type": "object"
       },
       "SessionOut": {
@@ -957,6 +1117,390 @@
           "max_drawdown"
         ],
         "title": "SummaryOut",
+        "type": "object"
+      },
+      "TagCatalogOut": {
+        "properties": {
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/TagGroupOut"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogTagOut"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups",
+          "tags"
+        ],
+        "title": "TagCatalogOut",
+        "type": "object"
+      },
+      "TagGroupOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "TagGroupOut",
+        "type": "object"
+      },
+      "TagOut": {
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "group_id": {
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "group_id",
+          "name",
+          "color"
+        ],
+        "title": "TagOut",
+        "type": "object"
+      },
+      "TradeDetailOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountRefOut"
+          },
+          "avg_entry": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Avg Entry",
+            "type": "string"
+          },
+          "avg_exit": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Avg Exit",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "long",
+              "short"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "entry_at": {
+            "format": "date-time",
+            "title": "Entry At",
+            "type": "string"
+          },
+          "exit_at": {
+            "format": "date-time",
+            "title": "Exit At",
+            "type": "string"
+          },
+          "fees": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Fees",
+            "type": "string"
+          },
+          "fill_pairs": {
+            "items": {
+              "$ref": "#/components/schemas/FillPairOut"
+            },
+            "title": "Fill Pairs",
+            "type": "array"
+          },
+          "gross_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Gross Pnl",
+            "type": "string"
+          },
+          "has_notes": {
+            "title": "Has Notes",
+            "type": "boolean"
+          },
+          "hold_seconds": {
+            "title": "Hold Seconds",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "notes_html": {
+            "title": "Notes Html",
+            "type": "string"
+          },
+          "points": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Points",
+            "type": "string"
+          },
+          "screenshot_count": {
+            "title": "Screenshot Count",
+            "type": "integer"
+          },
+          "screenshots": {
+            "items": {
+              "$ref": "#/components/schemas/ScreenshotOut"
+            },
+            "title": "Screenshots",
+            "type": "array"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "symbol_root": {
+            "title": "Symbol Root",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagOut"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "total_qty": {
+            "title": "Total Qty",
+            "type": "integer"
+          },
+          "trade_day": {
+            "format": "date",
+            "title": "Trade Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account",
+          "symbol",
+          "symbol_root",
+          "direction",
+          "entry_at",
+          "exit_at",
+          "trade_day",
+          "hold_seconds",
+          "total_qty",
+          "avg_entry",
+          "avg_exit",
+          "gross_pnl",
+          "fees",
+          "net_pnl",
+          "tags",
+          "has_notes",
+          "screenshot_count",
+          "points",
+          "fill_pairs",
+          "notes_html",
+          "screenshots"
+        ],
+        "title": "TradeDetailOut",
+        "type": "object"
+      },
+      "TradeOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountRefOut"
+          },
+          "avg_entry": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Avg Entry",
+            "type": "string"
+          },
+          "avg_exit": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Avg Exit",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "long",
+              "short"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "entry_at": {
+            "format": "date-time",
+            "title": "Entry At",
+            "type": "string"
+          },
+          "exit_at": {
+            "format": "date-time",
+            "title": "Exit At",
+            "type": "string"
+          },
+          "fees": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Fees",
+            "type": "string"
+          },
+          "gross_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Gross Pnl",
+            "type": "string"
+          },
+          "has_notes": {
+            "title": "Has Notes",
+            "type": "boolean"
+          },
+          "hold_seconds": {
+            "title": "Hold Seconds",
+            "type": "integer"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "screenshot_count": {
+            "title": "Screenshot Count",
+            "type": "integer"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "symbol_root": {
+            "title": "Symbol Root",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagOut"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "total_qty": {
+            "title": "Total Qty",
+            "type": "integer"
+          },
+          "trade_day": {
+            "format": "date",
+            "title": "Trade Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account",
+          "symbol",
+          "symbol_root",
+          "direction",
+          "entry_at",
+          "exit_at",
+          "trade_day",
+          "hold_seconds",
+          "total_qty",
+          "avg_entry",
+          "avg_exit",
+          "gross_pnl",
+          "fees",
+          "net_pnl",
+          "tags",
+          "has_notes",
+          "screenshot_count"
+        ],
+        "title": "TradeOut",
+        "type": "object"
+      },
+      "TradesPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "net_pnl"
+        ],
+        "title": "TradesPageOut",
         "type": "object"
       },
       "UserOut": {
@@ -1410,6 +1954,649 @@
         "summary": "Patch Settings",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "description": "Every group and tag, each tag with the number of trades that carry it.",
+        "operationId": "get_tag_catalog",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCatalogOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Tag Catalog",
+        "tags": [
+          "tags"
+        ]
+      }
+    },
+    "/api/v1/trades": {
+      "get": {
+        "description": "One page of the trade log, with the total count and net result of everything the filters match.",
+        "operationId": "list_trades",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "mtd",
+                "last_month",
+                "ytd"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluation",
+                    "funded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Show Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "firms",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Firms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "integer"
+              },
+              "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_roots",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Symbol Roots",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "long",
+                    "short"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-date",
+              "enum": [
+                "date",
+                "-date",
+                "account",
+                "-account",
+                "symbol",
+                "-symbol",
+                "direction",
+                "-direction",
+                "qty",
+                "-qty",
+                "hold",
+                "-hold",
+                "net_pnl",
+                "-net_pnl"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradesPageOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Trades",
+        "tags": [
+          "trades"
+        ]
+      }
+    },
+    "/api/v1/trades/{trade_id}": {
+      "get": {
+        "description": "Everything about one trade. Another user's trade and a missing one are both a 404: they look the same.",
+        "operationId": "get_trade",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TradeDetailOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Trade",
+        "tags": [
+          "trades"
+        ]
+      }
+    },
+    "/api/v1/trades/{trade_id}/neighbors": {
+      "get": {
+        "description": "The trades either side of this one in the list the person came from (same filters, search and order).",
+        "operationId": "get_trade_neighbors",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "mtd",
+                "last_month",
+                "ytd"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluation",
+                    "funded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Show Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "firms",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Firms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "integer"
+              },
+              "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_roots",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Symbol Roots",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "long",
+                    "short"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 100,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "-date",
+              "enum": [
+                "date",
+                "-date",
+                "account",
+                "-account",
+                "symbol",
+                "-symbol",
+                "direction",
+                "-direction",
+                "qty",
+                "-qty",
+                "hold",
+                "-hold",
+                "net_pnl",
+                "-net_pnl"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeighborsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Trade Neighbors",
+        "tags": [
+          "trades"
         ]
       }
     }

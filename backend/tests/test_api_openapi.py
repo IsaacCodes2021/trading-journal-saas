@@ -47,12 +47,26 @@ def test_the_routes_are_in_the_schema():
     assert set(paths["/api/v1/accounts"]) == {"get"}
     assert set(paths["/api/v1/dashboard"]) == {"get"}
     assert set(paths["/api/v1/filter-options"]) == {"get"}
+    assert set(paths["/api/v1/tags"]) == {"get"}
+    assert set(paths["/api/v1/trades"]) == {"get"}
+    assert set(paths["/api/v1/trades/{trade_id}"]) == {"get"}
+    assert set(paths["/api/v1/trades/{trade_id}/neighbors"]) == {"get"}
     assert "/healthz" not in paths  # server plumbing, not part of the contract the SPA codes against
 
 
 def test_operation_ids_are_the_unique_handler_names():
     ids = [operation["operationId"] for path in spec()["paths"].values() for operation in path.values()]
-    assert sorted(ids) == ["get_dashboard", "get_filter_options", "get_session", "list_accounts", "patch_settings"]
+    assert sorted(ids) == [
+        "get_dashboard",
+        "get_filter_options",
+        "get_session",
+        "get_tag_catalog",
+        "get_trade",
+        "get_trade_neighbors",
+        "list_accounts",
+        "list_trades",
+        "patch_settings",
+    ]
     assert len(ids) == len(set(ids))  # two handlers with one name would silently merge in the generated client
 
 

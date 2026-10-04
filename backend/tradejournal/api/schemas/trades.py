@@ -1,0 +1,124 @@
+"""The trade log, one trade's page, and the tag catalog (doc 07 section 2). Mirrors `lib/data/model.ts`."""
+
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Annotated, Literal
+
+from fastapi import Query
+from pydantic import Field
+
+from .base import ApiModel
+from .journal import AccountRefOut, Direction, TradeFilterQuery
+from .money import Money
+
+# A trade's prices are exact decimals like money (a string in JSON, never a float), but they are not amounts of money.
+Price = Money
+
+TradeSort = Literal[
+    "date", "-date",
+    "account", "-account",
+    "symbol", "-symbol",
+    "direction", "-direction",
+    "qty", "-qty",
+    "hold", "-hold",
+    "net_pnl", "-net_pnl",
+]  # fmt: skip
+
+
+class TradeListFilters(TradeFilterQuery):
+    """The shared filters plus a search and an order. Navigating between trades reuses this model, so the arrows on a
+    trade's page follow the list the person came from."""
+
+    q: Annotated[str, Field(max_length=100)] = ""  # matches the contract, its root, the account name or a tag name
+    sort: TradeSort = "-date"  # "date" is oldest first (by entry time), "-date" newest first
+
+
+class TradesQuery(TradeListFilters):
+    limit: Annotated[int, Field(ge=1, le=200)] = 50
+    offset: Annotated[int, Field(ge=0)] = 0
+
+
+TradeListFiltersQuery = Annotated[TradeListFilters, Query()]
+TradesQueryParams = Annotated[TradesQuery, Query()]
+
+
+class TagOut(ApiModel):
+    id: int
+    group_id: int
+    name: str
+    color: str  # "#rrggbb"
+
+
+class CatalogTagOut(TagOut):
+    trade_count: int  # how many trades carry it
+
+
+class TagGroupOut(ApiModel):
+    id: int
+    name: str  # "Setup", "Mistake", "Emotion"
+
+
+class TagCatalogOut(ApiModel):
+    groups: list[TagGroupOut]
+    tags: list[CatalogTagOut]
+
+
+class TradeOut(ApiModel):
+    id: int
+    account: AccountRefOut
+    symbol: str  # the contract, "NQZ6"
+    symbol_root: str  # "NQ"
+    direction: Direction
+    entry_at: datetime
+    exit_at: datetime
+    trade_day: date  # the trading day, computed on the server from the person's trading-day settings
+    hold_seconds: int
+    total_qty: int
+    avg_entry: Price
+    avg_exit: Price
+    gross_pnl: Money
+    fees: Money
+    net_pnl: Money
+    tags: list[TagOut]
+    has_notes: bool
+    screenshot_count: int
+
+
+class TradesPageOut(ApiModel):
+    items: list[TradeOut]
+    total: int  # trades matching every filter, across all pages
+    net_pnl: Money  # their net result: the count and the net follow every filter
+
+
+class FillPairOut(ApiModel):
+    """One row of the broker's export: a buy fill matched to a sell fill. Several of them make one trade."""
+
+    id: int
+    bought_at: datetime
+    sold_at: datetime
+    qty: int
+    buy_price: Price
+    sell_price: Price
+    pnl: Money  # this pair's gross result, before fees (fees are charged per trade)
+
+
+class ScreenshotOut(ApiModel):
+    id: int
+    original_name: str
+    created_at: datetime
+    src: str | None  # same-origin URL of the image; null until the file route exists (M6)
+
+
+class TradeDetailOut(TradeOut):
+    points: Price  # per contract, positive = favorable
+    fill_pairs: list[FillPairOut]
+    notes_html: str  # sanitized again on render, whatever the server did
+    screenshots: list[ScreenshotOut]
+
+
+class NeighborsOut(ApiModel):
+    """The trades either side of one in the list the person came from; null at either end."""
+
+    previous: int | None
+    next: int | None
