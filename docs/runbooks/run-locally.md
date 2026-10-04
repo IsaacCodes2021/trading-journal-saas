@@ -46,6 +46,29 @@ cd backend
 
 It prints the code once; only a hash is stored. Tests never contact Kinde: they use a fake provider (`backend/tests/fake_idp.py`).
 
+### Deleting accounts (the sweep)
+
+A person who asks to delete their account (Settings > Data & privacy) is marked for deletion a week away and signed out everywhere; signing in again before then cancels it. **Nothing is deleted until the sweep runs**, so it must be a scheduled job on the host (hourly is plenty):
+
+```powershell
+cd backend
+.venv\Scripts\python.exe -m tradejournal.pg.sweep deletions            # a dry run: counts only, nothing is touched
+.venv\Scripts\python.exe -m tradejournal.pg.sweep deletions --apply    # delete what is due
+```
+
+| Setting | What it is |
+|---|---|
+| `TJ_SWEEP_DATABASE_URL` | the database address for the `sweep` role (it can see an account's identity id and deletion date, delete what is due, and write the audit log; nothing else about a person). In production it is the `app_sweep` role created with the others (doc 03 section 1); on this machine its address is the `TJ_DEV_SWEEP_URL` line of `backend/.env.test` (copy it into this setting) |
+| `TJ_KINDE_DOMAIN`, `TJ_KINDE_M2M_CLIENT_ID`, `TJ_KINDE_M2M_CLIENT_SECRET` | the machine-to-machine client the sweep uses to remove the person from Kinde too (the secret: host secret store only, never the repository, never a chat). Without them `--apply` refuses, because an account deleted here and left at Kinde would still be someone's personal data; `--without-identity-provider` overrides that on purpose, for local development only |
+
+**In Kinde (once, by you):** create a *machine-to-machine* application for the sweep (not the sign-in application), authorize it for the **Kinde Management API**, and allow it to read and delete users. Put its client id and secret in the host's secret store as the two `TJ_KINDE_M2M_*` settings above.
+
+What the sweep prints is counts only: due, deleted, skipped (signed in a moment ago, so cancelled), identities removed, identities still pending. An identity that Kinde did not confirm stays in the table `identity_removals` (with the number of attempts and a short reason) and the next run tries it again; check that the "still pending" count goes back to 0.
+
+**Not covered yet:** the screenshot files (M6) and the subscription (M9) are not part of the sweep until those features exist.
+
+**To try the whole thing on this machine without touching anyone real:** make a throwaway user, sign in as it, ask to delete, then move its date into the past as the database owner and run the sweep with `--apply --without-identity-provider`. **Never run `--apply` against the local database while it holds the copy of your real journal** unless that user is not due: the sweep deletes whoever is due.
+
 ## 3. The front end
 
 ```powershell
