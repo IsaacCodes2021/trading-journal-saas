@@ -2,7 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { openApp } from '../../test-utils'
-import { go } from './InvitePage'
+import { SIGN_IN_ERRORS, go } from '../../lib/auth'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -65,6 +65,28 @@ describe('the invite page', () => {
     const { user, leave } = open({ code: 'TJ-7KQ2-M9XA' })
     await user.type(await screen.findByLabelText('Invite code'), '{Enter}')
     expect(leave).toHaveBeenCalled()
+  })
+
+  it.each(Object.entries(SIGN_IN_ERRORS))(
+    'tells the person what happened when sign-in comes back with %s',
+    async (code, sentence) => {
+      open({ error: code })
+      expect(await screen.findByRole('alert')).toHaveTextContent(sentence)
+      expect(screen.getByLabelText('Invite code')).toBeInTheDocument() // and they can try again from the same page
+    },
+  )
+
+  it('shows nothing for an error code the server does not use, whatever the address says', async () => {
+    open({ error: '<script>alert(1)</script>' })
+    await screen.findByRole('heading', { name: 'Enter your invite code' })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(document.body.innerHTML).not.toContain('<script>alert')
+  })
+
+  it('shows no complaint when nothing went wrong', async () => {
+    open()
+    await screen.findByRole('heading', { name: 'Enter your invite code' })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('offers sign-in for people who already have an account', async () => {

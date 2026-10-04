@@ -16,6 +16,7 @@ import { TradeLogPage } from './features/trades/TradeLogPage'
 import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
 import { isTab, type Tab } from './features/accounts/tabs'
 import { parseFilters, pickFilters } from './lib/filters'
+import { signInErrorOf, type SignInErrorCode } from './lib/auth'
 import { useSession } from './lib/session'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
@@ -137,14 +138,18 @@ const importRoute = createRoute({
 const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/invite',
-  // An invite email links here with the code in the address: /invite?code=TJ-7KQ2-M9XA
-  validateSearch: (search: Record<string, unknown>): { code?: string } =>
-    typeof search['code'] === 'string' && search['code'] !== '' ? { code: search['code'].slice(0, 64) } : {},
+  // An invite email links here with the code in the address: /invite?code=TJ-7KQ2-M9XA. A sign-in that did not complete
+  // comes back as /invite?error=<code>; only the server's own codes are kept, so an edited address shows nothing.
+  validateSearch: (search: Record<string, unknown>): { code?: string; error?: SignInErrorCode } => {
+    const code = typeof search['code'] === 'string' && search['code'] !== '' ? search['code'].slice(0, 64) : null
+    const error = signInErrorOf(search['error'])
+    return { ...(code ? { code } : {}), ...(error ? { error } : {}) }
+  },
   component: function InviteRoute() {
-    const { code } = inviteRoute.useSearch()
+    const { code, error } = inviteRoute.useSearch()
     return (
       <Suspense fallback={<Spinner label="Loading" />}>
-        <InvitePage {...(code ? { code } : {})} />
+        <InvitePage {...(code ? { code } : {})} {...(error ? { error } : {})} />
       </Suspense>
     )
   },
