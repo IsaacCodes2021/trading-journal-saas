@@ -222,7 +222,9 @@ def old_row(db, user) -> int:
     """The screenshot the `stored` fixture made the old way, before files were kept in the store: it has a row, but its
     file is not where the store looks, so the export must list it as missing."""
     with db.tenant_session(user) as conn:
-        return conn.execute("SELECT id FROM screenshots WHERE stored_name NOT LIKE 'u/%'").fetchone()["id"]
+        return conn.execute(
+            "SELECT id FROM screenshots WHERE stored_name NOT LIKE 'u/%' ORDER BY id LIMIT 1"
+        ).fetchone()["id"]
 
 
 def test_every_image_is_in_the_file_byte_for_byte_named_by_its_id_and_the_manifest_vouches_for_it(
@@ -281,6 +283,7 @@ def test_an_image_whose_file_is_gone_is_left_out_and_named_in_the_manifest_so_a_
 
 def test_a_stored_name_that_is_not_a_key_cannot_stop_the_export_or_reach_outside_the_store(db, alice, store, stored):
     _, trade_ids = stored
+    old = old_row(db, alice)  # before the bad one is added: afterwards two rows have no `u/` name
     with db.tenant_session(alice) as conn:
         conn.execute(
             "INSERT INTO screenshots (trade_id, stored_name, original_name) VALUES (%s, '../escape.png', 'x.png')",
@@ -288,7 +291,7 @@ def test_a_stored_name_that_is_not_a_key_cannot_stop_the_export_or_reach_outside
         )
         bad = conn.execute("SELECT id FROM screenshots WHERE stored_name = '../escape.png'").fetchone()["id"]
     files, _, _ = build(db, alice, store=store)
-    assert json.loads(files["manifest.json"])["screenshot_files"]["missing"] == sorted([old_row(db, alice), bad])
+    assert json.loads(files["manifest.json"])["screenshot_files"]["missing"] == sorted([old, bad])
 
 
 @pytest.mark.parametrize(

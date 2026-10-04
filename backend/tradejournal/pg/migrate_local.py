@@ -3,7 +3,8 @@
     python -m tradejournal.pg.migrate_local --source path/to/journal.db --user-id <uuid> --dry-run
     python -m tradejournal.pg.migrate_local --source path/to/journal.db --user-id <uuid>
 
-``TJ_DATABASE_URL`` (the request role, ``app_rw``) names the database. The user must exist already: sign in once, so
+``TJ_DATABASE_URL`` (the request role, ``app_rw``) names the database, and ``TJ_FILES_DIR`` (or ``--files-dir``) the
+folder that holds screenshot files. The user must exist already: sign in once, so
 the identity provider has created the account, then use that account's id. The original journal is never opened. Its
 file (and a ``-wal`` file beside it, if any) is copied to a temporary folder first, and the copy is what is read and
 brought up to the current schema.
@@ -17,8 +18,14 @@ are copied as they were stored, not regrouped, so a difference means the copy is
 do not fail the run: what the *current* grouping and fee code would change about the stored trades, which is how an old
 journal reveals that a rule has moved since it was written.
 
-Screenshot rows are copied with their file names. The files themselves go to object storage with the R2 pipeline (M6);
-the report lists any named file that is missing from the screenshots folder.
+**Screenshots.** With a file store given, each screenshot's file is checked the way an upload is (a real PNG, JPEG, GIF
+or WebP of a sane size, within the per-trade and per-person limits), copied into the store under a new key
+(``u/<user id>/<random>.<ext>``), and its row records that key, its type, size and dimensions. The golden check then
+compares the rows with the old file names mapped to the new keys, and reads **every copied file back from the store** and
+compares its SHA-256 with the original's. A file that is missing, not an acceptable image, or over a limit is *not*
+copied: its row is still copied under its old name, and the report says which and why (an export lists such a row as
+missing). A dry run checks every file and writes none. A failure removes the files already copied. With no store given,
+only the rows are copied, and the report says the files were not.
 """
 
 from __future__ import annotations
@@ -32,6 +39,8 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
@@ -42,10 +51,13 @@ import psycopg
 from psycopg.rows import tuple_row
 
 from .. import db as sqlite_db
+from .. import images
 from .. import settings as sqlite_settings
+from ..filestore import FileMissing, FileStore, LocalFileStore
 from ..finance import plain, to_money
 from ..settings import DEFAULTS
 from ..timeutil import from_utc_iso, to_utc_iso
+from . import screenshots as pg_screenshots
 from . import settings as pg_settings
 from . import store, usage
 from .defaults import provision_defaults
@@ -75,6 +87,19 @@ class Check:
         return self.source == self.target
 
 
+@dataclass(frozen=True)
+class PlacedFile:
+    """A screenshot file taken into the store (or, in a dry run, one that would be)."""
+
+    source_name: str  # its name in the old journal's screenshots folder
+    key: str  # where it is in the store
+    sha256: str  # of the original's bytes
+    size: int
+    content_type: str
+    width: int
+    height: int
+
+
 @dataclass
 class MigrationReport:
     dry_run: bool
@@ -82,6 +107,9 @@ class MigrationReport:
     checks: list[Check] = field(default_factory=list)
     missing_screenshot_files: list[str] = field(default_factory=list)
     skipped_settings: list[str] = field(default_factory=list)
+    placed: list[PlacedFile] = field(default_factory=list)  # files taken into the store, in the order they were
+    files_not_copied: list[tuple[str, str]] = field(default_factory=list)  # (old name, the reason in words)
+    store_given: bool = False  # false: only the screenshot rows were copied
 
     @property
     def ok(self) -> bool:
@@ -111,9 +139,20 @@ def _rows(source: sqlite3.Connection, query: str) -> list[sqlite3.Row]:
 # ---- the copy --------------------------------------------------------------------------------------------------
 
 
-def copy_journal(conn: psycopg.Connection, source: sqlite3.Connection, screenshots_dir: Path | None) -> MigrationReport:
-    """Copy every table. `conn` is a tenant session; the caller owns the transaction."""
-    report = MigrationReport(dry_run=False)
+def copy_journal(
+    conn: psycopg.Connection,
+    source: sqlite3.Connection,
+    screenshots_dir: Path | None,
+    *,
+    files: FileStore | None = None,
+    user_id: UUID | None = None,
+    write_files: bool = True,
+    report: MigrationReport | None = None,
+) -> MigrationReport:
+    """Copy every table. `conn` is a tenant session; the caller owns the transaction. With `files` (and `user_id`, for the
+    keys) the screenshot files are taken into the store too, and `write_files=False` checks them without writing any. The
+    caller passes its own `report` so that, if this fails half way, it knows which files to take out again."""
+    report = report or MigrationReport(dry_run=False)
     _refuse_if_not_empty(conn)
     store.lock_user(conn)
 
@@ -249,11 +288,23 @@ def copy_journal(conn: psycopg.Connection, source: sqlite3.Connection, screensho
         ],
     )
     screenshot_rows = _rows(source, "SELECT * FROM screenshots ORDER BY id")
+    report.store_given = files is not None and user_id is not None and screenshots_dir is not None
+    taken = _take_files(screenshot_rows, screenshots_dir, files, user_id, write=write_files, report=report)
     _batch(
         conn,
-        "INSERT INTO screenshots (trade_id, stored_name, original_name, created_at) VALUES (%s, %s, %s, %s)",
+        "INSERT INTO screenshots (trade_id, stored_name, original_name, created_at, content_type, size_bytes, width, height)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
         [
-            (trade_ids[r["trade_id"]], r["stored_name"], r["original_name"], _timestamp(r["created_at"]))
+            (
+                trade_ids[r["trade_id"]],
+                taken[r["id"]].key if r["id"] in taken else r["stored_name"],
+                r["original_name"],
+                _timestamp(r["created_at"]),
+                taken[r["id"]].content_type if r["id"] in taken else None,
+                taken[r["id"]].size if r["id"] in taken else 0,
+                taken[r["id"]].width if r["id"] in taken else None,
+                taken[r["id"]].height if r["id"] in taken else None,
+            )
             for r in screenshot_rows
         ],
     )
@@ -281,6 +332,58 @@ def copy_journal(conn: psycopg.Connection, source: sqlite3.Connection, screensho
         "screenshots": len(screenshot_rows), "account_ledger": _count(source, "account_ledger"),
     }  # fmt: skip
     return report
+
+
+def _take_files(
+    rows: list[sqlite3.Row],
+    screenshots_dir: Path | None,
+    files: FileStore | None,
+    user_id: UUID | None,
+    *,
+    write: bool,
+    report: MigrationReport,
+) -> dict[int, PlacedFile]:
+    """Check each screenshot's file the way an upload is checked and, with `write`, put it in the store. Returns the
+    files taken, by the old row's id. One that is not taken is listed in the report with its reason, never fatal."""
+    taken: dict[int, PlacedFile] = {}
+    if files is None or user_id is None or screenshots_dir is None:
+        return taken
+    on_trade: dict[int, int] = {}
+    held = 0
+    for row in rows:
+        name = row["stored_name"]
+        path = screenshots_dir / name
+        if Path(name).name != name or not path.is_file():
+            continue  # a missing file is listed with the others below; a name with a folder in it is never opened
+        reason, info, data = None, None, b""
+        if path.stat().st_size > pg_screenshots.MAX_FILE_BYTES:
+            reason = f"larger than {pg_screenshots.MAX_FILE_BYTES // (1024 * 1024)} MB"
+        else:
+            data = path.read_bytes()
+            try:
+                info = images.inspect(data)
+            except images.ImageRefused as refusal:
+                reason = str(refusal)
+        if reason is None and on_trade.get(row["trade_id"], 0) >= pg_screenshots.MAX_PER_TRADE:
+            reason = f"its trade already has the {pg_screenshots.MAX_PER_TRADE} screenshots one may have"
+        if reason is None and held + len(data) > pg_screenshots.MAX_STORED_BYTES:
+            reason = (
+                f"over the {pg_screenshots.MAX_STORED_BYTES // (1024 * 1024)} MB of screenshot space one person has"
+            )
+        if reason is not None or info is None:
+            report.files_not_copied.append((name, reason or "not an acceptable image"))
+            continue
+        key = f"u/{user_id}/{uuid.uuid4().hex}{info.extension}"
+        if write:
+            files.put(key, data)
+        placed = PlacedFile(
+            name, key, hashlib.sha256(data).hexdigest(), len(data), info.content_type, info.width, info.height
+        )
+        report.placed.append(placed)  # at once, so a failure further on can take it out again
+        taken[row["id"]] = placed
+        on_trade[row["trade_id"]] = on_trade.get(row["trade_id"], 0) + 1
+        held += len(data)
+    return taken
 
 
 def _refuse_if_not_empty(conn: psycopg.Connection) -> None:
@@ -461,9 +564,22 @@ def _normal_setting(key: str, value: str) -> str:
     return sqlite_settings._parse_hhmm(value).strftime("%H:%M") if key == "trading_day_start" else value
 
 
-def golden_checks(conn: psycopg.Connection, source: sqlite3.Connection) -> list[Check]:
-    """The same facts, computed independently on each side, then the two informational checks."""
+SCREENSHOT_CHECK = "screenshots: trade, original name, stored name"
+STORED_NAME_COLUMN = 4  # in that query: the trade's three key columns, the original name, then the stored name
+
+
+def golden_checks(
+    conn: psycopg.Connection,
+    source: sqlite3.Connection,
+    *,
+    placed: Sequence[PlacedFile] = (),
+    files: FileStore | None = None,
+) -> list[Check]:
+    """The same facts, computed independently on each side, then the two informational checks. `placed` are the screenshot
+    files taken into the store: the source's stored names are mapped to their new keys before the rows are compared. With
+    `files` (not in a dry run, which writes none), every one is also read back from the store and its bytes compared."""
     checks: list[Check] = []
+    renamed = {p.source_name: p.key for p in placed}
 
     def ask(query: str, target_query: str | None = None) -> tuple[list[list], list[list]]:
         return _table(source.execute(query).fetchall()), _table(_pg_rows(conn, target_query or query))
@@ -505,14 +621,35 @@ def golden_checks(conn: psycopg.Connection, source: sqlite3.Connection) -> list[
     )
 
     for name, query in QUERIES.items():
-        left, right = ask(query)
+        if name == SCREENSHOT_CHECK and renamed:
+            rows = [list(row) for row in source.execute(query).fetchall()]
+            for row in rows:
+                row[STORED_NAME_COLUMN] = renamed.get(row[STORED_NAME_COLUMN], row[STORED_NAME_COLUMN])
+            left, right = _table(rows), _table(_pg_rows(conn, query))
+        else:
+            left, right = ask(query)
         checks.append(Check(name, _fingerprint(left), _fingerprint(right)))
+    if placed and files is not None:
+        checks.append(
+            Check(
+                "screenshot files: every file taken is in the store with the same SHA-256",
+                {p.source_name: p.sha256 for p in placed},
+                {p.source_name: _hash_in_store(files, p.key) for p in placed},
+            )
+        )
     for name, (source_query, target_query) in SPLIT_QUERIES.items():
         left, right = ask(source_query, target_query)
         checks.append(Check(name, _fingerprint(left), _fingerprint(right)))
 
     checks.extend(_consistency_with_current_code(conn))
     return checks
+
+
+def _hash_in_store(files: FileStore, key: str) -> str:
+    try:
+        return hashlib.sha256(files.get(key)).hexdigest()
+    except FileMissing:
+        return "not in the store"
 
 
 def _consistency_with_current_code(conn: psycopg.Connection) -> list[Check]:
@@ -547,11 +684,19 @@ def _derived(conn: psycopg.Connection) -> dict[tuple, tuple]:
 
 
 def run(
-    database: Database, user_id: UUID, source_path: Path, *, screenshots_dir: Path | None = None, dry_run: bool = False
+    database: Database,
+    user_id: UUID,
+    source_path: Path,
+    *,
+    screenshots_dir: Path | None = None,
+    files: FileStore | None = None,
+    dry_run: bool = False,
 ) -> MigrationReport:
-    """Copy `source_path` (a journal.db) into `user_id`'s journal. The original is only ever copied, never opened."""
+    """Copy `source_path` (a journal.db) into `user_id`'s journal. The original is only ever copied, never opened. With
+    `files`, the screenshot files go into that store too (a dry run checks them and writes none)."""
     if not source_path.is_file():
         raise FileNotFoundError(f"no journal at {source_path}")
+    report = MigrationReport(dry_run=dry_run)
     with tempfile.TemporaryDirectory(prefix="tj-migrate-") as workdir:
         copy = Path(workdir) / "journal.db"
         shutil.copy2(source_path, copy)
@@ -564,11 +709,23 @@ def run(
             with database.tenant_session(user_id, statement_timeout_ms=HEAVY_STATEMENT_TIMEOUT_MS) as conn:
                 provision_defaults(conn)
                 with conn.transaction():
-                    report = copy_journal(conn, source, screenshots_dir)
-                    report.checks = golden_checks(conn, source)
-                    report.dry_run = dry_run
+                    copy_journal(
+                        conn,
+                        source,
+                        screenshots_dir,
+                        files=files,
+                        user_id=user_id,
+                        write_files=not dry_run,
+                        report=report,
+                    )
+                    report.checks = golden_checks(conn, source, placed=report.placed, files=None if dry_run else files)
                     if dry_run:
                         raise psycopg.Rollback
+        except BaseException:
+            if files is not None and not dry_run:
+                for placed in report.placed:  # the rows are rolled back, so their files must not stay behind
+                    files.delete(placed.key)
+            raise
         finally:
             source.close()
     return report
@@ -588,6 +745,18 @@ def format_report(report: MigrationReport) -> str:
             "",
             f"{len(report.missing_screenshot_files)} screenshot file(s) named in the journal are missing from the screenshots folder.",
         ]
+    if report.store_given:
+        verb = "would be taken into" if report.dry_run else "taken into"
+        total = sum(p.size for p in report.placed)
+        lines += ["", f"{len(report.placed)} screenshot file(s) {verb} the file store ({total:,} bytes)."]
+        lines += [f"  not copied: {name}: {reason}" for name, reason in report.files_not_copied]
+        if report.files_not_copied:
+            lines += ["  (their rows were copied under the old names; an export lists them as missing)"]
+    elif report.copied.get("screenshots"):
+        lines += [
+            "",
+            "No file store was given (--files-dir or TJ_FILES_DIR), so only the screenshot rows were copied, not the files.",
+        ]
     if report.skipped_settings:
         lines += ["", "Settings with no place in the new schema (not copied): " + ", ".join(report.skipped_settings)]
     lines += ["", "RESULT: " + ("every check passed." if report.ok else "A CHECK FAILED. Do not use this copy.")]
@@ -604,6 +773,12 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--source", type=Path, required=True, help="the local journal.db (it is copied, never opened)")
     parser.add_argument(
         "--screenshots", type=Path, help="the screenshots folder (default: a screenshots folder beside the journal)"
+    )
+    parser.add_argument(
+        "--files-dir",
+        type=Path,
+        default=Path(os.environ["TJ_FILES_DIR"]) if os.environ.get("TJ_FILES_DIR", "").strip() else None,
+        help="the folder that holds screenshot files (default: $TJ_FILES_DIR); without it only the rows are copied",
     )
     parser.add_argument("--user-id", type=UUID, required=True, help="the id of the signed-in user to fill")
     parser.add_argument(
@@ -623,6 +798,7 @@ def main(argv: list[str]) -> int:
             args.user_id,
             args.source,
             screenshots_dir=screenshots if screenshots.is_dir() else None,
+            files=LocalFileStore(args.files_dir) if args.files_dir else None,
             dry_run=args.dry_run,
         )
     except MigrationRefused as refusal:

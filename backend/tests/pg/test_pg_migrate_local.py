@@ -4,14 +4,19 @@ The source is a synthetic journal built with the old SQLite code: two accounts (
 notes, screenshots, day notes, ledger entries, fees and changed settings. Nothing here reads real data.
 """
 
+import io
+import json
 import shutil
 import sqlite3
-from datetime import date
+import struct
+import zipfile
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
 from helpers import SAMPLE, fixture_bytes
+from pg_helpers import PNG_1X1
 
 from tradejournal import accounts as sqlite_accounts
 from tradejournal import db as sqlite_db
@@ -19,14 +24,18 @@ from tradejournal import importer as sqlite_importer
 from tradejournal import journal as sqlite_journal
 from tradejournal import ledger as sqlite_ledger
 from tradejournal import settings as sqlite_settings
-from tradejournal.pg import migrate_local
+from tradejournal.api.sanitize import sanitize_notes
+from tradejournal.filestore import LocalFileStore
+from tradejournal.pg import export as pg_export
+from tradejournal.pg import migrate_local, usage
+from tradejournal.pg import screenshots as pg_screenshots
 from tradejournal.pg.migrate_local import MigrationRefused
 
 D = Decimal
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32  # the old app only looked at the first bytes: this one claims to be 0 by 0
 
 
-def build_source(directory: Path, *, with_files: bool = True) -> Path:
+def build_source(directory: Path, *, with_files: bool = True, image: bytes = PNG, both_on_first: bool = False) -> Path:
     """A journal as the single-user app would have left it. Returns the path of journal.db."""
     directory.mkdir(parents=True, exist_ok=True)
     path = directory / "journal.db"
@@ -58,8 +67,8 @@ def build_source(directory: Path, *, with_files: bool = True) -> Path:
         sqlite_journal.set_trade_tags(conn, third, custom.id, ["News day"])
         sqlite_journal.set_notes(conn, first, "<p>Held for the target. <b>Good</b> patience.</p>")
         sqlite_journal.set_notes(conn, second, "<p>Entered late, chased price.</p>")
-        for index, trade_id in enumerate((first, second)):
-            sqlite_journal.add_screenshot(conn, shots, trade_id, f"chart {index}.png", PNG)
+        for index, trade_id in enumerate((first, first) if both_on_first else (first, second)):
+            sqlite_journal.add_screenshot(conn, shots, trade_id, f"chart {index}.png", image + bytes([index]))
         conn.execute(
             "INSERT INTO day_notes (trade_date, notes, updated_at) VALUES ('2024-01-05', '<p>Tight day</p>', '2024-01-06T01:00:00Z')"
         )
@@ -266,6 +275,245 @@ def test_screenshot_files_that_are_missing_are_listed_not_fatal(db, alice, tmp_p
     assert report.ok and len(report.missing_screenshot_files) == 1
 
 
+# ---- the screenshot files ------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def store(tmp_path):
+    return LocalFileStore(tmp_path / "store")
+
+
+def header(kind: str, width: int, height: int) -> bytes:
+    """Just the header of an image of the given kind (all the server reads), padded so it is not tiny."""
+    if kind == "png":
+        data = (
+            b"\x89PNG\r\n\x1a\n"
+            + struct.pack(">I", 13)
+            + b"IHDR"
+            + struct.pack(">II", width, height)
+            + b"\x08\x02\x00\x00\x00"
+        )
+    elif kind == "gif":
+        data = b"GIF89a" + struct.pack("<HH", width, height) + b"\x00\x00\x00;"
+    elif kind == "jpeg":
+        data = b"\xff\xd8\xff\xc0" + struct.pack(">HBHHB", 11, 8, height, width, 1) + b"\x01\x11\x00"
+    else:  # a lossy webp
+        frame = b"\x10\x02\x00\x9d\x01\x2a" + struct.pack("<HH", width, height)
+        body = b"WEBPVP8 " + struct.pack("<I", len(frame)) + frame
+        data = b"RIFF" + struct.pack("<I", len(body)) + body
+    return data + b"padding"
+
+
+WIDE = header("png", 30, 50)  # 30 wide, 50 tall: not square, so a swap of the two shows
+
+
+@pytest.fixture
+def pictured(tmp_path):
+    """A journal whose two screenshots are real images."""
+    return build_source(tmp_path / "journal", image=WIDE)
+
+
+def old_files(path: Path) -> dict[str, bytes]:
+    return {p.name: p.read_bytes() for p in (path.parent / "screenshots").iterdir()}
+
+
+def rows(db, user):
+    with db.tenant_session(user) as conn:
+        return conn.execute("SELECT * FROM screenshots ORDER BY id").fetchall()
+
+
+def test_with_a_store_every_screenshot_file_is_taken_in_and_read_back_with_the_same_bytes(db, alice, pictured, store):
+    report = migrate(db, alice, pictured, files=store)
+    assert report.ok, failures(report)
+    assert len(report.placed) == 2 and report.files_not_copied == [] and report.store_given
+    originals = sorted(old_files(pictured).values())
+    found = rows(db, alice)
+    assert sorted(store.get(r["stored_name"]) for r in found) == originals
+    for r in found:
+        assert r["stored_name"].startswith(f"u/{alice}/") and r["stored_name"].endswith(".png")
+        assert (r["content_type"], r["width"], r["height"]) == ("image/png", 30, 50)  # wide 30, tall 50
+        assert r["size_bytes"] == len(store.get(r["stored_name"]))
+    assert {r["original_name"] for r in found} == {"chart 0.png", "chart 1.png"}  # what the person called them
+    assert any(c.name.startswith("screenshot files:") and c.ok for c in report.checks)
+    with db.tenant_session(alice) as conn:
+        assert usage.get_usage(conn).storage_bytes == sum(r["size_bytes"] for r in found) > 0  # counted, not zero
+
+
+def test_a_dry_run_checks_every_file_and_writes_none(db, alice, pictured, store):
+    report = migrate(db, alice, pictured, files=store, dry_run=True)
+    assert report.ok and len(report.placed) == 2
+    assert list(store.list()) == [] and rows(db, alice) == []
+    assert not any(c.name.startswith("screenshot files:") for c in report.checks)  # nothing was written to read back
+    assert "would be taken into the file store" in migrate_local.format_report(report)
+
+
+def test_a_file_that_is_not_an_acceptable_image_is_not_copied_but_its_row_is_and_the_report_says_why(
+    db, alice, tmp_path, store
+):
+    report = migrate(db, alice, build_source(tmp_path / "journal"), files=store)  # the old test bytes claim 0 by 0
+    assert report.ok and report.placed == [] and len(report.files_not_copied) == 2
+    assert all("damaged" in reason for _, reason in report.files_not_copied)
+    assert list(store.list()) == []
+    assert {r["stored_name"] for r in rows(db, alice)} == {name for name, _ in report.files_not_copied}  # the old names
+    text = migrate_local.format_report(report)
+    assert "not copied:" in text and "an export lists them as missing" in text
+
+
+def test_a_file_over_ten_megabytes_is_not_copied_and_one_of_exactly_ten_is(db, alice, pictured, store):
+    first, second = sorted((pictured.parent / "screenshots").iterdir())
+    first.write_bytes(WIDE + b"\x00" * (pg_screenshots.MAX_FILE_BYTES - len(WIDE) + 1))  # one byte over
+    second.write_bytes(WIDE + b"\x00" * (pg_screenshots.MAX_FILE_BYTES - len(WIDE)))  # exactly the limit
+    report = migrate(db, alice, pictured, files=store)
+    assert [name for name, _ in report.files_not_copied] == [first.name] and len(report.placed) == 1
+    assert "larger than 10 MB" in report.files_not_copied[0][1]
+    assert report.placed[0].size == pg_screenshots.MAX_FILE_BYTES
+
+
+def test_a_file_that_is_missing_is_listed_as_missing_and_not_as_refused(db, alice, pictured, store):
+    next(iter(sorted((pictured.parent / "screenshots").iterdir()))).unlink()
+    report = migrate(db, alice, pictured, files=store)
+    assert len(report.missing_screenshot_files) == 1 and report.files_not_copied == [] and len(report.placed) == 1
+    assert report.ok
+
+
+def test_a_trade_keeps_at_most_the_screenshots_one_may_have_and_the_rest_are_not_copied(
+    db, alice, tmp_path, store, monkeypatch
+):
+    monkeypatch.setattr(pg_screenshots, "MAX_PER_TRADE", 1)
+    path = build_source(tmp_path / "journal", image=PNG_1X1, both_on_first=True)
+    report = migrate(db, alice, path, files=store)
+    assert len(report.placed) == 1 and len(report.files_not_copied) == 1
+    assert "already has the 1 screenshots" in report.files_not_copied[0][1]
+    assert len(rows(db, alice)) == 2 and report.ok  # both rows, one file
+
+
+def test_the_screenshot_space_one_person_has_is_not_exceeded_and_filling_it_exactly_is_allowed(
+    db, alice, bob, pictured, store, monkeypatch
+):
+    one = len(WIDE) + 1  # each file is the image and one more byte
+    monkeypatch.setattr(pg_screenshots, "MAX_STORED_BYTES", one + 1)  # room for one, not two
+    report = migrate(db, alice, pictured, files=store)
+    assert len(report.placed) == 1 and len(report.files_not_copied) == 1
+    assert "screenshot space" in report.files_not_copied[0][1]
+
+    monkeypatch.setattr(pg_screenshots, "MAX_STORED_BYTES", 2 * one)  # exactly both
+    report = migrate(db, bob, pictured, files=store)  # the same journal for someone else: new keys, so no clash
+    assert len(report.placed) == 2 and report.files_not_copied == []
+
+
+@pytest.mark.parametrize("limit", ["MAX_PER_TRADE", "MAX_STORED_BYTES"])
+def test_the_first_reason_a_file_is_refused_for_is_the_one_reported(db, alice, tmp_path, store, monkeypatch, limit):
+    monkeypatch.setattr(pg_screenshots, limit, 0)  # every file would also break this limit
+    report = migrate(db, alice, build_source(tmp_path / "journal"), files=store)  # but these claim to be 0 by 0
+    assert len(report.files_not_copied) == 2
+    assert all("damaged" in reason for _, reason in report.files_not_copied)
+
+
+@pytest.mark.parametrize(
+    ("kind", "extension", "content_type"),
+    [
+        ("gif", ".gif", "image/gif"),
+        ("jpeg", ".jpg", "image/jpeg"),
+        ("webp", ".webp", "image/webp"),
+        ("png", ".png", "image/png"),
+    ],
+)
+def test_each_kind_of_image_keeps_its_own_extension_and_type(db, alice, tmp_path, store, kind, extension, content_type):
+    path = build_source(tmp_path / "journal", image=header(kind, 30, 50))
+    report = migrate(db, alice, path, files=store)
+    assert report.ok and len(report.placed) == 2
+    for r in rows(db, alice):
+        assert r["stored_name"].endswith(extension) and (r["content_type"], r["width"], r["height"]) == (
+            content_type,
+            30,
+            50,
+        )
+
+
+def test_a_stored_name_with_a_folder_in_it_is_never_opened(db, alice, pictured, store):
+    secret = pictured.parent / "secret.png"
+    secret.write_bytes(PNG_1X1 + b"not-yours")
+    with sqlite3.connect(pictured) as raw:
+        raw.execute("UPDATE screenshots SET stored_name = '../secret.png' WHERE id = (SELECT min(id) FROM screenshots)")
+    report = migrate(db, alice, pictured, files=store)
+    assert len(report.placed) == 1  # only the honest one
+    assert b"not-yours" not in b"".join(store.get(f.key) for f in store.list())
+    assert "../secret.png" in {r["stored_name"] for r in rows(db, alice)}  # the row is copied as it was, file not taken
+
+
+def test_a_failure_after_the_files_are_in_takes_them_out_again(db, alice, pictured, store, monkeypatch):
+    def broken(conn):
+        raise RuntimeError("the counters failed")
+
+    monkeypatch.setattr(migrate_local.usage, "refresh", broken)
+    with pytest.raises(RuntimeError, match="the counters failed"):
+        migrate(db, alice, pictured, files=store)
+    assert list(store.list()) == [] and rows(db, alice) == []  # nothing in the database, nothing in the store
+
+
+def test_the_golden_check_catches_a_file_that_arrives_changed(db, alice, pictured, store, monkeypatch):
+    real = LocalFileStore.put
+    monkeypatch.setattr(LocalFileStore, "put", lambda self, key, data: real(self, key, data + b"x"))
+    report = migrate(db, alice, pictured, files=store)
+    assert not report.ok and any(c.name.startswith("screenshot files:") for c in report.checks if not c.ok)
+    assert "[FAIL]" in migrate_local.format_report(report)
+
+
+def test_the_golden_check_catches_a_file_that_never_arrived(db, alice, pictured, store, monkeypatch):
+    monkeypatch.setattr(LocalFileStore, "put", lambda self, key, data: None)
+    report = migrate(db, alice, pictured, files=store)
+    assert not report.ok
+    [check] = [c for c in report.checks if c.name.startswith("screenshot files:")]
+    assert set(check.target.values()) == {"not in the store"}
+
+
+def test_the_golden_check_catches_a_row_pointing_at_the_wrong_key(db, alice, pictured, store, monkeypatch):
+    real = migrate_local._batch
+
+    def wrong_key(conn, query, rows, **kwargs):
+        if "INSERT INTO screenshots" in query:
+            rows = [(r[0], f"u/elsewhere/{number}.png", *r[2:]) for number, r in enumerate(rows)]
+        return real(conn, query, rows, **kwargs)
+
+    monkeypatch.setattr(migrate_local, "_batch", wrong_key)
+    report = migrate(db, alice, pictured, files=store, dry_run=True)
+    assert not report.ok and any("screenshots" in name for name in failures(report))
+
+
+def test_with_no_store_only_the_rows_are_copied_and_the_report_says_so(db, alice, pictured):
+    report = migrate(db, alice, pictured)
+    assert report.ok and report.placed == [] and not report.store_given
+    assert {r["stored_name"] for r in rows(db, alice)} == set(old_files(pictured))  # the old names
+    assert "No file store was given" in migrate_local.format_report(report)
+
+
+def test_each_person_gets_keys_in_their_own_folder(db, alice, bob, tmp_path, store):
+    migrate(db, alice, build_source(tmp_path / "a", image=PNG_1X1), files=store)
+    migrate(db, bob, build_source(tmp_path / "b", image=PNG_1X1), files=store)
+    assert {r["stored_name"].split("/")[1] for r in rows(db, alice)} == {str(alice)}
+    assert {r["stored_name"].split("/")[1] for r in rows(db, bob)} == {str(bob)}
+    assert len(list(store.list())) == 4
+
+
+def test_a_migrated_journal_exports_every_image_and_none_is_missing(db, alice, pictured, store):
+    migrate(db, alice, pictured, files=store)
+    with db.tenant_session(alice, snapshot=True) as conn:
+        result = pg_export.build(
+            conn,
+            profile={},
+            exported_at=datetime(2026, 10, 4, tzinfo=UTC),
+            app_version="t",
+            clean_html=sanitize_notes,
+            store=store,
+        )
+    with result.file as handle, zipfile.ZipFile(io.BytesIO(handle.read())) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+        assert manifest["screenshot_files"] == {"included": True, "count": 2, "missing": []}
+        assert sorted(archive.read(n) for n in archive.namelist() if n.startswith("screenshots/")) == sorted(
+            old_files(pictured).values()
+        )
+
+
 def test_an_older_journal_is_brought_up_to_date_on_the_copy_only(db, alice, tmp_path):
     path = tmp_path / "journal.db"
     conn = sqlite3.connect(path)
@@ -378,6 +626,37 @@ def test_the_command_prints_the_report_and_exits_zero_when_every_check_passes(ap
     assert code == 0
     assert "DRY RUN: nothing was written." in out and "RESULT: every check passed." in out
     assert "35" in out and "[ok  ]" in out
+
+
+def test_the_command_takes_the_files_into_the_folder_it_is_given(app_url, alice, pictured, store, capsys):
+    args = [
+        "--source",
+        str(pictured),
+        "--user-id",
+        str(alice),
+        "--database-url",
+        app_url,
+        "--files-dir",
+        str(store.root),
+    ]
+    assert migrate_local.main(args) == 0
+    out = capsys.readouterr().out
+    assert "2 screenshot file(s) taken into the file store" in out and len(list(store.list())) == 2
+
+
+def test_the_folder_can_come_from_the_environment_and_without_it_the_files_are_left_behind(
+    app_url, alice, bob, pictured, store, capsys, monkeypatch
+):
+    monkeypatch.setenv("TJ_FILES_DIR", str(store.root))
+    args = ["--source", str(pictured), "--user-id", str(alice), "--database-url", app_url, "--dry-run"]
+    assert (
+        migrate_local.main(args) == 0
+        and "2 screenshot file(s) would be taken into the file store" in capsys.readouterr().out
+    )
+    monkeypatch.delenv("TJ_FILES_DIR")
+    other = ["--source", str(pictured), "--user-id", str(bob), "--database-url", app_url, "--dry-run"]
+    assert migrate_local.main(other) == 0 and "No file store was given" in capsys.readouterr().out
+    assert list(store.list()) == []
 
 
 def test_the_command_exits_three_with_a_plain_message_for_a_user_who_has_data(app_url, alice, source, capsys):
