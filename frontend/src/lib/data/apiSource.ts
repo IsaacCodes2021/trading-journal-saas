@@ -1,16 +1,20 @@
 import { ApiError, api, unwrap, type ProblemBody } from '../api/client'
+import type { components } from '../api/schema'
 import type { Filters } from '../filters'
 import type { DataSource, TradesQuery } from './model'
 
 /*
- * The data source that reads the real API. The routes it needs exist for the reads (dashboard, trade log and detail,
- * tags, accounts, filters); everything that writes, and the import, account-overview and ledger calls, are not
- * connected yet and fail with a plain message. So it is wired in only for development against a real server
- * (`TJ_DEV_API=real`, see `source.tsx`); the shipped app still reads the sample data until every screen is connected.
+ * The data source that talks to the real API. Everything is connected except the import (preview, commit, history,
+ * undo) and screenshots, which fail with a plain message and never touch the network: the importer must first report a
+ * status for each row, and image files wait for the object store (M6). So it is wired in only for development against a
+ * real server (`TJ_DEV_API=real`, see `source.tsx`); the shipped app still reads the sample data until those arrive.
  *
  * Responses are the API's generated types passed straight through: the shapes in `model.ts` were written first and
- * the API returns them as they are (money as decimal strings, times as ISO 8601 UTC).
+ * the API returns them as they are (money as decimal strings, times as ISO 8601 UTC). A refusal reaches the page as an
+ * `ApiError` whose message is the server's own sentence, which every form already shows.
  */
+
+type FirmName = components['schemas']['AccountDetailsIn']['firm']
 
 /** An action the server cannot do yet, said in words a person can read. */
 export class NotConnectedError extends Error {
@@ -76,9 +80,21 @@ export const apiSource: DataSource = {
 
   accounts: (signal) => unwrap(api.GET('/api/v1/accounts', { signal })),
 
-  saveNotes: notConnected('Saving notes'),
-  setTradeTag: notConnected('Tagging a trade'),
-  createTag: notConnected('Creating a tag'),
+  async saveNotes(id, html) {
+    await unwrap(api.PUT('/api/v1/trades/{trade_id}/notes', { params: { path: { trade_id: id } }, body: { html } }))
+  },
+
+  async setTradeTag(id, tagId, on) {
+    const params = { params: { path: { trade_id: id, tag_id: tagId } } }
+    await unwrap(
+      on
+        ? api.PUT('/api/v1/trades/{trade_id}/tags/{tag_id}', params)
+        : api.DELETE('/api/v1/trades/{trade_id}/tags/{tag_id}', params),
+    )
+  },
+
+  createTag: (groupId, name) => unwrap(api.POST('/api/v1/tags', { body: { group_id: groupId, name } })),
+
   addScreenshots: notConnected('Adding a screenshot'),
   deleteScreenshot: notConnected('Deleting a screenshot'),
   previewImport: notConnected('Importing'),
@@ -86,17 +102,52 @@ export const apiSource: DataSource = {
   imports: notConnected('The import history'),
   undoPreview: notConnected('Undoing an import'),
   undoImport: notConnected('Undoing an import'),
-  accountOverviews: notConnected('Account progress'),
-  businessTotals: notConnected('The prop business totals'),
-  createAccount: notConnected('Adding an account'),
-  updateAccount: notConnected('Changing an account'),
-  updateRules: notConnected('Changing account rules'),
-  archiveAccount: notConnected('Archiving an account'),
-  restoreAccount: notConnected('Restoring an account'),
-  fees: notConnected('Fees'),
-  setFee: notConnected('Changing a fee'),
-  removeFee: notConnected('Removing a fee'),
-  ledger: notConnected('The ledger'),
-  addLedgerEntry: notConnected('Adding a ledger entry'),
-  deleteLedgerEntry: notConnected('Deleting a ledger entry'),
+  accountOverviews: (signal) => unwrap(api.GET('/api/v1/account-overviews', { signal })),
+  businessTotals: (signal) => unwrap(api.GET('/api/v1/business-totals', { signal })),
+
+  // The firm is a closed list on the server; the form offers the same list, and anything else comes back as a refusal.
+  createAccount: (input) => unwrap(api.POST('/api/v1/accounts', { body: { ...input, firm: input.firm as FirmName } })),
+  updateAccount: (id, input) =>
+    unwrap(
+      api.PUT('/api/v1/accounts/{account_id}', {
+        params: { path: { account_id: id } },
+        body: { ...input, firm: input.firm as FirmName },
+      }),
+    ),
+  updateRules: (id, input) =>
+    unwrap(api.PUT('/api/v1/accounts/{account_id}/rules', { params: { path: { account_id: id } }, body: input })),
+  archiveAccount: (id, input) =>
+    unwrap(api.POST('/api/v1/accounts/{account_id}/archive', { params: { path: { account_id: id } }, body: input })),
+  restoreAccount: (id) =>
+    unwrap(api.POST('/api/v1/accounts/{account_id}/restore', { params: { path: { account_id: id } } })),
+
+  fees: (id, signal) =>
+    unwrap(api.GET('/api/v1/accounts/{account_id}/fees', { params: { path: { account_id: id } }, signal })),
+  async setFee(id, symbolRoot, rate) {
+    await unwrap(
+      api.PUT('/api/v1/accounts/{account_id}/fees/{symbol_root}', {
+        params: { path: { account_id: id, symbol_root: symbolRoot } },
+        body: { rate },
+      }),
+    )
+  },
+  async removeFee(id, symbolRoot) {
+    await unwrap(
+      api.DELETE('/api/v1/accounts/{account_id}/fees/{symbol_root}', {
+        params: { path: { account_id: id, symbol_root: symbolRoot } },
+      }),
+    )
+  },
+
+  ledger: (id, signal) =>
+    unwrap(api.GET('/api/v1/accounts/{account_id}/ledger', { params: { path: { account_id: id } }, signal })),
+  addLedgerEntry: (id, entry) =>
+    unwrap(api.POST('/api/v1/accounts/{account_id}/ledger', { params: { path: { account_id: id } }, body: entry })),
+  async deleteLedgerEntry(id, entryId) {
+    await unwrap(
+      api.DELETE('/api/v1/accounts/{account_id}/ledger/{entry_id}', {
+        params: { path: { account_id: id, entry_id: entryId } },
+      }),
+    )
+  },
 }

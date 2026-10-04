@@ -1,6 +1,6 @@
 # Running the app on your own machine against the local database
 
-**Status (2026-10-04):** the API serves the real read routes from your local Postgres, signed in as one user, and the front end can read them: **the dashboard, the trade log, a trade's page, the filters and the tag choices show your own journal** when the front end is started with `TJ_DEV_API=real` (below). Everything that writes (notes, tags, importing, accounts, fees, the ledger) and the account progress numbers are not connected yet and say so on screen. Without `TJ_DEV_API=real`, `pnpm dev` and the shipped app still show the built-in sample data.
+**Status (2026-10-04):** the API serves the real read routes from your local Postgres, signed in as one user, and the front end can read them: **the dashboard, the trade log, a trade's page, the filters and the tag choices show your own journal** when the front end is started with `TJ_DEV_API=real` (below). **Notes, tags, accounts, rules, fees, the ledger, the account progress and the business totals work too, and they write to the database**, so run against a throwaway user if you do not want your own journal changed (`python -m tradejournal.api.devserver --user-id <id>`). Importing and screenshots are not connected yet and say so on screen. Without `TJ_DEV_API=real`, `pnpm dev` and the shipped app still show the built-in sample data.
 
 Nothing here touches the original single-user app or its `journal.db`. Nothing is sent anywhere: both servers listen on this machine only.
 
