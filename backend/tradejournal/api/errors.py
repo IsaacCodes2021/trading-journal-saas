@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import ApiConfig
 from .ports import AdminRefusal
+from .requestlog import REQUEST_ID_HEADER
 from .schemas import PROBLEM_MEDIA_TYPE, FieldError, Problem
 from .security import security_headers
 
@@ -55,5 +56,10 @@ def install_error_handlers(app: FastAPI, config: ApiConfig) -> None:
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
         # Runs outside the middleware stack (Starlette's outermost layer), so the security headers are added here.
-        # Nothing about the failure reaches the client; the server log has the traceback.
-        return problem_response(500, headers=security_headers(request.url.path, config))
+        # Nothing about the failure reaches the client; the server log has its kind and where it happened (api/logs.py).
+        # The request id goes back so a person can quote it: the request log set it before the failure.
+        headers = security_headers(request.url.path, config)
+        request_id = request.scope.get("state", {}).get("request_id")
+        if request_id:
+            headers[REQUEST_ID_HEADER] = request_id
+        return problem_response(500, headers=headers)

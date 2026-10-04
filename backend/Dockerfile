@@ -57,4 +57,4 @@ ENV TJ_ENV=production \
 EXPOSE 8000
 
 # Render (and most hosts) pass the port to listen on in $PORT. `exec` makes uvicorn PID 1, so it receives SIGTERM.
-CMD ["sh", "-c", "exec uvicorn tradejournal.api.app:create_app --factory --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "exec uvicorn tradejournal.api.app:create_app --factory --no-access-log --host 0.0.0.0 --port ${PORT:-8000}"]

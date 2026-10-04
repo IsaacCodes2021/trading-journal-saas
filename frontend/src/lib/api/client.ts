@@ -45,19 +45,28 @@ export interface ProblemBody {
   errors?: { field: string; message: string }[] | null
 }
 
-/** A request the server answered with an error. `message` is safe to show: it is the server's `detail`, or a plain fallback. */
+/** The id the server gave a request (`X-Request-ID`): shown only when it is a short plain token, so nothing odd is ever put on a page. */
+const REQUEST_ID = /^[A-Za-z0-9._-]{8,64}$/
+
+/** A request the server answered with an error. `message` is safe to show: it is the server's `detail`, or a plain fallback.
+ * A server failure with no detail of its own also carries the request's reference, which the operator can look up in the log. */
 export class ApiError extends Error {
   readonly status: number
   readonly fields: Record<string, string>
+  readonly requestId: string | null
 
-  constructor(status: number, problem?: ProblemBody) {
+  constructor(status: number, problem?: ProblemBody, requestId?: string | null) {
+    const reference = requestId && REQUEST_ID.test(requestId) ? requestId : null
     super(
       problem?.detail ||
-        (status >= 500 ? 'The server had a problem. Try again in a moment.' : 'The request was refused.'),
+        (status >= 500
+          ? `The server had a problem. Try again in a moment.${reference ? ` If it keeps happening, tell us this reference: ${reference}.` : ''}`
+          : 'The request was refused.'),
     )
     this.name = 'ApiError'
     this.status = status
     this.fields = Object.fromEntries((problem?.errors ?? []).map((e) => [e.field, e.message]))
+    this.requestId = reference
   }
 }
 
@@ -68,6 +77,7 @@ export async function unwrap<T>(result: Promise<{ data?: T; error?: unknown; res
     throw new ApiError(
       response?.status ?? 0,
       typeof error === 'object' && error !== null ? (error as ProblemBody) : undefined,
+      response?.headers.get('X-Request-ID'),
     )
   }
   return data

@@ -76,6 +76,66 @@ describe('api client', () => {
     expect((error as ApiError).fields).toEqual({})
   })
 
+  const failWith = async (status: number, headers: Record<string, string>, body = '<html>boom</html>') => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(body, { status, headers })),
+    )
+    return (await unwrap(api.GET('/api/v1/session')).catch((e: unknown) => e)) as ApiError
+  }
+
+  it('adds the request reference to a server failure that has no detail, so it can be found in the log', async () => {
+    const error = await failWith(500, {
+      'content-type': 'text/html',
+      'X-Request-ID': '0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10',
+    })
+    expect(error.message).toBe(
+      'The server had a problem. Try again in a moment. If it keeps happening, tell us this reference: 0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10.',
+    )
+    expect(error.requestId).toBe('0b6e2c1a-4f7d-4a55-9c1e-7d2f3a8b9e10')
+  })
+
+  it('shows a reference only when it is a short plain token', async () => {
+    for (const odd of [
+      'short',
+      'seven77',
+      'has a space in it',
+      'abcdefgh ijk',
+      'bad prefix abcdefghij',
+      '<b>nope</b>-1234',
+      'a'.repeat(65),
+      'semi;colon;1234567',
+    ]) {
+      const error = await failWith(500, { 'content-type': 'text/html', 'X-Request-ID': odd })
+      expect(error.message).toBe('The server had a problem. Try again in a moment.')
+      expect(error.requestId).toBeNull()
+    }
+    for (const fine of ['a'.repeat(8), 'b'.repeat(64)]) {
+      const error = await failWith(503, { 'content-type': 'text/html', 'X-Request-ID': fine })
+      expect(error.requestId).toBe(fine)
+    }
+  })
+
+  it('keeps the server’s own sentence when it gave one, and adds no reference to a refusal', async () => {
+    const problem = JSON.stringify({
+      title: 'Service Unavailable',
+      status: 503,
+      detail: 'The operator tools are not set up.',
+    })
+    const withDetail = await failWith(
+      503,
+      { 'content-type': 'application/problem+json', 'X-Request-ID': 'edge-7f3a9c2b.1' },
+      problem,
+    )
+    expect(withDetail.message).toBe('The operator tools are not set up.')
+    const refused = await failWith(403, { 'content-type': 'text/html', 'X-Request-ID': 'edge-7f3a9c2b.1' })
+    expect(refused.message).toBe('The request was refused.')
+  })
+
+  it('has no reference when the server sent none', async () => {
+    expect((await failWith(500, { 'content-type': 'text/html' })).requestId).toBeNull()
+  })
+
   it('hands back the data of a good answer', async () => {
     vi.stubGlobal(
       'fetch',

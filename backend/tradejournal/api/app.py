@@ -28,9 +28,11 @@ from .deps import utc_now
 from .dev import dev_services
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
+from .logs import configure_logging
 from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
 from .ratelimit import RateLimiter
+from .requestlog import RequestLogMiddleware
 from .routers import (
     account,
     accounts,
@@ -121,6 +123,8 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+        if config.production:
+            configure_logging()  # JSON lines on standard output, scrubbed (api/logs.py); development keeps its own output
         if owned and database is not None:
             database.open(wait=False)  # a database that is briefly away is reported by /readyz, not a failure to boot
         if system is not None:
@@ -155,6 +159,7 @@ def create_app(
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)
+    app.add_middleware(RequestLogMiddleware)  # outermost: one line for every request, whoever refused it
     install_error_handlers(app, config)
 
     @app.get("/healthz", include_in_schema=False)
