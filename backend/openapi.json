@@ -176,6 +176,17 @@
       },
       "SettingsOut": {
         "properties": {
+          "csv_timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csv Timezone"
+          },
           "theme": {
             "enum": [
               "dark",
@@ -199,6 +210,7 @@
         },
         "required": [
           "timezone",
+          "csv_timezone",
           "trading_day_timezone",
           "trading_day_start",
           "theme"
@@ -210,6 +222,17 @@
         "additionalProperties": false,
         "description": "Only the fields present change; `null` means the same as leaving the field out.",
         "properties": {
+          "csv_timezone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Csv Timezone"
+          },
           "theme": {
             "anyOf": [
               {

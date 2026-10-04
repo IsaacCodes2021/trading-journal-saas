@@ -171,6 +171,78 @@ describe('preferences', () => {
   })
 })
 
+describe('the timezone of Tradovate files', () => {
+  it('starts as "the same as my timezone", naming it', async () => {
+    await open()
+    const group = await screen.findByRole('radiogroup', { name: 'Timezone of Tradovate CSV exports' })
+    expect(within(group).getByRole('radio', { name: /Same as my timezone/ })).toBeChecked()
+    expect(within(group).getByText('America / Los Angeles')).toBeInTheDocument()
+    expect(within(group).getByText('America / Chicago (CME)')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Timezone of your CSV exports')).not.toBeInTheDocument()
+  })
+
+  it('saves exchange time, and says only new imports are affected', async () => {
+    const { user, saved } = await open()
+    const group = await screen.findByRole('radiogroup', { name: 'Timezone of Tradovate CSV exports' })
+    await user.click(within(group).getByRole('radio', { name: /Exchange time/ }))
+    expect(screen.getByText(/Files you import from now on are read in this zone/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await screen.findByText('Saved')
+    expect(saved).toEqual([{ csv_timezone: 'America/Chicago' }])
+    expect(within(group).getByRole('radio', { name: /Exchange time/ })).toBeChecked()
+    expect(screen.queryByText(/Files you import from now on/)).not.toBeInTheDocument()
+  })
+
+  it('offers the full list for "something else"', async () => {
+    const { user, saved } = await open()
+    await user.click(await screen.findByRole('radio', { name: /Something else/ }))
+    await user.selectOptions(screen.getByLabelText('Timezone of your CSV exports'), 'Europe/London')
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await screen.findByText('Saved')
+    expect(saved).toEqual([{ csv_timezone: 'Europe/London' }])
+  })
+
+  it('shows a saved choice, and goes back to following the own timezone with an empty value', async () => {
+    const { user, saved } = await open('/settings/preferences', { settings: { csv_timezone: 'America/Chicago' } })
+    const group = await screen.findByRole('radiogroup', { name: 'Timezone of Tradovate CSV exports' })
+    expect(within(group).getByRole('radio', { name: /Exchange time/ })).toBeChecked()
+    await user.click(within(group).getByRole('radio', { name: /Same as my timezone/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    await screen.findByText('Saved')
+    expect(saved).toEqual([{ csv_timezone: '' }])
+    expect(within(group).getByRole('radio', { name: /Same as my timezone/ })).toBeChecked()
+  })
+
+  it('shows another saved zone as "something else", with that zone chosen', async () => {
+    await open('/settings/preferences', { settings: { csv_timezone: 'Europe/London' } })
+    expect(await screen.findByRole('radio', { name: /Something else/ })).toBeChecked()
+    expect(screen.getByLabelText('Timezone of your CSV exports')).toHaveValue('Europe/London')
+  })
+
+  it('does not ask to save when nothing changed', async () => {
+    await open()
+    await screen.findByRole('radiogroup', { name: 'Timezone of Tradovate CSV exports' })
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled()
+  })
+
+  it('shows the server’s reason next to the choice', async () => {
+    const { user } = await open('/settings/preferences', {
+      saveProblem: {
+        status: 422,
+        body: {
+          title: 'Unprocessable Content',
+          status: 422,
+          detail: 'The request is not valid.',
+          errors: [{ field: 'csv_timezone', message: 'not a timezone name such as America/New_York' }],
+        },
+      },
+    })
+    await user.click(await screen.findByRole('radio', { name: /Exchange time/ }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(await screen.findByText('not a timezone name such as America/New_York')).toBeInTheDocument()
+  })
+})
+
 describe('plan & billing', () => {
   it('shows the free plan', async () => {
     await open('/settings/plan')

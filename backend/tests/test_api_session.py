@@ -52,6 +52,7 @@ def test_session_describes_the_signed_in_user(world):
     assert body["user"] == {"id": str(alice.user.id), "email": "alice@example.test"}
     assert body["settings"] == {
         "timezone": "America/Los_Angeles",
+        "csv_timezone": None,
         "trading_day_timezone": "America/New_York",
         "trading_day_start": "18:00",
         "theme": "dark",
@@ -122,6 +123,7 @@ def test_settings_can_be_changed_and_the_change_sticks(world):
     assert response.status_code == 200
     assert response.json() == {
         "timezone": "America/Los_Angeles",
+        "csv_timezone": None,
         "trading_day_timezone": "America/New_York",
         "trading_day_start": "17:00",
         "theme": "light",
@@ -142,6 +144,8 @@ def test_null_and_empty_patches_change_nothing(world):
         ({"timezone": "Mars/Olympus"}, "timezone"),
         ({"timezone": "../etc/passwd"}, "timezone"),
         ({"timezone": ""}, "timezone"),
+        ({"csv_timezone": "Mars/Olympus"}, "csv_timezone"),
+        ({"csv_timezone": "../etc/passwd"}, "csv_timezone"),
         ({"trading_day_timezone": "nope"}, "trading_day_timezone"),
         ({"trading_day_start": "25:00"}, "trading_day_start"),
         ({"trading_day_start": "6:30"}, "trading_day_start"),
@@ -181,3 +185,10 @@ def test_a_form_post_style_body_is_refused(world):
     headers = write_headers(token, session, **{"content-type": "text/plain"})
     assert patch(world, {"theme": "light"}, **headers).status_code == 415
     assert world[0].get("/api/v1/session", headers=cookie(token)).json()["settings"]["theme"] == "dark"
+
+
+def test_the_csv_timezone_can_be_chosen_and_cleared(world):
+    assert patch(world, {"csv_timezone": "America/Chicago"}).json()["csv_timezone"] == "America/Chicago"
+    assert patch(world, {"theme": "light"}).json()["csv_timezone"] == "America/Chicago"  # other changes leave it alone
+    assert patch(world, {"csv_timezone": None}).json()["csv_timezone"] == "America/Chicago"  # null leaves it alone too
+    assert patch(world, {"csv_timezone": ""}).json()["csv_timezone"] is None  # "" goes back to following the timezone

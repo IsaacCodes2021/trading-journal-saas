@@ -24,7 +24,7 @@ from ..importer import FileImportReport, ImportReport, UndoReport
 from ..parser import parse_performance_csv
 from . import store, usage
 from .accounts import get_account
-from .settings import get_setting
+from .settings import effective_csv_timezone
 
 
 def import_files(
@@ -37,7 +37,7 @@ def import_files(
     """Import one or more exports into an account, in order, as one atomic operation."""
     store.lock_user(conn)
     get_account(conn, account_id)
-    tz_name = get_setting(conn, "timezone")
+    tz_name = effective_csv_timezone(conn)  # the CSV zone if one is chosen, else the person's own timezone
     with conn.transaction():  # a savepoint inside the tenant session's transaction
         reports = [_import_file(conn, account_id, name, data, tz_name) for name, data in files]
         usage.refresh(conn)

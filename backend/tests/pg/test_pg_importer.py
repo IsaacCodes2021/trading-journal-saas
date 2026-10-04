@@ -215,6 +215,21 @@ def test_timezone_setting_applies_to_new_imports(conn, account):
     assert conn.execute("SELECT source_timezone FROM imports").fetchone()["source_timezone"] == "America/New_York"
 
 
+def test_csv_timezone_decides_how_an_import_is_read_not_the_display_timezone(conn, account):
+    settings.set_setting(conn, "timezone", "America/Los_Angeles")  # where the person trades from
+    settings.set_csv_timezone(conn, "America/New_York")  # but the file carries New York time
+    run_import(conn, account, SAMPLE_FILE)
+    assert trades(conn)[0]["entry_at"] == datetime(2024, 1, 5, 11, 30, tzinfo=UTC)  # read as New York, same as above
+    assert conn.execute("SELECT source_timezone FROM imports").fetchone()["source_timezone"] == "America/New_York"
+
+
+def test_without_a_csv_timezone_an_import_follows_the_own_timezone(conn, account):
+    settings.set_setting(conn, "timezone", "America/New_York")
+    assert settings.get_csv_timezone(conn) is None
+    run_import(conn, account, SAMPLE_FILE)
+    assert conn.execute("SELECT source_timezone FROM imports").fetchone()["source_timezone"] == "America/New_York"
+
+
 def test_full_rebuild_changes_nothing_on_consistent_data(conn, account):
     run_import(conn, account, ("shorts.csv", fixture_bytes("chained_shorts_2024-03-13.csv")))
     before = trades(conn)

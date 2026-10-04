@@ -26,6 +26,11 @@ def _timezone(value: str | None) -> str | None:
     return value
 
 
+def _csv_timezone(value: str | None) -> str | None:
+    """A timezone name, or "" meaning "the same as my timezone" (a `null` would mean "leave it alone")."""
+    return value if value == "" else _timezone(value)
+
+
 def _hhmm(value: str | None) -> str | None:
     if value is not None and not _HHMM.fullmatch(value):
         raise ValueError("must be a 24-hour time such as '18:00'")
@@ -39,6 +44,7 @@ class UserOut(ApiModel):
 
 class SettingsOut(ApiModel):
     timezone: str
+    csv_timezone: str | None  # the zone CSV files are read in; null means the same as `timezone`
     trading_day_timezone: str
     trading_day_start: str  # HH:MM, wall time in trading_day_timezone
     theme: Theme
@@ -50,11 +56,13 @@ class SettingsPatch(ApiModel):
     model_config = ConfigDict(extra="forbid")  # a misspelled field is an error, not a silent no-op
 
     timezone: str | None = None
+    csv_timezone: str | None = None  # "" goes back to following `timezone`
     trading_day_timezone: str | None = None
     trading_day_start: str | None = None
     theme: Theme | None = None
 
     _check_timezone = field_validator("timezone", "trading_day_timezone")(_timezone)
+    _check_csv_timezone = field_validator("csv_timezone")(_csv_timezone)
     _check_start = field_validator("trading_day_start")(_hhmm)
 
 

@@ -1,6 +1,6 @@
 # Migrating your own local journal into Postgres
 
-**Status:** the script exists and is tested on a synthetic journal (`backend/tradejournal/pg/migrate_local.py`). It has not yet been run on real data. This runbook is how to run it, and how to read the result.
+**Status:** the script exists (`backend/tradejournal/pg/migrate_local.py`) and is tested on a synthetic journal. **It was rehearsed on the real journal on 2026-10-04** (a copy; local database; a throwaway user): 8 accounts, 23 trades, 28 fill pairs, 9 tags, 14 screenshot records, 7 ledger entries, and every golden check passed, both as a dry run and for real. The hosted run waits for sign-in (M5) and the screenshot files for M6. This runbook is how to run it, and how to read the result.
 
 ## What it does
 
