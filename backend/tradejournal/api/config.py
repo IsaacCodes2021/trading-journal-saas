@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import os
+import re
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import UUID
+
+from .ratelimit import RateLimits
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MIN_SECRET_BYTES = 32
@@ -47,6 +50,10 @@ class ApiConfig:
     kinde_client_secret: str | None = field(default=None, repr=False)
     # "invite": a new person needs a valid invitation code (the private beta). "open": anyone may sign up.
     signup_mode: str = "invite"
+    # Rate limits (api/ratelimit.py). `client_ip_header` names the header that carries the real client address when every
+    # request comes through a proxy that sets it (CF-Connecting-IP behind Cloudflare); left out, the socket's address is used.
+    rate_limits: RateLimits = field(default_factory=RateLimits)
+    client_ip_header: str | None = None
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
@@ -67,6 +74,8 @@ class ApiConfig:
                 or domain.fragment
             ):
                 raise ConfigError("TJ_KINDE_DOMAIN must look like https://your-tenant.kinde.com (no path)")
+        if self.client_ip_header is not None and not re.fullmatch(r"[A-Za-z0-9-]{1,64}", self.client_ip_header):
+            raise ConfigError("TJ_CLIENT_IP_HEADER must be a header name such as CF-Connecting-IP")
         if self.signup_mode not in ("invite", "open"):
             raise ConfigError("TJ_SIGNUP_MODE must be 'invite' or 'open'")
         if self.dev_user_id is not None:
@@ -107,9 +116,14 @@ class ApiConfig:
             ("TJ_KINDE_CLIENT_ID", "kinde_client_id"),
             ("TJ_KINDE_CLIENT_SECRET", "kinde_client_secret"),
             ("TJ_SIGNUP_MODE", "signup_mode"),
+            ("TJ_CLIENT_IP_HEADER", "client_ip_header"),
         ):
             if env.get(key):
                 values[name] = env[key].strip()
+        if env.get("TJ_RATE_LIMITS", "").strip().lower() in ("off", "0", "false", "no"):
+            values["rate_limits"] = RateLimits(
+                enabled=False
+            )  # an emergency or development switch, not a setting to run on
         if env.get("TJ_DEV_USER_ID"):
             try:
                 values["dev_user_id"] = UUID(env["TJ_DEV_USER_ID"])

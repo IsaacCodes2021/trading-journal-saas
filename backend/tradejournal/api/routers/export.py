@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 
 from ...auth.iphash import hash_ip
 from ...pg import export as pg_export
-from ..deps import ERROR_RESPONSES, ClockDep, ConfigDep, ServicesDep, TenantDep
+from ..deps import ERROR_RESPONSES, ClockDep, ConfigDep, ServicesDep, TenantDep, limited_per_person
 from ..sanitize import sanitize_notes
 from ..schemas import Problem
 
@@ -40,6 +40,7 @@ def _chunks(file: IO[bytes]) -> Iterator[bytes]:
 
 @router.get(
     "/export",
+    dependencies=[limited_per_person(lambda limits: limits.export)],
     response_class=StreamingResponse,
     responses={
         200: {

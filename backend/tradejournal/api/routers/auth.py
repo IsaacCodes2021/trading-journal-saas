@@ -13,7 +13,14 @@ from pydantic import Field
 
 from ...auth.flow import ERR_FAILED, AuthFlow
 from ...pg.sessions import ABSOLUTE_LIFETIME
-from ..deps import ERROR_RESPONSES, SESSION_COOKIE, WriteSessionDep
+from ..deps import (
+    ERROR_RESPONSES,
+    SESSION_COOKIE,
+    WriteSessionDep,
+    client_key,
+    limited_per_client,
+    take_place,
+)
 from ..schemas import ApiModel
 
 LOGIN_COOKIE = "__Host-tj_login"
@@ -43,18 +50,20 @@ def _clear(response: RedirectResponse, name: str) -> None:
     response.set_cookie(name, "", max_age=0, secure=True, httponly=True, samesite="lax", path="/")
 
 
-@public.get("/auth/login")
+@public.get("/auth/login", dependencies=[limited_per_client(lambda limits: limits.login)])
 def login(
     request: Request, next: str | None = None, invite: str | None = None, stepup: bool = False
 ) -> RedirectResponse:
     """Start signing in (or up, with `invite`). `next` is a path on this site to land on afterwards."""
+    if invite:  # guessing codes is slower than signing in, but it is the one thing worth a stricter limit of its own
+        take_place(request, request.app.state.config.rate_limits.invite_attempts, client_key(request))
     start = flow_of(request).begin(next_url=next, invite=invite, step_up=stepup)
     response = RedirectResponse(start.redirect_url, status_code=302)
     _cookie(response, LOGIN_COOKIE, start.state_cookie, LOGIN_COOKIE_SECONDS)
     return response
 
 
-@public.get("/auth/callback")
+@public.get("/auth/callback", dependencies=[limited_per_client(lambda limits: limits.callback)])
 def callback(
     request: Request,
     code: str | None = None,
