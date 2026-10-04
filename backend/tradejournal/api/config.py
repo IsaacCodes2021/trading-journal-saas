@@ -15,6 +15,9 @@ from .ratelimit import RateLimits
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MIN_SECRET_BYTES = 32
+MAX_CONCURRENT_IMPORTS = (
+    16  # a ceiling on the setting: more than the worker threads can spare is a mistake, not a choice
+)
 
 
 class ConfigError(ValueError):
@@ -35,6 +38,8 @@ class ApiConfig:
     # Ceilings on a request body (api/limits.py). Routes enforce their own exact limits underneath these.
     max_json_bytes: int = 1024 * 1024
     max_upload_bytes: int = 12 * 1024 * 1024  # one 10 MB screenshot plus multipart overhead
+    # How many imports may run at once in this process (api/slots.py); the rest are told to try again in a few seconds.
+    max_concurrent_imports: int = 2
     # The request role's connection URL (app_rw). It holds a password, so it never appears in repr or logs. Not
     # required yet: until the routes use the database (M3), a process without it starts, and /readyz says so.
     database_url: str | None = field(default=None, repr=False)
@@ -61,6 +66,8 @@ class ApiConfig:
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
             raise ConfigError("body size limits must be positive")
+        if not 1 <= self.max_concurrent_imports <= MAX_CONCURRENT_IMPORTS:
+            raise ConfigError(f"TJ_MAX_CONCURRENT_IMPORTS must be from 1 to {MAX_CONCURRENT_IMPORTS}")
         for name, url in (
             ("TJ_DATABASE_URL", self.database_url),
             ("TJ_LOGIN_DATABASE_URL", self.login_database_url),
@@ -129,6 +136,11 @@ class ApiConfig:
         ):
             if env.get(key):
                 values[name] = env[key].strip()
+        if env.get("TJ_MAX_CONCURRENT_IMPORTS"):
+            try:
+                values["max_concurrent_imports"] = int(env["TJ_MAX_CONCURRENT_IMPORTS"].strip())
+            except ValueError:
+                raise ConfigError("TJ_MAX_CONCURRENT_IMPORTS must be a whole number") from None
         if env.get("TJ_RATE_LIMITS", "").strip().lower() in ("off", "0", "false", "no"):
             values["rate_limits"] = RateLimits(
                 enabled=False

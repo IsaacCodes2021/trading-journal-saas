@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -19,6 +19,7 @@ from .config import ApiConfig
 from .ports import AdminService, AuthSession, Services
 from .ratelimit import RateLimits, Rule, client_address, wait_text
 from .schemas import Problem
+from .slots import RETRY_AFTER_SECONDS, ImportSlots
 
 SESSION_COOKIE = "__Host-tj_session"
 # What errors.py actually returns, so the generated client types its errors correctly. Every router declares these.
@@ -142,6 +143,22 @@ def limited_per_person(pick: Callable[[RateLimits], Rule]):
         take_place(request, pick(request.app.state.config.rate_limits), str(session.user_id))
 
     return Depends(dependency)
+
+
+def hold_import_slot(request: Request, session: SessionDep) -> Iterator[None]:
+    """A route dependency for the heavy ones (api/slots.py): the route runs only if this person has a place among the imports
+    running now, and gives it back when it finishes, however it finishes. A refusal is 429 with `Retry-After`."""
+    slots: ImportSlots = request.app.state.import_slots
+    refusal = slots.take(session.user_id)
+    if refusal is not None:
+        raise HTTPException(429, refusal, headers={"Retry-After": str(RETRY_AFTER_SECONDS)})
+    try:
+        yield
+    finally:
+        slots.release(session.user_id)
+
+
+ImportSlot = Depends(hold_import_slot)
 
 
 def limited_per_client(pick: Callable[[RateLimits], Rule]):
