@@ -13,13 +13,15 @@ from decimal import Decimal
 import psycopg
 import pytest
 from helpers import SAMPLE, fixture_bytes
-from pg_helpers import make_account, make_trades
+from pg_helpers import PNG_1X1, make_account, make_trades
 from test_pg_tenancy import PNG, TENANT_TABLES
 
 from tradejournal.api.sanitize import sanitize_notes
+from tradejournal.filestore import LocalFileStore
 from tradejournal.ledger import KINDS
 from tradejournal.pg import accounts, importer, journal, ledger
 from tradejournal.pg import export as pg_export
+from tradejournal.pg import screenshots as shots
 
 WHEN = datetime(2026, 10, 4, 15, 30, 5, tzinfo=UTC)
 TRICKY_ACCOUNT = 'Zoë "Z", Inc.\nline two'  # a comma, quotes, a line break and a non-ASCII letter in one name
@@ -36,6 +38,7 @@ def build(db, user, **kwargs):
             exported_at=kwargs.pop("exported_at", WHEN),
             app_version="test-1",
             clean_html=kwargs.pop("clean_html", sanitize_notes),
+            store=kwargs.pop("store", None),
         )
     with result.file as handle:
         raw = handle.read()
@@ -188,6 +191,138 @@ def test_each_person_gets_their_own_and_a_person_with_no_data_gets_an_empty_but_
     assert rows_of(nothing, "accounts.csv") == [] and nothing["accounts.csv"].startswith(b"id,")
     assert set(nothing) >= {"profile.json", "manifest.json", *(t.file for t in pg_export.TABLES)}
     assert result.counts["notes"] == 0 and not [n for n in nothing if n.startswith("notes/")]
+
+
+# ---- the image files ---------------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def store(tmp_path):
+    return LocalFileStore(tmp_path / "images")
+
+
+def keep(db, store, user, trade_id, name, marker: bytes) -> shots.Shot:
+    with db.tenant_session(user) as conn:
+        return shots.add(conn, store, user, trade_id, name, PNG_1X1 + marker)  # a real PNG, then a word to look for
+
+
+@pytest.fixture
+def pictured(db, alice, bob, store, stored):
+    """Alice with two images and Bob with one, each carrying a word of their own."""
+    _, trade_ids = stored
+    first = keep(db, store, alice, trade_ids[0], "one.png", b"alice-one")
+    second = keep(db, store, alice, trade_ids[1], "two.png", b"alice-two")
+    with db.tenant_session(bob) as conn:
+        bobs_trade = conn.execute("SELECT id FROM trades ORDER BY id LIMIT 1").fetchone()["id"]
+    theirs = keep(db, store, bob, bobs_trade, "bob.png", b"bob-secret-image")
+    return first, second, theirs
+
+
+def old_row(db, user) -> int:
+    """The screenshot the `stored` fixture made the old way, before files were kept in the store: it has a row, but its
+    file is not where the store looks, so the export must list it as missing."""
+    with db.tenant_session(user) as conn:
+        return conn.execute("SELECT id FROM screenshots WHERE stored_name NOT LIKE 'u/%'").fetchone()["id"]
+
+
+def test_every_image_is_in_the_file_byte_for_byte_named_by_its_id_and_the_manifest_vouches_for_it(
+    db, alice, store, pictured
+):
+    first, second, _ = pictured
+    files, _, result = build(db, alice, store=store)
+    assert files[f"screenshots/{first.id}.png"] == store.get(first.key) == PNG_1X1 + b"alice-one"
+    assert files[f"screenshots/{second.id}.png"] == PNG_1X1 + b"alice-two"
+    assert result.counts["screenshots"] == 2
+    manifest = json.loads(files["manifest.json"])
+    assert manifest["screenshot_files"] == {"included": True, "count": 2, "missing": [old_row(db, alice)]}
+    for shot in (first, second):
+        name = f"screenshots/{shot.id}.png"
+        assert manifest["files"][name] == {"bytes": len(files[name]), "sha256": hashlib.sha256(files[name]).hexdigest()}
+    assert set(manifest["files"]) == set(files) - {"manifest.json"}  # still every file once
+    ids = {r["id"] for r in rows_of(files, "screenshots.csv")}
+    assert {str(first.id), str(second.id)} <= ids  # the id in a file's name is the id column of the CSV
+
+
+def test_the_images_are_stored_not_compressed_again_and_the_rest_still_is(db, alice, store, pictured):
+    _, raw, _ = build(db, alice, store=store)[:3]
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        kinds = {i.filename: i.compress_type for i in archive.infolist()}
+    assert {k for k, v in kinds.items() if k.startswith("screenshots/")} and all(
+        v == zipfile.ZIP_STORED for k, v in kinds.items() if k.startswith("screenshots/")
+    )
+    assert all(v == zipfile.ZIP_DEFLATED for k, v in kinds.items() if not k.startswith("screenshots/"))
+
+
+def test_nobody_elses_image_is_in_the_file_and_each_person_gets_their_own(db, alice, bob, store, pictured):
+    _, _, theirs = pictured
+    alices, _, _ = build(db, alice, store=store)
+    assert b"bob-secret-image" not in b"\n".join(alices.values())
+    assert f"screenshots/{theirs.id}.png" not in alices
+    bobs, _, _ = build(db, bob, store=store)
+    assert bobs[f"screenshots/{theirs.id}.png"] == PNG_1X1 + b"bob-secret-image"
+    assert b"alice-one" not in b"\n".join(bobs.values())
+
+
+def test_an_image_whose_file_is_gone_is_left_out_and_named_in_the_manifest_so_a_gap_is_never_silent(
+    db, alice, store, pictured
+):
+    first, second, _ = pictured
+    store.delete(first.key)
+    files, _, result = build(db, alice, store=store)
+    assert f"screenshots/{first.id}.png" not in files and f"screenshots/{second.id}.png" in files
+    assert json.loads(files["manifest.json"])["screenshot_files"] == {
+        "included": True,
+        "count": 1,
+        "missing": sorted([first.id, old_row(db, alice)]),
+    }
+    assert str(first.id) in {r["id"] for r in rows_of(files, "screenshots.csv")}  # the row is still listed
+    assert result.counts["screenshots"] == 1
+
+
+def test_a_stored_name_that_is_not_a_key_cannot_stop_the_export_or_reach_outside_the_store(db, alice, store, stored):
+    _, trade_ids = stored
+    with db.tenant_session(alice) as conn:
+        conn.execute(
+            "INSERT INTO screenshots (trade_id, stored_name, original_name) VALUES (%s, '../escape.png', 'x.png')",
+            (trade_ids[0],),
+        )
+        bad = conn.execute("SELECT id FROM screenshots WHERE stored_name = '../escape.png'").fetchone()["id"]
+    files, _, _ = build(db, alice, store=store)
+    assert json.loads(files["manifest.json"])["screenshot_files"]["missing"] == sorted([old_row(db, alice), bad])
+
+
+@pytest.mark.parametrize(
+    ("stored_name", "named"), [("u/x/pic.jpeg", ".jpeg"), ("u/x/pic.svg", ".bin"), ("u/x/pic", ".bin")]
+)
+def test_an_image_is_named_by_a_known_picture_extension_and_never_by_one_that_could_run_when_opened(
+    db, alice, store, stored, stored_name, named
+):
+    _, trade_ids = stored
+    store.put(stored_name, b"bytes")
+    with db.tenant_session(alice) as conn:
+        found = conn.execute(
+            "INSERT INTO screenshots (trade_id, stored_name, original_name) VALUES (%s, %s, 'x') RETURNING id",
+            (trade_ids[0], stored_name),
+        ).fetchone()["id"]
+    files, _, _ = build(db, alice, store=store)
+    assert files[f"screenshots/{found}{named}"] == b"bytes"
+
+
+def test_with_no_file_store_the_file_says_it_holds_no_images_rather_than_seeming_complete(db, alice, stored):
+    files, _, result = build(db, alice)
+    assert json.loads(files["manifest.json"])["screenshot_files"] == {"included": False, "count": 0, "missing": []}
+    assert not [n for n in files if n.startswith("screenshots/")] and result.counts["screenshots"] == 0
+    assert len(rows_of(files, "screenshots.csv")) == 1  # the list is there either way
+
+
+def test_a_person_with_no_screenshots_gets_no_image_files_and_an_empty_list_of_gaps(db, bob, store, stored):
+    files, _, result = build(db, bob, store=store)
+    assert json.loads(files["manifest.json"])["screenshot_files"] == {"included": True, "count": 0, "missing": []}
+    assert result.counts["screenshots"] == 0
+
+
+def test_the_file_with_images_is_the_same_bytes_every_time(db, alice, store, pictured):
+    assert build(db, alice, store=store)[1] == build(db, alice, store=store)[1]
 
 
 # ---- notes -------------------------------------------------------------------------------------------------------------

@@ -262,10 +262,11 @@ per error to standard output (`api/logs.py`); the server's own access log is off
 | `TJ_CLIENT_IP_HEADER` | The header that carries the client address behind a proxy (`CF-Connecting-IP`); leave it out otherwise |
 | `TJ_RATE_LIMITS` | `off` switches the rate limits off (development or an emergency) |
 | `TJ_MAX_CONCURRENT_IMPORTS` | How many imports run at once in a process, 1 to 16 (default 2) |
+| `TJ_FILES_DIR` | The folder that holds screenshot files (on a host, a persistent disk). Without it the screenshot routes answer 503 and a trade's screenshots have no address |
 
 The command-line tools use their own settings: `TJ_OWNER_URL` (the schema owner: migrations, invites, plan codes,
-operators; **never on the host**), `TJ_SWEEP_DATABASE_URL` and the machine-to-machine `TJ_KINDE_M2M_CLIENT_ID` /
-`TJ_KINDE_M2M_CLIENT_SECRET` (the deletion sweep). [rotate-secrets.md](docs/runbooks/rotate-secrets.md) lists every
+operators; **never on the host**), `TJ_SWEEP_DATABASE_URL`, the machine-to-machine `TJ_KINDE_M2M_CLIENT_ID` /
+`TJ_KINDE_M2M_CLIENT_SECRET` and `TJ_FILES_DIR` (the deletion sweep, which removes a deleted person's screenshot folder). [rotate-secrets.md](docs/runbooks/rotate-secrets.md) lists every
 secret and how to replace it.
 
 ## Command line (optional)

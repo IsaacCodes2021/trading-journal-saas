@@ -7352,7 +7352,7 @@
     },
     "/api/v1/export": {
       "get": {
-        "description": "Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, and a manifest with checksums.",
+        "description": "Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, the screenshot files, and a\nmanifest with checksums.",
         "operationId": "download_export",
         "responses": {
           "200": {

@@ -5,6 +5,7 @@ What is in the ZIP
     accounts.csv, fee_schedules.csv, imports.csv, trades.csv, fill_pairs.csv, import_fill_pairs.csv,
     tag_groups.csv, tags.csv, trade_tags.csv, ledger.csv, screenshots.csv      one file per table, same column names
     notes/trade-<id>.html and .txt, notes/day-<date>.html and .txt            the notes, as written and as plain text
+    screenshots/<id>.<ext>       the image files, named by the id column of screenshots.csv (when the server can read them)
     manifest.json                every file with its size, row count and SHA-256, and how to read the values
 
 Rules
@@ -19,8 +20,11 @@ Rules
 - **Streamed.** Rows come through a server-side cursor in batches and go straight into the ZIP, so a large journal does
   not have to fit in memory; the finished file is held in a spooled temporary file (memory up to 16 MB, then disk).
 
-Not exported: `user_usage` (counters derived from the rows above) and, for now, the image files of screenshots (the
-files feature, M6, adds them; their names and dates are in `screenshots.csv`; the stored file name is internal).
+Images are copied as they are stored and are not compressed again (they already are). One whose file cannot be found is
+left out and its id is listed in the manifest (`screenshot_files.missing`), so a gap is never silent; a server with no
+file store says so (`screenshot_files.included` is false). The stored file name is internal and is not exported.
+
+Not exported: `user_usage` (counters derived from the rows above).
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 import re
 import tempfile
 import zipfile
@@ -43,6 +48,8 @@ import nh3
 import psycopg
 from psycopg import sql
 from psycopg.rows import tuple_row
+
+from ..filestore import BadKey, FileMissing, FileStore
 
 FORMAT = "roundturn-export"
 SCHEMA_VERSION = 1
@@ -145,14 +152,14 @@ class _Writer:
         self._stamp = moment.astimezone(UTC).timetuple()[:6]
         self.manifest: dict[str, dict[str, Any]] = {}
 
-    def _info(self, name: str) -> zipfile.ZipInfo:
+    def _info(self, name: str, *, compress: bool = True) -> zipfile.ZipInfo:
         info = zipfile.ZipInfo(name, date_time=self._stamp)
-        info.compress_type = zipfile.ZIP_DEFLATED
+        info.compress_type = zipfile.ZIP_DEFLATED if compress else zipfile.ZIP_STORED
         info.external_attr = 0o600 << 16
         return info
 
-    def add_bytes(self, name: str, data: bytes, rows: int | None = None) -> None:
-        with self._zip.open(self._info(name), "w") as raw:
+    def add_bytes(self, name: str, data: bytes, rows: int | None = None, *, compress: bool = True) -> None:
+        with self._zip.open(self._info(name, compress=compress), "w") as raw:
             entry = _Entry(raw)
             entry.write(data)
         self.manifest[name] = _described(entry, rows)
@@ -204,9 +211,11 @@ def build(
     exported_at: datetime,
     app_version: str,
     clean_html: Callable[[str], str],
+    store: FileStore | None = None,
 ) -> ExportResult:
     """Read everything the connection's tenant may see into one ZIP. `clean_html` is the notes sanitizer: notes are
-    cleaned again on the way out, so a row that predates the sanitizer cannot carry a script into a downloaded file."""
+    cleaned again on the way out, so a row that predates the sanitizer cannot carry a script into a downloaded file.
+    `store` is where the image files are kept: with none, the ZIP says it holds no images."""
     spool: IO[bytes] = tempfile.SpooledTemporaryFile(max_size=SPOOL_BYTES)  # noqa: SIM115 - closed by the caller
     counts: dict[str, int] = {}
     try:
@@ -226,6 +235,8 @@ def build(
                 counts[table.file] = files.add_csv(table.file, columns, rows)
 
             counts["notes"] = _notes(conn, files, clean_html)
+            written, missing = _images(conn, files, store) if store is not None else (0, [])
+            counts["screenshots"] = written
 
             files.add_bytes(
                 "manifest.json",
@@ -242,9 +253,13 @@ def build(
                             "times": "UTC, ISO 8601 with a Z",
                             "dates": "ISO 8601 dates; a trading day is the day your trading-day settings put the trade in",
                             "notes": "notes/ holds each non-empty note as a small HTML file and as plain text",
-                            "screenshots": "screenshots.csv lists them; the image files are added when screenshots are available",
+                            "screenshots": (
+                                "screenshots.csv lists them; each image file is screenshots/<id>.<extension>, "
+                                "with <id> from the id column"
+                            ),
                             "not_included": sorted(NOT_EXPORTED),
                         },
+                        "screenshot_files": {"included": store is not None, "count": written, "missing": missing},
                         "files": dict(sorted(files.manifest.items())),
                     }
                 ),
@@ -272,6 +287,30 @@ def _notes(conn: psycopg.Connection, files: _Writer, clean_html: Callable[[str],
     for day, notes in day_notes:
         count += _note(files, f"notes/day-{day.isoformat()}", f"Notes for {day.isoformat()}", notes, clean_html)
     return count
+
+
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
+
+
+def _images(conn: psycopg.Connection, files: _Writer, store: FileStore) -> tuple[int, list[int]]:
+    """Copy each screenshot's file into `screenshots/<id>.<ext>`. Returns how many were written and the ids whose file
+    could not be found (a row with no file: one made before the files were kept here, or one lost since)."""
+    written, missing = 0, []
+    rows = _stream(conn, "export_images", sql.SQL("SELECT id, stored_name FROM screenshots ORDER BY id"))
+    for screenshot_id, key in rows:
+        try:
+            data = store.get(key)
+        except (FileMissing, BadKey):
+            missing.append(screenshot_id)
+            continue
+        extension = os.path.splitext(key)[1]  # a key is always lower case (the store refuses any other)
+        files.add_bytes(
+            f"screenshots/{screenshot_id}{extension if extension in _IMAGE_EXTENSIONS else '.bin'}",
+            data,
+            compress=False,
+        )
+        written += 1
+    return written, missing
 
 
 def _note(files: _Writer, stem: str, title: str, html: str, clean_html: Callable[[str], str]) -> int:

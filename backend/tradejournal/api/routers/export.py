@@ -53,7 +53,8 @@ def _chunks(file: IO[bytes]) -> Iterator[bytes]:
 def download_export(
     request: Request, tenant: TenantDep, services: ServicesDep, config: ConfigDep, clock: ClockDep
 ) -> StreamingResponse:
-    """Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, and a manifest with checksums."""
+    """Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, the screenshot files, and a
+    manifest with checksums."""
     account = services.accounts.load(tenant.user_id)
     if account is None:
         raise HTTPException(401, "Not signed in.")
@@ -75,6 +76,7 @@ def download_export(
                 exported_at=now,
                 app_version=config.app_version,
                 clean_html=sanitize_notes,
+                store=request.app.state.files,
             )
     finally:
         _RUNNING.release()
@@ -82,7 +84,12 @@ def download_export(
         tenant.user_id,
         "export",
         ip_hash=hash_ip(config.session_secret, request.client.host if request.client else None),
-        meta={"bytes": result.size, "trades": result.counts["trades.csv"], "notes": result.counts["notes"]},
+        meta={
+            "bytes": result.size,
+            "trades": result.counts["trades.csv"],
+            "notes": result.counts["notes"],
+            "screenshots": result.counts["screenshots"],
+        },
     )
     return StreamingResponse(
         _chunks(result.file),

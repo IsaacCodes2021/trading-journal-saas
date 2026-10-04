@@ -32,7 +32,9 @@ describe('the data and privacy section', () => {
     ]) {
       expect(within(region).getByText(text)).toBeInTheDocument()
     }
-    expect(within(region).getByText(/image files are added when screenshots are available/)).toBeInTheDocument()
+    expect(within(region).getByText(/screenshots come with it as image files/)).toBeInTheDocument()
+    expect(within(region).getByText(/the manifest says which one/)).toBeInTheDocument()
+    expect(within(region).queryByText(/when screenshots are available/)).not.toBeInTheDocument() // no longer "later"
   })
 
   it('offers deleting the account as its own card, after the download, and says to download first', async () => {

@@ -12,8 +12,11 @@ For each due account, in this order and for good reasons:
    `identity_removals`. All of it happens or none of it does.
 2. Then, separately and repeatably: remove each recorded identity at the provider, and forget it once the provider confirms.
    A failure leaves the entry for the next run; it never leaves an identity nobody remembers.
+3. And the same for the person's screenshot files (`file_removals`, migration 0013): the folder `u/<user id>/` is written
+   down in the transaction of step 1 and removed from the file store afterwards (`TJ_FILES_DIR`). With no store configured
+   on the job the entries wait, and the counts say so, until a run that has one.
 
-It prints counts and never an email, a name or a provider id. `--apply` is required to change anything; without a provider
+It prints counts and never an email, a name, a provider id or a file name. `--apply` is required to change anything; without a provider
 configured it refuses (an account deleted here and left at the provider would still be someone's personal data), unless
 `--without-identity-provider` says so on purpose (local development).
 """
@@ -25,10 +28,12 @@ import os
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 
 import psycopg
 
 from ..auth.idp import IdentityDirectory, IdentityError
+from ..filestore import FileStore, LocalFileStore
 from . import audit, deletion
 from .system import SystemDatabase
 
@@ -43,6 +48,8 @@ class SweepReport:
     skipped: int = 0  # due when listed, no longer by the time it was acted on (the person signed in)
     identities_removed: int = 0
     identities_pending: int = 0  # still to remove at the provider (the next run tries again)
+    files_removed: int = 0  # people's screenshot folders removed from the file store
+    files_pending: int = 0  # still to remove (no store on this job, or the store failed: the next run tries again)
     dry_run: bool = True
 
 
@@ -51,6 +58,7 @@ def run(
     directory: IdentityDirectory | None,
     *,
     apply: bool,
+    files: FileStore | None = None,
     now: datetime | None = None,
     limit: int = BATCH,
 ) -> SweepReport:
@@ -69,11 +77,15 @@ def run(
                     "INSERT INTO identity_removals (idp_subject) VALUES (%s) ON CONFLICT DO NOTHING",
                     (account.idp_subject,),
                 )
+                conn.execute(
+                    "INSERT INTO file_removals (prefix) VALUES (%s) ON CONFLICT DO NOTHING", (f"u/{account.user_id}/",)
+                )
                 report.deleted += 1
             else:
                 raise psycopg.Rollback  # no longer due (the person signed in): the audit row for it goes too
     report.skipped = report.due - report.deleted
     _remove_identities(system, directory, report)
+    _remove_files(system, files, report)
     return report
 
 
@@ -101,6 +113,35 @@ def _remove_identities(system: SystemDatabase, directory: IdentityDirectory | No
                     (reason, subject),
                 )
                 report.identities_pending += 1
+
+
+def _remove_files(system: SystemDatabase, files: FileStore | None, report: SweepReport) -> None:
+    with system.system_session("sweep") as conn:
+        waiting = [r["prefix"] for r in conn.execute("SELECT prefix FROM file_removals ORDER BY created_at, prefix")]
+    if files is None:
+        report.files_pending = len(waiting)
+        return
+    for prefix in waiting:
+        try:
+            files.delete_prefix(prefix)
+            reason = None
+        except Exception as problem:  # noqa: BLE001 - a store can fail in ways nobody can list; the entry stays for next time
+            reason = type(problem).__name__  # the kind of error only: a message could hold a path
+        with system.system_session("sweep") as conn:
+            if reason is None:
+                conn.execute("DELETE FROM file_removals WHERE prefix = %s", (prefix,))
+                report.files_removed += 1
+            else:
+                conn.execute(
+                    "UPDATE file_removals SET attempts = attempts + 1, last_error = %s WHERE prefix = %s",
+                    (reason, prefix),
+                )
+                report.files_pending += 1
+
+
+def _files_from_env() -> FileStore | None:
+    folder = os.environ.get("TJ_FILES_DIR", "").strip()
+    return LocalFileStore(Path(folder)) if folder else None
 
 
 def _directory_from_env() -> IdentityDirectory | None:
@@ -138,17 +179,21 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
+    files = _files_from_env()
     system = SystemDatabase({"sweep": url})
     system.open()
     try:
-        report = run(system, directory, apply=args.apply, limit=args.limit)
+        report = run(system, directory, apply=args.apply, files=files, limit=args.limit)
     finally:
         system.close()
     mode = "dry run: nothing changed" if report.dry_run else "applied"
     print(
         f"{mode}; due {report.due}, deleted {report.deleted}, skipped {report.skipped}, "
-        f"identities removed {report.identities_removed}, identities still to remove {report.identities_pending}"
+        f"identities removed {report.identities_removed}, identities still to remove {report.identities_pending}, "
+        f"file folders removed {report.files_removed}, file folders still to remove {report.files_pending}"
     )
+    if report.files_pending and files is None:
+        print("file folders are waiting because TJ_FILES_DIR is not set on this job", file=sys.stderr)
     return 0
 
 
