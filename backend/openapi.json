@@ -482,6 +482,80 @@
         "title": "AccountSummaryOut",
         "type": "object"
       },
+      "ActiveSessionOut": {
+        "properties": {
+          "current": {
+            "description": "The session making this request",
+            "title": "Current",
+            "type": "boolean"
+          },
+          "device": {
+            "description": "A short label such as \"Chrome on Windows\"; never the raw User-Agent",
+            "title": "Device",
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "When it ends whatever happens (90 days after it began)",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "description": "Opaque; pass it to DELETE /api/v1/sessions/{id}",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_active_at": {
+            "format": "date-time",
+            "title": "Last Active At",
+            "type": "string"
+          },
+          "mfa": {
+            "description": "Whether the sign-in used two-step verification",
+            "title": "Mfa",
+            "type": "boolean"
+          },
+          "signed_in_at": {
+            "format": "date-time",
+            "title": "Signed In At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "current",
+          "device",
+          "signed_in_at",
+          "last_active_at",
+          "expires_at",
+          "mfa"
+        ],
+        "title": "ActiveSessionOut",
+        "type": "object"
+      },
+      "ActiveSessionsOut": {
+        "properties": {
+          "ended": {
+            "description": "How many this call ended (0 for a plain read)",
+            "title": "Ended",
+            "type": "integer"
+          },
+          "sessions": {
+            "description": "Working sessions, most recently used first",
+            "items": {
+              "$ref": "#/components/schemas/ActiveSessionOut"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "sessions",
+          "ended"
+        ],
+        "title": "ActiveSessionsOut",
+        "type": "object"
+      },
       "ArchiveIn": {
         "additionalProperties": false,
         "properties": {
@@ -4496,6 +4570,172 @@
         "summary": "Get Session",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/v1/sessions": {
+      "delete": {
+        "description": "Log out everywhere else: every other working session of this account ends; this one stays.",
+        "operationId": "end_other_sessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveSessionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "End Other Sessions",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "get": {
+        "description": "Where this account is signed in now.",
+        "operationId": "list_sessions",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveSessionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Sessions",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/api/v1/sessions/{session_id}": {
+      "delete": {
+        "description": "Sign out one other place. Someone else's id, an ended one and an unknown one all answer the same 404.",
+        "operationId": "end_session",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveSessionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "End Session",
+        "tags": [
+          "sessions"
         ]
       }
     },

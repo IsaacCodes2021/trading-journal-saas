@@ -121,3 +121,53 @@ def revoke_all(
         (_now(now), user_id, keep),
     ).fetchall()
     return len(rows)
+
+
+@dataclass(frozen=True)
+class SessionInfo:
+    """What a person may be shown about one of their own sessions. Never the token, its hash, or the address hash."""
+
+    public_id: UUID
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+    mfa_at: datetime | None
+    user_agent: str | None
+
+
+def _live(moment: datetime) -> tuple[str, tuple[datetime, datetime]]:
+    """The rule for "this session still works", as SQL and its two parameters (same as `lookup`, minus the user check)."""
+    return "revoked_at IS NULL AND expires_at > %s AND last_seen_at > %s", (moment, moment - IDLE_TIMEOUT)
+
+
+def list_active(conn: psycopg.Connection, user_id: UUID, *, now: datetime | None = None) -> list[SessionInfo]:
+    """A person's working sessions, most recently used first."""
+    condition, params = _live(_now(now))
+    rows = conn.execute(
+        f"""SELECT public_id, created_at, last_seen_at, expires_at, mfa_at, user_agent
+            FROM sessions WHERE user_id = %s AND {condition}
+            ORDER BY last_seen_at DESC, id DESC""",  # noqa: S608 - `condition` is a literal from this module
+        (user_id, *params),
+    ).fetchall()
+    return [SessionInfo(**row) for row in rows]
+
+
+def revoke_one(conn: psycopg.Connection, user_id: UUID, public_id: UUID, *, now: datetime | None = None) -> bool:
+    """End one working session of this person, named by its public id. The user id is part of the match, so an id that
+    belongs to someone else ends nothing and looks exactly like one that does not exist."""
+    condition, params = _live(_now(now))
+    row = conn.execute(
+        f"UPDATE sessions SET revoked_at = %s WHERE public_id = %s AND user_id = %s AND {condition} RETURNING id",  # noqa: S608
+        (_now(now), public_id, user_id, *params),
+    ).fetchone()
+    return row is not None
+
+
+def revoke_others(conn: psycopg.Connection, user_id: UUID, keep: UUID, *, now: datetime | None = None) -> int:
+    """Log out everywhere else: end every working session of this person except `keep`. Returns how many."""
+    condition, params = _live(_now(now))
+    rows = conn.execute(
+        f"UPDATE sessions SET revoked_at = %s WHERE user_id = %s AND public_id <> %s AND {condition} RETURNING id",  # noqa: S608
+        (_now(now), user_id, keep, *params),
+    ).fetchall()
+    return len(rows)

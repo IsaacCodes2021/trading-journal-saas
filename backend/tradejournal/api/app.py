@@ -28,7 +28,7 @@ from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
-from .routers import accounts, auth, imports, journal, session, stats, tags, trades
+from .routers import accounts, auth, imports, journal, session, sessions, stats, tags, trades
 from .security import SecurityHeadersMiddleware
 from .sessions import PgSessionStore
 from .spa import mount_spa
@@ -146,6 +146,7 @@ def create_app(
         return JSONResponse(body, status_code=200 if ready else 503, headers={"Cache-Control": "no-store"})
 
     app.include_router(session.router)
+    app.include_router(sessions.router)
     app.include_router(accounts.router)
     app.include_router(stats.router)
     app.include_router(trades.router)

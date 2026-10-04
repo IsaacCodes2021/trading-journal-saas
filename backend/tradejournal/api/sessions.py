@@ -8,9 +8,10 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from uuid import UUID
 
+from ..pg import audit
 from ..pg import sessions as pg_sessions
 from ..pg.system import SystemDatabase
-from .ports import AuthSession
+from .ports import AuthSession, SessionInfo
 
 CACHE_SECONDS = 60  # doc 03: every request re-checks the session, cached for a minute per instance
 
@@ -82,3 +83,51 @@ class PgSessionStore:
                 if session.user_id == user_id and token != except_token:
                     del self._cache[token]
         return ended
+
+    # ---- a person's own sessions ----------------------------------------------------------------------------------
+
+    def list_for(self, user_id: UUID) -> list[SessionInfo]:
+        with self._system.system_session("login") as conn:
+            rows = pg_sessions.list_active(conn, user_id, now=self._clock())
+        return [
+            SessionInfo(
+                id=str(row.public_id),
+                created_at=row.created_at,
+                last_seen_at=row.last_seen_at,
+                expires_at=row.expires_at,
+                mfa_at=row.mfa_at,
+                user_agent=row.user_agent,
+            )
+            for row in rows
+        ]
+
+    def revoke_one(self, user_id: UUID, session_id: str, *, ip_hash: str | None = None) -> bool:
+        try:
+            public_id = UUID(session_id)
+        except ValueError:
+            return False
+        with self._system.system_session("login") as conn:
+            ended = pg_sessions.revoke_one(conn, user_id, public_id, now=self._clock())
+            if ended:  # the end and its record are one transaction: neither happens alone
+                audit.record(conn, "session_revoked", user_id=user_id, ip_hash=ip_hash)
+        if ended:
+            self._forget(lambda session: session.id == session_id)
+        return ended
+
+    def revoke_others(self, user_id: UUID, keep_id: str, *, ip_hash: str | None = None) -> int:
+        try:
+            keep = UUID(keep_id)
+        except ValueError:
+            return 0  # not a real session id (the development session): there is nothing of ours to keep or end
+        with self._system.system_session("login") as conn:
+            ended = pg_sessions.revoke_others(conn, user_id, keep, now=self._clock())
+            audit.record(conn, "logout_everywhere", user_id=user_id, ip_hash=ip_hash, meta={"ended": ended})
+        self._forget(lambda session: session.user_id == user_id and session.id != keep_id)
+        return ended
+
+    def _forget(self, matches: Callable[[AuthSession], bool]) -> None:
+        """Drop cached sessions that were just ended, so this instance stops honouring them at once."""
+        with self._lock:
+            for token, (_, session) in list(self._cache.items()):
+                if matches(session):
+                    del self._cache[token]

@@ -162,6 +162,7 @@ const PreferencesPage = lazyNamed(() => import('./features/settings/PreferencesP
 const PlanPage = lazyNamed(() => import('./features/settings/PlanPage'), 'PlanPage')
 const AccountsPage = lazy(() => import('./features/accounts/AccountsPage').then((m) => ({ default: m.AccountsPage })))
 const TagsPage = lazyNamed(() => import('./features/tags/TagsPage'), 'TagsPage')
+const SecurityPage = lazyNamed(() => import('./features/settings/SecurityPage'), 'SecurityPage')
 const PrivacySoon = lazyNamed(() => import('./features/settings/Placeholders'), 'PrivacySoon')
 
 const settingsRoute = createRoute({
@@ -236,6 +237,11 @@ const accountsRoute = createRoute({
 })
 const tagsRoute = createRoute({ getParentRoute: () => settingsRoute, path: 'tags', component: inSettings(TagsPage) })
 const planRoute = createRoute({ getParentRoute: () => settingsRoute, path: 'plan', component: inSettings(PlanPage) })
+const securityRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: 'security',
+  component: inSettings(SecurityPage),
+})
 const privacyRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: 'privacy',
@@ -250,7 +256,15 @@ const routeTree = rootRoute.addChildren([
   tradeDetailRoute,
   importRoute,
   inviteRoute,
-  settingsRoute.addChildren([settingsIndexRoute, preferencesRoute, accountsRoute, tagsRoute, planRoute, privacyRoute]),
+  settingsRoute.addChildren([
+    settingsIndexRoute,
+    preferencesRoute,
+    accountsRoute,
+    tagsRoute,
+    planRoute,
+    securityRoute,
+    privacyRoute,
+  ]),
 ])
 
 /** The app's router. Tests make their own, each with its own history, so no test sees another's location. */

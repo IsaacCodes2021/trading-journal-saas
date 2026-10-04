@@ -28,6 +28,18 @@ class AuthSession:
 
 
 @dataclass(frozen=True)
+class SessionInfo:
+    """One of a person's working sessions, as far as they may see it (never the token or what it is stored as)."""
+
+    id: str  # the same opaque id as AuthSession.id
+    created_at: datetime
+    last_seen_at: datetime
+    expires_at: datetime
+    mfa_at: datetime | None
+    user_agent: str | None
+
+
+@dataclass(frozen=True)
 class Account:
     user: UserOut
     settings: SettingsOut
@@ -39,6 +51,19 @@ class Account:
 class SessionStore(Protocol):
     def lookup(self, token: str | None) -> AuthSession | None:
         """The live session for a cookie value, or None (unknown, expired, revoked, or the user is suspended)."""
+        ...
+
+    def list_for(self, user_id: UUID) -> list[SessionInfo]:
+        """The person's working sessions, most recently used first."""
+        ...
+
+    def revoke_one(self, user_id: UUID, session_id: str, *, ip_hash: str | None = None) -> bool:
+        """End one of this person's sessions. False if there is no such working session of theirs (someone else's looks
+        the same). Takes effect at once on this instance and within a minute on others."""
+        ...
+
+    def revoke_others(self, user_id: UUID, keep_id: str, *, ip_hash: str | None = None) -> int:
+        """Log out everywhere else: end all of this person's working sessions but `keep_id`. Returns how many."""
         ...
 
 

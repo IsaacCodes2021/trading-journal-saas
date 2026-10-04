@@ -7,6 +7,7 @@ const SECTIONS = [
   { to: '/settings/accounts', label: 'Prop accounts' },
   { to: '/settings/tags', label: 'Tags' },
   { to: '/settings/plan', label: 'Plan & billing' },
+  { to: '/settings/security', label: 'Security' },
   { to: '/settings/privacy', label: 'Data & privacy' },
 ] as const
 

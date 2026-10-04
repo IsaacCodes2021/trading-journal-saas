@@ -4,28 +4,69 @@ from __future__ import annotations
 
 import secrets
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from tradejournal.api.ports import Account, AuthSession, Services
+from tradejournal.api.ports import Account, AuthSession, Services, SessionInfo
 from tradejournal.api.schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
 
 
 class FakeSessions:
     def __init__(self) -> None:
         self._by_token: dict[str, AuthSession] = {}
+        self._info: dict[str, SessionInfo] = {}  # by session id
+        self.ended_by: list[tuple[str, str | None]] = []  # ("one" or "others", the ip hash given), for assertions
 
-    def sign_in(self, user_id: UUID, *, mfa_at: datetime | None = None) -> tuple[str, AuthSession]:
+    def sign_in(
+        self, user_id: UUID, *, mfa_at: datetime | None = None, user_agent: str | None = None
+    ) -> tuple[str, AuthSession]:
         token = secrets.token_urlsafe(24)
-        session = AuthSession(id=secrets.token_hex(8), user_id=user_id, mfa_at=mfa_at)
+        session = AuthSession(id=str(uuid4()), user_id=user_id, mfa_at=mfa_at)
         self._by_token[token] = session
+        now = datetime.now(UTC)
+        self._info[session.id] = SessionInfo(
+            id=session.id,
+            created_at=now,
+            last_seen_at=now + timedelta(seconds=len(self._info)),  # later sign-ins are more recent
+            expires_at=now + timedelta(days=90),
+            mfa_at=mfa_at,
+            user_agent=user_agent,
+        )
         return token, session
 
     def revoke(self, token: str) -> None:
-        self._by_token.pop(token, None)
+        session = self._by_token.pop(token, None)
+        if session:
+            self._info.pop(session.id, None)
 
     def lookup(self, token: str | None) -> AuthSession | None:
         return self._by_token.get(token or "")
+
+    def list_for(self, user_id: UUID) -> list[SessionInfo]:
+        mine = [info for sid, info in self._info.items() if self._owner(sid) == user_id]
+        return sorted(mine, key=lambda info: info.last_seen_at, reverse=True)
+
+    def revoke_one(self, user_id: UUID, session_id: str, *, ip_hash: str | None = None) -> bool:
+        if self._owner(session_id) != user_id:
+            return False
+        self._drop(session_id)
+        self.ended_by.append(("one", ip_hash))
+        return True
+
+    def revoke_others(self, user_id: UUID, keep_id: str, *, ip_hash: str | None = None) -> int:
+        doomed = [sid for sid in self._info if self._owner(sid) == user_id and sid != keep_id]
+        for sid in doomed:
+            self._drop(sid)
+        self.ended_by.append(("others", ip_hash))
+        return len(doomed)
+
+    def _owner(self, session_id: str) -> UUID | None:
+        return next((s.user_id for s in self._by_token.values() if s.id == session_id), None)
+
+    def _drop(self, session_id: str) -> None:
+        self._info.pop(session_id, None)
+        for token in [t for t, s in self._by_token.items() if s.id == session_id]:
+            del self._by_token[token]
 
 
 class FakeAccounts:
