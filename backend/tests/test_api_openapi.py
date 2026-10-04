@@ -47,7 +47,9 @@ def test_the_routes_are_in_the_schema():
     assert set(paths["/api/v1/accounts"]) == {"get"}
     assert set(paths["/api/v1/dashboard"]) == {"get"}
     assert set(paths["/api/v1/filter-options"]) == {"get"}
-    assert set(paths["/api/v1/tags"]) == {"get"}
+    assert set(paths["/api/v1/tags"]) == {"get", "post"}
+    assert set(paths["/api/v1/trades/{trade_id}/notes"]) == {"put"}
+    assert set(paths["/api/v1/trades/{trade_id}/tags/{tag_id}"]) == {"put", "delete"}
     assert set(paths["/api/v1/trades"]) == {"get"}
     assert set(paths["/api/v1/trades/{trade_id}"]) == {"get"}
     assert set(paths["/api/v1/trades/{trade_id}/neighbors"]) == {"get"}
@@ -57,6 +59,8 @@ def test_the_routes_are_in_the_schema():
 def test_operation_ids_are_the_unique_handler_names():
     ids = [operation["operationId"] for path in spec()["paths"].values() for operation in path.values()]
     assert sorted(ids) == [
+        "create_tag",
+        "delete_trade_tag",
         "get_dashboard",
         "get_filter_options",
         "get_session",
@@ -66,6 +70,8 @@ def test_operation_ids_are_the_unique_handler_names():
         "list_accounts",
         "list_trades",
         "patch_settings",
+        "put_notes",
+        "put_trade_tag",
     ]
     assert len(ids) == len(set(ids))  # two handlers with one name would silently merge in the generated client
 

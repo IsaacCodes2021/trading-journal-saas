@@ -6,10 +6,10 @@ from datetime import date, datetime
 from typing import Annotated, Literal
 
 from fastapi import Query
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .base import ApiModel
-from .journal import AccountRefOut, Direction, TradeFilterQuery
+from .journal import AccountRefOut, Direction, RowId, TradeFilterQuery
 from .money import Money
 
 # A trade's prices are exact decimals like money (a string in JSON, never a float), but they are not amounts of money.
@@ -122,3 +122,20 @@ class NeighborsOut(ApiModel):
 
     previous: int | None
     next: int | None
+
+
+class NotesIn(ApiModel):
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+    html: Annotated[str, Field(max_length=100_000)]  # the editor's HTML; the server trims it, an empty note is ""
+
+
+class NotesOut(ApiModel):
+    notes_html: str  # what was stored
+
+
+class NewTagIn(ApiModel):
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+    group_id: RowId
+    name: Annotated[str, Field(min_length=1, max_length=200)]  # trimmed and checked again by the server (its own limit)

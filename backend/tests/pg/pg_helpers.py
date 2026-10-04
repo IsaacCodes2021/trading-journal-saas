@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from tradejournal.api.app import create_app
 from tradejournal.api.config import ApiConfig
 from tradejournal.api.deps import SESSION_COOKIE
+from tradejournal.auth.csrf import csrf_token
 from tradejournal.pg import accounts
 
 
@@ -67,16 +68,22 @@ def make_trades(conn, account_id: int, count: int = 8, *, day: date = date(2024,
 
 
 ORIGIN = "https://app.example.com"
+SECRET = b"k" * 32
 NOON_UTC = datetime(2024, 3, 22, 12, 0, tzinfo=UTC)
+
+
+def write_headers(session) -> dict[str, str]:
+    """What the single-page app sends with a change: a same-origin request carrying the session's CSRF token."""
+    return {"sec-fetch-site": "same-origin", "x-csrf-token": csrf_token(SECRET, session.id)}
 
 
 def api_client(db, user_id, *, now: datetime = NOON_UTC) -> TestClient:
     """A browser signed in as `user_id`, on a server whose clock says `now`."""
     services, sessions, _ = make_services()
-    token, _ = sessions.sign_in(user_id)
-    config = ApiConfig(app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=b"k" * 32)
+    token, session = sessions.sign_in(user_id)
+    config = ApiConfig(app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=SECRET)
     app = create_app(config, services, database=db, clock=lambda: now)
-    return TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}"})
+    return TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}", **write_headers(session)})
 
 
 def add_trade(conn, account_id: int, day: date, net: str, *, nth: int = 0, root: str = "NQ", direction: str = "long"):

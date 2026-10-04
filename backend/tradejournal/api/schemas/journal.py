@@ -9,11 +9,16 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from fastapi import Query
-from pydantic import ConfigDict, model_validator
+from fastapi import Path, Query
+from pydantic import ConfigDict, Field, model_validator
 
 from .base import ApiModel
 from .money import Money
+
+# Row ids are Postgres bigints: a bigger number in a path or a filter is a bad request, not a database error.
+MAX_ID = 9_223_372_036_854_775_807
+RowId = Annotated[int, Field(ge=1, le=MAX_ID)]
+PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
 
 AccountType = Literal["evaluation", "funded"]
 Direction = Literal["long", "short"]
@@ -62,7 +67,7 @@ class TradeFilterQuery(ApiModel):
     account_type: AccountType | None = None
     show_archived: bool = False  # trades of archived (passed, failed, closed) accounts are left out unless asked
     firms: list[str] = []
-    account_ids: list[int] = []
+    account_ids: list[RowId] = []
     symbol_roots: list[str] = []
     direction: Direction | None = None
 

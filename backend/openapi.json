@@ -572,6 +572,57 @@
         "title": "NeighborsOut",
         "type": "object"
       },
+      "NewTagIn": {
+        "additionalProperties": false,
+        "properties": {
+          "group_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Group Id",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "group_id",
+          "name"
+        ],
+        "title": "NewTagIn",
+        "type": "object"
+      },
+      "NotesIn": {
+        "additionalProperties": false,
+        "properties": {
+          "html": {
+            "maxLength": 100000,
+            "title": "Html",
+            "type": "string"
+          }
+        },
+        "required": [
+          "html"
+        ],
+        "title": "NotesIn",
+        "type": "object"
+      },
+      "NotesOut": {
+        "properties": {
+          "notes_html": {
+            "title": "Notes Html",
+            "type": "string"
+          }
+        },
+        "required": [
+          "notes_html"
+        ],
+        "title": "NotesOut",
+        "type": "object"
+      },
       "PerformanceScoreOut": {
         "properties": {
           "axes": {
@@ -1706,6 +1757,8 @@
             "schema": {
               "default": [],
               "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
                 "type": "integer"
               },
               "title": "Account Ids",
@@ -2007,6 +2060,76 @@
         "tags": [
           "tags"
         ]
+      },
+      "post": {
+        "description": "A new tag in a category, or the one already there under that name (any capitalization).",
+        "operationId": "create_tag",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewTagIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Create Tag",
+        "tags": [
+          "journal"
+        ]
       }
     },
     "/api/v1/trades": {
@@ -2117,6 +2240,8 @@
             "schema": {
               "default": [],
               "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
                 "type": "integer"
               },
               "title": "Account Ids",
@@ -2285,6 +2410,8 @@
             "name": "trade_id",
             "required": true,
             "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
               "title": "Trade Id",
               "type": "integer"
             }
@@ -2358,6 +2485,8 @@
             "name": "trade_id",
             "required": true,
             "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
               "title": "Trade Id",
               "type": "integer"
             }
@@ -2465,6 +2594,8 @@
             "schema": {
               "default": [],
               "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
                 "type": "integer"
               },
               "title": "Account Ids",
@@ -2597,6 +2728,269 @@
         "summary": "Get Trade Neighbors",
         "tags": [
           "trades"
+        ]
+      }
+    },
+    "/api/v1/trades/{trade_id}/notes": {
+      "put": {
+        "description": "Replace a trade's notes. Answers with what was stored (a note with no visible text is stored as empty).",
+        "operationId": "put_notes",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotesIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Put Notes",
+        "tags": [
+          "journal"
+        ]
+      }
+    },
+    "/api/v1/trades/{trade_id}/tags/{tag_id}": {
+      "delete": {
+        "description": "Take a tag off a trade (not on it is fine); the tag stays for other trades. Answers with the trade's tags.",
+        "operationId": "delete_trade_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Tag Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagOut"
+                  },
+                  "title": "Response Delete Trade Tag",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Delete Trade Tag",
+        "tags": [
+          "journal"
+        ]
+      },
+      "put": {
+        "description": "Put a tag on a trade (already there is fine). Answers with the trade's tags.",
+        "operationId": "put_trade_tag",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trade_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Trade Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Tag Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TagOut"
+                  },
+                  "title": "Response Put Trade Tag",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Put Trade Tag",
+        "tags": [
+          "journal"
         ]
       }
     }

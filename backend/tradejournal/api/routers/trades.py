@@ -12,6 +12,7 @@ from ..cents import cents
 from ..deps import ERROR_RESPONSES, ClockDep, TenantDep
 from ..filtering import resolve_filter
 from ..schemas import Problem
+from ..schemas.journal import PathId
 from ..schemas.trades import (
     FillPairOut,
     NeighborsOut,
@@ -44,7 +45,7 @@ def list_trades(query: TradesQueryParams, tenant: TenantDep, clock: ClockDep) ->
 
 
 @router.get("/trades/{trade_id}", response_model=TradeDetailOut)
-def get_trade(trade_id: int, tenant: TenantDep) -> TradeDetailOut:
+def get_trade(trade_id: PathId, tenant: TenantDep) -> TradeDetailOut:
     """Everything about one trade. Another user's trade and a missing one are both a 404: they look the same."""
     with tenant.session() as conn:
         record = pg_queries.load_trade(conn, trade_id)
@@ -79,7 +80,7 @@ def get_trade(trade_id: int, tenant: TenantDep) -> TradeDetailOut:
 
 @router.get("/trades/{trade_id}/neighbors", response_model=NeighborsOut)
 def get_trade_neighbors(
-    trade_id: int, query: TradeListFiltersQuery, tenant: TenantDep, clock: ClockDep
+    trade_id: PathId, query: TradeListFiltersQuery, tenant: TenantDep, clock: ClockDep
 ) -> NeighborsOut:
     """The trades either side of this one in the list the person came from (same filters, search and order)."""
     with tenant.session() as conn:
