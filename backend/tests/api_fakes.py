@@ -103,6 +103,14 @@ class FakeAccounts:
         return settings
 
 
+class FakeAudit:
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def record(self, user_id: UUID, action: str, *, ip_hash: str | None = None, meta: dict | None = None) -> None:
+        self.events.append({"user_id": user_id, "action": action, "ip_hash": ip_hash, "meta": meta or {}})
+
+
 def make_services() -> tuple[Services, FakeSessions, FakeAccounts]:
     sessions, accounts = FakeSessions(), FakeAccounts()
-    return Services(sessions=sessions, accounts=accounts), sessions, accounts
+    return Services(sessions=sessions, accounts=accounts, audit=FakeAudit()), sessions, accounts

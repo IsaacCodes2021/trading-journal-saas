@@ -48,10 +48,16 @@ class Database:
         self._pool.close()
 
     @contextmanager
-    def tenant_session(self, user_id: UUID) -> Iterator[psycopg.Connection]:
-        """One transaction as one user: committed on success, rolled back if the block raises."""
+    def tenant_session(self, user_id: UUID, *, snapshot: bool = False) -> Iterator[psycopg.Connection]:
+        """One transaction as one user: committed on success, rolled back if the block raises.
+
+        `snapshot=True` is for reading many tables that must agree with each other (an export): the transaction is
+        REPEATABLE READ and READ ONLY, so every query sees the database as it was when the first one ran, and nothing
+        in the block can write."""
         if not isinstance(user_id, UUID):
             raise TypeError("tenant_session needs the user's UUID")
         with self._pool.connection() as conn:
+            if snapshot:  # must come before any other statement of the transaction
+                conn.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             conn.execute("SELECT set_config('app.user_id', %s, true)", (str(user_id),))
             yield conn

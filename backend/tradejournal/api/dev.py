@@ -16,6 +16,7 @@ from uuid import UUID
 
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
+from .audit import PgAuditLog
 from .pg_services import PgAccountService
 from .ports import AuthSession, Services, SessionInfo
 
@@ -45,4 +46,6 @@ class DevSessionStore:
 
 
 def dev_services(user_id: UUID, database: Database, system: SystemDatabase) -> Services:
-    return Services(sessions=DevSessionStore(user_id), accounts=PgAccountService(database, system))
+    return Services(
+        sessions=DevSessionStore(user_id), accounts=PgAccountService(database, system), audit=PgAuditLog(system)
+    )

@@ -67,9 +67,10 @@ class Tenant:
     database: Database
     user_id: UUID
 
-    def session(self) -> AbstractContextManager[psycopg.Connection]:
-        """One transaction as this user: committed when the block ends, rolled back if it raises."""
-        return self.database.tenant_session(self.user_id)
+    def session(self, *, snapshot: bool = False) -> AbstractContextManager[psycopg.Connection]:
+        """One transaction as this user: committed when the block ends, rolled back if it raises. `snapshot=True`
+        is a read-only, repeatable-read transaction, for reading several tables that must agree (an export)."""
+        return self.database.tenant_session(self.user_id, snapshot=snapshot)
 
 
 def get_tenant(request: Request, session: SessionDep) -> Tenant:

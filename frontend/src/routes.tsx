@@ -163,7 +163,7 @@ const PlanPage = lazyNamed(() => import('./features/settings/PlanPage'), 'PlanPa
 const AccountsPage = lazy(() => import('./features/accounts/AccountsPage').then((m) => ({ default: m.AccountsPage })))
 const TagsPage = lazyNamed(() => import('./features/tags/TagsPage'), 'TagsPage')
 const SecurityPage = lazyNamed(() => import('./features/settings/SecurityPage'), 'SecurityPage')
-const PrivacySoon = lazyNamed(() => import('./features/settings/Placeholders'), 'PrivacySoon')
+const PrivacyPage = lazyNamed(() => import('./features/settings/PrivacyPage'), 'PrivacyPage')
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -245,7 +245,7 @@ const securityRoute = createRoute({
 const privacyRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: 'privacy',
-  component: inSettings(PrivacySoon),
+  component: inSettings(PrivacyPage),
 })
 
 // ---- router ----------------------------------------------------------------------------------------------------
