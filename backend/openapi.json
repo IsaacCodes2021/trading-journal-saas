@@ -1,6 +1,393 @@
 {
   "components": {
     "schemas": {
+      "AccountOut": {
+        "description": "Everything stored about an account (the rules too). Mirrors `accounts.Account`.",
+        "properties": {
+          "account_size": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Size"
+          },
+          "account_type": {
+            "enum": [
+              "evaluation",
+              "funded"
+            ],
+            "title": "Account Type",
+            "type": "string"
+          },
+          "archive_note": {
+            "title": "Archive Note",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "daily_loss_limit": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Loss Limit"
+          },
+          "ended_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended On"
+          },
+          "firm": {
+            "title": "Firm",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "max_drawdown": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Drawdown"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "passed",
+                  "failed",
+                  "closed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "profit_target": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Target"
+          },
+          "starting_balance": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Starting Balance",
+            "type": "string"
+          },
+          "trail_lock_enabled": {
+            "title": "Trail Lock Enabled",
+            "type": "boolean"
+          },
+          "trail_lock_level": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trail Lock Level"
+          },
+          "trailing_type": {
+            "anyOf": [
+              {
+                "enum": [
+                  "eod",
+                  "intraday"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trailing Type"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "firm",
+          "account_type",
+          "account_size",
+          "starting_balance",
+          "max_drawdown",
+          "trailing_type",
+          "trail_lock_enabled",
+          "trail_lock_level",
+          "daily_loss_limit",
+          "profit_target",
+          "created_at",
+          "outcome",
+          "ended_on",
+          "archive_note"
+        ],
+        "title": "AccountOut",
+        "type": "object"
+      },
+      "AccountRefOut": {
+        "properties": {
+          "account_type": {
+            "enum": [
+              "evaluation",
+              "funded"
+            ],
+            "title": "Account Type",
+            "type": "string"
+          },
+          "firm": {
+            "title": "Firm",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "firm",
+          "account_type"
+        ],
+        "title": "AccountRefOut",
+        "type": "object"
+      },
+      "AccountSummaryOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountRefOut"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account",
+          "trade_count",
+          "net_pnl"
+        ],
+        "title": "AccountSummaryOut",
+        "type": "object"
+      },
+      "DailyResultOut": {
+        "properties": {
+          "day": {
+            "format": "date",
+            "title": "Day",
+            "type": "string"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "day",
+          "net_pnl",
+          "trade_count"
+        ],
+        "title": "DailyResultOut",
+        "type": "object"
+      },
+      "DashboardOut": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountSummaryOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DailyResultOut"
+            },
+            "title": "Daily",
+            "type": "array"
+          },
+          "equity_by_day": {
+            "items": {
+              "$ref": "#/components/schemas/EquityPointOut"
+            },
+            "title": "Equity By Day",
+            "type": "array"
+          },
+          "equity_by_trade": {
+            "items": {
+              "$ref": "#/components/schemas/EquityPointOut"
+            },
+            "title": "Equity By Trade",
+            "type": "array"
+          },
+          "range": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DateRangeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "score": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceScoreOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SummaryOut"
+          }
+        },
+        "required": [
+          "range",
+          "summary",
+          "equity_by_trade",
+          "equity_by_day",
+          "daily",
+          "score",
+          "accounts"
+        ],
+        "title": "DashboardOut",
+        "type": "object"
+      },
+      "DateRangeOut": {
+        "properties": {
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          }
+        },
+        "required": [
+          "start",
+          "end"
+        ],
+        "title": "DateRangeOut",
+        "type": "object"
+      },
+      "EquityPointOut": {
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "drawdown": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Drawdown",
+            "type": "string"
+          },
+          "equity": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Equity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "equity",
+          "drawdown"
+        ],
+        "title": "EquityPointOut",
+        "type": "object"
+      },
       "FieldError": {
         "properties": {
           "field": {
@@ -19,6 +406,30 @@
         "title": "FieldError",
         "type": "object"
       },
+      "FilterOptionsOut": {
+        "properties": {
+          "firms": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Firms",
+            "type": "array"
+          },
+          "symbol_roots": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Symbol Roots",
+            "type": "array"
+          }
+        },
+        "required": [
+          "firms",
+          "symbol_roots"
+        ],
+        "title": "FilterOptionsOut",
+        "type": "object"
+      },
       "FlagsOut": {
         "properties": {
           "is_admin": {
@@ -35,6 +446,27 @@
           "mfa_fresh"
         ],
         "title": "FlagsOut",
+        "type": "object"
+      },
+      "PerformanceScoreOut": {
+        "properties": {
+          "axes": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreAxisOut"
+            },
+            "title": "Axes",
+            "type": "array"
+          },
+          "overall": {
+            "title": "Overall",
+            "type": "number"
+          }
+        },
+        "required": [
+          "overall",
+          "axes"
+        ],
+        "title": "PerformanceScoreOut",
         "type": "object"
       },
       "PlanOut": {
@@ -123,6 +555,29 @@
           "errors"
         ],
         "title": "Problem",
+        "type": "object"
+      },
+      "ScoreAxisOut": {
+        "properties": {
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "score": {
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "score",
+          "rule"
+        ],
+        "title": "ScoreAxisOut",
         "type": "object"
       },
       "SessionOut": {
@@ -285,6 +740,225 @@
         "title": "SettingsPatch",
         "type": "object"
       },
+      "SummaryOut": {
+        "description": "Mirrors `finance.Summary`, plus how many accounts the trades came from.",
+        "properties": {
+          "account_count": {
+            "title": "Account Count",
+            "type": "integer"
+          },
+          "avg_loss": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Loss"
+          },
+          "avg_win": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Win"
+          },
+          "breakeven_count": {
+            "title": "Breakeven Count",
+            "type": "integer"
+          },
+          "expectancy": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expectancy"
+          },
+          "fees": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Fees",
+            "type": "string"
+          },
+          "gross_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Gross Pnl",
+            "type": "string"
+          },
+          "largest_loss": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largest Loss"
+          },
+          "largest_win": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Largest Win"
+          },
+          "losing_days": {
+            "title": "Losing Days",
+            "type": "integer"
+          },
+          "loss_count": {
+            "title": "Loss Count",
+            "type": "integer"
+          },
+          "max_drawdown": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Max Drawdown",
+            "type": "string"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "profit_factor": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Factor"
+          },
+          "total_lost": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Total Lost",
+            "type": "string"
+          },
+          "total_won": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Total Won",
+            "type": "string"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          },
+          "trading_days": {
+            "title": "Trading Days",
+            "type": "integer"
+          },
+          "win_count": {
+            "title": "Win Count",
+            "type": "integer"
+          },
+          "win_loss_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Loss Ratio"
+          },
+          "win_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Win Rate"
+          },
+          "winning_days": {
+            "title": "Winning Days",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "trade_count",
+          "account_count",
+          "win_count",
+          "loss_count",
+          "breakeven_count",
+          "gross_pnl",
+          "fees",
+          "net_pnl",
+          "total_won",
+          "total_lost",
+          "win_rate",
+          "profit_factor",
+          "avg_win",
+          "avg_loss",
+          "win_loss_ratio",
+          "expectancy",
+          "largest_win",
+          "largest_loss",
+          "trading_days",
+          "winning_days",
+          "losing_days",
+          "max_drawdown"
+        ],
+        "title": "SummaryOut",
+        "type": "object"
+      },
       "UserOut": {
         "properties": {
           "email": {
@@ -312,6 +986,321 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/accounts": {
+      "get": {
+        "description": "Every account, by name. Archived ones (passed, failed or closed) are included unless `include_archived=false`.",
+        "operationId": "list_accounts",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountOut"
+                  },
+                  "title": "Response List Accounts",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Accounts",
+        "tags": [
+          "accounts"
+        ]
+      }
+    },
+    "/api/v1/dashboard": {
+      "get": {
+        "description": "The headline numbers, equity curves, daily results, score and per-account results for the filtered trades.",
+        "operationId": "get_dashboard",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "mtd",
+                "last_month",
+                "ytd"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluation",
+                    "funded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Show Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "firms",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Firms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "integer"
+              },
+              "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_roots",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Symbol Roots",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "long",
+                    "short"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Dashboard",
+        "tags": [
+          "stats"
+        ]
+      }
+    },
+    "/api/v1/filter-options": {
+      "get": {
+        "operationId": "get_filter_options",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilterOptionsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Get Filter Options",
+        "tags": [
+          "stats"
+        ]
+      }
+    },
     "/api/v1/session": {
       "get": {
         "operationId": "get_session",

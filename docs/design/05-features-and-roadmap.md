@@ -251,3 +251,20 @@ Findings from the ledger and settings ports:
 
 - **The database now enforces the ledger rules** (migration `0002_ledger_constraints.sql`: a known `kind`, `amount > 0`). It exposed a bug in an S2 test fixture that had been inserting the kind `'cost'`, which the application never allowed. A test compares the CHECK's kinds with `ledger.KINDS` so the two cannot drift apart.
 - **Settings are columns of `user_settings`, not key/value rows.** SQLite accepted `9:30` for the trading day start and stored it as typed; the Postgres column only accepts zero-padded `HH:MM`, so the port pads it (`09:30`). The SQLite settings module had no tests of its own; the port has them.
+
+## 10. M3 progress (running log)
+
+The tenant API is built in slices, each one a route family plus the tests that prove it; the front end switches from the sample source to the API source once a screen's routes all exist. Shapes follow `frontend/src/lib/data/model.ts`, which was written first from the design canvas.
+
+**Slice 1 (2026-10-04): the tenant plumbing and the dashboard's reads.** `GET /api/v1/accounts`, `GET /api/v1/filter-options` and `GET /api/v1/dashboard`. The pieces every later route reuses:
+
+- **`Tenant`** (`api/deps.py`): a dependency that authenticates first (an anonymous caller gets 401 even on a server with no database) and then hands the handler one thing, `tenant.session()`, a transaction as the signed-in user. A handler cannot name another user's id; row-level security would refuse it anyway. With no database configured a signed-in call is a 503, never an empty list that looks like "no data".
+- **The shared filter** (`TradeFilterQuery`): `preset`, `start`, `end`, `account_type`, `show_archived`, `firms`, `account_ids`, `symbol_roots`, `direction`; unknown or malformed values are a 422 (a misspelled filter must not become a wider answer). **A preset is resolved on the server against "today" in the person's trading-day timezone** (their `trading_day_timezone` and start time), not the server's clock: at 18:30 New York on the 20th the trading day is already the 21st. The clock is injectable, so a test proves it. An explicit `start` or `end` replaces the preset.
+- **The dashboard** (`api/dashboard.py`, a pure function over trade records) arranges `finance.py`'s results; no statistic is defined twice. Money leaves as cents strings, including `"0.00"` for an empty journal (never `"0"` or `"-0.00"`); ratios are plain numbers.
+- Tested against a real Postgres through the request role: the numbers by hand on five trades, every filter, the preset arithmetic in two timezones, archived accounts, and two users who never see each other (including a user naming another's account ids). Two mutations (a preset from the server's date; archived always shown) are each caught.
+
+Decisions and gaps:
+
+- `show_archived` defaults to **false** (as the NiceGUI app did); the front end's filter bar has no toggle yet, so a person whose evaluation account was archived sees it vanish from the dashboard until the toggle is added (a front-end task, listed with the API source work).
+- The sign-in pieces are still the in-memory fakes in tests; the real session store is M5. A development sign-in and a Postgres-backed account service (so `/session` and `/settings` work against the real database) are the next slice.
+- Not built yet: trades list and detail, tags and notes, import, account writes, fees, ledger, rule tracker.
