@@ -17,7 +17,7 @@ from uuid import UUID
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
 from .pg_services import PgAccountService
-from .ports import AuthSession, Services
+from .ports import AuthSession, Services, SessionInfo
 
 DEV_SESSION_TOKEN = "dev-session"  # noqa: S105  (a fixed word for local development, refused in production by ApiConfig)
 
@@ -31,6 +31,17 @@ class DevSessionStore:
             return None
         # MFA is "fresh" so the operator screens can be tried; the real value comes from the identity provider.
         return AuthSession(id="dev", user_id=self._user_id, mfa_at=datetime.now(UTC))
+
+    # The development sign-in is one fixed session: it can be listed, and there is nothing else to end.
+    def list_for(self, user_id: UUID) -> list[SessionInfo]:
+        now = datetime.now(UTC)
+        return [SessionInfo(id="dev", created_at=now, last_seen_at=now, expires_at=now, mfa_at=now, user_agent=None)]
+
+    def revoke_one(self, user_id: UUID, session_id: str, *, ip_hash: str | None = None) -> bool:
+        return False
+
+    def revoke_others(self, user_id: UUID, keep_id: str, *, ip_hash: str | None = None) -> int:
+        return 0
 
 
 def dev_services(user_id: UUID, database: Database, system: SystemDatabase) -> Services:

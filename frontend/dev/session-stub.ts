@@ -15,13 +15,29 @@ export function devSessionStub(enabled: boolean): Plugin {
     trading_day_start: '18:00',
     theme: 'dark',
   }
+  const now = Date.now()
+  const ago = (hours: number) => new Date(now - hours * 3_600_000).toISOString()
+  const place = (id: string, device: string, current: boolean, hours: number, mfa: boolean) => ({
+    id,
+    current,
+    device,
+    signed_in_at: ago(hours + 5),
+    last_active_at: ago(hours),
+    expires_at: new Date(now + 85 * 86_400_000).toISOString(),
+    mfa,
+  })
+  let places = [
+    place('dev-laptop', 'Chrome on Windows', true, 0, true),
+    place('dev-phone', 'Safari on iPhone', false, 3, false),
+    place('dev-tablet', 'Chrome on Android', false, 52, false),
+  ]
   return {
     name: 'tj-dev-session-stub',
     apply: 'serve',
     configureServer(server) {
       if (!enabled) return
       server.middlewares.use((request, response, next) => {
-        const path = (request.url ?? '').split('?')[0]
+        const path = (request.url ?? '').split('?')[0] ?? ''
         const send = (status: number, body?: unknown) => {
           response.statusCode = status
           response.setHeader('content-type', 'application/json')
@@ -56,6 +72,16 @@ export function devSessionStub(enabled: boolean): Plugin {
             }
           })
           return
+        }
+        if (path.startsWith('/api/v1/sessions')) {
+          // Where the account is signed in: three sample places, so the Security section can be tried with no backend.
+          if (request.method === 'DELETE') {
+            const id = path.split('/')[4]
+            const before = places.length
+            places = places.filter((item) => item.current || (id !== undefined && item.id !== id))
+            return send(200, { sessions: places, ended: before - places.length })
+          }
+          return send(200, { sessions: places, ended: 0 })
         }
         if (path === '/auth/logout' && request.method === 'POST') return send(204)
         next()

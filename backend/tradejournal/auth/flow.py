@@ -34,6 +34,7 @@ from ..pg.defaults import provision_defaults
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
 from .idp import IdentityError, IdentityProvider
+from .iphash import hash_ip
 from .signed import sign, unsign
 
 LOGIN_PURPOSE = "login-state"
@@ -102,8 +103,7 @@ class AuthFlow:
         return f"{self._origin}{CALLBACK_PATH}"
 
     def hash_ip(self, ip: str | None) -> str | None:
-        """A keyed hash of the address, enough to see that two events came from one place and not to learn where."""
-        return hmac.new(self._secret, (ip or "").encode(), hashlib.sha256).hexdigest()[:32] if ip else None
+        return hash_ip(self._secret, ip)
 
     # ---- step 1 ---------------------------------------------------------------------------------------------------
 
@@ -240,9 +240,3 @@ class AuthFlow:
         with self._system.system_session("login") as conn:
             audit.record(conn, "logout", user_id=user_id, ip_hash=ip_hash)
         return self._idp.logout_url(return_to=f"{self._origin}/") or "/"
-
-    def logout_everywhere(self, *, token: str, user_id: UUID, ip_hash: str | None = None) -> int:
-        ended = self._sessions.revoke_all(user_id, except_token=token)
-        with self._system.system_session("login") as conn:
-            audit.record(conn, "logout_everywhere", user_id=user_id, ip_hash=ip_hash, meta={"ended": ended})
-        return ended

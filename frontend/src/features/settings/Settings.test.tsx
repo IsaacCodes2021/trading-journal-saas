@@ -27,7 +27,7 @@ describe('the settings frame', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Preferences', 'Prop accounts', 'Tags', 'Plan & billing', 'Data & privacy'])
+    ).toEqual(['Preferences', 'Prop accounts', 'Tags', 'Plan & billing', 'Security', 'Data & privacy'])
     expect(within(nav).getByRole('link', { name: 'Preferences' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Tags' })).not.toHaveAttribute('aria-current')
   })

@@ -349,3 +349,127 @@ def test_the_store_honours_the_clock_for_expiry(system, alice):
     clock.advance(sessions.IDLE_TIMEOUT.total_seconds() + 10)  # idle too long, and the cache has long expired
     assert store.lookup(token) is None
     assert store.lookup(str(uuid4())) is None
+
+
+# ---- a person's own sessions: list, end one, end the others -------------------------------------------------------------
+
+
+def make(system, user, when=T0, **kwargs):
+    with login(system) as conn:
+        return sessions.create(conn, user, now=when, **kwargs)
+
+
+def info(system, user, when=T0):
+    with login(system) as conn:
+        return sessions.list_active(conn, user, now=when)
+
+
+def test_the_list_holds_a_persons_working_sessions_most_recently_used_first(system, owner, alice, bob):
+    old = make(system, alice, T0, user_agent="Chrome/1 Windows")
+    new = make(system, alice, T0 + timedelta(hours=1), user_agent="Firefox/1 Linux")
+    make(system, bob, T0)
+    rows = info(system, alice, T0 + timedelta(hours=2))
+    assert [r.user_agent for r in rows] == ["Firefox/1 Linux", "Chrome/1 Windows"]  # not bob's
+    assert (
+        rows[0].created_at == T0 + timedelta(hours=1)
+        and rows[0].expires_at == T0 + timedelta(hours=1) + sessions.ABSOLUTE_LIFETIME
+    )
+    assert rows[0].public_id != rows[1].public_id
+    assert live(system, old, T0).public_id == rows[1].public_id and live(system, new, T0).public_id == rows[0].public_id
+
+
+def test_the_list_leaves_out_ended_idle_and_past_the_90_day_limit(system, alice):
+    revoked, idle, kept_alive = (make(system, alice, T0) for _ in range(3))
+    with login(system) as conn:
+        sessions.revoke(conn, revoked, now=T0)
+    assert len(info(system, alice, T0 + 13 * DAY)) == 2  # the revoked one is gone; 13 idle days is still fine
+    assert live(system, kept_alive, T0 + 13 * DAY) is not None  # used, so its idle timer starts again
+    assert len(info(system, alice, T0 + 15 * DAY)) == 1  # `idle` has now been unused for 15 days: gone
+    for day in range(26, 79, 13):
+        assert live(system, kept_alive, T0 + day * DAY) is not None  # used every 13 days, so never idle
+    assert len(info(system, alice, T0 + 89 * DAY)) == 1
+    assert info(system, alice, T0 + 91 * DAY) == []  # whatever the use, 90 days is the end
+    assert live(system, idle, T0 + 15 * DAY) is None
+
+
+def test_a_listed_session_is_exactly_one_that_sign_in_would_accept(system, alice):
+    tokens = [make(system, alice, T0 + d * DAY) for d in (0, 5, 10, 20)]
+    for when in (T0 + 3 * DAY, T0 + 16 * DAY, T0 + 30 * DAY, T0 + 95 * DAY):
+        accepted = sum(1 for t in tokens if live(system, t, when) is not None)
+        assert len(info(system, alice, when)) == accepted, when
+
+
+def test_ending_one_session_by_its_public_id_ends_only_that_one(system, alice):
+    keep, gone = make(system, alice), make(system, alice)
+    target = next(r.public_id for r in info(system, alice) if live(system, gone, T0).public_id == r.public_id)
+    with login(system) as conn:
+        assert sessions.revoke_one(conn, alice, target, now=T0) is True
+        assert sessions.revoke_one(conn, alice, target, now=T0) is False  # already ended
+    assert live(system, gone, T0) is None and live(system, keep, T0) is not None
+
+
+def test_a_session_id_belonging_to_someone_else_ends_nothing_and_looks_like_an_unknown_one(system, alice, bob):
+    bobs = make(system, bob)
+    bobs_id = live(system, bobs, T0).public_id
+    with login(system) as conn:
+        assert sessions.revoke_one(conn, alice, bobs_id, now=T0) is False
+        assert sessions.revoke_one(conn, alice, uuid4(), now=T0) is False
+        assert sessions.revoke_others(conn, alice, bobs_id, now=T0) == 0  # alice has none; bob's is not touched
+    assert live(system, bobs, T0) is not None
+
+
+def test_ending_the_others_keeps_the_named_one_and_counts_only_working_ones(system, alice, bob):
+    here = make(system, alice, T0 + 50 * DAY)
+    other = [make(system, alice, T0 + 50 * DAY), make(system, alice, T0 + 50 * DAY)]
+    dead = make(system, alice, T0)  # idle for 50 days: already not working, so not counted
+    bobs = make(system, bob, T0 + 50 * DAY)
+    when = T0 + 51 * DAY
+    keep = live(system, here, when).public_id
+    with login(system) as conn:
+        assert sessions.revoke_others(conn, alice, keep, now=when) == 2
+        assert sessions.revoke_others(conn, alice, keep, now=when) == 0  # nothing left to end
+    assert live(system, here, when) is not None and all(live(system, t, when) is None for t in other)
+    assert live(system, bobs, when) is not None and live(system, dead, when) is None
+
+
+def test_the_store_lists_ends_one_and_ends_the_others_and_each_is_audited_in_the_same_transaction(system, owner, alice):
+    clock = Clock()
+    store = PgSessionStore(system, monotonic=lambda: clock.mono, clock=lambda: clock.wall)
+    here = store.create(alice, user_agent="Chrome/1 Windows")
+    phone = store.create(alice, user_agent="Safari/1 iPhone")
+    tablet = store.create(alice)
+    mine = store.lookup(here)
+    listed = store.list_for(alice)
+    assert {s.id for s in listed} == {mine.id, store.lookup(phone).id, store.lookup(tablet).id}
+    phone_id = store.lookup(phone).id
+
+    assert store.revoke_one(alice, phone_id, ip_hash="h1") is True
+    assert store.revoke_one(alice, phone_id, ip_hash="h1") is False  # nothing left to end: no second audit row
+    assert store.revoke_one(alice, "not-a-uuid") is False
+    assert store.lookup(phone) is None  # at once, not after the cache's minute
+    assert store.revoke_others(alice, mine.id, ip_hash="h2") == 1
+    assert store.lookup(tablet) is None and store.lookup(here) is not None
+    rows = owner.execute("SELECT action, user_id, actor, ip_hash, meta FROM audit_log ORDER BY id").fetchall()
+    assert [(r["action"], r["ip_hash"], r["meta"]) for r in rows] == [
+        ("session_revoked", "h1", {}),
+        ("logout_everywhere", "h2", {"ended": 1}),
+    ]
+    assert all(r["user_id"] == alice and r["actor"] == "user" for r in rows)
+
+
+def test_the_store_drops_exactly_the_cached_sessions_that_were_ended(system, alice, bob):
+    clock = Clock()
+    store = PgSessionStore(system, monotonic=lambda: clock.mono, clock=lambda: clock.wall)
+    a1, a2, b1 = store.create(alice), store.create(alice), store.create(bob)
+    s1, s2, sb = store.lookup(a1), store.lookup(a2), store.lookup(b1)  # all three are now cached
+    store.revoke_others(alice, s1.id)
+    assert store.lookup(a1) is not None and store.lookup(b1) is not None  # kept: the named one, and another person's
+    assert store.lookup(a2) is None  # not served from the cache, though the minute has not passed
+    assert len({s1.id, s2.id, sb.id}) == 3
+
+
+def test_a_development_style_id_that_is_not_a_uuid_ends_nothing_and_is_not_an_error(system, alice):
+    store = PgSessionStore(system)
+    token = store.create(alice)
+    assert store.revoke_others(alice, "dev") == 0 and store.revoke_one(alice, "dev") is False
+    assert store.lookup(token) is not None

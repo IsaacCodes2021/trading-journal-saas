@@ -47,6 +47,12 @@ class Browser:
         code = self.idp.sign_in(url, identity, reported_nonce=reported_nonce)
         return self.come_back(code=code, state=state)
 
+    def another(self, user_agent: str) -> Browser:
+        """A second device on the same server (same app, same identity provider), with its own cookies."""
+        other = Browser(self.client.app, self.idp)
+        other.client.headers["user-agent"] = user_agent
+        return other
+
     @property
     def token(self) -> str | None:
         return self.client.cookies.get(SESSION_COOKIE)
@@ -379,3 +385,79 @@ def test_without_a_provider_the_sign_in_routes_say_so_and_nobody_can_get_in(db, 
         assert client.get("/auth/login").status_code == 503
         assert client.get("/auth/callback", params={"code": "x", "state": "y"}).status_code == 503
         assert client.get("/api/v1/session").status_code == 401  # real sessions are in place; there are just none
+
+
+# ---- seeing and ending your own sign-ins --------------------------------------------------------------------------------
+
+CHROME = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+SAFARI_PHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1"
+
+
+def write_headers(browser: Browser) -> dict[str, str]:
+    return {"sec-fetch-site": "same-origin", "x-csrf-token": browser.session().json()["csrf_token"]}
+
+
+def test_a_person_sees_each_place_they_are_signed_in_and_signing_one_out_stops_it_at_once(world, owner, alice):
+    laptop = world()
+    laptop.client.headers["user-agent"] = CHROME
+    laptop.sign_in(ALICE)
+    phone = laptop.another(SAFARI_PHONE)
+    phone.sign_in(ALICE)
+    assert phone.session().status_code == 200  # the server has now cached the phone's session
+
+    listed = laptop.client.get("/api/v1/sessions").json()["sessions"]
+    assert [(row["device"], row["current"]) for row in listed] == [
+        ("Safari on iPhone", False),
+        ("Chrome on Windows", True),
+    ]
+    assert all(row["mfa"] is False and row["expires_at"] for row in listed)
+    phone_id = listed[0]["id"]
+
+    refused = laptop.client.delete(f"/api/v1/sessions/{phone_id}")  # a write without the token
+    assert refused.status_code == 403 and phone.session().status_code == 200
+    ended = laptop.client.delete(f"/api/v1/sessions/{phone_id}", headers=write_headers(laptop))
+    assert ended.status_code == 200 and ended.json()["ended"] == 1
+    assert [row["device"] for row in ended.json()["sessions"]] == ["Chrome on Windows"]
+    assert phone.session().status_code == 401  # at once, though the phone's session was cached
+    assert laptop.session().status_code == 200
+
+    [event] = [r for r in audit_rows(owner) if r["action"] == "session_revoked"]
+    assert event["user_id"] == alice and event["actor"] == "user" and event["ip_hash"]
+    assert CHROME not in str(audit_rows(owner)) and phone_id not in str(audit_rows(owner))
+
+
+def test_signing_out_everywhere_else_ends_every_other_device_and_keeps_this_one(world, owner, alice):
+    laptop = world()
+    laptop.sign_in(ALICE)
+    others = [laptop.another(CHROME), laptop.another(SAFARI_PHONE)]
+    for device in others:
+        device.sign_in(ALICE)
+        assert device.session().status_code == 200
+    mine = laptop.client.get("/api/v1/sessions").json()
+    assert len(mine["sessions"]) == 3
+
+    result = laptop.client.delete("/api/v1/sessions", headers=write_headers(laptop)).json()
+    assert result["ended"] == 2 and [row["current"] for row in result["sessions"]] == [True]
+    assert [device.session().status_code for device in others] == [401, 401]
+    assert laptop.session().status_code == 200
+    [event] = [r for r in audit_rows(owner) if r["action"] == "logout_everywhere"]
+    assert event["meta"] == {"ended": 2} and event["user_id"] == alice
+
+
+def test_the_session_you_are_using_cannot_be_ended_that_way_and_a_stranger_cannot_end_yours(world, owner, alice, bob):
+    laptop = world()
+    laptop.sign_in(ALICE)
+    mine = laptop.client.get("/api/v1/sessions").json()["sessions"][0]["id"]
+    refused = laptop.client.delete(f"/api/v1/sessions/{mine}", headers=write_headers(laptop))
+    assert refused.status_code == 422 and "Use Sign out" in refused.json()["detail"]
+    assert laptop.session().status_code == 200
+
+    stranger = laptop.another(CHROME)
+    stranger.sign_in(person(subject="idp|bob@example.test", email="bob@example.test"))
+    assert [row["current"] for row in stranger.client.get("/api/v1/sessions").json()["sessions"]] == [True]  # only his
+    answer = stranger.client.delete(f"/api/v1/sessions/{mine}", headers=write_headers(stranger))
+    assert answer.status_code == 404 and laptop.session().status_code == 200
+    stranger.client.delete("/api/v1/sessions", headers=write_headers(stranger))  # his "everywhere else" is only his
+    assert laptop.session().status_code == 200
