@@ -84,6 +84,14 @@ def get_tenant(request: Request, session: SessionDep) -> Tenant:
 TenantDep = Annotated[Tenant, Depends(get_tenant)]
 
 
+def get_write_tenant(request: Request, session: WriteSessionDep) -> Tenant:
+    """`get_tenant` for a route that changes something: the CSRF and origin checks run first (after sign-in)."""
+    return get_tenant(request, session)
+
+
+WriteTenantDep = Annotated[Tenant, Depends(get_write_tenant)]
+
+
 def get_clock(request: Request) -> Callable[[], datetime]:
     """The current instant, replaceable in tests (what "today" means for a preset must be provable)."""
     return request.app.state.clock
