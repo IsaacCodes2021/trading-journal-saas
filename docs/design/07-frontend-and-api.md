@@ -177,7 +177,11 @@ Gaps and decisions:
 
 Open points: the server contract for invite-gated sign-up (`/auth/login?invite=` is an assumption, to settle in M5: spike S1b chose Kinde and did not test invite gating, see ADR-003 in doc 06); the **Terms page does not exist yet** on the marketing site, so that link will 404 until it is published (doc 04 launch gates); the waitlist link goes to the marketing site's `#join` form.
 
-**Not built yet from the canvas:** Onboarding (five steps: confirm timezone, first account, how to export, upload, dashboard; note the backend has one `timezone` setting, while the canvas separates your zone from the CSV's zone, so that needs a `csv_timezone` setting or the per-import `source_timezone` doc 03 mentions), Admin users and plan override, Admin overview, codes and audit (both read; designs match doc 03 and ADR-012), and Tags management (no canvas screen).
+**Slice 5b (2026-10-04): the CSV timezone setting, end to end.** The owner chose a separate setting (over asking at each import, or one zone for both). Backend: migration 0006 adds `user_settings.csv_timezone` (nullable; null follows `timezone`); `pg/settings.py` gets `get_csv_timezone`, `set_csv_timezone` and `effective_csv_timezone`; the importer reads files in the effective CSV zone and records it as the import's `source_timezone`; `SettingsOut.csv_timezone` is `string | null` and `SettingsPatch.csv_timezone` takes a zone, or `""` to go back to following `timezone` (a `null` still means "leave it alone", the rule of every other field). Front end: `CsvZoneChoice` (same as my timezone / exchange time, America/Chicago / something else) in Preferences, saved with the other preferences, with a note that only imports from then on are affected; the onboarding screen will reuse it. 750 backend tests and 373 front-end tests.
+
+Still to build: re-running past imports in a corrected zone (each import already knows the zone it was read in).
+
+**Not built yet from the canvas:** Onboarding (five steps: confirm timezone, first account, how to export, upload, dashboard; the separate CSV timezone it needs exists since slice 5b, and `CsvZoneChoice` can be reused), Admin users and plan override, Admin overview, codes and audit (both read; designs match doc 03 and ADR-012), and Tags management (no canvas screen).
 
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 

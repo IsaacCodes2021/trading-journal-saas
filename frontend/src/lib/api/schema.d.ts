@@ -101,6 +101,8 @@ export interface components {
         };
         /** SettingsOut */
         SettingsOut: {
+            /** Csv Timezone */
+            csv_timezone: string | null;
             /**
              * Theme
              * @enum {string}
@@ -118,6 +120,8 @@ export interface components {
          * @description Only the fields present change; `null` means the same as leaving the field out.
          */
         SettingsPatch: {
+            /** Csv Timezone */
+            csv_timezone?: string | null;
             /** Theme */
             theme?: ("dark" | "light") | null;
             /** Timezone */

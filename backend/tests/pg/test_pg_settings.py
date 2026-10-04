@@ -90,3 +90,49 @@ def test_each_user_has_their_own_settings(db, alice, bob):
     with db.tenant_session(alice) as a:
         assert settings.get_setting(a, "theme") == "light"
         assert settings.get_setting(a, "timezone") == DEFAULTS["timezone"]
+
+
+# ---- the CSV timezone (migration 0006) ---------------------------------------------------------------------------
+
+
+def test_a_new_user_follows_their_own_timezone_for_csv_files(conn):
+    assert settings.get_csv_timezone(conn) is None
+    assert settings.effective_csv_timezone(conn) == DEFAULTS["timezone"]
+    settings.set_setting(conn, "timezone", "Europe/London")
+    assert settings.effective_csv_timezone(conn) == "Europe/London"  # it follows, until a zone is chosen
+
+
+def test_a_chosen_csv_timezone_wins_and_survives_a_change_of_own_timezone(conn):
+    settings.set_csv_timezone(conn, "America/Chicago")
+    settings.set_setting(conn, "timezone", "Europe/London")
+    assert settings.get_csv_timezone(conn) == "America/Chicago"
+    assert settings.effective_csv_timezone(conn) == "America/Chicago"
+
+
+@pytest.mark.parametrize("cleared", [None, ""])
+def test_the_csv_timezone_can_go_back_to_following_the_own_timezone(conn, cleared):
+    settings.set_csv_timezone(conn, "America/Chicago")
+    settings.set_csv_timezone(conn, cleared)
+    assert settings.get_csv_timezone(conn) is None
+    assert settings.effective_csv_timezone(conn) == DEFAULTS["timezone"]
+
+
+def test_a_bad_csv_timezone_is_refused_and_changes_nothing(conn):
+    settings.set_csv_timezone(conn, "America/Chicago")
+    with pytest.raises(ValueError, match="unknown timezone"):
+        settings.set_csv_timezone(conn, "Mars/Olympus")
+    assert settings.get_csv_timezone(conn) == "America/Chicago"
+
+
+def test_a_missing_settings_row_is_created_by_the_first_csv_timezone_write(owner, db):
+    row = owner.execute("INSERT INTO users (idp_subject, email) VALUES ('idp|csv', 'csv@example.test') RETURNING id")
+    with db.tenant_session(row.fetchone()["id"]) as conn:  # no provision_defaults: no settings row yet
+        assert settings.get_csv_timezone(conn) is None
+        settings.set_csv_timezone(conn, "America/Chicago")
+        assert settings.get_csv_timezone(conn) == "America/Chicago"
+        assert settings.get_setting(conn, "theme") == "dark"  # the other columns took their defaults
+
+
+def test_csv_timezone_is_not_one_of_the_key_value_settings(conn):
+    with pytest.raises(KeyError):
+        settings.get_setting(conn, "csv_timezone")  # it has its own functions: it can be unset

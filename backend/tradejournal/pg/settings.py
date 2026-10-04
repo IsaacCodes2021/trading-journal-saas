@@ -20,6 +20,27 @@ def get_setting(conn: psycopg.Connection, key: str) -> str:
     return row["value"] if row else DEFAULTS[key]
 
 
+def get_csv_timezone(conn: psycopg.Connection) -> str | None:
+    """The zone the person's CSV files are written in, or None: "the same as my timezone" (the default)."""
+    row = conn.execute("SELECT csv_timezone FROM user_settings").fetchone()
+    return row["csv_timezone"] if row else None
+
+
+def set_csv_timezone(conn: psycopg.Connection, value: str | None) -> None:
+    """Choose the zone CSV files are read in. None or an empty string go back to following `timezone`."""
+    if value:
+        zone(value)  # raises ValueError("unknown timezone ...") for a name that is not one
+    conn.execute(
+        "INSERT INTO user_settings (csv_timezone) VALUES (%s) ON CONFLICT (user_id) DO UPDATE SET csv_timezone = EXCLUDED.csv_timezone",
+        (value or None,),
+    )
+
+
+def effective_csv_timezone(conn: psycopg.Connection) -> str:
+    """The zone an import reads timestamps in: the chosen CSV zone, else the person's own timezone."""
+    return get_csv_timezone(conn) or get_setting(conn, "timezone")
+
+
 def set_setting(conn: psycopg.Connection, key: str, value: str) -> None:
     """Validate and store a setting. Changing the trading day settings does not
     touch stored trades; call store.recalculate_trades afterwards."""

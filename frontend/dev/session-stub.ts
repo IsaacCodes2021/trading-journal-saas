@@ -8,8 +8,9 @@ import type { Plugin } from 'vite'
 const ID = '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11'
 
 export function devSessionStub(enabled: boolean): Plugin {
-  const settings = {
+  const settings: Record<string, string | null> = {
     timezone: 'America/New_York',
+    csv_timezone: null,
     trading_day_timezone: 'America/New_York',
     trading_day_start: '18:00',
     theme: 'dark',
@@ -46,7 +47,9 @@ export function devSessionStub(enabled: boolean): Plugin {
           request.on('data', (chunk: Buffer) => (raw += chunk.toString()))
           request.on('end', () => {
             try {
-              Object.assign(settings, JSON.parse(raw) as Partial<typeof settings>)
+              const changes = JSON.parse(raw) as Record<string, string | null>
+              Object.assign(settings, changes)
+              if (changes['csv_timezone'] === '') settings['csv_timezone'] = null // "" follows the own timezone
               send(200, settings)
             } catch {
               send(422, { type: 'about:blank', title: 'Unprocessable', status: 422 })

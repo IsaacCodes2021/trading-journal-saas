@@ -12,8 +12,15 @@ import { createAppRouter } from './routes'
 export const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })
 
-export const SETTINGS = {
+export const SETTINGS: {
+  timezone: string
+  csv_timezone: string | null
+  trading_day_timezone: string
+  trading_day_start: string
+  theme: string
+} = {
   timezone: 'America/Los_Angeles',
+  csv_timezone: null,
   trading_day_timezone: 'America/New_York',
   trading_day_start: '18:00',
   theme: 'dark',
@@ -51,9 +58,12 @@ export function stubApi(opts: ApiOptions = {}) {
         const body = (await request.clone().json()) as Record<string, string>
         saved.push(body)
         if (opts.saveProblem) return json(opts.saveProblem.body, opts.saveProblem.status)
-        return opts.saveFails
-          ? json({ title: 'Internal Server Error', status: 500, detail: null, errors: null }, 500)
-          : json({ ...SETTINGS, ...opts.settings, ...body })
+        if (opts.saveFails) {
+          return json({ title: 'Internal Server Error', status: 500, detail: null, errors: null }, 500)
+        }
+        const merged = { ...SETTINGS, ...opts.settings, ...body }
+        if (body['csv_timezone'] === '') merged.csv_timezone = null // "" goes back to following the own timezone
+        return json(merged)
       }
       return json(sessionBody(opts))
     }),

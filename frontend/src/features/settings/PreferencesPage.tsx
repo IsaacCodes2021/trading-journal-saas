@@ -6,6 +6,7 @@ import type { components } from '../../lib/api/schema'
 import { useSaveSettings, useSession } from '../../lib/session'
 import { applyTheme, type Theme } from '../../lib/theme'
 import { isClockTime, timeZones, zoneLabel } from '../../lib/timezones'
+import { CsvZoneChoice } from './CsvZoneChoice'
 import { SectionHeader } from './SettingsLayout'
 
 type Settings = components['schemas']['SettingsOut']
@@ -40,6 +41,7 @@ function ZoneSelect({
 function Form({ saved }: { saved: Settings }) {
   const save = useSaveSettings()
   const [timezone, setTimezone] = useState(saved.timezone)
+  const [csv, setCsv] = useState<string | null>(saved.csv_timezone)
   const [dayZone, setDayZone] = useState(saved.trading_day_timezone)
   const [dayStart, setDayStart] = useState(saved.trading_day_start)
   const [justSaved, setJustSaved] = useState(false)
@@ -47,6 +49,7 @@ function Form({ saved }: { saved: Settings }) {
 
   const changes = {
     ...(timezone !== saved.timezone ? { timezone } : {}),
+    ...(csv !== saved.csv_timezone ? { csv_timezone: csv ?? '' } : {}), // "" goes back to following the timezone
     ...(dayZone !== saved.trading_day_timezone ? { trading_day_timezone: dayZone } : {}),
     ...(dayStart !== saved.trading_day_start ? { trading_day_start: dayStart } : {}),
   }
@@ -83,6 +86,31 @@ function Form({ saved }: { saved: Settings }) {
             zones={zones}
           />
         </Field>
+      </Card>
+
+      <Card className="flex flex-col gap-4 px-5 py-4" role="region" aria-label="Tradovate files">
+        <h2 className="m-0 text-base font-semibold">Tradovate files</h2>
+        <CsvZoneChoice
+          ownZone={timezone}
+          value={csv}
+          onChange={(next) => {
+            setCsv(next)
+            setJustSaved(false)
+          }}
+        />
+        {fields['csv_timezone'] ? (
+          <p role="alert" className="m-0 text-xs text-neg">
+            {fields['csv_timezone']}
+          </p>
+        ) : null}
+        {'csv_timezone' in changes ? (
+          <p role="note" className="m-0 rounded-lg border border-warn-line px-3 py-2 text-[13px] text-warn">
+            Files you import from now on are read in this zone. Imports you have already made are not changed.
+          </p>
+        ) : null}
+        <p className="m-0 text-xs text-muted">
+          If this is wrong, trades land hours off and on the wrong trading day. You can fix it later.
+        </p>
       </Card>
 
       <Card className="flex flex-col gap-4 px-5 py-4" role="region" aria-label="Trading day">

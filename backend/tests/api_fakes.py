@@ -37,6 +37,7 @@ class FakeAccounts:
             user=UserOut(id=uuid4(), email=email),
             settings=SettingsOut(
                 timezone="America/Los_Angeles",
+                csv_timezone=None,
                 trading_day_timezone="America/New_York",
                 trading_day_start="18:00",
                 theme="dark",
@@ -53,7 +54,10 @@ class FakeAccounts:
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
         account = self._accounts[user_id]
-        settings = account.settings.model_copy(update=changes.model_dump(exclude_none=True))
+        update = changes.model_dump(exclude_none=True)
+        if update.get("csv_timezone") == "":
+            update["csv_timezone"] = None  # "" goes back to following the person's own timezone
+        settings = account.settings.model_copy(update=update)
         self._accounts[user_id] = replace(account, settings=settings)
         return settings
 
