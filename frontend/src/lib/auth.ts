@@ -8,6 +8,7 @@ import { csrfHeader } from './api/client'
 /** Where the browser goes next. A function of its own so a test can watch it, as the page cannot leave in a test. */
 export const go = {
   to: (url: string) => window.location.assign(url),
+  reload: () => window.location.reload(),
 }
 
 /**
