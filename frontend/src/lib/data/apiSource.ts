@@ -4,10 +4,10 @@ import type { Filters } from '../filters'
 import type { DataSource, TradesQuery } from './model'
 
 /*
- * The data source that talks to the real API. Everything is connected except the import (preview, commit, history,
- * undo) and screenshots, which fail with a plain message and never touch the network: the importer must first report a
- * status for each row, and image files wait for the object store (M6). So it is wired in only for development against a
- * real server (`TJ_DEV_API=real`, see `source.tsx`); the shipped app still reads the sample data until those arrive.
+ * The data source that talks to the real API. Everything is connected except screenshots, which fail with a plain
+ * message and never touch the network: image files wait for the object store (M6). So it is wired in only for
+ * development against a real server (`TJ_DEV_API=real`, see `source.tsx`); the shipped app still reads the sample data
+ * until screenshots arrive.
  *
  * Responses are the API's generated types passed straight through: the shapes in `model.ts` were written first and
  * the API returns them as they are (money as decimal strings, times as ISO 8601 UTC). A refusal reaches the page as an
@@ -15,6 +15,14 @@ import type { DataSource, TradesQuery } from './model'
  */
 
 type FirmName = components['schemas']['AccountDetailsIn']['firm']
+
+/** A file upload is multipart, not JSON: the browser writes the boundary itself, so no content type is set here. */
+function uploadForm(accountId: number, file: File): FormData {
+  const form = new FormData()
+  form.append('account_id', String(accountId))
+  form.append('file', file)
+  return form
+}
 
 /** An action the server cannot do yet, said in words a person can read. */
 export class NotConnectedError extends Error {
@@ -97,11 +105,26 @@ export const apiSource: DataSource = {
 
   addScreenshots: notConnected('Adding a screenshot'),
   deleteScreenshot: notConnected('Deleting a screenshot'),
-  previewImport: notConnected('Importing'),
-  commitImport: notConnected('Importing'),
-  imports: notConnected('The import history'),
-  undoPreview: notConnected('Undoing an import'),
-  undoImport: notConnected('Undoing an import'),
+  previewImport: (accountId, file) =>
+    unwrap(
+      api.POST('/api/v1/imports/preview', {
+        body: { account_id: accountId, file: file as unknown as string },
+        bodySerializer: () => uploadForm(accountId, file),
+      }),
+    ),
+  commitImport: (accountId, file) =>
+    unwrap(
+      api.POST('/api/v1/imports', {
+        body: { account_id: accountId, file: file as unknown as string },
+        bodySerializer: () => uploadForm(accountId, file),
+      }),
+    ),
+  imports: (signal) => unwrap(api.GET('/api/v1/imports', { signal })),
+  undoPreview: (importId) =>
+    unwrap(api.POST('/api/v1/imports/{import_id}/undo-preview', { params: { path: { import_id: importId } } })),
+  async undoImport(importId) {
+    await unwrap(api.POST('/api/v1/imports/{import_id}/undo', { params: { path: { import_id: importId } } }))
+  },
   accountOverviews: (signal) => unwrap(api.GET('/api/v1/account-overviews', { signal })),
   businessTotals: (signal) => unwrap(api.GET('/api/v1/business-totals', { signal })),
 

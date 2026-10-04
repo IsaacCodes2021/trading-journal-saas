@@ -17,10 +17,12 @@ from __future__ import annotations
 import hashlib
 from collections import Counter, defaultdict
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 import psycopg
 
 from ..importer import FileImportReport, ImportReport, UndoReport
+from ..models import FillPair
 from ..parser import parse_performance_csv
 from . import store, usage
 from .accounts import get_account
@@ -80,18 +82,8 @@ def _import_file(
     report.import_id = import_id
 
     # One lookup for the whole file: which of its rows does this user already have, and in which account?
-    keys = [(str(pair.buy_fill_id), str(pair.sell_fill_id)) for pair in parsed.pairs]
-    existing = {
-        (row["buy_ref"], row["sell_ref"]): row
-        for row in conn.execute(
-            """SELECT fill_pairs.id, fill_pairs.account_id, fill_pairs.buy_ref, fill_pairs.sell_ref,
-                      accounts.name AS account_name
-               FROM fill_pairs JOIN accounts ON accounts.id = fill_pairs.account_id
-               WHERE fill_pairs.source = %s
-                 AND (fill_pairs.buy_ref, fill_pairs.sell_ref) IN (SELECT * FROM unnest(%s::text[], %s::text[]))""",
-            (store.SOURCE, [buy for buy, _ in keys], [sell for _, sell in keys]),
-        )
-    }
+    keys = [_key(pair) for pair in parsed.pairs]
+    existing = existing_pairs(conn, parsed.pairs)
     new_pairs = []
     linked_ids: list[int] = []  # existing pairs in this account, plus the ones inserted below
     other_accounts: Counter[str] = Counter()
@@ -137,6 +129,62 @@ def _import_file(
         ),
     )
     return report
+
+
+def _key(pair: FillPair) -> tuple[str, str]:
+    return (str(pair.buy_fill_id), str(pair.sell_fill_id))
+
+
+def existing_pairs(conn: psycopg.Connection, pairs: Sequence[FillPair]) -> dict[tuple[str, str], dict]:
+    """Which of these fill pairs does the user already have, and under which account? One query for any number of pairs,
+    keyed by (buy fill, sell fill). Shared by the import itself and the preview, so they can never disagree."""
+    keys = [_key(pair) for pair in pairs]
+    return {
+        (row["buy_ref"], row["sell_ref"]): row
+        for row in conn.execute(
+            """SELECT fill_pairs.id, fill_pairs.account_id, fill_pairs.buy_ref, fill_pairs.sell_ref,
+                      accounts.name AS account_name
+               FROM fill_pairs JOIN accounts ON accounts.id = fill_pairs.account_id
+               WHERE fill_pairs.source = %s
+                 AND (fill_pairs.buy_ref, fill_pairs.sell_ref) IN (SELECT * FROM unnest(%s::text[], %s::text[]))""",
+            (store.SOURCE, [buy for buy, _ in keys], [sell for _, sell in keys]),
+        )
+    }
+
+
+PAIR_NEW = "new"
+PAIR_DUPLICATE = "duplicate"  # already stored in this account
+PAIR_OTHER_ACCOUNT = "other_account"  # already stored under another account: left alone
+
+
+@dataclass(frozen=True)
+class RowPreview:
+    """One fill pair of a file and what importing it into an account would do with it."""
+
+    pair: FillPair
+    status: str
+    account_name: str | None  # for PAIR_OTHER_ACCOUNT: the account that has it
+
+
+def preview_rows(conn: psycopg.Connection, account_id: int, data: bytes, limit: int) -> tuple[list[RowPreview], str]:
+    """The first `limit` fill pairs of a file with their status, and the timezone the file was read in. Changes nothing."""
+    get_account(conn, account_id)
+    tz_name = effective_csv_timezone(conn)
+    parsed = parse_performance_csv(data, tz_name)
+    if parsed.fatal:
+        return [], tz_name
+    shown = parsed.pairs[:limit]
+    existing = existing_pairs(conn, shown)
+    rows = []
+    for pair in shown:
+        found = existing.get(_key(pair))
+        if found is None:
+            rows.append(RowPreview(pair, PAIR_NEW, None))
+        elif found["account_id"] == account_id:
+            rows.append(RowPreview(pair, PAIR_DUPLICATE, None))
+        else:
+            rows.append(RowPreview(pair, PAIR_OTHER_ACCOUNT, found["account_name"]))
+    return rows, tz_name
 
 
 def undo_import(conn: psycopg.Connection, import_id: int, *, dry_run: bool = False) -> UndoReport:
@@ -209,7 +257,8 @@ def undo_import(conn: psycopg.Connection, import_id: int, *, dry_run: bool = Fal
 def list_imports(conn: psycopg.Connection, account_id: int | None = None) -> list[dict]:
     """Imports newest first, each with its account's name."""
     select = (
-        "SELECT imports.*, accounts.name AS account_name FROM imports JOIN accounts ON accounts.id = imports.account_id"
+        "SELECT imports.*, accounts.name AS account_name, accounts.firm AS account_firm, "
+        "accounts.account_type AS account_type FROM imports JOIN accounts ON accounts.id = imports.account_id"
     )
     if account_id is None:
         return conn.execute(select + " ORDER BY imports.id DESC").fetchall()

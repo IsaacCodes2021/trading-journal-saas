@@ -271,6 +271,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Imports
+         * @description Every import, newest first (undone ones included, marked).
+         */
+        get: operations["list_imports"];
+        put?: never;
+        /**
+         * Import File
+         * @description Import the file into the account. Rows already stored are left alone, so importing a file twice is safe.
+         */
+        post: operations["import_file"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Import
+         * @description What importing this file into this account would do: counts, problems, and the first rows with a status each.
+         *     Nothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the
+         *     real import would do.
+         */
+        post: operations["preview_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{import_id}/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Import
+         * @description Remove what the import brought in (rows another import also holds stay) and regroup what is left.
+         */
+        post: operations["undo_import"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/imports/{import_id}/undo-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Undo Preview
+         * @description What undoing the import would remove, without removing it.
+         */
+        post: operations["undo_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -588,6 +674,20 @@ export interface components {
              */
             outcome: "passed" | "failed" | "closed";
         };
+        /** Body_import_file */
+        Body_import_file: {
+            /** Account Id */
+            account_id: number;
+            /** File */
+            file: string;
+        };
+        /** Body_preview_import */
+        Body_preview_import: {
+            /** Account Id */
+            account_id: number;
+            /** File */
+            file: string;
+        };
         /**
          * BusinessTotalsOut
          * @description Across every account, archived ones included: is the prop business itself profitable?
@@ -751,6 +851,69 @@ export interface components {
             /** Mfa Fresh */
             mfa_fresh: boolean;
         };
+        /**
+         * ImportIssueOut
+         * @description A line of the file that could not be used, numbered the way a spreadsheet numbers it.
+         */
+        ImportIssueOut: {
+            /** Line */
+            line: number;
+            /** Message */
+            message: string;
+        };
+        /**
+         * ImportPreviewOut
+         * @description What importing a file would do, worked out without saving anything. Mirrors `FileImportReport`.
+         */
+        ImportPreviewOut: {
+            /** Duplicates */
+            duplicates: number;
+            /** Duplicates In File */
+            duplicates_in_file: number;
+            /** Duplicates Other Accounts */
+            duplicates_other_accounts: {
+                [key: string]: number;
+            };
+            /** Errors */
+            errors: components["schemas"]["ImportIssueOut"][];
+            /** Fatal */
+            fatal: string | null;
+            /** File Bytes */
+            file_bytes: number;
+            /** File Name */
+            file_name: string;
+            /** Rows */
+            rows: components["schemas"]["PreviewRowOut"][];
+            /** Rows Added */
+            rows_added: number;
+            /** Rows Parsed */
+            rows_parsed: number;
+            /** Rows Shown Limit */
+            rows_shown_limit: number;
+            /** Trades Built */
+            trades_built: number;
+            /** Warnings */
+            warnings: components["schemas"]["ImportIssueOut"][];
+        };
+        /** ImportRecordOut */
+        ImportRecordOut: {
+            account: components["schemas"]["AccountRefOut"];
+            /** File Name */
+            file_name: string;
+            /** Id */
+            id: number;
+            /**
+             * Imported At
+             * Format: date-time
+             */
+            imported_at: string;
+            /** Rows Added */
+            rows_added: number;
+            /** Trades Built */
+            trades_built: number;
+            /** Undone At */
+            undone_at: string | null;
+        };
         /** LedgerEntryOut */
         LedgerEntryOut: {
             /** Account Id */
@@ -840,6 +1003,44 @@ export interface components {
              * @enum {string}
              */
             source: "override" | "grant" | "subscription" | "free";
+        };
+        /**
+         * PreviewRowOut
+         * @description One fill pair as the file states it: times are written the way the file writes them, in the CSV timezone.
+         */
+        PreviewRowOut: {
+            /** Account */
+            account: string | null;
+            /** Bought At */
+            bought_at: string;
+            /**
+             * Buy Price
+             * @example -475.00
+             */
+            buy_price: string;
+            /** Line */
+            line: number;
+            /**
+             * Pnl
+             * @example -475.00
+             */
+            pnl: string;
+            /** Qty */
+            qty: number;
+            /**
+             * Sell Price
+             * @example -475.00
+             */
+            sell_price: string;
+            /** Sold At */
+            sold_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "new" | "duplicate" | "other_account";
+            /** Symbol */
+            symbol: string;
         };
         /** Problem */
         Problem: {
@@ -1172,6 +1373,24 @@ export interface components {
             net_pnl: string;
             /** Total */
             total: number;
+        };
+        /**
+         * UndoPreviewOut
+         * @description What undoing an import removes (or, after the undo, removed). Mirrors `UndoReport`.
+         */
+        UndoPreviewOut: {
+            /** Import Id */
+            import_id: number;
+            /** Rows Kept */
+            rows_kept: number;
+            /** Rows Removed */
+            rows_removed: number;
+            /** Trades Changed */
+            trades_changed: number;
+            /** Trades Removed */
+            trades_removed: number;
+            /** Trades With Journal Removed */
+            trades_with_journal_removed: number;
         };
         /** UserOut */
         UserOut: {
@@ -2243,6 +2462,388 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_imports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    import_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_import_file"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportRecordOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    preview_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_import"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreviewOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    undo_import: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoPreviewOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    undo_preview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                import_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UndoPreviewOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };
