@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from tradejournal.api.ports import Account, ActivityEvent, AuthSession, Services, SessionInfo
+from tradejournal.api.ports import Account, ActivityEvent, AuthSession, GrantResult, Services, SessionInfo
 from tradejournal.api.schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
 
 
@@ -91,6 +91,8 @@ class FakeAccounts:
         self._accounts: dict[UUID, Account] = {}
         self.deletions: list[tuple[UUID, str | None]] = []  # what was scheduled, for assertions
         self.refuse_deletion: set[UUID] = set()  # users whose account is not active
+        self.codes: dict[str, GrantResult] = {}  # what redeeming each plan code answers; any other code is refused
+        self.redeemed: list[tuple[UUID, str, str | None]] = []  # every attempt: (person, code as sent, address hash)
 
     def add(self, email: str, *, is_admin: bool = False) -> Account:
         account = Account(
@@ -111,6 +113,13 @@ class FakeAccounts:
 
     def load(self, user_id: UUID) -> Account | None:
         return self._accounts.get(user_id)
+
+    def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:
+        self.redeemed.append((user_id, code, ip_hash))
+        result = self.codes.get(code, GrantResult("refused"))
+        if result.status == "ok" and result.plan is not None:  # the person is on that plan from now on
+            self._accounts[user_id] = replace(self._accounts[user_id], plan=result.plan)
+        return result
 
     def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
         self.deletions.append((user_id, ip_hash))

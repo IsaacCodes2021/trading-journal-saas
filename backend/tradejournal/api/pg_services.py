@@ -8,13 +8,15 @@ from uuid import UUID
 
 import psycopg
 
+from ..entitlements import limits_for
 from ..pg import audit as pg_audit
 from ..pg import deletion as pg_deletion
+from ..pg import plans as pg_plans
 from ..pg import settings as pg_settings
 from ..pg import store as pg_store
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
-from .ports import Account
+from .ports import Account, GrantResult
 from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
 
 _DAY_SETTINGS = ("trading_day_timezone", "trading_day_start")
@@ -36,19 +38,39 @@ class PgAccountService:
     def load(self, user_id: UUID) -> Account | None:
         with self._system.system_session("login") as conn:
             row = conn.execute("SELECT id, email, status, is_admin FROM users WHERE id = %s", (user_id,)).fetchone()
-        if row is None or row["status"] != "active":
+            plan = pg_plans.effective(conn, user_id, self._clock()) if row is not None else None
+        if row is None or plan is None or row["status"] != "active":
             return None  # gone, suspended or being deleted: not signed in
         with self._database.tenant_session(user_id) as conn:
             settings = _settings(conn)
         return Account(
             user=UserOut(id=row["id"], email=row["email"]),
             settings=settings,
-            # Plans, grants and overrides are computed from billing tables that arrive with M9 and M10; until then
-            # everyone is on the free plan with no limits listed.
-            plan=PlanOut(effective="free", source="free", expires_at=None),
-            entitlements={},
+            plan=PlanOut(effective=plan.plan, source=plan.source, expires_at=plan.expires_at),
+            entitlements=limits_for(plan.plan),
             is_admin=row["is_admin"],
         )
+
+    def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:
+        with self._system.system_session("login") as conn:
+            now = self._clock()
+            outcome = pg_plans.redeem(conn, user_id, code, now=now)
+            if isinstance(outcome, pg_plans.Redeemed):
+                pg_audit.record(
+                    conn,
+                    "grant_redeemed",
+                    user_id=user_id,
+                    ip_hash=ip_hash,
+                    meta={"plan": outcome.plan, "days": outcome.days, "via": "code"},
+                )
+                plan = pg_plans.effective(conn, user_id, now)
+                return GrantResult(
+                    "ok", plan=PlanOut(effective=plan.plan, source=plan.source, expires_at=plan.expires_at)
+                )
+            # A refusal is worth a row (many in a row is a guesser), but never the code.
+            reason = "active" if isinstance(outcome, pg_plans.AlreadyHave) else "refused"
+            pg_audit.record(conn, "grant_refused", user_id=user_id, ip_hash=ip_hash, meta={"reason": reason})
+            return GrantResult("active", ends_at=outcome.ends_at) if reason == "active" else GrantResult("refused")
 
     def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
         with self._system.system_session("login") as conn:

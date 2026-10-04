@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol
+from typing import Literal, Protocol
 from uuid import UUID
 
 from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
@@ -49,6 +49,15 @@ class Account:
     is_admin: bool
 
 
+@dataclass(frozen=True)
+class GrantResult:
+    """What redeeming a plan code did. A code that did not work is one answer, whatever the reason (a guess teaches nothing)."""
+
+    status: Literal["ok", "refused", "active"]
+    plan: PlanOut | None = None  # the person's plan afterwards (status "ok")
+    ends_at: datetime | None = None  # when the plan they already have from a code ends (status "active")
+
+
 class SessionStore(Protocol):
     def lookup(self, token: str | None) -> AuthSession | None:
         """The live session for a cookie value, or None (unknown, expired, revoked, or the user is suspended)."""
@@ -84,6 +93,11 @@ class AccountService(Protocol):
     def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
         """Mark the account for deletion a grace period from now and record it. Returns when it will be deleted, or None
         if the account is not active (already scheduled, or suspended). Ending the sessions is the caller's job."""
+        ...
+
+    def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:
+        """Use a plan code for this person and record it. One at a time: a person with a plan from a code that has not
+        ended gets "active" (when it ends), and a code that does not work gets "refused"."""
         ...
 
 
