@@ -1,6 +1,6 @@
 # Running the app on your own machine against the local database
 
-**Status (2026-10-04):** the API half works: it serves the real routes from your local Postgres, signed in as one user. The browser pages still show the **sample data** until the front end gets its API data source (the next M3 slice); this runbook is how you will see your own journal when it does.
+**Status (2026-10-04):** the API serves the real read routes from your local Postgres, signed in as one user, and the front end can read them: **the dashboard, the trade log, a trade's page, the filters and the tag choices show your own journal** when the front end is started with `TJ_DEV_API=real` (below). Everything that writes (notes, tags, importing, accounts, fees, the ledger) and the account progress numbers are not connected yet and say so on screen. Without `TJ_DEV_API=real`, `pnpm dev` and the shipped app still show the built-in sample data.
 
 Nothing here touches the original single-user app or its `journal.db`. Nothing is sent anywhere: both servers listen on this machine only.
 
@@ -31,7 +31,7 @@ $env:TJ_DEV_API = "real"
 pnpm dev
 ```
 
-Open `http://localhost:5173`. With `TJ_DEV_API=real` the dev server stops answering the session itself and forwards `/api` to the API above, sending the development session cookie on the browser's behalf. Without it, `pnpm dev` runs entirely on built-in sample data with no backend (the default).
+Open `http://localhost:5173`. Trades in an **archived** account (passed, failed or closed) are left out until you tick **Show archived** in the filter bar, as in the old app. With `TJ_DEV_API=real` the dev server stops answering the session itself and forwards `/api` to the API above, sending the development session cookie on the browser's behalf. Without it, `pnpm dev` runs entirely on built-in sample data with no backend (the default).
 
 ## Stopping
 

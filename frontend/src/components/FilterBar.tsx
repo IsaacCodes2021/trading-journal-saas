@@ -172,6 +172,14 @@ export function FilterBar({
         value={filters.direction}
         onChange={(direction) => set({ direction })}
       />
+      <label className="flex cursor-pointer items-center gap-2 text-[13px] text-muted">
+        <input
+          type="checkbox"
+          checked={filters.show_archived ?? false}
+          onChange={(e) => set({ show_archived: e.target.checked ? true : undefined })}
+        />
+        Show archived
+      </label>
       <span className="grow" />
       {summary ? <span className="text-[13px] text-muted">{summary}</span> : null}
     </Card>

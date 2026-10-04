@@ -29,6 +29,22 @@ describe('FilterBar', () => {
     expect(screen.getByText('132 trades')).toBeInTheDocument()
   })
 
+  it('shows archived accounts only when asked, and leaves the key out when it is off again', async () => {
+    const { onChange, user } = setup({ preset: '30d' })
+    const box = screen.getByRole('checkbox', { name: 'Show archived' })
+    expect(box).not.toBeChecked()
+    await user.click(box)
+    expect(onChange).toHaveBeenLastCalledWith({ preset: '30d', show_archived: true })
+  })
+
+  it('shows the toggle as on from the address and turning it off drops the key', async () => {
+    const { onChange, user } = setup({ preset: '30d', show_archived: true })
+    const box = screen.getByRole('checkbox', { name: 'Show archived' })
+    expect(box).toBeChecked()
+    await user.click(box)
+    expect(onChange).toHaveBeenLastCalledWith({ preset: '30d' })
+  })
+
   it('changes the range and keeps everything else', async () => {
     const { onChange, user } = setup({ preset: '30d', direction: 'long' })
     await user.click(screen.getByRole('button', { name: 'YTD' }))
