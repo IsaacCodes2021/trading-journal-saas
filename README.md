@@ -1,4 +1,11 @@
-# Trading Journal
+# Trading Journal (Roundturn)
+
+> **This repository is the hosted product, Roundturn**: a multi-user trading journal for prop-firm futures traders
+> (a FastAPI JSON API over Postgres, and a React single-page app). Start with the [design](docs/design/README.md),
+> the [runbooks](docs/runbooks/) and [The hosted product](#the-hosted-product-roundturn) below. The rest of this file
+> describes the original local NiceGUI app, whose screens the React app reproduces; it is kept as the behavioural
+> reference until the new one reaches parity, and its domain code (parsing, grouping, finance) is shared by both.
+> The original, untouched app lives in a separate folder.
 
 A local trading journal and analytics app for futures traders, in the spirit of
 Tradezella. It imports Tradovate **Performance** CSV exports, rebuilds round-trip
@@ -195,17 +202,37 @@ CI exports the lock to run `pip-audit` on the pinned versions for known vulnerab
 The fixtures in `backend/tests/fixtures/` are copies of real exports. The main one,
 `01-05-2024-performance.csv`, has 14 rows that must collapse into 8 trades.
 
-## Hosted API (work in progress)
+## The hosted product (Roundturn)
 
-The hosted version replaces the NiceGUI screens with a JSON API and a React app on one origin
-([design](docs/design/README.md)). Today `backend/tradejournal/api/` has the skeleton only (security headers,
-error format, CSRF check, the `Money` type, serving the built front end); the data endpoints arrive with the
-Postgres port in M2.
+One container serves the JSON API and the built React app on a single origin ([design](docs/design/README.md)).
+
+| Folder | What it is |
+|---|---|
+| `backend/tradejournal/api/` | The FastAPI app: the tenant API (`/api/v1`), the operator API (`/api/admin/v1`), sign-in routes (`/auth`), sessions, CSRF, rate limits, import limits, structured logs |
+| `backend/tradejournal/pg/` | Postgres: migrations `0001` to `0011`, the request role with forced row-level security, the narrow system roles (login, webhook, sweep, admin), the ported domain queries, the command-line tools (`invites`, `plans`, `users`, `sweep`, `migrate`) |
+| `backend/tradejournal/auth/` | Sign-in through Kinde (an identity-provider port with a fake for tests), signed state, CSRF tokens |
+| `frontend/` | The React app (Vite, React 19, TypeScript, Tailwind, TanStack Router and Query). `pnpm dev` runs it with sample data; see the runbook for the real API |
+| `site/` | The marketing site at roundturn.app, a Cloudflare Worker with a waitlist |
+| `docs/design/` | The design (requirements to decisions), the roadmap with a running log of what is built, and the security gates |
+| `docs/runbooks/` | Running it locally, trying real sign-in, migrating a local journal, **incident response, rotating secrets and restoring** |
+| `docs/legal/` | Drafts of the Terms and Privacy Policy (not published) |
+
+**Run it on your own machine:** [docs/runbooks/run-locally.md](docs/runbooks/run-locally.md) (and
+[try-real-sign-in.md](docs/runbooks/try-real-sign-in.md) for the real Kinde flow). The operator tools are described there too.
+
+**Checks** (CI runs all of these on every pull request: *Lint and test*, *Dependency audit*, *Secret scan*,
+*Container image builds*, *Front end*, *Marketing site*):
 
 ```powershell
 cd backend
-uv run uvicorn tradejournal.api.app:create_app --factory --port 8000    # needs `pnpm build` in frontend/ to serve pages
-uv run python -m tradejournal.api.openapi                              # rewrites backend/openapi.json
+uv run ruff check . ; uv run ruff format --check .
+uv run python -m tradejournal.api.openapi --check     # backend/openapi.json is current (regenerate without --check)
+uv run pytest                                          # tests/pg need the local Postgres (see the runbook); without it they skip
+
+cd ../frontend
+pnpm gen:api                                           # regenerate the TypeScript types from openapi.json
+pnpm format:check ; pnpm typecheck ; pnpm lint ; pnpm test ; pnpm build
+pnpm check:bundle ; pnpm check:security                # entry-chunk budget, no sample data in the build, security scan
 ```
 
 The container image holds the API and the built front end (a Node stage builds `frontend/`). Build it from the
@@ -217,7 +244,8 @@ docker run --rm -p 8000:8000 -e TJ_ENV=development -e TJ_APP_ORIGIN=http://local
 ```
 
 CI builds it and starts it on every pull request. Settings come from environment variables (`ApiConfig` in
-`api/config.py`). Development needs none.
+`api/config.py`); development needs none. In production the process writes one scrubbed JSON line per request and
+per error to standard output (`api/logs.py`); the server's own access log is off because it would print query strings.
 
 | Variable | Meaning |
 |---|---|
@@ -226,6 +254,19 @@ CI builds it and starts it on every pull request. Settings come from environment
 | `TJ_SESSION_SECRET` | At least 32 bytes as hex; `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `TJ_WEB_DIST` | The built front end (default `frontend/dist`) |
 | `TJ_APP_VERSION` | The build id, sent as `X-App-Version` (CI sets the git sha) |
+| `TJ_DATABASE_URL` | The request role (`app_rw`); without it the data routes answer 503 and `/readyz` says not ready |
+| `TJ_LOGIN_DATABASE_URL` | The sign-in role (`app_login`): sessions, invites, the audit log |
+| `TJ_ADMIN_DATABASE_URL` | The operator role (`app_admin`); without it the operator tools answer 503 |
+| `TJ_KINDE_DOMAIN`, `TJ_KINDE_CLIENT_ID`, `TJ_KINDE_CLIENT_SECRET` | Sign-in through Kinde, all or none (a secret: the host's secret store only) |
+| `TJ_SIGNUP_MODE` | `invite` (default) or `open` |
+| `TJ_CLIENT_IP_HEADER` | The header that carries the client address behind a proxy (`CF-Connecting-IP`); leave it out otherwise |
+| `TJ_RATE_LIMITS` | `off` switches the rate limits off (development or an emergency) |
+| `TJ_MAX_CONCURRENT_IMPORTS` | How many imports run at once in a process, 1 to 16 (default 2) |
+
+The command-line tools use their own settings: `TJ_OWNER_URL` (the schema owner: migrations, invites, plan codes,
+operators; **never on the host**), `TJ_SWEEP_DATABASE_URL` and the machine-to-machine `TJ_KINDE_M2M_CLIENT_ID` /
+`TJ_KINDE_M2M_CLIENT_SECRET` (the deletion sweep). [rotate-secrets.md](docs/runbooks/rotate-secrets.md) lists every
+secret and how to replace it.
 
 ## Command line (optional)
 
