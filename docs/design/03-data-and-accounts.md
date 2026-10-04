@@ -132,7 +132,7 @@ Money crosses the HTTP API as JSON strings (doc 07 section 2), so `NUMERIC`, `De
 
 Passwords, MFA, email verification, reset flows, breached-password checks and login throttling are the highest-risk code to write and the cheapest to rent. Free plans differ in what they include. Read on 2026-10-02 (doc 08): **Auth0's free plan has 25,000 MAU but no MFA**, while **Kinde's has 10,500 MAU with authenticator-app MFA, Google login and a custom domain**. Both are above launch scale; MFA is the feature that decides. The cost is moderate lock-in, which we limit by owning our own `users` and `sessions` tables and speaking standard OIDC.
 
-**Shortlist and selection criteria** (decide in spike S1b): Auth0, Kinde, Clerk, WorkOS AuthKit, Supabase Auth. Must have: Google sign-in, email + password, TOTP MFA, email verification, custom domain/branding, standard OIDC with PKCE, a management API to delete users, ability to export users, free tier of at least 5,000 MAU **that includes TOTP MFA**, and **an MFA indicator in the ID token (`amr` or `acr`) plus step-up re-authentication**, which admin access needs (ADR-012; doc 08: documented for Auth0, WorkOS and Supabase, and only in an unmerged docs pull request for Kinde, the front-runner).
+**Shortlist and selection criteria** (decided in spike S1b on 2026-10-04: Kinde, see ADR-003 in doc 06): Auth0, Kinde, Clerk, WorkOS AuthKit, Supabase Auth. Must have: Google sign-in, email + password, TOTP MFA, email verification, custom domain/branding, standard OIDC with PKCE, a management API to delete users, ability to export users, free tier of at least 5,000 MAU **that includes TOTP MFA**, and **an MFA indicator in the ID token (`amr` or `acr`) plus step-up re-authentication**, which admin access needs (ADR-012; doc 08: documented for Auth0, WorkOS and Supabase, and only in an unmerged docs pull request for Kinde, the front-runner).
 
 **Fallback if none fit:** self-managed with `Authlib` (Google OIDC), `argon2-cffi` (argon2id), TOTP via `pyotp`, our own email tokens. Roughly 2 to 3 weeks more, plus an ongoing security-maintenance burden. Documented only as plan B.
 
@@ -148,7 +148,7 @@ SPA               API (/auth/*)                      IdP
   |<------------------ 302 /auth/callback?code&state ----|
   |---------------->| verify state; exchange code (server to server); validate ID token
   |                 |   (iss, aud, exp, nonce); require email_verified = true
-  |                 | record MFA from amr / acr  -> sessions.mfa_at
+  |                 | MFA = (acr == "mfa"); auth_time -> sessions.mfa_at
   |                 | system_session("login"): upsert users by idp_subject
   |                 |   first login -> provision_user() in one transaction
   |                 | create sessions row; Set-Cookie

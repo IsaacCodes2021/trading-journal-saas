@@ -1,6 +1,6 @@
 # 08. Spike prep research (S1b, S5, S4)
 
-**Status:** research notes, 2026-10-02. Web research only: no accounts were created, nothing was installed, no one was contacted. Vendor pages change; **re-check anything here at signup**. Facts below were read from the vendors' own pages unless marked *third-party* or *unverified*. Policy wording is paraphrased, not quoted.
+**Status:** research notes, 2026-10-02; **the S1b section was resolved by the live spike on 2026-10-04 (Kinde chosen; result under ADR-003 in doc 06, evidence in the README of the unmerged branch `spike/s1b-kinde`)**. Web research only: no accounts were created, nothing was installed, no one was contacted. Vendor pages change; **re-check anything here at signup**. Facts below were read from the vendors' own pages unless marked *third-party* or *unverified*. Policy wording is paraphrased, not quoted.
 
 ## What this changes
 
@@ -25,12 +25,12 @@ Sources for the plans: [Auth0](https://auth0.com/pricing), [Kinde](https://kinde
 
 **What the S1b spike must prove against a live Kinde tenant** (this is where documentation and reality can differ):
 
-- The ID token validates (signature through the JWKS, `iss`, `aud`, `exp`, `nonce`) and includes `email_verified`.
-- After an authenticator-app login the token carries `amr` including `mfa`, and `auth_time`.
-- A step-up request (`acr_values` and `max_age`) forces a fresh MFA challenge without destroying the session; the resulting token shows it.
-- The delete-user and list-users management calls work with a machine-to-machine credential; find out what an export of users looks like.
+- The ID token validates (signature through the JWKS, `iss`, `aud`, `exp`, `nonce`) and includes `email_verified`. **Done 2026-10-04: yes.**
+- After an authenticator-app login the token carries `amr` including `mfa`, and `auth_time`. **Done 2026-10-04, with a correction:** the token carries `acr: "mfa"` and `auth_time`; `amr` lists the methods (`email`, `otp:sms`) and does not contain the word `mfa`. Only a text-message factor was tried; the authenticator-app `amr` value is untested.
+- A step-up request (`acr_values` and `max_age`) forces a fresh MFA challenge without destroying the session; the resulting token shows it. **Done 2026-10-04: yes** (`acr_values=mfa` with `max_age=0`; `auth_time` moved forward; our session kept).
+- The delete-user and list-users management calls work with a machine-to-machine credential; find out what an export of users looks like. **Done 2026-10-04: yes; the export is a manual, owner-only NDJSON download (users and organizations), not an API call.**
 - Free-plan limits that matter: custom domain with our email sending, rate limits, and what happens above 10,500 MAU.
-- Fallback decision: if the live behavior does not match, try WorkOS AuthKit and test whether a standard OIDC client can use it.
+- Fallback decision: if the live behavior does not match, try WorkOS AuthKit and test whether a standard OIDC client can use it. **Not needed: the live behavior matched (the free-plan limits above are still partly untested, see ADR-003).**
 
 ## 2. S5: payment providers
 
