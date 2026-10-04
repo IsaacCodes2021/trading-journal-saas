@@ -29,6 +29,7 @@ from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
+from .ratelimit import RateLimiter
 from .routers import accounts, auth, export, imports, journal, session, sessions, stats, tags, trades
 from .security import SecurityHeadersMiddleware
 from .sessions import PgSessionStore
@@ -45,6 +46,7 @@ def create_app(
     database: Database | None = None,
     clock: Callable[[], datetime] = utc_now,
     idp: IdentityProvider | None = None,
+    limiter: RateLimiter | None = None,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
     what a deployment looks like until sign-in is built (M5), except in development with `TJ_DEV_USER_ID` set, where
@@ -59,7 +61,8 @@ def create_app(
 
     `clock` says what instant it is now. It exists so tests can prove what "today" means for a date preset.
 
-    `idp` is the identity provider for sign-in (Kinde, built from the configuration when left out; tests pass a fake)."""
+    `idp` is the identity provider for sign-in (Kinde, built from the configuration when left out; tests pass a fake). `limiter`
+    keeps the rate limits' counts (one per process; tests pass one with their own clock)."""
     config = config or ApiConfig.from_env()
     owned = database is None and config.database_url is not None
     if owned:
@@ -123,6 +126,7 @@ def create_app(
     app.state.database = database
     app.state.auth = auth_flow
     app.state.clock = clock
+    app.state.limiter = limiter or RateLimiter()
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)

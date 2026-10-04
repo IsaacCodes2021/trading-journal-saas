@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
@@ -16,11 +17,17 @@ from ..auth.csrf import check_csrf, csrf_token
 from ..pg.session import Database
 from .config import ApiConfig
 from .ports import AuthSession, Services
+from .ratelimit import RateLimits, Rule, client_address, wait_text
 from .schemas import Problem
 
 SESSION_COOKIE = "__Host-tj_session"
 # What errors.py actually returns, so the generated client types its errors correctly. Every router declares these.
-ERROR_RESPONSES: dict[int | str, dict] = {401: {"model": Problem}, 403: {"model": Problem}, 422: {"model": Problem}}
+ERROR_RESPONSES: dict[int | str, dict] = {
+    401: {"model": Problem},
+    403: {"model": Problem},
+    422: {"model": Problem},
+    429: {"model": Problem},
+}
 
 
 def get_config(request: Request) -> ApiConfig:
@@ -40,10 +47,31 @@ def get_services(request: Request) -> Services:
 ServicesDep = Annotated[Services, Depends(get_services)]
 
 
+def take_place(request: Request, rule: Rule, key: str) -> None:
+    """Spend one place in a rate limit, or refuse with 429 and how long to wait."""
+    config: ApiConfig = request.app.state.config
+    if not config.rate_limits.enabled:
+        return
+    wait = request.app.state.limiter.hit(rule, key)
+    if wait > 0:
+        raise HTTPException(
+            429,
+            f"Too many requests. Try again in {wait_text(wait)}.",
+            headers={"Retry-After": str(max(1, math.ceil(wait)))},
+        )
+
+
+def client_key(request: Request) -> str:
+    """Who is asking, for limits that apply before anyone is signed in (see api/ratelimit.py on the address)."""
+    config: ApiConfig = request.app.state.config
+    return client_address(request.headers, request.client.host if request.client else None, config.client_ip_header)
+
+
 def current_session(request: Request, services: ServicesDep) -> AuthSession:
     session = services.sessions.lookup(request.cookies.get(SESSION_COOKIE))
     if session is None:
         raise HTTPException(401, "Not signed in.")
+    take_place(request, request.app.state.config.rate_limits.api, str(session.user_id))
     return session
 
 
@@ -57,6 +85,25 @@ def require_csrf(request: Request, session: SessionDep, config: ConfigDep) -> Au
 
 
 WriteSessionDep = Annotated[AuthSession, Depends(require_csrf)]
+
+
+def limited_per_person(pick: Callable[[RateLimits], Rule]):
+    """A route dependency: this person may do this only so often. It runs after sign-in, so a stranger cannot use up
+    anyone's allowance."""
+
+    def dependency(request: Request, session: SessionDep) -> None:
+        take_place(request, pick(request.app.state.config.rate_limits), str(session.user_id))
+
+    return Depends(dependency)
+
+
+def limited_per_client(pick: Callable[[RateLimits], Rule]):
+    """A route dependency for what happens before sign-in: this client address may do this only so often."""
+
+    def dependency(request: Request) -> None:
+        take_place(request, pick(request.app.state.config.rate_limits), client_key(request))
+
+    return Depends(dependency)
 
 
 @dataclass(frozen=True)

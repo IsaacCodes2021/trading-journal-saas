@@ -32,6 +32,8 @@ The real flow is in the API (`/auth/login`, `/auth/callback`, `POST /auth/logout
 | `TJ_KINDE_CLIENT_ID` | the Kinde application's client id |
 | `TJ_KINDE_CLIENT_SECRET` | its client secret (a secret: host secret store only, never the repository, never a chat) |
 | `TJ_SIGNUP_MODE` | `invite` (the default: a new person needs a code) or `open` |
+| `TJ_CLIENT_IP_HEADER` | optional: the header that carries the real client address when every request comes through a proxy that sets it (`CF-Connecting-IP` behind Cloudflare). Leave it out otherwise: a header nobody controls would let a caller choose their own rate-limit bucket |
+| `TJ_RATE_LIMITS` | `off` switches the rate limits off (development or an emergency); anything else leaves them on |
 
 (To try this flow on your own machine with your existing Kinde tenant, follow `try-real-sign-in.md`: it has the launcher options and a checklist.)
 

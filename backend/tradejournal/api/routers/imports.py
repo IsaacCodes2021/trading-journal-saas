@@ -10,7 +10,7 @@ from ...importer import UndoReport
 from ...journal import clean_filename
 from ...pg import importer as pg_importer
 from ...timeutil import zone
-from ..deps import ERROR_RESPONSES, TenantDep, WriteTenantDep
+from ..deps import ERROR_RESPONSES, TenantDep, WriteTenantDep, limited_per_person
 from ..refusals import refusals, sentence
 from ..schemas import Problem
 from ..schemas.imports import (
@@ -67,7 +67,11 @@ def _undo_out(report: UndoReport) -> UndoPreviewOut:
     )
 
 
-@router.post("/imports/preview", response_model=ImportPreviewOut)
+@router.post(
+    "/imports/preview",
+    response_model=ImportPreviewOut,
+    dependencies=[limited_per_person(lambda limits: limits.import_preview)],
+)
 def preview_import(account_id: AccountField, file: UploadFile, tenant: WriteTenantDep) -> ImportPreviewOut:
     """What importing this file into this account would do: counts, problems, and the first rows with a status each.
     Nothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the
@@ -108,7 +112,12 @@ def preview_import(account_id: AccountField, file: UploadFile, tenant: WriteTena
     )
 
 
-@router.post("/imports", response_model=ImportRecordOut, status_code=201)
+@router.post(
+    "/imports",
+    response_model=ImportRecordOut,
+    status_code=201,
+    dependencies=[limited_per_person(lambda limits: limits.import_commit)],
+)
 def import_file(account_id: AccountField, file: UploadFile, tenant: WriteTenantDep) -> ImportRecordOut:
     """Import the file into the account. Rows already stored are left alone, so importing a file twice is safe."""
     name, data = _read(file)
