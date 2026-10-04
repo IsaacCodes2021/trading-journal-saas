@@ -43,7 +43,7 @@ describe('the settings frame', () => {
   it('says what is coming in the sections that are not built yet', async () => {
     const { user } = await open()
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
-    await user.click(within(nav).getByRole('link', { name: 'Prop accounts' }))
+    await user.click(within(nav).getByRole('link', { name: 'Tags' }))
     expect(await screen.findByText(/next screen to be built/)).toBeInTheDocument()
     await user.click(within(nav).getByRole('link', { name: 'Data & privacy' }))
     expect(await screen.findByText(/Exporting your data/)).toBeInTheDocument()

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, sumMoney, toChartNumber } from './money'
+import { formatMoney, parseAmount, sumMoney, toChartNumber } from './money'
 
 describe('money helpers', () => {
   it('formats a decimal string without a float round trip', () => {
@@ -17,5 +17,30 @@ describe('money helpers', () => {
 
   it('only converts to a number at the chart boundary', () => {
     expect(toChartNumber('125.50')).toBe(125.5)
+  })
+})
+
+describe('parseAmount', () => {
+  it.each([
+    ['2500', '2500.00'],
+    ['2,500.5', '2500.50'],
+    ['$ 1,234.56', '1234.56'],
+    ['  50 ', '50.00'],
+    ['.5', '0.50'],
+    ['0', '0.00'],
+    ['12.', '12.00'],
+    ['9007199254740993.10', '9007199254740993.10'],
+  ])('reads %j as %s, exactly', (typed, expected) => {
+    expect(parseAmount(typed)).toBe(expected)
+  })
+
+  it('is null for an empty box, so "not set" is not "zero"', () => {
+    expect(parseAmount('')).toBeNull()
+    expect(parseAmount('   ')).toBeNull()
+    expect(parseAmount('$')).toBeNull()
+  })
+
+  it.each(['abc', '-5', '5-', '1.234', '1e3', '12 34', '$$5', '5%', '1,2,3x'])('refuses %j, in words', (typed) => {
+    expect(() => parseAmount(typed)).toThrow('Type an amount like 2500 or 2,500.50.')
   })
 })

@@ -13,6 +13,7 @@ import { Spinner } from './components/ui/primitives'
 import { DashboardPage } from './features/dashboard/DashboardPage'
 import { TradeLogPage } from './features/trades/TradeLogPage'
 import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
+import { isTab, type Tab } from './features/accounts/tabs'
 import { parseFilters, pickFilters } from './lib/filters'
 import { useSession } from './lib/session'
 
@@ -127,7 +128,7 @@ const importRoute = createRoute({
 const SettingsLayout = lazyNamed(() => import('./features/settings/SettingsLayout'), 'SettingsLayout')
 const PreferencesPage = lazyNamed(() => import('./features/settings/PreferencesPage'), 'PreferencesPage')
 const PlanPage = lazyNamed(() => import('./features/settings/PlanPage'), 'PlanPage')
-const AccountsSoon = lazyNamed(() => import('./features/settings/Placeholders'), 'AccountsSoon')
+const AccountsPage = lazy(() => import('./features/accounts/AccountsPage').then((m) => ({ default: m.AccountsPage })))
 const TagsSoon = lazyNamed(() => import('./features/settings/Placeholders'), 'TagsSoon')
 const PrivacySoon = lazyNamed(() => import('./features/settings/Placeholders'), 'PrivacySoon')
 
@@ -165,10 +166,41 @@ const preferencesRoute = createRoute({
   path: 'preferences',
   component: inSettings(PreferencesPage),
 })
+function AccountsRoute() {
+  const { account, tab } = accountsRoute.useSearch()
+  const navigate = useNavigate({ from: '/settings/accounts' })
+  return (
+    <Suspense fallback={<Spinner label="Loading" />}>
+      <AccountsPage
+        selected={account ?? null}
+        tab={tab ?? 'details'}
+        onSelect={(id, next) =>
+          void navigate({
+            search: (prev) => {
+              const rest = Object.fromEntries(
+                Object.entries(prev).filter(([key]) => key !== 'account' && key !== 'tab'),
+              )
+              return id === null ? rest : { ...rest, account: id, tab: next ?? prev.tab ?? 'details' }
+            },
+          })
+        }
+      />
+    </Suspense>
+  )
+}
+
 const accountsRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: 'accounts',
-  component: inSettings(AccountsSoon),
+  // The picked account and its tab live in the address, so a view can be shared and survives a reload.
+  validateSearch: (search: Record<string, unknown>): { account?: number; tab?: Tab } => {
+    const id = Number(search['account'])
+    return {
+      ...(Number.isInteger(id) && id > 0 ? { account: id } : {}),
+      ...(isTab(search['tab']) ? { tab: search['tab'] } : {}),
+    }
+  },
+  component: AccountsRoute,
 })
 const tagsRoute = createRoute({ getParentRoute: () => settingsRoute, path: 'tags', component: inSettings(TagsSoon) })
 const planRoute = createRoute({ getParentRoute: () => settingsRoute, path: 'plan', component: inSettings(PlanPage) })

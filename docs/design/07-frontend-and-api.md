@@ -163,6 +163,16 @@ Gaps and decisions:
 - The canvas's "Plan & billing" shows no payment details: payments are not live, and the page says plans come from an invitation or a code until after the beta. Redeeming a code (`POST /api/v1/grants/redeem`) belongs here once that route exists.
 - The main navigation now marks Settings (and Trades) as current inside their sub-pages: the link's own search is ignored when deciding.
 
+**Slice 4b (2026-10-03): Prop accounts.** Branch `fe/prop-accounts`, from the canvas's Accounts screen at `/settings/accounts` (sample data, with the banner). The list of active accounts (stage, size, profit-target progress, net result) with the archived ones behind "Show archived" (outcome, end date, note, Restore); the prop business card (evaluation pass rate, costs, payouts, net, and the accounts that have no cost recorded); and for the picked account, as tabs, **Details** (name, firm, stage, size, starting balance), **Fees** (by contract, with "any other"), **Rules** (profit target, max drawdown, trailing type and stop level, daily loss limit, with progress and the drawdown buffer left) and **Ledger** (costs and payouts, with the likeliest next kind suggested). Dialogs: add an account, and archive one (how it ended, end date, note; a passed evaluation offers to set up the funded account next, pre-filled). The picked account and tab are in the address (`?account=4&tab=rules`). New accounts show up in the import page's account choice.
+
+Gaps and decisions:
+
+- **The rule tracker is not in the backend.** The accounts, fees, archive and ledger exist (`accounts.py`, `ledger.py`, with their rules and messages, which the sample source follows), but nothing computes progress to the profit target or the drawdown left: the canvas shows both, and doc 05 lists the prop-rule tracker after the beta. The sample works them out from closed trades (end-of-day and intraday alike, from trade closes, so intraday is approximate, as the page says). The server will own that arithmetic; until then `AccountProgress` is the shape to return. The trailing-stop level is stored and edited but not yet used in the sample's arithmetic.
+- **Pass rate** is passed over passed plus failed evaluations; closed evaluations and funded accounts do not count (`archive_summary`).
+- **Archive lives in the panel header**, not at the foot of the Rules tab as in the canvas, so it is reachable from every tab.
+- Money typed into a box is read by `parseAmount` (cents, no minus sign, empty means "not set"); the server remains the authority and its refusals are shown in words.
+- The sample fees are the ones the sample trades were built on, so changing one does not change the trades yet (the real server recalculates).
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

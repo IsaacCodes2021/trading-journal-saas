@@ -239,6 +239,118 @@ export interface UndoPreview {
 /** Why a file was refused before it was even read, in words. */
 export class ImportRefused extends Error {}
 
+// ---- prop accounts -----------------------------------------------------------------------------------------------
+
+export const FIRMS = ['Apex', 'Bulenox', 'Lucid', 'My Funded Futures', 'Take Profit', 'Tradeify', 'Other'] as const
+export const OUTCOMES = ['passed', 'failed', 'closed'] as const
+export type Outcome = (typeof OUTCOMES)[number]
+export const OUTCOME_LABELS: Record<Outcome, string> = { passed: 'Passed', failed: 'Failed', closed: 'Closed' }
+/** How an account can end: an evaluation passes or fails, a funded account only fails or is closed. */
+export const OUTCOMES_BY_TYPE: Record<AccountType, readonly Outcome[]> = {
+  evaluation: ['passed', 'failed', 'closed'],
+  funded: ['failed', 'closed'],
+}
+export const TRAILING_TYPES = ['eod', 'intraday'] as const
+export type TrailingType = (typeof TRAILING_TYPES)[number]
+export const TRAILING_LABELS: Record<TrailingType, string> = { eod: 'End of day', intraday: 'Intraday' }
+
+/** Everything stored about an account. Money is a decimal string or null (not set). Mirrors `accounts.Account`. */
+export interface AccountDetail extends AccountRef {
+  account_size: string | null
+  starting_balance: string
+  max_drawdown: string | null
+  trailing_type: TrailingType | null
+  trail_lock_enabled: boolean
+  trail_lock_level: string | null
+  daily_loss_limit: string | null
+  profit_target: string | null
+  created_at: string
+  outcome: Outcome | null // set when archived
+  ended_on: string | null // "YYYY-MM-DD"
+  archive_note: string
+}
+
+/** How an account is doing against its rules. The server works these out from closed trades. */
+export interface AccountProgress {
+  net_pnl: string
+  trade_count: number
+  target_progress: number | null // 0..1 of the profit target; null when there is no target
+  drawdown_left: string | null // what is left of the allowed drawdown; null when there is no limit
+  last_trading_day: string | null // "YYYY-MM-DD" of its latest trade; null when it has none
+}
+
+export interface AccountOverview {
+  account: AccountDetail
+  progress: AccountProgress
+}
+
+export interface AccountDetailsInput {
+  name: string
+  firm: string
+  account_type: AccountType
+  account_size: string | null
+  starting_balance: string
+}
+
+export interface AccountRulesInput {
+  profit_target: string | null
+  max_drawdown: string | null
+  trailing_type: TrailingType | null
+  trail_lock_enabled: boolean
+  trail_lock_level: string | null
+  daily_loss_limit: string | null
+}
+
+export interface ArchiveInput {
+  outcome: Outcome
+  ended_on: string
+  note: string
+}
+
+/** The fee for one contract round trip, by symbol root ("NQ"); "*" is any other contract. */
+export type FeeSchedule = Record<string, string>
+
+export const LEDGER_KINDS = {
+  evaluation_fee: 'Evaluation fee',
+  reset_fee: 'Reset',
+  activation_fee: 'Activation fee',
+  monthly_fee: 'Monthly fee',
+  other_cost: 'Other cost',
+  payout: 'Payout',
+} as const
+export type LedgerKind = keyof typeof LEDGER_KINDS
+
+/** Money spent on or received from an account, kept apart from trading P&L. `amount` is always positive. */
+export interface LedgerEntry {
+  id: number
+  account_id: number
+  kind: LedgerKind
+  amount: string
+  entry_date: string
+  note: string
+}
+
+export interface NewLedgerEntry {
+  kind: LedgerKind
+  amount: string
+  entry_date: string
+  note: string
+}
+
+/** Across every account, archived ones included: is the prop business itself profitable? */
+export interface BusinessTotals {
+  evaluations_passed: number
+  evaluations_failed: number
+  pass_rate: number | null // passed / (passed + failed) over evaluations; closed ones do not count
+  costs: string
+  payouts: string
+  net: string // payouts minus costs
+  accounts_without_cost: string[] // names of accounts with no cost recorded
+}
+
+/** A change an account's rules or details refused, in words for the person who made it. */
+export class AccountRefused extends Error {}
+
 /** Why a screenshot was refused, in words for the person who chose it. */
 export class ScreenshotRefused extends Error {}
 
@@ -264,4 +376,17 @@ export interface DataSource {
   imports(signal?: AbortSignal): Promise<ImportRecord[]>
   undoPreview(importId: number): Promise<UndoPreview>
   undoImport(importId: number): Promise<void>
+  accountOverviews(signal?: AbortSignal): Promise<AccountOverview[]>
+  businessTotals(signal?: AbortSignal): Promise<BusinessTotals>
+  createAccount(input: AccountDetailsInput): Promise<AccountDetail>
+  updateAccount(id: number, input: AccountDetailsInput): Promise<AccountDetail>
+  updateRules(id: number, input: AccountRulesInput): Promise<AccountDetail>
+  archiveAccount(id: number, input: ArchiveInput): Promise<AccountDetail>
+  restoreAccount(id: number): Promise<AccountDetail>
+  fees(id: number, signal?: AbortSignal): Promise<FeeSchedule>
+  setFee(id: number, symbolRoot: string, rate: string): Promise<void>
+  removeFee(id: number, symbolRoot: string): Promise<void>
+  ledger(id: number, signal?: AbortSignal): Promise<LedgerEntry[]>
+  addLedgerEntry(id: number, entry: NewLedgerEntry): Promise<LedgerEntry>
+  deleteLedgerEntry(id: number, entryId: number): Promise<void>
 }

@@ -12,6 +12,7 @@ import type {
 } from '../data/model'
 import type { Filters } from '../filters'
 import { SAMPLE_ACCOUNTS, SAMPLE_TRADES, fillPairsFor, pointsFor } from './generate'
+import * as accounts from './accounts'
 import * as imports from './imports'
 import * as journal from './journal'
 import {
@@ -139,12 +140,25 @@ export const demoSource: DataSource = {
   createTag: (groupId, name) => run(() => journal.createTag(groupId, name)),
   addScreenshots: (id, files) => run(() => journal.addScreenshots(target(id), files)),
   deleteScreenshot: (id, screenshotId) => run(() => journal.deleteScreenshot(target(id), screenshotId)),
-  accounts: () => Promise.resolve(SAMPLE_ACCOUNTS),
+  accounts: () => Promise.resolve(accounts.activeAccountRefs()),
   previewImport: (accountId, file) => imports.previewImport(accountId, file),
   commitImport: (accountId, file) => imports.commitImport(accountId, file),
   imports: () => Promise.resolve(imports.listImports()),
   undoPreview: (importId) => run(() => imports.undoPreview(importId)),
   undoImport: (importId) => run(() => imports.undoImport(importId)),
+  accountOverviews: () => Promise.resolve(accounts.overviews()),
+  businessTotals: () => Promise.resolve(accounts.businessTotals()),
+  createAccount: (input) => run(() => accounts.createAccount(input)),
+  updateAccount: (id, input) => run(() => accounts.updateAccount(id, input)),
+  updateRules: (id, input) => run(() => accounts.updateRules(id, input)),
+  archiveAccount: (id, input) => run(() => accounts.archiveAccount(id, input)),
+  restoreAccount: (id) => run(() => accounts.restoreAccount(id)),
+  fees: (id) => run(() => accounts.feesOf(id)),
+  setFee: (id, root, rate) => run(() => accounts.setFee(id, root, rate)),
+  removeFee: (id, root) => run(() => accounts.removeFee(id, root)),
+  ledger: (id) => run(() => accounts.ledgerOf(id)),
+  addLedgerEntry: (id, input) => run(() => accounts.addEntry(id, input)),
+  deleteLedgerEntry: (id, entryId) => run(() => accounts.deleteEntry(id, entryId)),
 }
 
 /** Runs a write and answers as a promise, so a refusal arrives as a rejection, as it will from the server. */
