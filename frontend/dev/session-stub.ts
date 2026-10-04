@@ -83,6 +83,28 @@ export function devSessionStub(enabled: boolean): Plugin {
           }
           return send(200, { sessions: places, ended: 0 })
         }
+        if (path === '/api/v1/grants/redeem' && request.method === 'POST') {
+          // Only GR-TEST-CODE works in the stub; anything else gets the one sentence the server gives.
+          let raw = ''
+          request.on('data', (chunk: Buffer) => (raw += chunk.toString()))
+          request.on('end', () => {
+            const code = (JSON.parse(raw || '{}') as { code?: string }).code ?? ''
+            if (code.trim().toUpperCase() === 'GR-TEST-CODE') {
+              return send(200, {
+                effective: 'pro',
+                source: 'grant',
+                expires_at: new Date(now + 90 * 86_400_000).toISOString(),
+              })
+            }
+            send(422, {
+              type: 'about:blank',
+              title: 'Unprocessable',
+              status: 422,
+              detail: 'That code did not work. It may be wrong, already used, expired, or revoked.',
+            })
+          })
+          return
+        }
         if (path === '/api/v1/activity' && request.method === 'GET') {
           // A few sample events, newest first, so the Recent activity card can be seen with no backend.
           const event = (hours: number, kind: string, extra: Record<string, unknown> = {}) => ({

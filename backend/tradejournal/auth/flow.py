@@ -28,7 +28,7 @@ from uuid import UUID
 import psycopg
 
 from ..api.sessions import PgSessionStore
-from ..pg import audit, deletion, invites, users
+from ..pg import audit, deletion, invites, plans, users
 from ..pg import sessions as pg_sessions
 from ..pg.defaults import provision_defaults
 from ..pg.session import Database
@@ -283,6 +283,16 @@ class AuthFlow:
                 user = users.create(conn, identity.subject, identity.email, now=now)
                 if invite is not None and not invites.redeem(conn, invite, user.id, now=now):
                     raise psycopg.Rollback
+                if invite is not None and invite.grant_code_id is not None:
+                    given = plans.give_bundled(conn, invite.grant_code_id, user.id, now=now)
+                    if given is not None:  # a code that ran out meanwhile gives nothing; sign-up goes ahead without it
+                        audit.record(
+                            conn,
+                            "grant_redeemed",
+                            user_id=user.id,
+                            ip_hash=ip_hash,
+                            meta={"plan": given.plan, "days": given.days, "via": "invite"},
+                        )
         except users.EmailTaken:
             audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "email_taken"})
             return ERR_EMAIL_TAKEN

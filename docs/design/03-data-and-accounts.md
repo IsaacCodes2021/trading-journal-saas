@@ -213,6 +213,8 @@ Nothing writes the result back to `users`, so **billing webhooks and the nightly
 | Beta invites | While the beta is gated, sign-up needs a valid invite code, carried through the OIDC `state` and redeemed inside `provision_user()`. An invite can bundle a grant code (for example 90 days of Pro for testers) |
 | Expiry | When a grant or override ends, the user falls back to the next source. Anything over the new limits (for example more accounts than the plan allows) stays and becomes read-only; **data is never deleted** |
 
+**Built (2026-10-04, migration 0010, doc 05 section 12):** `entitlements.effective_plan`, the three tables, `POST /api/v1/grants/redeem`, grants carried by invites, and an owner's command for plan codes (`python -m tradejournal.pg.plans`). Limits per plan are deliberately empty until decided. Not yet: the `subscriptions` mirror (M9), discount codes, and the admin API for overrides and codes (M10).
+
 ## 6. File storage (screenshots)
 
 **Upload**

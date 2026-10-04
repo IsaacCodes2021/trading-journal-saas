@@ -46,6 +46,20 @@ cd backend
 
 It prints the code once; only a hash is stored. Tests never contact Kinde: they use a fake provider (`backend/tests/fake_idp.py`).
 
+### Handing out plan codes
+
+A plan code gives a person a plan for some days when they type it on Settings > Plan & billing, or when they sign up with an invite that carries one. Making codes needs the schema owner's connection (`TJ_OWNER_URL`):
+
+```powershell
+cd backend
+.venv\Scripts\python.exe -m tradejournal.pg.plans create-grant --label "Beta testers" --days 90 --max-redemptions 25 --expires-days 60
+.venv\Scripts\python.exe -m tradejournal.pg.plans list-grants
+.venv\Scripts\python.exe -m tradejournal.pg.plans revoke-grant --id 1
+.venv\Scripts\python.exe -m tradejournal.pg.invites create --label "Sam" --grant-id 1
+```
+
+The code (`GR-XXXX-XXXX`) is printed once and only its hash is kept, so write it down then; `list-grants` shows each code's label, days, how many people used it and whether it still works, never the code. Revoking stops a code being used; people who already used it keep what they were given. A person can use one code once, and can use another only when the plan from the first has ended. What Free and Pro include is not decided yet, so a plan code changes the label and the "complimentary until" date and unlocks nothing yet.
+
 ### Deleting accounts (the sweep)
 
 A person who asks to delete their account (Settings > Data & privacy) is marked for deletion a week away and signed out everywhere; signing in again before then cancels it. **Nothing is deleted until the sweep runs**, so it must be a scheduled job on the host (hourly is plenty):

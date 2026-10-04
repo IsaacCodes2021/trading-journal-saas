@@ -99,7 +99,7 @@ def owner(owner_url):
     with psycopg.connect(owner_url, autocommit=True, row_factory=dict_row) as conn:
         # Cascades through every tenant table; the system tables that hang off no user (invites) are named, so that
         # no test sees another's leftovers.
-        conn.execute("TRUNCATE users, invites, audit_log, identity_removals RESTART IDENTITY CASCADE")
+        conn.execute("TRUNCATE users, invites, audit_log, identity_removals, grant_codes RESTART IDENTITY CASCADE")
         yield conn
 
 

@@ -30,7 +30,21 @@ from .limits import BodyLimitMiddleware
 from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
 from .ratelimit import RateLimiter
-from .routers import account, accounts, activity, auth, export, imports, journal, session, sessions, stats, tags, trades
+from .routers import (
+    account,
+    accounts,
+    activity,
+    auth,
+    export,
+    grants,
+    imports,
+    journal,
+    session,
+    sessions,
+    stats,
+    tags,
+    trades,
+)
 from .security import SecurityHeadersMiddleware
 from .sessions import PgSessionStore
 from .spa import mount_spa
@@ -154,6 +168,7 @@ def create_app(
     app.include_router(sessions.router)
     app.include_router(account.router)
     app.include_router(activity.router)
+    app.include_router(grants.router)
     app.include_router(export.router)
     app.include_router(accounts.router)
     app.include_router(stats.router)

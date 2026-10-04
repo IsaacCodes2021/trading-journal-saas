@@ -40,6 +40,8 @@ export interface ApiOptions {
   deletion?: { status: number; body: object }
   /** The recent-activity list `GET /api/v1/activity` answers with, newest first. Default: none yet. */
   activity?: object[]
+  /** Answer redeeming a plan code with this instead of putting the person on Pro until 2027-01-12. */
+  redeem?: { status: number; body: object }
 }
 
 export function sessionBody(opts: ApiOptions = {}) {
@@ -57,12 +59,18 @@ export function sessionBody(opts: ApiOptions = {}) {
 /** Replaces `fetch`. Returns the bodies of the theme saves it saw. */
 export function stubApi(opts: ApiOptions = {}) {
   const saved: unknown[] = []
+  let plan: object | undefined = opts.plan // a redeemed code changes the plan the session reports from then on
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
       if (request.method === 'POST' && new URL(request.url).pathname === '/api/v1/account/deletion') {
         if (opts.deletion) return json(opts.deletion.body, opts.deletion.status)
         return json({ scheduled_for: '2026-10-11T03:20:00Z' })
+      }
+      if (request.method === 'POST' && new URL(request.url).pathname === '/api/v1/grants/redeem') {
+        if (opts.redeem) return json(opts.redeem.body, opts.redeem.status)
+        plan = { effective: 'pro', source: 'grant', expires_at: '2027-01-12T09:30:00Z' }
+        return json(plan)
       }
       if (request.method === 'GET' && new URL(request.url).pathname === '/api/v1/activity') {
         return json({ events: opts.activity ?? [] })
@@ -78,7 +86,7 @@ export function stubApi(opts: ApiOptions = {}) {
         if (body['csv_timezone'] === '') merged.csv_timezone = null // "" goes back to following the own timezone
         return json(merged)
       }
-      return json(sessionBody(opts))
+      return json(sessionBody({ ...opts, ...(plan ? { plan } : {}) }))
     }),
   )
   return saved

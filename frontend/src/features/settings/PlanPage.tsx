@@ -1,7 +1,11 @@
-import { Card, Spinner } from '../../components/ui/primitives'
+import { useState, type FormEvent } from 'react'
+import { CONTROL, Field } from '../../components/ui/Field'
+import { Button, Card, Spinner } from '../../components/ui/primitives'
 import type { components } from '../../lib/api/schema'
 import { daysLeft, pluralize } from '../../lib/format'
+import { useRedeemCode } from '../../lib/grants'
 import { useSession } from '../../lib/session'
+import { messageOf } from '../tags/messages'
 import { SectionHeader } from './SettingsLayout'
 
 type Plan = components['schemas']['PlanOut']
@@ -30,7 +34,57 @@ function when(iso: string): string {
   )
 }
 
-/** Which plan the account is on, why, until when, and what it includes. Read-only: payments arrive after the beta. */
+/** Use a plan code. What the server says is what is shown: one sentence for every code that does not work. */
+function RedeemCode() {
+  const redeem = useRedeemCode()
+  const [code, setCode] = useState('')
+  const typed = code.trim()
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!typed || redeem.isPending) return
+    redeem.mutate(typed, { onSuccess: () => setCode('') })
+  }
+
+  return (
+    <Card className="flex flex-col gap-3 px-5 py-4" role="region" aria-label="Redeem a plan code">
+      <h2 className="m-0 text-base font-semibold">Have a plan code?</h2>
+      <form onSubmit={submit} className="flex flex-col gap-3">
+        <Field id="plan-code" label="Plan code" hint="Looks like GR-7KQ2-M9XA. Case and spaces do not matter.">
+          <input
+            id="plan-code"
+            type="text"
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={64}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className={CONTROL}
+          />
+        </Field>
+        <div>
+          <Button type="submit" variant="primary" disabled={!typed || redeem.isPending}>
+            {redeem.isPending ? 'Redeeming…' : 'Redeem'}
+          </Button>
+        </div>
+      </form>
+      {redeem.isError ? (
+        <p role="alert" className="m-0 text-[13px] text-neg">
+          {messageOf(redeem.error)}
+        </p>
+      ) : null}
+      {redeem.isSuccess ? (
+        <p role="status" className="m-0 text-[13px] text-pos">
+          Done. You are on the {redeem.data.effective} plan
+          {redeem.data.expires_at ? ` until ${when(redeem.data.expires_at)}` : ''}.
+        </p>
+      ) : null}
+    </Card>
+  )
+}
+
+/** Which plan the account is on, why, until when, and what it includes, and a place to use a plan code. */
 export function PlanPage() {
   const session = useSession()
   if (session.isPending) return <Spinner label="Loading your plan" />
@@ -68,6 +122,7 @@ export function PlanPage() {
           </dl>
         )}
       </Card>
+      <RedeemCode />
       <p className="m-0 text-[13px] text-muted">
         Paid plans open after the beta. Until then, plans come from an invitation or a code.
       </p>

@@ -21,7 +21,7 @@ from tradejournal.pg.session import Database
 # Tables that have a user_id but are not a person's own data: the sign-in flow's (sessions, the audit log, who redeemed
 # which invite). The request role has no grant on any of them (tests/pg/test_pg_sessions.py pins that), and they have no
 # row-level policy because no tenant session ever reads them. A new table with a user_id must be listed here or below.
-SYSTEM_TABLES = ["sessions", "audit_log", "invite_redemptions"]
+SYSTEM_TABLES = ["sessions", "audit_log", "invite_redemptions", "grant_redemptions", "plan_overrides"]
 
 TENANT_TABLES = [
     "user_settings", "accounts", "fee_schedules", "imports", "trades", "fill_pairs", "import_fill_pairs",

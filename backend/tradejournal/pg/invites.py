@@ -43,6 +43,7 @@ def generate_code() -> str:
 @dataclass(frozen=True)
 class Invite:
     id: int
+    grant_code_id: int | None = None  # a plan grant that comes with this invite (see `pg.plans`)
 
 
 def check(conn: psycopg.Connection, code: str | None, email: str, *, now: datetime | None = None) -> Invite | None:
@@ -54,7 +55,8 @@ def check(conn: psycopg.Connection, code: str | None, email: str, *, now: dateti
         return None
     moment = now or datetime.now(UTC)
     row = conn.execute(
-        "SELECT id, email, max_uses, expires_at, revoked_at FROM invites WHERE code_hash = %s", (hash_code(normalized),)
+        "SELECT id, email, max_uses, expires_at, revoked_at, grant_code_id FROM invites WHERE code_hash = %s",
+        (hash_code(normalized),),
     ).fetchone()
     if row is None or row["revoked_at"] is not None or (row["expires_at"] and row["expires_at"] <= moment):
         return None
@@ -63,7 +65,7 @@ def check(conn: psycopg.Connection, code: str | None, email: str, *, now: dateti
     used = conn.execute("SELECT count(*) AS n FROM invite_redemptions WHERE invite_id = %s", (row["id"],)).fetchone()[
         "n"
     ]
-    return Invite(row["id"]) if used < row["max_uses"] else None
+    return Invite(row["id"], row["grant_code_id"]) if used < row["max_uses"] else None
 
 
 def redeem(conn: psycopg.Connection, invite: Invite, user_id, *, now: datetime | None = None) -> bool:
@@ -100,19 +102,22 @@ def create_invite(
     email: str | None = None,
     max_uses: int = 1,
     expires_in: timedelta | None = None,
+    grant_code_id: int | None = None,
 ) -> str:
-    """Make a code (as the schema owner) and return it. It is shown once: only its hash is kept."""
+    """Make a code (as the schema owner) and return it. It is shown once: only its hash is kept. `grant_code_id` is a
+    plan code (`pg.plans`) whose plan the person gets when they sign up with this invite."""
     if max_uses < 1:
         raise ValueError("an invite must allow at least one use")
     code = generate_code()
     owner_conn.execute(
-        "INSERT INTO invites (code_hash, label, email, max_uses, expires_at) VALUES (%s, %s, %s, %s, %s)",
+        "INSERT INTO invites (code_hash, label, email, max_uses, expires_at, grant_code_id) VALUES (%s, %s, %s, %s, %s, %s)",
         (
             hash_code(code),
             label.strip(),
             email.strip() if email else None,
             max_uses,
             datetime.now(UTC) + expires_in if expires_in else None,
+            grant_code_id,
         ),
     )
     return code
@@ -125,6 +130,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--email", help="only this address may use it")
     parser.add_argument("--max-uses", type=int, default=1)
     parser.add_argument("--days", type=int, help="expires after this many days")
+    parser.add_argument("--grant-id", type=int, help="a plan code (see tradejournal.pg.plans) whose plan they get")
     args = parser.parse_args(argv)
     url = os.environ.get("TJ_OWNER_URL")
     if not url:
@@ -137,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
             email=args.email,
             max_uses=args.max_uses,
             expires_in=timedelta(days=args.days) if args.days else None,
+            grant_code_id=args.grant_id,
         )
     print(code)
     return 0
