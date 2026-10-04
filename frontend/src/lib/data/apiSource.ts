@@ -1,13 +1,11 @@
 import { ApiError, api, unwrap, type ProblemBody } from '../api/client'
 import type { components } from '../api/schema'
 import type { Filters } from '../filters'
-import type { DataSource, TradesQuery } from './model'
+import { pluralize } from '../format'
+import type { DataSource, ScreenshotRef, TradesQuery } from './model'
 
 /*
- * The data source that talks to the real API. Everything is connected except screenshots, which fail with a plain
- * message and never touch the network: image files wait for the object store (M6). So it is wired in only for
- * development against a real server (`TJ_DEV_API=real`, see `source.tsx`); the shipped app still reads the sample data
- * until screenshots arrive.
+ * The data source that talks to the real API. Everything is connected.
  *
  * Responses are the API's generated types passed straight through: the shapes in `model.ts` were written first and
  * the API returns them as they are (money as decimal strings, times as ISO 8601 UTC). A refusal reaches the page as an
@@ -24,15 +22,23 @@ function uploadForm(accountId: number, file: File): FormData {
   return form
 }
 
-/** An action the server cannot do yet, said in words a person can read. */
-export class NotConnectedError extends Error {
-  constructor(what: string) {
-    super(`${what} is not connected to the server yet.`)
-    this.name = 'NotConnectedError'
-  }
+/** A screenshot upload is the file and nothing else: the trade is in the address. */
+function screenshotForm(file: File): FormData {
+  const form = new FormData()
+  form.append('file', file)
+  return form
 }
 
-const notConnected = (what: string) => (): Promise<never> => Promise.reject(new NotConnectedError(what))
+/**
+ * What a refused screenshot says. With several files the file is named (the server's sentence does not know which of
+ * them it is about), and when some were kept before it the person is told so, because the page shows them either way.
+ */
+function refusedScreenshot(error: unknown, file: File, of: number, kept: number): unknown {
+  if (!(error instanceof ApiError)) return error
+  const named = of > 1 && file.name ? `${file.name}: ${error.message}` : error.message
+  const message = kept > 0 ? `${named} ${pluralize(kept, 'image')} added before it.` : named
+  return new ApiError(error.status, { detail: message }, error.requestId)
+}
 
 function filterQuery(filters: Filters) {
   return {
@@ -112,8 +118,34 @@ export const apiSource: DataSource = {
     unwrap(api.POST('/api/v1/tags/{tag_id}/merge', { params: { path: { tag_id: id } }, body: { into_id: intoId } })),
   deleteTag: (id) => unwrap(api.DELETE('/api/v1/tags/{tag_id}', { params: { path: { tag_id: id } } })),
 
-  addScreenshots: notConnected('Adding a screenshot'),
-  deleteScreenshot: notConnected('Deleting a screenshot'),
+  // One image per request, one after another: the server checks each and answers for it, and a long drop stays under
+  // the upload size limit. It stops at the first refusal; the ones before it were kept.
+  async addScreenshots(id, files) {
+    const added: ScreenshotRef[] = []
+    for (const file of files) {
+      try {
+        added.push(
+          await unwrap(
+            api.POST('/api/v1/trades/{trade_id}/screenshots', {
+              params: { path: { trade_id: id } },
+              body: { file: file as unknown as string },
+              bodySerializer: () => screenshotForm(file),
+            }),
+          ),
+        )
+      } catch (error) {
+        throw refusedScreenshot(error, file, files.length, added.length)
+      }
+    }
+    return added
+  },
+  async deleteScreenshot(id, screenshotId) {
+    await unwrap(
+      api.DELETE('/api/v1/trades/{trade_id}/screenshots/{screenshot_id}', {
+        params: { path: { trade_id: id, screenshot_id: screenshotId } },
+      }),
+    )
+  },
   previewImport: (accountId, file) =>
     unwrap(
       api.POST('/api/v1/imports/preview', {

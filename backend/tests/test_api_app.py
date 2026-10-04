@@ -143,7 +143,8 @@ def test_a_missing_script_or_image_is_a_404_not_index_html(client):
 
 
 def test_server_paths_are_never_answered_with_the_spa(client):
-    for path in ("/api/v1/nope", "/auth/nope", "/files/nope", "/webhooks/nope", "/readyz/nope", "/healthz/nope"):
+    # (`/files/<id>` is a real route now, so the made-up path goes one level deeper)
+    for path in ("/api/v1/nope", "/auth/nope", "/files/nope/x", "/webhooks/nope", "/readyz/nope", "/healthz/nope"):
         response = client.get(path, headers=HTML)
         assert response.status_code == 404
         assert response.headers["content-type"] == "application/problem+json"

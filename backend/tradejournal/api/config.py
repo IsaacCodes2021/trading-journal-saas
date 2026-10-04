@@ -40,6 +40,9 @@ class ApiConfig:
     max_upload_bytes: int = 12 * 1024 * 1024  # one 10 MB screenshot plus multipart overhead
     # How many imports may run at once in this process (api/slots.py); the rest are told to try again in a few seconds.
     max_concurrent_imports: int = 2
+    # Where screenshot files are kept (filestore.LocalFileStore). Left out, the screenshot routes answer 503: a host with
+    # no persistent disk must use the object store instead (doc 03 section 6), which is chosen in api/app.py.
+    files_dir: Path | None = None
     # The request role's connection URL (app_rw). It holds a password, so it never appears in repr or logs. Not
     # required yet: until the routes use the database (M3), a process without it starts, and /readyz says so.
     database_url: str | None = field(default=None, repr=False)
@@ -136,6 +139,8 @@ class ApiConfig:
         ):
             if env.get(key):
                 values[name] = env[key].strip()
+        if env.get("TJ_FILES_DIR", "").strip():
+            values["files_dir"] = Path(env["TJ_FILES_DIR"].strip())
         if env.get("TJ_MAX_CONCURRENT_IMPORTS"):
             try:
                 values["max_concurrent_imports"] = int(env["TJ_MAX_CONCURRENT_IMPORTS"].strip())

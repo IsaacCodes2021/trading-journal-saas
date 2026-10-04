@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -72,6 +73,9 @@ def make_trades(conn, account_id: int, count: int = 8, *, day: date = date(2024,
 ORIGIN = "https://app.example.com"
 SECRET = b"k" * 32
 NOON_UTC = datetime(2024, 3, 22, 12, 0, tzinfo=UTC)
+PNG_1X1 = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+)  # a real 1 x 1 PNG
 
 
 def write_headers(session) -> dict[str, str]:

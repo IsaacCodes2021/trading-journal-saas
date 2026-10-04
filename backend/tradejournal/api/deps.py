@@ -14,6 +14,7 @@ import psycopg
 from fastapi import Depends, HTTPException, Request
 
 from ..auth.csrf import check_csrf, csrf_token
+from ..filestore import FileStore
 from ..pg.session import HEAVY_STATEMENT_TIMEOUT_MS, STATEMENT_TIMEOUT_MS, Database
 from .config import ApiConfig
 from .ports import AdminService, AuthSession, Services
@@ -148,6 +149,17 @@ def limited_per_person(pick: Callable[[RateLimits], Rule]):
 HEAVY = (
     HEAVY_STATEMENT_TIMEOUT_MS  # for `tenant.session(statement_timeout_ms=HEAVY)` in the routes that touch every row
 )
+
+
+def get_files(request: Request) -> FileStore:
+    """Where screenshot files are kept. A server with no place to keep them answers 503 rather than losing an upload."""
+    files = request.app.state.files
+    if files is None:
+        raise HTTPException(503, "Screenshots are not set up on this server yet.")
+    return files
+
+
+FilesDep = Annotated[FileStore, Depends(get_files)]
 
 
 def hold_import_slot(request: Request, session: SessionDep) -> Iterator[None]:

@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from ..auth.flow import AuthFlow
 from ..auth.idp import IdentityProvider
 from ..auth.kinde import KindeProvider
+from ..filestore import FileStore, LocalFileStore
 from ..pg.readiness import DatabaseReadiness
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
@@ -44,6 +45,7 @@ from .routers import (
     grants,
     imports,
     journal,
+    screenshots,
     session,
     sessions,
     stats,
@@ -67,6 +69,7 @@ def create_app(
     clock: Callable[[], datetime] = utc_now,
     idp: IdentityProvider | None = None,
     limiter: RateLimiter | None = None,
+    files: FileStore | None = None,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
     what a deployment looks like until sign-in is built (M5), except in development with `TJ_DEV_USER_ID` set, where
@@ -82,7 +85,8 @@ def create_app(
     `clock` says what instant it is now. It exists so tests can prove what "today" means for a date preset.
 
     `idp` is the identity provider for sign-in (Kinde, built from the configuration when left out; tests pass a fake). `limiter`
-    keeps the rate limits' counts (one per process; tests pass one with their own clock)."""
+    keeps the rate limits' counts (one per process; tests pass one with their own clock). `files` is where screenshot
+    files are kept; left out, it is a folder at `config.files_dir`, or nothing (the screenshot routes then answer 503)."""
     config = config or ApiConfig.from_env()
     owned = database is None and config.database_url is not None
     if owned:
@@ -158,6 +162,7 @@ def create_app(
     app.state.clock = clock
     app.state.limiter = limiter or RateLimiter()
     app.state.import_slots = ImportSlots(config.max_concurrent_imports)
+    app.state.files = files if files is not None else (LocalFileStore(config.files_dir) if config.files_dir else None)
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)
@@ -195,6 +200,7 @@ def create_app(
     app.include_router(trades.router)
     app.include_router(tags.router)
     app.include_router(journal.router)
+    app.include_router(screenshots.router)
     app.include_router(imports.router)
     app.include_router(auth.public)
     app.include_router(auth.router)

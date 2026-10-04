@@ -103,10 +103,17 @@ def test_refresh_repairs_drift(conn, account):
     assert stored(conn) == recount(conn)
 
 
-def test_refresh_leaves_storage_alone_until_files_have_a_size(conn):
-    conn.execute("UPDATE user_usage SET storage_bytes = 12345")
+def test_storage_is_the_sum_of_the_sizes_on_record_and_refresh_repairs_it(conn, account):
+    [trade_id] = make_trades(conn, account.id, 1)
+    insert = "INSERT INTO screenshots (trade_id, stored_name, original_name, content_type, size_bytes) VALUES (%s, %s, %s, %s, %s)"
+    conn.execute(insert, (trade_id, "u/x/a.png", "a.png", "image/png", 1000))
+    conn.execute(insert, (trade_id, "u/x/b.jpg", "b.jpg", "image/jpeg", 250))
+    conn.execute(  # a row from before sizes were recorded: no type, and a size of zero
+        "INSERT INTO screenshots (trade_id, stored_name, original_name) VALUES (%s, 'old.png', 'old.png')", (trade_id,)
+    )
+    conn.execute("UPDATE user_usage SET storage_bytes = 12345")  # drift
     usage.refresh(conn)
-    assert usage.get_usage(conn).storage_bytes == 12345
+    assert usage.get_usage(conn).storage_bytes == 1250
 
 
 @pytest.mark.parametrize("column", ["accounts_count", "trades_count", "screenshots_count", "storage_bytes"])
