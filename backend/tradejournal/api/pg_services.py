@@ -14,7 +14,7 @@ from ..pg import deletion as pg_deletion
 from ..pg import plans as pg_plans
 from ..pg import settings as pg_settings
 from ..pg import store as pg_store
-from ..pg.session import Database
+from ..pg.session import HEAVY_STATEMENT_TIMEOUT_MS, Database
 from ..pg.system import SystemDatabase
 from .ports import Account, GrantResult
 from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
@@ -88,7 +88,7 @@ class PgAccountService:
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
         """Apply the fields that are set and return all settings, in one transaction. Moving the trading day moves
         which day each stored trade belongs to, so the trades are recalculated in the same transaction."""
-        with self._database.tenant_session(user_id) as conn:
+        with self._database.tenant_session(user_id, statement_timeout_ms=HEAVY_STATEMENT_TIMEOUT_MS) as conn:
             before = _settings(conn)
             for key in ("timezone", "trading_day_timezone", "trading_day_start", "theme"):
                 value = getattr(changes, key)

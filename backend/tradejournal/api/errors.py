@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping, Sequence
 from http import HTTPStatus
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from psycopg import errors as pg_errors
+from psycopg_pool import PoolTimeout
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from .config import ApiConfig
@@ -32,6 +35,19 @@ def problem_response(
     )
 
 
+log = logging.getLogger("tj.db")
+
+# What the person is told, and how many seconds to wait, for each way the database can refuse to go on.
+_BUSY: dict[type[Exception], tuple[str, int]] = {
+    PoolTimeout: ("The server is busy right now. Try again in a few seconds.", 5),
+    pg_errors.QueryCanceled: (
+        "That took too long and was stopped. Try again in a moment, or ask for less at once (a shorter period, fewer filters).",
+        10,
+    ),
+    pg_errors.LockNotAvailable: ("Your journal is being changed by something else. Try again in a few seconds.", 5),
+}
+
+
 def install_error_handlers(app: FastAPI, config: ApiConfig) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
@@ -52,6 +68,17 @@ def install_error_handlers(app: FastAPI, config: ApiConfig) -> None:
             FieldError(field=".".join(str(part) for part in err["loc"][1:]), message=err["msg"]) for err in exc.errors()
         ]
         return problem_response(422, "The request is not valid.", errors=errors)
+
+    # The database refused to wait or to run any longer (pg/session.py): a busy server, not a broken request. A
+    # person is told so in words and when to come back, and the log gets what it was (the type and where, as for any
+    # error: `logs.error_summary`), because the request line alone says only "503".
+    for kind, (sentence, retry) in _BUSY.items():
+
+        def busy(request: Request, exc: Exception, sentence=sentence, retry=retry) -> JSONResponse:
+            log.warning("the database was too slow", exc_info=exc)
+            return problem_response(503, sentence, headers={"Retry-After": str(retry)})
+
+        app.add_exception_handler(kind, busy)
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:

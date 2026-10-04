@@ -40,6 +40,7 @@ from tradejournal.api.config import ApiConfig
 from tradejournal.api.deps import SESSION_COOKIE, Tenant
 from tradejournal.api.pg_services import PgAccountService
 from tradejournal.api.ports import Services
+from tradejournal.pg.session import STATEMENT_TIMEOUT_MS
 
 DOCUMENT = json.loads((Path(__file__).resolve().parents[2] / "openapi.json").read_text(encoding="utf-8"))
 SCHEMAS = DOCUMENT["components"]["schemas"]
@@ -390,7 +391,9 @@ def test_the_suite_can_fail_it_catches_a_server_that_runs_bobs_requests_as_alice
     monkeypatch.setattr(
         Tenant,
         "session",
-        lambda self, *, snapshot=False: self.database.tenant_session(alice.user_id, snapshot=snapshot),
+        lambda self, *, snapshot=False, statement_timeout_ms=STATEMENT_TIMEOUT_MS: self.database.tenant_session(
+            alice.user_id, snapshot=snapshot, statement_timeout_ms=statement_timeout_ms
+        ),
     )
     assert attack(op, alice, bob), f"{op.method} {op.path}: Bob read or changed Alice's journal and nothing noticed"
 
