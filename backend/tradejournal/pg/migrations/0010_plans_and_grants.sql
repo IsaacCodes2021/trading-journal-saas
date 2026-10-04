@@ -41,7 +41,11 @@ CREATE TABLE plan_overrides (
     user_id        uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     plan           text NOT NULL CHECK (plan IN ('free', 'pro')),
     expires_at     timestamptz,
-    reason         text NOT NULL CHECK (reason ~ '[^[:space:]]'),                 -- never shown to the person
+    -- Not blank: trimmed of the usual white space and of the Unicode spaces, spelled out. A regular-expression class such as
+    -- [[:space:]] depends on the server's locale (a no-break space passes it under one and not another), and this rule must not
+    -- depend on where the database happens to run.
+    reason         text NOT NULL CHECK (length(btrim(reason, E' \t\r\n\f\v' ||
+                       U&'\00A0\2000\2001\2002\2003\2004\2005\2006\2007\2008\2009\200A\200B\202F\205F\3000')) > 0),  -- never shown to the person
     created_by     text NOT NULL,
     created_at     timestamptz NOT NULL DEFAULT now(),
     revoked_at     timestamptz,

@@ -117,7 +117,7 @@ def test_only_one_override_can_be_active_for_a_person_and_it_needs_a_reason(owne
         owner.execute(
             "INSERT INTO plan_overrides (user_id, plan, reason, created_by) VALUES (%s, 'free', 'b', 'x')", (alice,)
         )
-    for reason in ("", "   ", "\t\n", "   "):  # nothing, spaces, a tab and a newline, a no-break space
+    for reason in ("", "   ", "\t\n", "   ", " 　", "​", "\f\v\r"):  # nothing, spaces, tab and newline, Unicode spaces
         with pytest.raises(psycopg.errors.CheckViolation):
             owner.execute(
                 "INSERT INTO plan_overrides (user_id, plan, reason, created_by) VALUES (%s, 'pro', %s, 'x')",
