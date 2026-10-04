@@ -1,6 +1,6 @@
 # Migrating your own local journal into Postgres
 
-**Status:** the script exists (`backend/tradejournal/pg/migrate_local.py`) and is tested on a synthetic journal. **It was rehearsed on the real journal on 2026-10-04** (a copy; local database; a throwaway user): 8 accounts, 23 trades, 28 fill pairs, 9 tags, 14 screenshot records, 7 ledger entries, and every golden check passed, both as a dry run and for real. The hosted run waits for sign-in (M5) and the screenshot files for M6. This runbook is how to run it, and how to read the result.
+**Status:** the script exists (`backend/tradejournal/pg/migrate_local.py`) and is tested on a synthetic journal. **It was rehearsed on the real journal on 2026-10-04** (a copy; local database; a throwaway user): 8 accounts, 23 trades, 28 fill pairs, 9 tags, 14 screenshot records, 7 ledger entries, and every golden check passed, both as a dry run and for real. That rehearsal copied the screenshot *rows* only; since then the script also takes the **image files** into the file store (below), which has been tested on synthetic journals and **not yet rehearsed on your real screenshots folder**. The hosted run waits for your yes and for sign-in (M5). This runbook is how to run it, and how to read the result.
 
 ## What it does
 
@@ -10,7 +10,7 @@ It copies the single-user app's journal (`data/journal.db`) into **one user's** 
 - **Everything is one transaction.** A failure leaves nothing behind. `--dry-run` does the whole run, prints the report and rolls back.
 - **It refuses a user who already has data.** It only fills an empty journal; it will not guess how to merge.
 - **Trades are copied as stored**, not regrouped. If the copy is wrong, a check fails. Two extra lines show what today's code would change (below).
-- **Screenshot files are not moved yet.** The records are copied with their file names; the files go to object storage with the R2 pipeline (M6). The report lists any file the journal names that is missing from `data/screenshots`.
+- **Screenshot files go into the file store, when you give it one.** Pass `--files-dir <folder>` (or set `TJ_FILES_DIR`; it must be **the folder the web server uses**, so on a host the persistent disk). Each file is checked the way an upload is (a real PNG, JPEG, GIF or WebP, 10 MB, 50 million pixels, 20 per trade, 500 MB in all) and copied under a new name in your own folder (`u/<your id>/...`); the copy's row records the new name, type, size and dimensions. The golden check then compares the rows with the old names mapped to the new ones, **reads every copied file back from the store and compares its SHA-256 with the original**. A file that is missing, not an acceptable image or over a limit is *not* copied: its row still is (under its old name), and the report lists which and why (an export lists such a row as missing). A dry run checks every file and writes none; a failure takes the files already copied out again. Without `--files-dir` only the rows are copied, and the report says so. Your `data/screenshots` folder is only read, never changed.
 
 ## Reading the report
 
@@ -34,20 +34,20 @@ Run it against your **local** Postgres, as a throwaway user, until the report is
 
 1. Start the local Postgres server (it is stopped between sessions).
 2. Make a throwaway user in the local database and note its id. Ask the assistant, or run as the owner role: `INSERT INTO users (idp_subject, email) VALUES ('rehearsal', 'rehearsal@example.test') RETURNING id`.
-3. Dry run: `cd backend`, set `TJ_DATABASE_URL` to the local `app_rw` URL (it is in the gitignored `backend/.env.test` as `TJ_DEV_APP_URL`), then:
+3. Dry run: `cd backend`, set `TJ_DATABASE_URL` to the local `app_rw` URL (it is in the gitignored `backend/.env.test` as `TJ_DEV_APP_URL`), and a throwaway folder for the files, then:
 
    ```bash
-   python -m tradejournal.pg.migrate_local --source ../../trading-journal/data/journal.db --user-id <the id> --dry-run
+   python -m tradejournal.pg.migrate_local --source ../../trading-journal/data/journal.db --user-id <the id> --files-dir <a throwaway folder> --dry-run
    ```
 
-   The source path only has to be readable; nothing in the old folder is changed.
+   The source path only has to be readable; nothing in the old folder is changed. The screenshots folder is taken to be `screenshots` beside `journal.db` (use `--screenshots` for another). The report ends with how many files would be taken in and lists any that would not, with the reason.
 4. Read the report as above. When it is clean, run again without `--dry-run`, then check the numbers in the real copy.
 
 ## The real run (after sign-in works, M5)
 
 1. Sign in once, so the identity provider has created your account. Find your user id (the operator tools or the owner role can look it up by email).
-2. Point `TJ_DATABASE_URL` at the hosted database's `app_rw` URL and run with `--dry-run` first, then for real.
-3. Keep `journal.db` and the screenshots folder until the screenshot files have been uploaded (M6) and you have checked the hosted app against the old one.
+2. Point `TJ_DATABASE_URL` at the hosted database's `app_rw` URL and `--files-dir` at the folder the hosted server uses (the same disk), and run with `--dry-run` first, then for real.
+3. Keep `journal.db` and the screenshots folder until you have checked the hosted app against the old one: open a few trades, look at their screenshots, and download your data (the manifest should list no missing screenshot files).
 
 ## If something goes wrong
 
