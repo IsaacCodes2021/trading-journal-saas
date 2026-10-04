@@ -80,7 +80,7 @@ describe('the sample import preview', () => {
     await expect(demoSource.previewImport(APEX_50K, new File(['x'], 'notes.txt'))).rejects.toThrow(ImportRefused)
     const big = csvFile('x')
     Object.defineProperty(big, 'size', { value: MAX_CSV_BYTES + 1 })
-    await expect(demoSource.previewImport(APEX_50K, big)).rejects.toThrow('larger than 5 MB')
+    await expect(demoSource.previewImport(APEX_50K, big)).rejects.toThrow('larger than 10 MB')
   })
 })
 

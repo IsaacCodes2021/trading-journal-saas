@@ -5,8 +5,9 @@ import { ApiError } from '../../lib/api/client'
 import type { components } from '../../lib/api/schema'
 import { useSaveSettings, useSession } from '../../lib/session'
 import { applyTheme, type Theme } from '../../lib/theme'
-import { isClockTime, timeZones, zoneLabel } from '../../lib/timezones'
+import { isClockTime, timeZones } from '../../lib/timezones'
 import { CsvZoneChoice } from './CsvZoneChoice'
+import { ZoneSelect } from './ZoneSelect'
 import { SectionHeader } from './SettingsLayout'
 
 type Settings = components['schemas']['SettingsOut']
@@ -15,28 +16,6 @@ const THEMES = [
   { value: 'dark', label: 'Dark' },
   { value: 'light', label: 'Light' },
 ] as const
-
-function ZoneSelect({
-  id,
-  value,
-  onChange,
-  zones,
-}: {
-  id: string
-  value: string
-  onChange: (next: string) => void
-  zones: string[]
-}) {
-  return (
-    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={CONTROL}>
-      {zones.map((zone) => (
-        <option key={zone} value={zone}>
-          {zoneLabel(zone)}
-        </option>
-      ))}
-    </select>
-  )
-}
 
 function Form({ saved }: { saved: Settings }) {
   const save = useSaveSettings()

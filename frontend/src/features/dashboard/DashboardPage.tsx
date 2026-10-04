@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { DailyBars } from '../../components/charts/DailyBars'
 import { DrawdownChart, EquityChart } from '../../components/charts/EquityCharts'
@@ -5,8 +6,7 @@ import { ScoreRadar } from '../../components/charts/ScoreRadar'
 import { FilterBar } from '../../components/FilterBar'
 import { Button, Card, Pnl, Segmented, Spinner, StatTile } from '../../components/ui/primitives'
 import type { DashboardData, PerformanceScore } from '../../lib/data/model'
-import { useDashboard } from '../../lib/data/queries'
-import { useFilterOptions } from '../../lib/data/queries'
+import { useAccounts, useDashboard, useFilterOptions } from '../../lib/data/queries'
 import type { Filters } from '../../lib/filters'
 import { formatAmount, formatDay, formatPercent, formatPnl, formatRatio, pluralize } from '../../lib/format'
 import { toChartNumber } from '../../lib/money'
@@ -233,9 +233,29 @@ function AccountsCard({ data }: { data: DashboardData }) {
   )
 }
 
+/** What a brand-new person sees instead of an empty chart: where to begin. */
+function GetStarted() {
+  return (
+    <Card className="flex flex-col items-center gap-2 p-10 text-center" role="region" aria-label="Get started">
+      <h2 className="m-0 text-xl font-semibold">Your journal is empty</h2>
+      <p className="m-0 max-w-[460px] text-muted">
+        Set your timezone, add an account, and import your first Tradovate file. It takes about five minutes, and you
+        can change any of it later.
+      </p>
+      <Link
+        to="/welcome"
+        className="mt-3 inline-flex h-10 items-center justify-center rounded-lg border border-accent bg-accent px-4 font-semibold text-accent-on no-underline hover:bg-accent-hover hover:text-accent-on"
+      >
+        Start setup
+      </Link>
+    </Card>
+  )
+}
+
 export function DashboardPage({ filters, onFilters }: { filters: Filters; onFilters: (next: Filters) => void }) {
   const dashboard = useDashboard(filters)
   const options = useFilterOptions()
+  const accounts = useAccounts()
   const data = dashboard.data
   const range = data?.range
   const summary = data
@@ -243,6 +263,14 @@ export function DashboardPage({ filters, onFilters }: { filters: Filters; onFilt
         range ? ` · ${formatDay(range.start)} to ${formatDay(range.end)}` : ''
       }`
     : undefined
+  if (accounts.data?.length === 0) {
+    return (
+      <>
+        <h1 className="sr-only">Dashboard</h1>
+        <GetStarted />
+      </>
+    )
+  }
   return (
     <>
       <h1 className="sr-only">Dashboard</h1>
