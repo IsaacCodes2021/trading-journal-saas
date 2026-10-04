@@ -7,12 +7,14 @@ from decimal import Decimal
 from pathlib import Path
 
 import psycopg
-from api_fakes import make_services
+from api_fakes import FakeAudit, FakeSessions, make_services
 from fastapi.testclient import TestClient
 
 from tradejournal.api.app import create_app
 from tradejournal.api.config import ApiConfig
 from tradejournal.api.deps import SESSION_COOKIE
+from tradejournal.api.pg_services import PgAccountService
+from tradejournal.api.ports import Services
 from tradejournal.auth.csrf import csrf_token
 from tradejournal.pg import accounts
 
@@ -85,6 +87,17 @@ def api_client_with_services(db, user_id, *, now: datetime = NOON_UTC):
     app = create_app(config, services, database=db, clock=lambda: now)
     client = TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}", **write_headers(session)})
     return client, services
+
+
+def api_client_with_real_accounts(db, system, user_id, *, now: datetime = NOON_UTC) -> TestClient:
+    """`api_client` on an app whose accounts service is the real one, for the routes that read the person's account
+    (the export, settings): the in-memory accounts of `api_client` do not know people made straight in the database."""
+    sessions = FakeSessions()
+    token, session = sessions.sign_in(user_id)
+    services = Services(sessions=sessions, accounts=PgAccountService(db, system), audit=FakeAudit())
+    config = ApiConfig(app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=SECRET)
+    app = create_app(config, services, database=db, clock=lambda: now)
+    return TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}", **write_headers(session)})
 
 
 def api_client(db, user_id, *, now: datetime = NOON_UTC) -> TestClient:

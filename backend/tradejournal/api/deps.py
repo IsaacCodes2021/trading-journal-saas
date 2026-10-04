@@ -14,7 +14,7 @@ import psycopg
 from fastapi import Depends, HTTPException, Request
 
 from ..auth.csrf import check_csrf, csrf_token
-from ..pg.session import Database
+from ..pg.session import HEAVY_STATEMENT_TIMEOUT_MS, STATEMENT_TIMEOUT_MS, Database
 from .config import ApiConfig
 from .ports import AdminService, AuthSession, Services
 from .ratelimit import RateLimits, Rule, client_address, wait_text
@@ -145,6 +145,11 @@ def limited_per_person(pick: Callable[[RateLimits], Rule]):
     return Depends(dependency)
 
 
+HEAVY = (
+    HEAVY_STATEMENT_TIMEOUT_MS  # for `tenant.session(statement_timeout_ms=HEAVY)` in the routes that touch every row
+)
+
+
 def hold_import_slot(request: Request, session: SessionDep) -> Iterator[None]:
     """A route dependency for the heavy ones (api/slots.py): the route runs only if this person has a place among the imports
     running now, and gives it back when it finishes, however it finishes. A refusal is 429 with `Retry-After`."""
@@ -178,10 +183,14 @@ class Tenant:
     database: Database
     user_id: UUID
 
-    def session(self, *, snapshot: bool = False) -> AbstractContextManager[psycopg.Connection]:
+    def session(
+        self, *, snapshot: bool = False, statement_timeout_ms: int = STATEMENT_TIMEOUT_MS
+    ) -> AbstractContextManager[psycopg.Connection]:
         """One transaction as this user: committed when the block ends, rolled back if it raises. `snapshot=True`
-        is a read-only, repeatable-read transaction, for reading several tables that must agree (an export)."""
-        return self.database.tenant_session(self.user_id, snapshot=snapshot)
+        is a read-only, repeatable-read transaction, for reading several tables that must agree (an export). A
+        statement that runs longer than `statement_timeout_ms` is cancelled (HEAVY_STATEMENT_TIMEOUT_MS is for the
+        routes that touch every row a person has); the answer to a timeout is a 503, see `errors.py`."""
+        return self.database.tenant_session(self.user_id, snapshot=snapshot, statement_timeout_ms=statement_timeout_ms)
 
 
 def get_tenant(request: Request, session: SessionDep) -> Tenant:

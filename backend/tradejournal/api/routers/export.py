@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 
 from ...auth.iphash import hash_ip
 from ...pg import export as pg_export
-from ..deps import ERROR_RESPONSES, ClockDep, ConfigDep, ServicesDep, TenantDep, limited_per_person
+from ..deps import ERROR_RESPONSES, HEAVY, ClockDep, ConfigDep, ServicesDep, TenantDep, limited_per_person
 from ..sanitize import sanitize_notes
 from ..schemas import Problem
 
@@ -65,7 +65,7 @@ def download_export(
         )
     now = clock()
     try:
-        with tenant.session(snapshot=True) as conn:  # one moment across every table
+        with tenant.session(snapshot=True, statement_timeout_ms=HEAVY) as conn:  # one moment across every table
             result = pg_export.build(
                 conn,
                 profile={

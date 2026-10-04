@@ -27,6 +27,12 @@ from psycopg_pool import ConnectionPool
 Profile = Literal["login", "webhook", "sweep", "admin"]
 PROFILES: tuple[str, ...] = get_args(Profile)
 
+# How long one statement of each profile may run before the database cancels it. The sweep is a background job that
+# deletes whole accounts, so it gets minutes; the others serve a request and get seconds. The pool wait is the same
+# five seconds as the request pool's.
+STATEMENT_TIMEOUT_MS: dict[str, int] = {"login": 10_000, "webhook": 10_000, "admin": 15_000, "sweep": 300_000}
+POOL_WAIT_SECONDS = 5.0
+
 
 class SystemDatabase:
     """One small pool per profile, each connecting as that profile's role."""
@@ -40,6 +46,7 @@ class SystemDatabase:
                 url,
                 min_size=1,
                 max_size=max_size,
+                timeout=POOL_WAIT_SECONDS,
                 kwargs={"row_factory": dict_row, "options": "-c timezone=UTC"},
                 open=False,
             )
@@ -63,4 +70,5 @@ class SystemDatabase:
         if pool is None:
             raise LookupError(f"no connection is configured for the {profile!r} profile")
         with pool.connection() as conn:
+            conn.execute("SELECT set_config('statement_timeout', %s, true)", (str(STATEMENT_TIMEOUT_MS[profile]),))
             yield conn

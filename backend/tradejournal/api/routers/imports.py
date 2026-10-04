@@ -14,6 +14,7 @@ from ...timeutil import zone
 from ..config import ApiConfig
 from ..deps import (
     ERROR_RESPONSES,
+    HEAVY,
     ConfigDep,
     ImportSlot,
     ServicesDep,
@@ -91,7 +92,7 @@ def preview_import(account_id: AccountField, file: UploadFile, tenant: WriteTena
     Nothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the
     real import would do."""
     name, data = _read(file)
-    with refusals(what="account"), tenant.session() as conn:
+    with refusals(what="account"), tenant.session(statement_timeout_ms=HEAVY) as conn:
         rows, tz_name = pg_importer.preview_rows(conn, account_id, data, PREVIEW_ROWS_SHOWN)
         report = pg_importer.import_files(conn, account_id, [(name, data)], dry_run=True).files[0]
     file_zone = zone(tz_name)
@@ -142,7 +143,7 @@ def import_file(
 ) -> ImportRecordOut:
     """Import the file into the account. Rows already stored are left alone, so importing a file twice is safe."""
     name, data = _read(file)
-    with refusals(what="account"), tenant.session() as conn:
+    with refusals(what="account"), tenant.session(statement_timeout_ms=HEAVY) as conn:
         report = pg_importer.import_files(conn, account_id, [(name, data)]).files[0]
         if report.fatal:
             raise HTTPException(422, sentence(report.fatal))  # nothing was written for a refused file
@@ -166,7 +167,7 @@ def list_imports(tenant: TenantDep) -> list[ImportRecordOut]:
 
 
 def _undo(import_id: int, tenant: WriteTenantDep, *, dry_run: bool) -> UndoPreviewOut:
-    with refusals(what="import"), tenant.session() as conn:
+    with refusals(what="import"), tenant.session(statement_timeout_ms=HEAVY) as conn:
         try:
             report = pg_importer.undo_import(conn, import_id, dry_run=dry_run)
         except ValueError as problem:  # already undone

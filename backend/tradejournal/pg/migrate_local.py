@@ -49,7 +49,7 @@ from ..timeutil import from_utc_iso, to_utc_iso
 from . import settings as pg_settings
 from . import store, usage
 from .defaults import provision_defaults
-from .session import Database
+from .session import HEAVY_STATEMENT_TIMEOUT_MS, Database
 from .store import _returned_ids
 
 MONEY_ACCOUNT_COLUMNS = ("account_size", "max_drawdown", "trail_lock_level", "daily_loss_limit", "profit_target")
@@ -561,7 +561,7 @@ def run(
                 shutil.copy2(sibling, Path(workdir) / ("journal.db" + suffix))
         source = sqlite_db.connect(copy)  # brings an older journal up to the current schema; only the copy changes
         try:
-            with database.tenant_session(user_id) as conn:
+            with database.tenant_session(user_id, statement_timeout_ms=HEAVY_STATEMENT_TIMEOUT_MS) as conn:
                 provision_defaults(conn)
                 with conn.transaction():
                     report = copy_journal(conn, source, screenshots_dir)

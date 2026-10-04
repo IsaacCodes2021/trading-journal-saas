@@ -12,7 +12,7 @@ from ...pg import queries as pg_queries
 from ...pg import store as pg_store
 from ...queries import TradeFilter
 from ..accounts_view import account_out, entry_out
-from ..deps import ERROR_RESPONSES, TenantDep, WriteTenantDep
+from ..deps import ERROR_RESPONSES, HEAVY, TenantDep, WriteTenantDep
 from ..progress import business_totals, overviews
 from ..refusals import refusals
 from ..schemas import Problem
@@ -152,7 +152,7 @@ def get_fees(account_id: PathId, tenant: TenantDep) -> dict[str, str]:
 @router.put("/accounts/{account_id}/fees/{symbol_root}", response_model=dict[str, str])
 def set_fee(account_id: PathId, symbol_root: SymbolRoot, body: FeeIn, tenant: WriteTenantDep) -> dict[str, str]:
     """Set the rate for a contract root. The account's stored trades are recalculated in the same change."""
-    with refusals(what="account"), tenant.session() as conn:
+    with refusals(what="account"), tenant.session(statement_timeout_ms=HEAVY) as conn:
         pg_accounts.get_account(conn, account_id)
         pg_accounts.set_fee(conn, account_id, symbol_root, body.rate)
         pg_store.recalculate_trades(conn, account_id)
@@ -163,7 +163,7 @@ def set_fee(account_id: PathId, symbol_root: SymbolRoot, body: FeeIn, tenant: Wr
 @router.delete("/accounts/{account_id}/fees/{symbol_root}", response_model=dict[str, str])
 def remove_fee(account_id: PathId, symbol_root: SymbolRoot, tenant: WriteTenantDep) -> dict[str, str]:
     """Remove a contract's own rate (it falls back to `*`). Stored trades are recalculated in the same change."""
-    with refusals(what="account"), tenant.session() as conn:
+    with refusals(what="account"), tenant.session(statement_timeout_ms=HEAVY) as conn:
         pg_accounts.get_account(conn, account_id)
         pg_accounts.remove_fee(conn, account_id, symbol_root)
         pg_store.recalculate_trades(conn, account_id)
