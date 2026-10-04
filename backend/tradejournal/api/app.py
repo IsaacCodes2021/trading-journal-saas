@@ -21,6 +21,7 @@ from ..auth.kinde import KindeProvider
 from ..pg.readiness import DatabaseReadiness
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
+from .audit import PgAuditLog
 from .config import ApiConfig
 from .deps import utc_now
 from .dev import dev_services
@@ -28,7 +29,7 @@ from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
-from .routers import accounts, auth, imports, journal, session, sessions, stats, tags, trades
+from .routers import accounts, auth, export, imports, journal, session, sessions, stats, tags, trades
 from .security import SecurityHeadersMiddleware
 from .sessions import PgSessionStore
 from .spa import mount_spa
@@ -74,7 +75,7 @@ def create_app(
         # Real sessions, and, when Kinde is configured, real sign-in. Without Kinde nobody can sign in yet.
         system = SystemDatabase({"login": config.login_database_url})
         store = PgSessionStore(system)
-        services = Services(sessions=store, accounts=PgAccountService(database, system))
+        services = Services(sessions=store, accounts=PgAccountService(database, system), audit=PgAuditLog(system))
         if idp is None and config.kinde_domain and config.kinde_client_id and config.kinde_client_secret:
             idp = KindeProvider(
                 domain=config.kinde_domain, client_id=config.kinde_client_id, client_secret=config.kinde_client_secret
@@ -147,6 +148,7 @@ def create_app(
 
     app.include_router(session.router)
     app.include_router(sessions.router)
+    app.include_router(export.router)
     app.include_router(accounts.router)
     app.include_router(stats.router)
     app.include_router(trades.router)

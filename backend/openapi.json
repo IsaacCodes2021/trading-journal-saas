@@ -4013,6 +4013,69 @@
         ]
       }
     },
+    "/api/v1/export": {
+      "get": {
+        "description": "Everything stored for this account, as one ZIP: CSV tables, notes as HTML and text, and a manifest with checksums.",
+        "operationId": "download_export",
+        "responses": {
+          "200": {
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "A ZIP of everything stored for the account (see manifest.json inside)"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too many exports are being built right now; try again shortly"
+          }
+        },
+        "summary": "Download Export",
+        "tags": [
+          "export"
+        ]
+      }
+    },
     "/api/v1/filter-options": {
       "get": {
         "operationId": "get_filter_options",

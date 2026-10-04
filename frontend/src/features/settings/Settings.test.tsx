@@ -40,11 +40,12 @@ describe('the settings frame', () => {
     ).toHaveAttribute('aria-current', 'page')
   })
 
-  it('says what is coming in the section that is not built yet', async () => {
+  it('opens the data and privacy section from the list', async () => {
     const { user } = await open()
     const nav = await screen.findByRole('navigation', { name: 'Settings sections' })
     await user.click(within(nav).getByRole('link', { name: 'Data & privacy' }))
-    expect(await screen.findByText(/Exporting your data/)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Data & privacy' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Download my data' })).toBeInTheDocument()
   })
 })
 

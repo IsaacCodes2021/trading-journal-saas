@@ -130,7 +130,7 @@ function AccountMenu({ email }: { email: string }) {
 }
 
 /** Settings that are real (saved to the account through the API) and so need no sample-data warning. */
-const REAL_PAGES = /^\/settings\/(?:preferences|plan)(?:\/|$)/
+const REAL_PAGES = /^\/settings\/(?:preferences|plan|security|privacy)(?:\/|$)/
 
 /** Says out loud that the numbers are made up, on every page that shows them, while a sample source is in use. */
 function SampleDataBanner() {

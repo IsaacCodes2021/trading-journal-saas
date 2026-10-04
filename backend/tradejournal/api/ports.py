@@ -77,7 +77,22 @@ class AccountService(Protocol):
         ...
 
 
+class AuditLog(Protocol):
+    def record(
+        self,
+        user_id: UUID,
+        action: str,
+        *,
+        ip_hash: str | None = None,
+        meta: dict[str, str | int | bool | None] | None = None,
+    ) -> None:
+        """Write one security event about this person to the append-only log. `meta` is for small facts (a count, a
+        size), never for anything a person wrote."""
+        ...
+
+
 @dataclass(frozen=True)
 class Services:
     sessions: SessionStore
     accounts: AccountService
+    audit: AuditLog
