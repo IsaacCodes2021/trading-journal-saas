@@ -22,6 +22,8 @@ export interface Filters {
   firms?: string[]
   symbol_roots?: string[]
   direction?: Direction
+  /** Trades of archived (passed, failed, closed) accounts are left out unless this is on. Absent means off. */
+  show_archived?: true
 }
 
 export const DEFAULT_PRESET: Preset = '30d'
@@ -53,6 +55,7 @@ export function pickFilters(search: Record<string, unknown>): Partial<Filters> {
   if (firms) filters.firms = firms
   if (symbols) filters.symbol_roots = symbols
   if (direction) filters.direction = direction
+  if (search['show_archived'] === true || search['show_archived'] === 'true') filters.show_archived = true
   return filters
 }
 

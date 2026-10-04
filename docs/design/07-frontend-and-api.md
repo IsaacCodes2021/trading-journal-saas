@@ -183,6 +183,13 @@ Still to build: re-running past imports in a corrected zone (each import already
 
 **Not built yet from the canvas:** Onboarding (five steps: confirm timezone, first account, how to export, upload, dashboard; the separate CSV timezone it needs exists since slice 5b, and `CsvZoneChoice` can be reused), Admin users and plan override, Admin overview, codes and audit (both read; designs match doc 03 and ADR-012), and Tags management (no canvas screen).
 
+**Slice 6 (2026-10-04): the API data source, for the reads.** `lib/data/apiSource.ts` implements `DataSource` over the real routes (doc 05 section 10): dashboard, trade log (page number becomes `limit` and `offset`), a trade's page (a 404 is "no such trade", not an error), neighbors (the same filters, search and order as the list), filter options, tag catalog, accounts. Every call that writes, and import, account overview, fees and ledger, fails with "... is not connected to the server yet" and does not touch the network. Responses pass straight through as the generated types: the shapes in `model.ts` were written first and the API returns them as they are.
+
+- **It is not the shipped default yet.** `vite.config.ts` defines `__TJ_LIVE_DATA__`, true only for `pnpm dev` with `TJ_DEV_API=real` (never in a build or a test, whatever the environment says); `source.tsx` picks the API source then, the sample source otherwise. The flip comes when every screen's calls exist. Run it with `docs/runbooks/run-locally.md`.
+- **Checked on the real local journal in a browser:** the dashboard (23 trades, 8 accounts, the same net result the migration's golden check recorded), the trade log with its tags, and a trade's page with its fill pairs, notes and tag groups.
+- **New filter: Show archived** (`show_archived` in the address, a checkbox in the filter bar). The server hides trades of archived accounts by default, as the old app did; without the toggle the real dashboard showed 2 of 23 trades. The sample source ignores it (its numbers are fixed and many tests rely on them).
+- Screenshot images are still placeholders: the server sends the records but no image address until the file route exists (M6).
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

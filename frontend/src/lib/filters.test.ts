@@ -18,6 +18,14 @@ describe('pickFilters', () => {
     expect(pickFilters({ preset: 'forever', account_type: 'demo', direction: 'sideways', firms: 42 })).toEqual({})
   })
 
+  it('reads show_archived as on only when it is exactly on', () => {
+    expect(pickFilters({ show_archived: true })).toEqual({ show_archived: true })
+    expect(pickFilters({ show_archived: 'true' })).toEqual({ show_archived: true })
+    expect(pickFilters({ show_archived: false })).toEqual({})
+    expect(pickFilters({ show_archived: 'false' })).toEqual({})
+    expect(pickFilters({ show_archived: 1 })).toEqual({})
+  })
+
   it('reads one or many firms in any of the shapes a URL produces', () => {
     expect(pickFilters({ firms: 'Apex' })).toEqual({ firms: ['Apex'] })
     expect(pickFilters({ firms: ['Apex', 'Lucid', 'Apex', ' ', 7] })).toEqual({ firms: ['Apex', 'Lucid'] })

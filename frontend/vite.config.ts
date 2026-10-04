@@ -6,9 +6,12 @@ import { devSessionStub } from './dev/session-stub'
 
 const API = 'http://localhost:8000'
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const realApi = loadEnv(mode, process.cwd(), 'TJ_')['TJ_DEV_API'] === 'real'
   return {
+    // True only for `pnpm dev` against a real API: pages then read the API instead of the sample data (source.tsx).
+    // Never in a build and never in tests, whatever the environment says.
+    define: { __TJ_LIVE_DATA__: JSON.stringify(realApi && command === 'serve' && mode !== 'test') },
     // The session stub is dev-server only (see dev/session-stub.ts); TJ_DEV_API=real turns it off.
     plugins: [react(), tailwindcss(), devSessionStub(!realApi)],
     server: {
