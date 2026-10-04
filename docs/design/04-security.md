@@ -89,7 +89,7 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 - [ ] Entitlement checks live in the domain/service layer; the effective plan is computed and never stored, so webhooks cannot overwrite an override
 
 ### Input, output, files
-- [ ] **GATE** Notes sanitized on write and read; XSS payload tests
+- [x] **GATE** Notes sanitized on write and read; XSS payload tests (2026-10-04: `nh3` on write, DOMPurify on render, the same list pinned by a test; 58 tests in `tests/test_api_sanitize.py`)
 - [ ] **GATE** Upload limits at the edge, the route and the streaming reader; pixel cap; CSV row cap; import concurrency limit
 - [ ] **GATE** No raw HTML injection outside `SafeHtml` (ESLint `react/no-danger` plus a CI grep for `dangerouslySetInnerHTML` and `innerHTML`)
 - [ ] Private bucket; no public object URLs; presigned URLs 60 s

@@ -177,3 +177,18 @@ def test_a_change_without_the_csrf_token_or_from_another_site_changes_nothing(db
 def test_an_id_too_big_for_the_database_is_a_bad_request_not_a_server_error(db, alice, journal, method, path, body):
     response = getattr(api(db, alice), method)(path, **({"json": body} if body else {}))
     assert response.status_code == 422, (path, response.status_code)
+
+
+def test_a_note_is_cleaned_on_its_way_in_and_what_is_stored_is_what_comes_back(db, alice, journal):
+    client = api(db, alice)
+    dirty = '<p>Faded <b>the</b> open</p><script>alert(1)</script><img src=x onerror=alert(1)><a href="javascript:alert(1)">x</a>'
+    saved = client.put(f"/api/v1/trades/{journal['trade']}/notes", json={"html": dirty})
+    assert saved.status_code == 200
+    stored = saved.json()["notes_html"]
+    assert stored == '<p>Faded <b>the</b> open</p><a rel="noopener noreferrer">x</a>'
+    assert detail(client, journal["trade"])["notes_html"] == stored  # the page shows exactly what was kept
+    rows = {r["id"]: r for r in client.get("/api/v1/trades").json()["items"]}
+    assert rows[journal["trade"]]["has_notes"] is True
+    only_script = client.put(f"/api/v1/trades/{journal['trade']}/notes", json={"html": "<script>alert(1)</script>"})
+    assert only_script.json() == {"notes_html": ""}  # nothing visible was left, so there is no note
+    assert detail(client, journal["trade"])["has_notes"] is False
