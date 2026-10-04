@@ -33,7 +33,9 @@ The real flow is in the API (`/auth/login`, `/auth/callback`, `POST /auth/logout
 | `TJ_KINDE_CLIENT_SECRET` | its client secret (a secret: host secret store only, never the repository, never a chat) |
 | `TJ_SIGNUP_MODE` | `invite` (the default: a new person needs a code) or `open` |
 
-In the Kinde application, set the **allowed callback URL** to exactly `<TJ_APP_ORIGIN>/auth/callback` and the **allowed logout redirect URL** to `<TJ_APP_ORIGIN>/`. With the settings unset the two sign-in routes answer 503 and nobody can sign in. Make an invitation with the schema owner's address in `TJ_OWNER_URL`:
+(To try this flow on your own machine with your existing Kinde tenant, follow `try-real-sign-in.md`: it has the launcher options and a checklist.)
+
+In the Kinde application, set the **allowed callback URL** to exactly `<TJ_APP_ORIGIN>/auth/callback` and the **allowed logout redirect URL** to `<TJ_APP_ORIGIN>/invite`. With the settings unset the two sign-in routes answer 503 and nobody can sign in. Make an invitation with the schema owner's address in `TJ_OWNER_URL`:
 
 ```powershell
 cd backend

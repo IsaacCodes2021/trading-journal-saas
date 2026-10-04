@@ -354,7 +354,7 @@ def test_signing_out_ends_the_session_checks_the_csrf_token_and_says_where_to_go
     )  # a page elsewhere cannot sign you out
     assert browser.session().status_code == 200
     out = browser.client.post("/auth/logout", headers=write)
-    assert out.status_code == 200 and out.json() == {"redirect": f"https://idp.test/logout?redirect={ORIGIN}/"}
+    assert out.status_code == 200 and out.json() == {"redirect": f"https://idp.test/logout?redirect={ORIGIN}/invite"}
     assert browser.session().status_code == 401  # at once, not after the cache's minute
     assert [r["action"] for r in audit_rows(owner)].count("logout") == 1
 

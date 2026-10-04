@@ -7,23 +7,32 @@ It reads the development database URLs from the gitignored `backend/.env.test` (
 `python -m tradejournal.pg.provision`), so no password is typed or printed, and it listens on 127.0.0.1 only. With no
 `--user-id` it signs in as the one user in the database (an error if there are none or several). Pair it with
 `TJ_DEV_API=real pnpm dev` in `frontend/` (docs/runbooks/run-locally.md).
+
+`--real-sign-in` runs the real sign-in flow instead: people sign in through Kinde (the settings come from the gitignored
+`backend/.env.kinde`), get real sessions, and a new person needs an invite (`--make-invite` prints one). Pair it with
+`TJ_DEV_API=signin pnpm dev` (docs/runbooks/try-real-sign-in.md). Still development only: it listens on 127.0.0.1 and
+uses the local database.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
+from datetime import timedelta
 from pathlib import Path
 from uuid import UUID
 
 import psycopg
 
+from ..pg.invites import create_invite
 from ..pg.migrate import latest_version, migrate
 from ..pg.provision import read_env_file
 from .app import create_app
 from .config import ApiConfig, ConfigError
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env.test"
+KINDE_ENV_FILE = Path(__file__).resolve().parents[2] / ".env.kinde"
+KINDE_KEYS = ("KINDE_DOMAIN", "KINDE_CLIENT_ID", "KINDE_CLIENT_SECRET")
 
 
 class DevServerError(Exception):
@@ -66,14 +75,46 @@ def check_schema(env: dict[str, str], *, migrate_now: bool) -> str | None:
     return "applied migrations: " + ", ".join(migrate(env["TJ_DEV_OWNER_URL"]))
 
 
-def build_config(env_file: Path, *, origin: str, user_id: str | None, migrate_now: bool = False) -> ApiConfig:
+def kinde_settings(kinde_env_file: Path) -> dict[str, str]:
+    """The three Kinde settings, from the gitignored file. Only the names of what is missing are ever said."""
+    if not kinde_env_file.exists():
+        raise DevServerError(f"{kinde_env_file.name} does not exist: it holds {', '.join(KINDE_KEYS)}")
+    env = read_env_file(kinde_env_file)
+    missing = [key for key in KINDE_KEYS if not env.get(key)]
+    if missing:
+        raise DevServerError(f"{kinde_env_file.name} has no value for {', '.join(missing)}")
+    return {key: env[key].strip() for key in KINDE_KEYS}
+
+
+def build_config(
+    env_file: Path,
+    *,
+    origin: str,
+    user_id: str | None,
+    migrate_now: bool = False,
+    real_sign_in: bool = False,
+    kinde_env_file: Path = KINDE_ENV_FILE,
+) -> ApiConfig:
     env = read_env_file(env_file)
     app_url, login_url = env.get("TJ_DEV_APP_URL"), env.get("TJ_DEV_LOGIN_URL")
     if not app_url or not login_url:
         raise DevServerError(f"{env_file.name} has no TJ_DEV_APP_URL and TJ_DEV_LOGIN_URL: run the provisioning script")
+    if real_sign_in and user_id:
+        raise DevServerError("--user-id is for the development sign-in; with --real-sign-in people sign in themselves")
+    kinde = kinde_settings(kinde_env_file) if real_sign_in else None
     if applied := check_schema(env, migrate_now=migrate_now):
         print(applied)
     try:
+        if kinde:
+            return ApiConfig(
+                app_origin=origin,
+                database_url=app_url,
+                login_database_url=login_url,
+                kinde_domain=kinde["KINDE_DOMAIN"],
+                kinde_client_id=kinde["KINDE_CLIENT_ID"],
+                kinde_client_secret=kinde["KINDE_CLIENT_SECRET"],
+                signup_mode="invite",
+            )
         return ApiConfig(
             app_origin=origin,
             database_url=app_url,
@@ -84,26 +125,68 @@ def build_config(env_file: Path, *, origin: str, user_id: str | None, migrate_no
         raise DevServerError(str(problem)) from None
 
 
+def make_invite(env_file: Path, *, email: str | None) -> str:
+    """One single-use invite code for the local development database (made as its schema owner)."""
+    owner_url = read_env_file(env_file).get("TJ_DEV_OWNER_URL")
+    if not owner_url:
+        raise DevServerError(f"{env_file.name} has no TJ_DEV_OWNER_URL: run the provisioning script")
+    with psycopg.connect(owner_url, autocommit=True) as conn:
+        return create_invite(conn, label="local trial", email=email, max_uses=1, expires_in=timedelta(days=7))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--env-file", type=Path, default=ENV_FILE)
+    parser.add_argument("--kinde-env-file", type=Path, default=KINDE_ENV_FILE, help="with --real-sign-in")
     parser.add_argument("--user-id", help="the user to sign in as (default: the only user in the database)")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--migrate", action="store_true", help="apply pending migrations to the development database")
+    parser.add_argument(
+        "--real-sign-in",
+        action="store_true",
+        help="sign in through Kinde (settings from backend/.env.kinde) instead of the one-user development sign-in",
+    )
+    parser.add_argument(
+        "--make-invite",
+        action="store_true",
+        help="print a single-use invite code (valid 7 days) for the local database, and exit",
+    )
+    parser.add_argument("--invite-email", help="with --make-invite: only this email address may use the code")
     parser.add_argument(
         "--origin",
         default="http://localhost:5173",
         help="where the browser reaches the app; the front end's dev server by default (writes are checked against it)",
     )
     args = parser.parse_args(argv)
+    if args.make_invite:
+        try:
+            print(make_invite(args.env_file, email=args.invite_email))
+        except (DevServerError, psycopg.Error, OSError) as problem:
+            print(f"cannot make an invite: {problem}", file=sys.stderr)
+            return 2
+        return 0
     try:
-        config = build_config(args.env_file, origin=args.origin, user_id=args.user_id, migrate_now=args.migrate)
+        config = build_config(
+            args.env_file,
+            origin=args.origin,
+            user_id=args.user_id,
+            migrate_now=args.migrate,
+            real_sign_in=args.real_sign_in,
+            kinde_env_file=args.kinde_env_file,
+        )
     except (DevServerError, psycopg.Error, OSError) as problem:
         print(f"cannot start: {problem}", file=sys.stderr)
         return 2
     import uvicorn  # imported here: the checks above need none of it
 
-    print(f"Development sign-in: every request is user {str(config.dev_user_id)[:8]}... on {config.app_origin}")
+    if config.dev_user_id is None:
+        print(
+            f"Real sign-in through Kinde on {config.app_origin} (new people need an invite: --make-invite).\n"
+            f"  Allowed callback URL in Kinde:  {config.app_origin}/auth/callback\n"
+            f"  Allowed logout redirect URL:    {config.app_origin}/invite"
+        )
+    else:
+        print(f"Development sign-in: every request is user {str(config.dev_user_id)[:8]}... on {config.app_origin}")
     uvicorn.run(create_app(config), host="127.0.0.1", port=args.port)
     return 0
 
