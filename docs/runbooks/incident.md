@@ -78,7 +78,7 @@ SELECT id, created_at, actor, action, meta FROM audit_log WHERE user_id = '<acco
 
 What to look for: an operator action you did not take (only you should be an operator; `operator_granted` should appear only with `cli:owner` as the actor); a burst of `login_failed`; sessions from addresses (the log keeps only a keyed hash of the address, so you can tell two events came from the same place but not where it is); many `grant_refused` from one account (someone guessing codes; the limit is 10 an hour per person).
 
-Then the host's logs for the same hours. Application logs do not contain trade, note or screenshot content by design; if you find any, that is itself a finding.
+Then the host's logs for the same hours. In production the application writes one line of JSON per request (the method, the route, the status, the time and a request id; never the query string, headers, cookies or body) and, for an error, its type and where it happened, never its message. **A person who reports an error can quote the reference the page showed ("tell us this reference: ..."): search the log for that id to find the request and everything else written while it ran.** Application logs do not contain trade, note or screenshot content by design, and a scrubber removes anything shaped like a secret or an email address; if you find either in a log, that is itself a finding. (The structured log has been tested; its alerts and the host that keeps it have not been built yet.)
 
 **What the operator tools cannot show you, by design:** a person's trades, notes or screenshots. If an investigation seems to need them, stop and decide with the owner whether to go to the database directly; that is a Critical-level step and it must be written in the incident note and disclosed.
 
