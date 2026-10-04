@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from urllib.parse import urlsplit
+from uuid import UUID
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MIN_SECRET_BYTES = 32
@@ -34,12 +35,24 @@ class ApiConfig:
     # The request role's connection URL (app_rw). It holds a password, so it never appears in repr or logs. Not
     # required yet: until the routes use the database (M3), a process without it starts, and /readyz says so.
     database_url: str | None = field(default=None, repr=False)
+    # The `login` system role's URL (app_login): finds a user by id or identity at sign-in. Held apart from the request
+    # role because it can read the users table, which the request role cannot (doc 03 section 1).
+    login_database_url: str | None = field(default=None, repr=False)
+    # Development sign-in: every request is this user. It exists so the app can be run against a local database before
+    # real sign-in is built (M5); the configuration refuses it in production.
+    dev_user_id: UUID | None = None
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
             raise ConfigError("body size limits must be positive")
-        if self.database_url is not None and urlsplit(self.database_url).scheme not in ("postgresql", "postgres"):
-            raise ConfigError("TJ_DATABASE_URL must be a postgresql:// URL")
+        for name, url in (("TJ_DATABASE_URL", self.database_url), ("TJ_LOGIN_DATABASE_URL", self.login_database_url)):
+            if url is not None and urlsplit(url).scheme not in ("postgresql", "postgres"):
+                raise ConfigError(f"{name} must be a postgresql:// URL")
+        if self.dev_user_id is not None:
+            if self.production:
+                raise ConfigError("TJ_DEV_USER_ID is for development only: it signs every request in as that user")
+            if self.database_url is None or self.login_database_url is None:
+                raise ConfigError("TJ_DEV_USER_ID needs TJ_DATABASE_URL and TJ_LOGIN_DATABASE_URL")
         parts = urlsplit(self.app_origin)
         if parts.scheme not in ("http", "https") or not parts.netloc or parts.path or parts.query or parts.fragment:
             raise ConfigError(
@@ -66,6 +79,13 @@ class ApiConfig:
             values["app_version"] = env["TJ_APP_VERSION"]
         if env.get("TJ_DATABASE_URL"):
             values["database_url"] = env["TJ_DATABASE_URL"]
+        if env.get("TJ_LOGIN_DATABASE_URL"):
+            values["login_database_url"] = env["TJ_LOGIN_DATABASE_URL"]
+        if env.get("TJ_DEV_USER_ID"):
+            try:
+                values["dev_user_id"] = UUID(env["TJ_DEV_USER_ID"])
+            except ValueError:
+                raise ConfigError("TJ_DEV_USER_ID must be a user id (a UUID)") from None
         if "TJ_SESSION_SECRET" in env:
             try:
                 values["session_secret"] = bytes.fromhex(env["TJ_SESSION_SECRET"])

@@ -1,0 +1,37 @@
+"""Development sign-in: every request is one configured user. Never for production.
+
+    TJ_DATABASE_URL        the request role (app_rw)
+    TJ_LOGIN_DATABASE_URL  the login role (app_login)
+    TJ_DEV_USER_ID         the user to be (a row of the users table)
+
+`ApiConfig` refuses `TJ_DEV_USER_ID` when `TJ_ENV=production`, and the app only builds this when it is set. The
+cookie is a fixed word, so a front-end dev server can send it for the browser (`frontend/vite.config.ts`). Real
+sign-in (M5) replaces it with sessions in Postgres behind the same `SessionStore` interface.
+"""
+
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+from ..pg.session import Database
+from ..pg.system import SystemDatabase
+from .pg_services import PgAccountService
+from .ports import AuthSession, Services
+
+DEV_SESSION_TOKEN = "dev-session"  # noqa: S105  (a fixed word for local development, refused in production by ApiConfig)
+
+
+class DevSessionStore:
+    def __init__(self, user_id: UUID) -> None:
+        self._user_id = user_id
+
+    def lookup(self, token: str | None) -> AuthSession | None:
+        if token != DEV_SESSION_TOKEN:
+            return None
+        # MFA is "fresh" so the operator screens can be tried; the real value comes from the identity provider.
+        return AuthSession(id="dev", user_id=self._user_id, mfa_at=datetime.now(UTC))
+
+
+def dev_services(user_id: UUID, database: Database, system: SystemDatabase) -> Services:
+    return Services(sessions=DevSessionStore(user_id), accounts=PgAccountService(database, system))
