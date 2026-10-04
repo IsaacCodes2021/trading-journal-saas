@@ -68,3 +68,18 @@ def test_a_path_on_this_site_is_kept(good):
 )
 def test_anything_else_goes_to_the_home_page(bad):
     assert safe_next(bad) == "/"
+
+
+def test_the_error_codes_are_the_ones_the_front_end_has_words_for():
+    """`/invite?error=<code>` is the only thing the page learns. `frontend/src/lib/auth.ts` has a sentence for each code;
+    a code with no sentence would show nothing, and a sentence for a code that is never sent would be dead."""
+    import re
+    from pathlib import Path
+
+    from tradejournal.auth import flow
+
+    sent = {value for name, value in vars(flow).items() if name.startswith("ERR_")}
+    source = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "auth.ts").read_text(encoding="utf-8")
+    block = source.split("export const SIGN_IN_ERRORS = {")[1].split("} as const")[0]
+    worded = set(re.findall(r"^  (\w+):", block, flags=re.MULTILINE))
+    assert sent == worded and len(sent) == 6

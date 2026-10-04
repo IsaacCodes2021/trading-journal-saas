@@ -1,7 +1,7 @@
 import { Link, useLocation, useSearch } from '@tanstack/react-router'
-import { useEffect, type ReactNode } from 'react'
-import { csrfHeader } from '../lib/api/client'
+import { useEffect, useState, type ReactNode } from 'react'
 import type { components } from '../lib/api/schema'
+import { go, signOut } from '../lib/auth'
 import { useDataSource } from '../lib/data/source'
 import { filtersOf, parseFilters } from '../lib/filters'
 import { daysLeft } from '../lib/format'
@@ -90,9 +90,17 @@ function initialsOf(email: string): string {
 }
 
 function AccountMenu({ email }: { email: string }) {
-  const signOut = async () => {
-    await fetch('/auth/logout', { method: 'POST', headers: csrfHeader() })
-    window.location.assign('/')
+  const [leaving, setLeaving] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const leave = async () => {
+    setLeaving(true)
+    setFailed(false)
+    try {
+      go.to(await signOut()) // the identity provider's logout page, so its own session ends too
+    } catch {
+      setFailed(true) // still signed in: say so rather than pretend
+      setLeaving(false)
+    }
   }
   return (
     <Popover
@@ -107,7 +115,14 @@ function AccountMenu({ email }: { email: string }) {
           <div data-testid="who" className="px-2 text-[13px] break-all">
             {email}
           </div>
-          <Button onClick={signOut}>Sign out</Button>
+          <Button onClick={leave} disabled={leaving}>
+            Sign out
+          </Button>
+          {failed ? (
+            <div role="alert" className="px-2 text-xs text-neg">
+              Could not sign you out. Try again.
+            </div>
+          ) : null}
         </div>
       )}
     </Popover>

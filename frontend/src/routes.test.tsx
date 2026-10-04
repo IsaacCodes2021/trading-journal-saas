@@ -1,7 +1,8 @@
 import { waitFor, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { openApp as open, stubApi } from './test-utils'
+import { go } from './lib/auth'
+import { json, openApp as open, stubApi } from './test-utils'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -108,5 +109,64 @@ describe('the app shell', () => {
     stubApi()
     open('/import')
     expect(await screen.findByRole('heading', { name: 'Import trades' })).toBeInTheDocument()
+  })
+})
+
+describe('signing out', () => {
+  const PROVIDER_LOGOUT = 'https://idp.example/logout?redirect=https%3A%2F%2Fapp.example%2F'
+
+  /** The app's own calls are answered as usual; the sign-out call (a plain fetch of /auth/logout) gets `answer`. */
+  function stubWithLogout(answer: () => Response | Promise<Response>) {
+    stubApi()
+    const inner = globalThis.fetch
+    const logout = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => answer())
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: Request | string, init?: RequestInit) =>
+        input === '/auth/logout' ? logout(input, init) : inner(input as Request),
+      ),
+    )
+    return logout
+  }
+
+  async function clickSignOut() {
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Account menu' }))
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+  }
+
+  it('ends the session with the CSRF token, then follows the redirect the server gives', async () => {
+    const leave = vi.spyOn(go, 'to').mockImplementation(() => undefined)
+    const logout = stubWithLogout(() => json({ redirect: PROVIDER_LOGOUT }))
+    open('/')
+    await clickSignOut()
+    await waitFor(() => expect(leave).toHaveBeenCalledExactlyOnceWith(PROVIDER_LOGOUT))
+    expect(logout).toHaveBeenCalledExactlyOnceWith('/auth/logout', {
+      method: 'POST',
+      headers: { 'X-CSRF-Token': 'tok' },
+    })
+    leave.mockRestore()
+  })
+
+  it('goes to the sign-in page, and not through sign-in, when the session was already over', async () => {
+    const leave = vi.spyOn(go, 'to').mockImplementation(() => undefined)
+    stubWithLogout(() => json({ title: 'Unauthorized', status: 401 }, 401))
+    open('/')
+    await clickSignOut()
+    await waitFor(() => expect(leave).toHaveBeenCalledExactlyOnceWith('/invite'))
+    leave.mockRestore()
+  })
+
+  it('says so, stays where it is, and lets the person try again when the server could not sign them out', async () => {
+    const leave = vi.spyOn(go, 'to').mockImplementation(() => undefined)
+    const logout = stubWithLogout(() => json({ title: 'Internal Server Error', status: 500 }, 500))
+    open('/')
+    await clickSignOut()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not sign you out. Try again.')
+    expect(leave).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeEnabled()
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Sign out' }))
+    await waitFor(() => expect(logout).toHaveBeenCalledTimes(2))
+    leave.mockRestore()
   })
 })

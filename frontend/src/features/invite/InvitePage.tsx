@@ -1,18 +1,26 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/primitives'
-import { EXAMPLE_INVITE, SITE, looksLikeInviteCode, normalizeInviteCode, signInUrl, signUpUrl } from '../../lib/auth'
-
-/** Where the browser goes next. A function of its own so a test can watch it, as the page cannot leave in a test. */
-export const go = {
-  to: (url: string) => window.location.assign(url),
-}
+import {
+  EXAMPLE_INVITE,
+  SIGN_IN_ERRORS,
+  SITE,
+  go,
+  looksLikeInviteCode,
+  normalizeInviteCode,
+  signInErrorOf,
+  signInUrl,
+  signUpUrl,
+} from '../../lib/auth'
 
 /**
  * The page before sign-in, while the beta is by invitation: enter the code from the invite email to create an account,
  * or sign in. It needs no session. The code is only checked for its shape here; the server decides whether it is real
- * and unused, and says so when the person comes back from the identity provider.
+ * and unused, and says so, as a short code in `error`, when the person comes back from the identity provider.
  */
-export function InvitePage({ code: initial = '' }: { code?: string }) {
+export function InvitePage({ code: initial = '', error: asked }: { code?: string; error?: string }) {
+  // Checked here and not only in the route: the router keeps address parameters it did not validate, so a value the
+  // route dropped can still arrive. Only the server's own codes are ever put on the page.
+  const error = signInErrorOf(asked)
   const [code, setCode] = useState(initial)
   const [problem, setProblem] = useState<string | null>(null)
 
@@ -45,6 +53,16 @@ export function InvitePage({ code: initial = '' }: { code?: string }) {
             email to create your account.
           </p>
         </div>
+
+        {error ? (
+          <div
+            role="alert"
+            data-error={error}
+            className="rounded-lg border border-line-strong bg-bg px-3.5 py-3 text-[13px] text-neg"
+          >
+            {SIGN_IN_ERRORS[error]}
+          </div>
+        ) : null}
 
         <form onSubmit={submit} className="flex flex-col gap-[18px]">
           <div className="flex flex-col gap-1.5">
