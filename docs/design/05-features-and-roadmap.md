@@ -237,7 +237,28 @@ The `engineering:testing-strategy` skill can turn this into a full plan when we 
 5. **Measured: stale statistics cost 60 ms right after a bulk load.** Run before autovacuum had analyzed the tables, one-day imports took 82 ms against 22 ms (`--no-analyze` shows it). Autovacuum normally catches up within about a minute. If the first reads after a signup's big upload matter, the import job can run `ANALYZE` on `fill_pairs` and `trades` itself. Not done.
 6. **`rebuild_account` fell from 16 s to 2 s** because it now writes trades in batches. It still holds the user's lock for its duration, so it stays a background job in the design.
 
-**Not covered:** a real network (this is a sleep before each statement: no TLS, no connection pooler, no packet loss), Python and Postgres sharing one machine's CPU (a managed database would not), Render's smaller CPUs, concurrent users, HTTP and JSON overhead, and multiple accounts. Run-to-run variation: one run built the large journal in 16.9 s and another in 9.9 s; the other numbers moved by about 10%.
+**Not covered:** a real network (this is a sleep before each statement: no TLS, no connection pooler, no packet loss), Python and Postgres sharing one machine's CPU (a managed database would not), Render's smaller CPUs, concurrent users and HTTP and JSON overhead (**both are measured below**, in the HTTP load test), and multiple accounts. Run-to-run variation: one run built the large journal in 16.9 s and another in 9.9 s; the other numbers moved by about 10%.
+
+### HTTP load test (measured 2026-10-04)
+
+`backend/benchmarks/load_http.py` serves the real API (all layers: middleware, CSRF, rate limits, the request role, row-level security, the queries) from its own process on a local port, builds a journal for each of 100 people in the test database (99 with 150 trades, one with **10,000 trades**), and has each person look at something every second or so for 40 seconds (the dashboard, the trade log, a trade's page, the accounts, the tags), with optional 5,000-row uploads in the middle. Sessions are the in-memory fakes. **The load generator, the server and the database share one 12-processor laptop**, so these are floors on what a real host would do, not promises; the pool is 10 connections and the server one process (the container's setting).
+
+| Run | Requests | Median | p95 | p99 | Notes |
+|---|---|---|---|---|---|
+| 100 people, 2 uploads of 5,000 rows | 3,714 in 41 s (90 a second) | 18.5 ms | 359 ms | 467 ms | every answer 200; the uploads took **6.5 s and 7.0 s** while the rest were served (target 10 s) |
+| 100 people, no uploads | 3,768 (91 a second) | 12.2 ms | 355 ms | 464 ms | the one big journal's dashboard: median 393 ms, p95 401 ms (target p95 800 ms); its trade log 361 ms, p95 397 ms |
+| 100 people, **nobody with a big journal** | 3,963 (96 a second) | 8.4 ms | **29 ms** | 430 ms | the same run with the big journal made small |
+| 150 people with almost no pause (about 1,500 a second asked for) | 6,834 (167 a second) | 733 ms | 1.11 s | 1.19 s | every answer 200: no errors, no 503; latency is people divided by throughput |
+
+What this says:
+
+1. **Measured: the targets hold under load.** The 10,000-trade dashboard stays near 400 ms with 100 people on the server (target p95 under 800 ms), and a 5,000-row upload takes about 7 s while others work (target under 10 s). No request failed in any run.
+2. **Measured: one big journal sets the tail for everyone.** With the big journal, p95 is 355 ms; with the same journal made small, 29 ms. Median stays at 8 to 12 ms either way. The explanation is **inferred, not profiled**: the dashboard and the trade log of 10,000 trades are about 0.4 s of pure Python (`finance.py` over every trade), the interpreter runs one thread of Python at a time, and while that runs every other request in the process waits. The big person's 18 requests in 40 s are about 17 percent of the time.
+3. **Measured: the server saturates near 170 requests a second per process on this machine and degrades by getting slower, not by failing**: at nine times the offered load latency rose to about 0.7 s and nothing errored. (The 5-second pool wait and the timeouts did not trigger, because a closed loop of people cannot queue more requests than there are people.)
+4. **What to do with it** (recommendations, not built): **run at least two worker processes** where the plan has two processors (uvicorn reads `WEB_CONCURRENCY`, so it is a host setting, not a code change; the per-process caches and limits then apply to each worker); and when a real person with a big journal appears, move the dashboard's sums into SQL or cache a per-person summary (the fallback already named in doc 02). Neither is needed to meet the targets.
+5. One stall of about half a second shows in the maximum of every run (even without the big journal); its cause was not investigated.
+
+**Not covered:** several workers (the session fakes cannot be shared between processes; a run needs the real session store), a real network and a database on its own machine, the screenshots (M6), billing, and a mix with many writes. Run it again against the staging host before the beta opens: `python benchmarks\load_http.py --users 100 --seconds 40` (it empties the test database named in `backend/.env.test`).
 
 ## 9. M2 progress (running log)
 
