@@ -34,6 +34,10 @@ export interface ApiOptions {
   /** Answer every settings save with this problem document instead of saving. */
   saveProblem?: { status: number; body: object }
   settings?: Partial<typeof SETTINGS>
+  /** Whether the person signed in again within the last ten minutes (needed to delete the account). Default: yes. */
+  recentlyAuthenticated?: boolean
+  /** Answer a request to delete the account with this instead of scheduling it for 2026-10-11. */
+  deletion?: { status: number; body: object }
 }
 
 export function sessionBody(opts: ApiOptions = {}) {
@@ -42,7 +46,7 @@ export function sessionBody(opts: ApiOptions = {}) {
     settings: { ...SETTINGS, ...opts.settings, theme: opts.theme ?? 'dark' },
     plan: opts.plan ?? { effective: 'free', source: 'free', expires_at: null },
     entitlements: opts.entitlements ?? {},
-    flags: { is_admin: false, mfa_fresh: false },
+    flags: { is_admin: false, mfa_fresh: false, recently_authenticated: opts.recentlyAuthenticated ?? true },
     csrf_token: 'tok',
     app_version: 'test',
   }
@@ -54,6 +58,10 @@ export function stubApi(opts: ApiOptions = {}) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
+      if (request.method === 'POST' && new URL(request.url).pathname === '/api/v1/account/deletion') {
+        if (opts.deletion) return json(opts.deletion.body, opts.deletion.status)
+        return json({ scheduled_for: '2026-10-11T03:20:00Z' })
+      }
       if (request.method === 'PATCH') {
         const body = (await request.clone().json()) as Record<string, string>
         saved.push(body)

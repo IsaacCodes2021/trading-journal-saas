@@ -51,9 +51,14 @@ def test_load_describes_the_user_with_their_stored_settings(service, alice):
 def test_a_missing_suspended_or_deleting_user_is_not_signed_in(service, owner, alice):
     assert service.load(uuid4()) is None
     for status in ("suspended", "pending_deletion"):
-        owner.execute("UPDATE users SET status = %s WHERE id = %s", (status, alice))
+        owner.execute(
+            "UPDATE users SET status = %s, deletion_scheduled_at = CASE WHEN %s = 'pending_deletion' THEN now() END WHERE id = %s",
+            (status, status, alice),
+        )
         assert service.load(alice) is None, status
-    owner.execute("UPDATE users SET status = 'active', is_admin = true WHERE id = %s", (alice,))
+    owner.execute(
+        "UPDATE users SET status = 'active', deletion_scheduled_at = NULL, is_admin = true WHERE id = %s", (alice,)
+    )
     account = service.load(alice)
     assert account is not None and account.is_admin is True
 

@@ -18,10 +18,20 @@ class FakeSessions:
         self.ended_by: list[tuple[str, str | None]] = []  # ("one" or "others", the ip hash given), for assertions
 
     def sign_in(
-        self, user_id: UUID, *, mfa_at: datetime | None = None, user_agent: str | None = None
+        self,
+        user_id: UUID,
+        *,
+        mfa_at: datetime | None = None,
+        user_agent: str | None = None,
+        authenticated_at: datetime | None = None,
     ) -> tuple[str, AuthSession]:
         token = secrets.token_urlsafe(24)
-        session = AuthSession(id=str(uuid4()), user_id=user_id, mfa_at=mfa_at)
+        session = AuthSession(
+            id=str(uuid4()),
+            user_id=user_id,
+            mfa_at=mfa_at,
+            authenticated_at=authenticated_at or datetime.now(UTC),
+        )
         self._by_token[token] = session
         now = datetime.now(UTC)
         self._info[session.id] = SessionInfo(
@@ -60,6 +70,13 @@ class FakeSessions:
         self.ended_by.append(("others", ip_hash))
         return len(doomed)
 
+    def revoke_all(self, user_id: UUID) -> int:
+        doomed = [sid for sid in self._info if self._owner(sid) == user_id]
+        for sid in doomed:
+            self._drop(sid)
+        self.ended_by.append(("all", None))
+        return len(doomed)
+
     def _owner(self, session_id: str) -> UUID | None:
         return next((s.user_id for s in self._by_token.values() if s.id == session_id), None)
 
@@ -72,6 +89,8 @@ class FakeSessions:
 class FakeAccounts:
     def __init__(self) -> None:
         self._accounts: dict[UUID, Account] = {}
+        self.deletions: list[tuple[UUID, str | None]] = []  # what was scheduled, for assertions
+        self.refuse_deletion: set[UUID] = set()  # users whose account is not active
 
     def add(self, email: str, *, is_admin: bool = False) -> Account:
         account = Account(
@@ -92,6 +111,10 @@ class FakeAccounts:
 
     def load(self, user_id: UUID) -> Account | None:
         return self._accounts.get(user_id)
+
+    def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
+        self.deletions.append((user_id, ip_hash))
+        return None if user_id in self.refuse_deletion else datetime(2026, 10, 11, 12, 0, tzinfo=UTC)
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
         account = self._accounts[user_id]

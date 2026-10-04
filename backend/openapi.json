@@ -860,6 +860,36 @@
         "title": "DateRangeOut",
         "type": "object"
       },
+      "DeletionOut": {
+        "properties": {
+          "scheduled_for": {
+            "description": "When the account and everything in it will be deleted, unless the person signs in first",
+            "format": "date-time",
+            "title": "Scheduled For",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scheduled_for"
+        ],
+        "title": "DeletionOut",
+        "type": "object"
+      },
+      "DeletionRequest": {
+        "properties": {
+          "email": {
+            "description": "The account's own email address, typed out: a guard against a stray call",
+            "maxLength": 320,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "DeletionRequest",
+        "type": "object"
+      },
       "EquityPointOut": {
         "properties": {
           "at": {
@@ -1018,11 +1048,16 @@
           "mfa_fresh": {
             "title": "Mfa Fresh",
             "type": "boolean"
+          },
+          "recently_authenticated": {
+            "title": "Recently Authenticated",
+            "type": "boolean"
           }
         },
         "required": [
           "is_admin",
-          "mfa_fresh"
+          "mfa_fresh",
+          "recently_authenticated"
         ],
         "title": "FlagsOut",
         "type": "object"
@@ -2632,6 +2667,78 @@
         "summary": "Get Account Overviews",
         "tags": [
           "accounts"
+        ]
+      }
+    },
+    "/api/v1/account/deletion": {
+      "post": {
+        "description": "Schedule this account's deletion for a week from now, and sign out everywhere.",
+        "operationId": "request_deletion",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Request Deletion",
+        "tags": [
+          "account"
         ]
       }
     },

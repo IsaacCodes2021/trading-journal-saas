@@ -31,7 +31,8 @@ class DevSessionStore:
         if token != DEV_SESSION_TOKEN:
             return None
         # MFA is "fresh" so the operator screens can be tried; the real value comes from the identity provider.
-        return AuthSession(id="dev", user_id=self._user_id, mfa_at=datetime.now(UTC))
+        now = datetime.now(UTC)
+        return AuthSession(id="dev", user_id=self._user_id, mfa_at=now, authenticated_at=now)
 
     # The development sign-in is one fixed session: it can be listed, and there is nothing else to end.
     def list_for(self, user_id: UUID) -> list[SessionInfo]:
@@ -43,6 +44,9 @@ class DevSessionStore:
 
     def revoke_others(self, user_id: UUID, keep_id: str, *, ip_hash: str | None = None) -> int:
         return 0
+
+    def revoke_all(self, user_id: UUID) -> int:
+        return 0  # the fixed development session cannot be ended
 
 
 def dev_services(user_id: UUID, database: Database, system: SystemDatabase) -> Services:

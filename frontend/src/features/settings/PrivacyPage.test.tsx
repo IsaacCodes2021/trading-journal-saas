@@ -35,11 +35,13 @@ describe('the data and privacy section', () => {
     expect(within(region).getByText(/image files are added when screenshots are available/)).toBeInTheDocument()
   })
 
-  it('says deleting the account is still to come, and to download first', async () => {
+  it('offers deleting the account as its own card, after the download, and says to download first', async () => {
     await open()
+    const regions = screen.getAllByRole('region').map((region) => region.getAttribute('aria-label'))
+    expect(regions).toEqual(['Download your data', 'Delete your account'])
     const region = screen.getByRole('region', { name: 'Delete your account' })
-    expect(within(region).getByText(/arrives before the beta opens/)).toBeInTheDocument()
-    expect(within(region).queryByRole('button')).not.toBeInTheDocument()
+    expect(within(region).getByText(/Download your data first/)).toBeInTheDocument()
+    expect(within(region).getByRole('button', { name: 'Delete my account…' })).toBeEnabled()
   })
 
   it('does not start a download or call the server just by being opened', async () => {

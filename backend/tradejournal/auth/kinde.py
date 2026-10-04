@@ -93,7 +93,14 @@ class KindeProvider:
     # ---- the interface the flow uses ------------------------------------------------------------------------------
 
     def authorization_url(
-        self, *, state: str, nonce: str, code_challenge: str, redirect_uri: str, step_up: bool = False
+        self,
+        *,
+        state: str,
+        nonce: str,
+        code_challenge: str,
+        redirect_uri: str,
+        step_up: bool = False,
+        reauth: bool = False,
     ) -> str:
         params = {
             "response_type": "code",
@@ -107,6 +114,8 @@ class KindeProvider:
         }
         if step_up:
             params.update({"acr_values": "mfa", "max_age": "0"})
+        if reauth:
+            params.update({"prompt": "login", "max_age": "0"})
         return f"{self._metadata()['authorization_endpoint']}?{urlencode(params)}"
 
     def complete(self, *, code: str, code_verifier: str, redirect_uri: str, nonce: str) -> Identity:

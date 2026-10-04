@@ -21,14 +21,14 @@ import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import UUID
 
 import psycopg
 
 from ..api.sessions import PgSessionStore
-from ..pg import audit, invites, users
+from ..pg import audit, deletion, invites, users
 from ..pg import sessions as pg_sessions
 from ..pg.defaults import provision_defaults
 from ..pg.session import Database
@@ -48,6 +48,10 @@ ERR_UNVERIFIED = "email_unverified"
 ERR_INVITE = "invite_invalid"  # one code for "no invite", "wrong invite", "used up", "meant for someone else"
 ERR_UNAVAILABLE = "account_unavailable"  # suspended or being deleted
 ERR_EMAIL_TAKEN = "email_taken"
+ERR_REAUTH = "reauth_failed"  # asked to prove who they are again, and did not (or someone else did)
+
+REAUTH_WINDOW = timedelta(minutes=2)  # how fresh the provider's `auth_time` must be for a re-authentication to count
+RESTORED_PATH = "/settings/privacy?restored=1"  # where signing in lands when it cancelled a scheduled deletion
 
 
 def safe_next(value: str | None) -> str:
@@ -73,6 +77,7 @@ class LoginResult:
     redirect_to: str  # a path on this site
     session_token: str | None  # set as the session cookie when signed in
     error: str | None  # a short code when not
+    restored: bool = False  # signing in cancelled a scheduled account deletion
 
 
 class AuthFlow:
@@ -108,18 +113,33 @@ class AuthFlow:
 
     # ---- step 1 ---------------------------------------------------------------------------------------------------
 
-    def begin(self, *, next_url: str | None, invite: str | None, step_up: bool = False) -> LoginStart:
+    def begin(
+        self, *, next_url: str | None, invite: str | None, step_up: bool = False, reauth: bool = False
+    ) -> LoginStart:
         state, nonce, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
         code = invites.normalize(invite) if invite and len(invite) <= 60 else None
         cookie = sign(
             self._secret,
             LOGIN_PURPOSE,
-            {"s": state, "n": nonce, "v": verifier, "next": safe_next(next_url), "inv": code, "up": step_up},
+            {
+                "s": state,
+                "n": nonce,
+                "v": verifier,
+                "next": safe_next(next_url),
+                "inv": code,
+                "up": step_up,
+                "re": reauth,
+            },
             now=self._wall,
         )
         url = self._idp.authorization_url(
-            state=state, nonce=nonce, code_challenge=challenge, redirect_uri=self.redirect_uri, step_up=step_up
+            state=state,
+            nonce=nonce,
+            code_challenge=challenge,
+            redirect_uri=self.redirect_uri,
+            step_up=step_up,
+            reauth=reauth,
         )
         return LoginStart(url, cookie)
 
@@ -159,24 +179,55 @@ class AuthFlow:
             return self._fail(ERR_UNVERIFIED, "email_unverified", ip_hash)
         mfa_at = identity.auth_time if identity.acr == "mfa" and identity.auth_time else None
 
-        outcome = self._record_sign_in(identity, saved.get("inv"), mfa_at, previous_session, user_agent, ip_hash)
+        reauth_for: UUID | None = None
+        if saved.get("re"):
+            # The person was asked to prove who they are again (before deleting an account). Three things must hold, and the
+            # provider's willingness to honour `max_age=0` is not one we take on trust: the answer must be about the person who
+            # asked, and must say they authenticated just now.
+            asking = self._sessions.lookup(previous_session)
+            if asking is None:
+                return self._fail(ERR_REAUTH, "reauth_no_session", ip_hash)
+            problem = self._reauth_problem(identity)
+            if problem:
+                return self._fail(ERR_REAUTH, problem, ip_hash)
+            reauth_for = asking.user_id
+
+        outcome = self._record_sign_in(
+            identity, saved.get("inv"), mfa_at, previous_session, user_agent, ip_hash, reauth_for=reauth_for
+        )
         if isinstance(outcome, str):
             return LoginResult("/", None, outcome)
-        user_id, token = outcome
+        user_id, token, restored = outcome
         # Their own tables start with the defaults (settings, usage row, the three default categories). Idempotent, so
         # every sign-in repairs a first sign-in that was cut short.
         with self._database.tenant_session(user_id) as conn:
             provision_defaults(conn)
-        return LoginResult(next_url, token, None)
+        return LoginResult(RESTORED_PATH if restored else next_url, token, None, restored=restored)
+
+    def _reauth_problem(self, identity) -> str | None:
+        """Why this answer does not prove a fresh authentication, or None if it does."""
+        if identity.auth_time is None:
+            return "reauth_no_auth_time"
+        age = self._clock() - identity.auth_time
+        if age > REAUTH_WINDOW:
+            return "reauth_stale"
+        if age < -timedelta(minutes=1):  # a clock a minute ahead of ours is tolerated; more is not believed
+            return "reauth_future"
+        return None
 
     def _record_sign_in(
-        self, identity, invite_code, mfa_at, previous_session, user_agent, ip_hash
-    ) -> tuple[UUID, str] | str:
-        """Everything the sign-in changes, in one transaction. Returns (user id, session token), or an error code
-        (the audit row for the failure is committed; nothing else is)."""
+        self, identity, invite_code, mfa_at, previous_session, user_agent, ip_hash, *, reauth_for: UUID | None = None
+    ) -> tuple[UUID, str, bool] | str:
+        """Everything the sign-in changes, in one transaction. Returns (user id, session token, whether it cancelled a
+        scheduled deletion), or an error code (the audit row for the failure is committed; nothing else is)."""
         now = self._clock()
         with self._system.system_session("login") as conn:
             user = users.find_by_subject(conn, identity.subject)
+            restored = False
+            if reauth_for is not None and (user is None or user.id != reauth_for):
+                # Someone else completed the prompt, or the identity is not the one that asked: nothing changes.
+                audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "reauth_other_person"})
+                return ERR_REAUTH
             if user is None:
                 created = self._sign_up(conn, identity, invite_code, now, ip_hash)
                 if isinstance(created, str):
@@ -184,7 +235,15 @@ class AuthFlow:
                 user, signup = created, True
             else:
                 signup = False
-                if user.status != "active":
+                if user.status == "pending_deletion":
+                    # Coming back before the date is a way to change your mind. Only that status is restored; a
+                    # suspended account is refused below.
+                    restored = deletion.cancel(conn, user.id)
+                    if restored:
+                        audit.record(conn, "deletion_cancelled", user_id=user.id, ip_hash=ip_hash)
+                if user.status not in ("active", "pending_deletion") or (
+                    user.status == "pending_deletion" and not restored
+                ):
                     audit.record(conn, "login_failed", user_id=user.id, ip_hash=ip_hash, meta={"reason": "status"})
                     return ERR_UNAVAILABLE
                 try:
@@ -194,15 +253,23 @@ class AuthFlow:
                     return ERR_EMAIL_TAKEN
             if previous_session:
                 pg_sessions.revoke(conn, previous_session, now=now)  # a new sign-in always means a new token
-            token = pg_sessions.create(conn, user.id, mfa_at=mfa_at, user_agent=user_agent, ip_hash=ip_hash, now=now)
+            token = pg_sessions.create(
+                conn,
+                user.id,
+                mfa_at=mfa_at,
+                authenticated_at=identity.auth_time,  # the provider's own word for when; defaults to now
+                user_agent=user_agent,
+                ip_hash=ip_hash,
+                now=now,
+            )
             audit.record(
                 conn,
                 "signup" if signup else "login",
                 user_id=user.id,
                 ip_hash=ip_hash,
-                meta={"mfa": mfa_at is not None},
+                meta={"mfa": mfa_at is not None, "reauth": reauth_for is not None},
             )
-            return user.id, token
+            return user.id, token, restored
 
     def _sign_up(self, conn: psycopg.Connection, identity, invite_code, now, ip_hash) -> users.User | str:
         invite = None

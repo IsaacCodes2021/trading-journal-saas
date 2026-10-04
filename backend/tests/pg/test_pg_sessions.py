@@ -88,9 +88,12 @@ def test_revoking_ends_one_session_and_log_out_everywhere_ends_the_rest(system, 
 
 def test_a_suspended_or_deleting_user_loses_every_session_at_once(system, owner, alice, token):
     for status in ("suspended", "pending_deletion"):
-        owner.execute("UPDATE users SET status = %s WHERE id = %s", (status, alice))
+        owner.execute(
+            "UPDATE users SET status = %s, deletion_scheduled_at = CASE WHEN %s = 'pending_deletion' THEN now() END WHERE id = %s",
+            (status, status, alice),
+        )
         assert live(system, token, T0) is None, status
-    owner.execute("UPDATE users SET status = 'active' WHERE id = %s", (alice,))
+    owner.execute("UPDATE users SET status = 'active', deletion_scheduled_at = NULL WHERE id = %s", (alice,))
     assert live(system, token, T0) is not None  # nothing was destroyed, only refused while the status said so
 
 

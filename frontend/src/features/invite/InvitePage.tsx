@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Button } from '../../components/ui/primitives'
 import {
+  deletionDay,
   EXAMPLE_INVITE,
   SIGN_IN_ERRORS,
   SITE,
@@ -17,10 +18,20 @@ import {
  * or sign in. It needs no session. The code is only checked for its shape here; the server decides whether it is real
  * and unused, and says so, as a short code in `error`, when the person comes back from the identity provider.
  */
-export function InvitePage({ code: initial = '', error: asked }: { code?: string; error?: string }) {
+export function InvitePage({
+  code: initial = '',
+  error: asked,
+  deleted,
+}: {
+  code?: string
+  error?: string
+  /** When the account just asked to be deleted will be deleted (an ISO time); the page says so. */
+  deleted?: string
+}) {
   // Checked here and not only in the route: the router keeps address parameters it did not validate, so a value the
   // route dropped can still arrive. Only the server's own codes are ever put on the page.
   const error = signInErrorOf(asked)
+  const deletionDate = deletionDay(deleted)
   const [code, setCode] = useState(initial)
   const [problem, setProblem] = useState<string | null>(null)
 
@@ -53,6 +64,13 @@ export function InvitePage({ code: initial = '', error: asked }: { code?: string
             email to create your account.
           </p>
         </div>
+
+        {deletionDate ? (
+          <div role="status" className="rounded-lg border border-line-strong bg-bg px-3.5 py-3 text-[13px]">
+            <strong>Your account is scheduled for deletion on {deletionDate}.</strong> You have been signed out
+            everywhere. If you change your mind, sign in before then and nothing is lost.
+          </div>
+        ) : null}
 
         {error ? (
           <div

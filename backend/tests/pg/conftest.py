@@ -13,6 +13,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
+from auth_world import world  # noqa: F401  (registers the sign-in `world` fixture for the pg tests)
 from psycopg.rows import dict_row
 
 from tradejournal.pg import accounts
@@ -85,13 +86,20 @@ def login_url(owner_url) -> str:
     return env["TJ_TEST_LOGIN_URL"]
 
 
+@pytest.fixture(scope="session")
+def sweep_url(owner_url) -> str:
+    """The address the sweep role (app_sweep) connects with."""
+    env = {**read_env_file(ENV_FILE), **os.environ}
+    return env["TJ_TEST_SWEEP_URL"]
+
+
 @pytest.fixture
 def owner(owner_url):
     """An owner connection (it can create users and read everything), on an emptied database."""
     with psycopg.connect(owner_url, autocommit=True, row_factory=dict_row) as conn:
         # Cascades through every tenant table; the system tables that hang off no user (invites) are named, so that
         # no test sees another's leftovers.
-        conn.execute("TRUNCATE users, invites, audit_log RESTART IDENTITY CASCADE")
+        conn.execute("TRUNCATE users, invites, audit_log, identity_removals RESTART IDENTITY CASCADE")
         yield conn
 
 

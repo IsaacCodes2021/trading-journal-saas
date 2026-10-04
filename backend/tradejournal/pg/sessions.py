@@ -30,6 +30,7 @@ class LiveSession:
     public_id: UUID  # what the CSRF token is derived from; random, and never the cookie's token
     user_id: UUID
     mfa_at: datetime | None
+    authenticated_at: datetime  # when the person last authenticated at the identity provider (its `auth_time`)
 
 
 def new_token() -> str:
@@ -50,16 +51,20 @@ def create(
     user_id: UUID,
     *,
     mfa_at: datetime | None = None,
+    authenticated_at: datetime | None = None,
     user_agent: str | None = None,
     ip_hash: str | None = None,
     now: datetime | None = None,
 ) -> str:
-    """Start a session and return its token (shown once: set it as the cookie, never store it)."""
+    """Start a session and return its token (shown once: set it as the cookie, never store it). `authenticated_at` is
+    when the provider says the person last authenticated, which is not now when it signed them in silently; it defaults
+    to the moment the session starts."""
     moment = _now(now)
     token = new_token()
     conn.execute(
-        """INSERT INTO sessions (user_id, token_hash, created_at, last_seen_at, expires_at, mfa_at, user_agent, ip_hash)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+        """INSERT INTO sessions (user_id, token_hash, created_at, last_seen_at, expires_at, mfa_at, authenticated_at,
+                                  user_agent, ip_hash)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
         (
             user_id,
             hash_token(token),
@@ -67,6 +72,7 @@ def create(
             moment,
             moment + ABSOLUTE_LIFETIME,
             mfa_at,
+            min(authenticated_at or moment, moment),  # never later than now, whatever the provider's clock says
             (user_agent or "")[:300] or None,
             ip_hash,
         ),
@@ -82,7 +88,7 @@ def lookup(conn: psycopg.Connection, token: str | None, *, now: datetime | None 
     moment = _now(now)
     digest = hash_token(token)
     row = conn.execute(
-        """SELECT s.public_id, s.user_id, s.mfa_at, s.last_seen_at
+        """SELECT s.public_id, s.user_id, s.mfa_at, s.authenticated_at, s.last_seen_at
            FROM sessions s JOIN users u ON u.id = s.user_id
            WHERE s.token_hash = %s AND s.revoked_at IS NULL AND s.expires_at > %s AND s.last_seen_at > %s
              AND u.status = 'active'""",
@@ -92,7 +98,12 @@ def lookup(conn: psycopg.Connection, token: str | None, *, now: datetime | None 
         return None
     if moment - row["last_seen_at"] > TOUCH_EVERY:
         conn.execute("UPDATE sessions SET last_seen_at = %s WHERE token_hash = %s", (moment, digest))
-    return LiveSession(public_id=row["public_id"], user_id=row["user_id"], mfa_at=row["mfa_at"])
+    return LiveSession(
+        public_id=row["public_id"],
+        user_id=row["user_id"],
+        mfa_at=row["mfa_at"],
+        authenticated_at=row["authenticated_at"],
+    )
 
 
 def record_mfa(conn: psycopg.Connection, token: str, mfa_at: datetime) -> None:

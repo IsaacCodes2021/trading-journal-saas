@@ -18,6 +18,33 @@ function open(search: Record<string, string> = {}) {
   return { ...app, fetched, leave, user: userEvent.setup() }
 }
 
+describe('after asking to delete the account', () => {
+  it('says when the account will be deleted, that sign-in is over, and that signing in again undoes it', async () => {
+    open({ deleted: '2026-10-11T03:20:00Z' })
+    const note = (await screen.findByText(/scheduled for deletion/)).closest('[role="status"]')
+    expect(note).toHaveTextContent('Your account is scheduled for deletion on Oct 11, 2026.')
+    expect(note).toHaveTextContent('signed out everywhere')
+    expect(note).toHaveTextContent('sign in before then and nothing is lost')
+  })
+
+  it('still offers the invite form, since signing in is how it is undone', async () => {
+    open({ deleted: '2026-10-11T03:20:00Z' })
+    expect(await screen.findByLabelText('Invite code')).toBeInTheDocument()
+  })
+
+  it.each(['', 'soon', '2026-10-11', '<b>2026-10-11T03:20:00Z</b>'])('shows no date for %j', async (deleted) => {
+    open({ deleted })
+    await screen.findByRole('heading', { name: 'Enter your invite code' })
+    expect(screen.queryByText(/scheduled for deletion/)).not.toBeInTheDocument()
+  })
+
+  it('shows nothing about deletion on an ordinary visit', async () => {
+    open()
+    await screen.findByRole('heading', { name: 'Enter your invite code' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
+
 describe('the invite page', () => {
   it('says what it is: the beta, and what to do with the code', async () => {
     open()

@@ -1,12 +1,31 @@
 import { Card } from '../../components/ui/primitives'
 import { EXPORT_URL } from '../../lib/exportData'
+import { DeleteAccount } from './DeleteAccount'
 import { SectionHeader } from './SettingsLayout'
 
-/** What is stored for the account, a way to take all of it, and (soon) a way to delete it. */
-export function PrivacyPage() {
+/**
+ * What is stored for the account, a way to take all of it, and a way to delete it. `restored` is set when signing in has
+ * just cancelled a scheduled deletion (the server says so by sending the person here); `deleteOpen` opens the deletion
+ * dialog, which is where signing in again for it brings them back.
+ */
+export function PrivacyPage({
+  deleteOpen = false,
+  restored = false,
+  onDeleteClosed = () => undefined,
+}: {
+  deleteOpen?: boolean
+  restored?: boolean
+  onDeleteClosed?: () => void
+}) {
   return (
     <>
       <SectionHeader title="Data & privacy">Everything stored for your account is yours to keep.</SectionHeader>
+      {restored ? (
+        <Card className="px-5 py-3" role="status">
+          <strong>Welcome back.</strong> Your account was scheduled for deletion, and signing in cancelled that. Nothing
+          was deleted.
+        </Card>
+      ) : null}
       <Card className="flex flex-col gap-3 px-5 py-4" role="region" aria-label="Download your data">
         <h2 className="m-0 text-base font-semibold">Download your data</h2>
         <p className="m-0 text-muted">
@@ -30,13 +49,7 @@ export function PrivacyPage() {
           It is made when you ask, from a single moment of your data, and can take a few seconds for a long history.
         </p>
       </Card>
-      <Card className="flex flex-col gap-1 px-5 py-4" role="region" aria-label="Delete your account">
-        <h2 className="m-0 text-base font-semibold">Delete your account</h2>
-        <p className="m-0 text-muted">
-          Deleting your account and everything in it arrives before the beta opens. Download your data first if you want
-          a copy.
-        </p>
-      </Card>
+      <DeleteAccount startOpen={deleteOpen} onClosed={onDeleteClosed} />
     </>
   )
 }

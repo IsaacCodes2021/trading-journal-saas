@@ -53,7 +53,7 @@ export function devSessionStub(enabled: boolean): Plugin {
               expires_at: new Date(Date.now() + 9 * 86_400_000).toISOString(),
             },
             entitlements: {},
-            flags: { is_admin: false, mfa_fresh: false },
+            flags: { is_admin: false, mfa_fresh: false, recently_authenticated: true },
             csrf_token: 'dev-token',
             app_version: 'dev',
           })
@@ -82,6 +82,10 @@ export function devSessionStub(enabled: boolean): Plugin {
             return send(200, { sessions: places, ended: before - places.length })
           }
           return send(200, { sessions: places, ended: 0 })
+        }
+        if (path === '/api/v1/account/deletion' && request.method === 'POST') {
+          // Nothing is deleted in the stub: it only answers with the date a real server would give.
+          return send(200, { scheduled_for: new Date(now + 7 * 86_400_000).toISOString() })
         }
         if (path === '/auth/logout' && request.method === 'POST') return send(204)
         next()
