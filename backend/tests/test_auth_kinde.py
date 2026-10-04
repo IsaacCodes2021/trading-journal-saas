@@ -194,6 +194,14 @@ def test_the_authorization_address_asks_for_pkce_and_openid_and_a_step_up_only_w
         ).query
     )
     assert stepped["acr_values"] == ["mfa"] and stepped["max_age"] == ["0"]
+    assert "prompt" not in stepped  # a step-up asks for a second factor, not for the person to sign in again
+    asked_again = parse_qs(
+        urlsplit(
+            provider.authorization_url(state="s", nonce="n", code_challenge="c", redirect_uri="x", reauth=True)
+        ).query
+    )
+    assert asked_again["prompt"] == ["login"] and asked_again["max_age"] == ["0"]
+    assert "acr_values" not in asked_again  # whatever factors the person has: the flow checks `auth_time`, not `acr`
     assert provider.logout_url(return_to="https://app.test/") == f"{DOMAIN}/logout?redirect=https%3A%2F%2Fapp.test%2F"
 
 

@@ -25,6 +25,7 @@ class AuthSession:
     id: str  # opaque and stable for the life of the session; the CSRF token is derived from it
     user_id: UUID
     mfa_at: datetime | None  # when the identity provider last reported MFA, if ever
+    authenticated_at: datetime  # when the person last authenticated at the provider (a fresh sign-in, not an old one)
 
 
 @dataclass(frozen=True)
@@ -66,6 +67,10 @@ class SessionStore(Protocol):
         """Log out everywhere else: end all of this person's working sessions but `keep_id`. Returns how many."""
         ...
 
+    def revoke_all(self, user_id: UUID) -> int:
+        """End every session of this person, this one too, at once on this instance. Returns how many."""
+        ...
+
 
 class AccountService(Protocol):
     def load(self, user_id: UUID) -> Account | None:
@@ -74,6 +79,11 @@ class AccountService(Protocol):
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
         """Apply the fields that are set (not None) and return all settings."""
+        ...
+
+    def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
+        """Mark the account for deletion a grace period from now and record it. Returns when it will be deleted, or None
+        if the account is not active (already scheduled, or suspended). Ending the sessions is the caller's job."""
         ...
 
 

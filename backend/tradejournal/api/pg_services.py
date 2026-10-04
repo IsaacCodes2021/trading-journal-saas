@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from datetime import UTC, datetime
 from uuid import UUID
 
 import psycopg
 
+from ..pg import audit as pg_audit
+from ..pg import deletion as pg_deletion
 from ..pg import settings as pg_settings
 from ..pg import store as pg_store
 from ..pg.session import Database
@@ -22,9 +26,12 @@ class PgAccountService:
     Who the user is comes through the `login` system role (the request role cannot read the users table); their
     settings come through a tenant session like everything else of theirs."""
 
-    def __init__(self, database: Database, system: SystemDatabase) -> None:
+    def __init__(
+        self, database: Database, system: SystemDatabase, *, clock: Callable[[], datetime] = lambda: datetime.now(UTC)
+    ) -> None:
         self._database = database
         self._system = system
+        self._clock = clock
 
     def load(self, user_id: UUID) -> Account | None:
         with self._system.system_session("login") as conn:
@@ -42,6 +49,19 @@ class PgAccountService:
             entitlements={},
             is_admin=row["is_admin"],
         )
+
+    def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
+        with self._system.system_session("login") as conn:
+            when = pg_deletion.request(conn, user_id, now=self._clock())
+            if when is not None:  # the change and its record are one transaction
+                pg_audit.record(
+                    conn,
+                    "deletion_requested",
+                    user_id=user_id,
+                    ip_hash=ip_hash,
+                    meta={"scheduled_for": when.isoformat()},
+                )
+        return when
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
         """Apply the fields that are set and return all settings, in one transaction. Moving the trading day moves

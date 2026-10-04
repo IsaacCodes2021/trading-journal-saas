@@ -48,7 +48,12 @@ class PgSessionStore:
             live = pg_sessions.lookup(conn, token, now=self._clock())
         if live is None:
             return None
-        session = AuthSession(id=str(live.public_id), user_id=live.user_id, mfa_at=live.mfa_at)
+        session = AuthSession(
+            id=str(live.public_id),
+            user_id=live.user_id,
+            mfa_at=live.mfa_at,
+            authenticated_at=live.authenticated_at,
+        )
         with self._lock:
             self._cache[token] = (self._monotonic(), session)
             if len(self._cache) > 10_000:  # a bound, not a policy: drop the oldest tenth
@@ -61,12 +66,19 @@ class PgSessionStore:
         user_id: UUID,
         *,
         mfa_at: datetime | None = None,
+        authenticated_at: datetime | None = None,
         user_agent: str | None = None,
         ip_hash: str | None = None,
     ) -> str:
         with self._system.system_session("login") as conn:
             return pg_sessions.create(
-                conn, user_id, mfa_at=mfa_at, user_agent=user_agent, ip_hash=ip_hash, now=self._clock()
+                conn,
+                user_id,
+                mfa_at=mfa_at,
+                authenticated_at=authenticated_at,
+                user_agent=user_agent,
+                ip_hash=ip_hash,
+                now=self._clock(),
             )
 
     def revoke(self, token: str) -> None:

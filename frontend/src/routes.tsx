@@ -18,7 +18,7 @@ import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
 import { isTab, type Tab } from './features/accounts/tabs'
 import { parseFilters, pickFilters } from './lib/filters'
 import { parseStep, type StepNumber } from './features/onboarding/steps'
-import { signInErrorOf, type SignInErrorCode } from './lib/auth'
+import { deletionDay, signInErrorOf, type SignInErrorCode } from './lib/auth'
 import { useSession } from './lib/session'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
@@ -187,16 +187,17 @@ const inviteRoute = createRoute({
   path: '/invite',
   // An invite email links here with the code in the address: /invite?code=TJ-7KQ2-M9XA. A sign-in that did not complete
   // comes back as /invite?error=<code>; only the server's own codes are kept, so an edited address shows nothing.
-  validateSearch: (search: Record<string, unknown>): { code?: string; error?: SignInErrorCode } => {
+  validateSearch: (search: Record<string, unknown>): { code?: string; error?: SignInErrorCode; deleted?: string } => {
     const code = typeof search['code'] === 'string' && search['code'] !== '' ? search['code'].slice(0, 64) : null
     const error = signInErrorOf(search['error'])
-    return { ...(code ? { code } : {}), ...(error ? { error } : {}) }
+    const deleted = typeof search['deleted'] === 'string' && deletionDay(search['deleted']) ? search['deleted'] : null
+    return { ...(code ? { code } : {}), ...(error ? { error } : {}), ...(deleted ? { deleted } : {}) }
   },
   component: function InviteRoute() {
-    const { code, error } = inviteRoute.useSearch()
+    const { code, error, deleted } = inviteRoute.useSearch()
     return (
       <Suspense fallback={<Spinner label="Loading" />}>
-        <InvitePage {...(code ? { code } : {})} {...(error ? { error } : {})} />
+        <InvitePage {...(code ? { code } : {})} {...(error ? { error } : {})} {...(deleted ? { deleted } : {})} />
       </Suspense>
     )
   },
@@ -210,7 +211,7 @@ const PlanPage = lazyNamed(() => import('./features/settings/PlanPage'), 'PlanPa
 const AccountsPage = lazy(() => import('./features/accounts/AccountsPage').then((m) => ({ default: m.AccountsPage })))
 const TagsPage = lazyNamed(() => import('./features/tags/TagsPage'), 'TagsPage')
 const SecurityPage = lazyNamed(() => import('./features/settings/SecurityPage'), 'SecurityPage')
-const PrivacyPage = lazyNamed(() => import('./features/settings/PrivacyPage'), 'PrivacyPage')
+const PrivacyPage = lazy(() => import('./features/settings/PrivacyPage').then((m) => ({ default: m.PrivacyPage })))
 
 const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -292,7 +293,25 @@ const securityRoute = createRoute({
 const privacyRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: 'privacy',
-  component: inSettings(PrivacyPage),
+  // `delete=1`: open the deletion dialog (where signing in again for it comes back to). `restored=1`: signing in has just
+  // cancelled a scheduled deletion, and the page says so.
+  validateSearch: (search: Record<string, unknown>): { delete?: true; restored?: true } => ({
+    ...(String(search['delete']) === '1' ? { delete: true as const } : {}),
+    ...(String(search['restored']) === '1' ? { restored: true as const } : {}),
+  }),
+  component: function PrivacyRoute() {
+    const search = privacyRoute.useSearch()
+    const navigate = useNavigate({ from: '/settings/privacy' })
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <PrivacyPage
+          deleteOpen={search.delete === true}
+          restored={search.restored === true}
+          onDeleteClosed={() => void navigate({ search: {}, replace: true })}
+        />
+      </Suspense>
+    )
+  },
 })
 
 // ---- router ----------------------------------------------------------------------------------------------------

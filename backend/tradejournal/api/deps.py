@@ -6,7 +6,7 @@ import math
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID
 
@@ -65,6 +65,13 @@ def client_key(request: Request) -> str:
     """Who is asking, for limits that apply before anyone is signed in (see api/ratelimit.py on the address)."""
     config: ApiConfig = request.app.state.config
     return client_address(request.headers, request.client.host if request.client else None, config.client_ip_header)
+
+
+RECENT_AUTH_FOR = timedelta(minutes=10)  # how fresh a sign-in must be to delete an account
+
+
+def recently_authenticated(session: AuthSession, now: datetime | None = None) -> bool:
+    return (now or datetime.now(UTC)) - session.authenticated_at <= RECENT_AUTH_FOR
 
 
 def current_session(request: Request, services: ServicesDep) -> AuthSession:

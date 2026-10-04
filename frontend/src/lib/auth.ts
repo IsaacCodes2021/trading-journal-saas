@@ -24,6 +24,7 @@ export const SIGN_IN_ERRORS = {
     'That invite code did not work. It may be wrong, already used, expired, or meant for a different email address.',
   account_unavailable:
     'This account is not available right now. If you think that is a mistake, email hello@roundturn.app.',
+  reauth_failed: 'We could not confirm it is you. Please try again, and sign in with the same account.',
   email_taken:
     'That email address already belongs to an account that signs in another way. Sign in the way you did before, or email hello@roundturn.app.',
 } as const
@@ -80,6 +81,25 @@ export function signUpUrl(code: string): string {
 
 export function signInUrl(next = '/'): string {
   return `/auth/login?next=${encodeURIComponent(next)}`
+}
+
+/** Sign in again right now (the provider asks for the password or code again), then come back to `next`. */
+export function reauthUrl(next: string): string {
+  return `/auth/login?reauth=1&next=${encodeURIComponent(next)}`
+}
+
+/**
+ * "Oct 11, 2026" from the ISO time the server gave for when an account will be deleted (UTC), or null for anything that
+ * is not one. The value comes from the address, so only a plain ISO time is accepted and nothing else is ever shown.
+ */
+export function deletionDay(value: string | undefined): string | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(value))
+    return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(
+    date,
+  )
 }
 
 /** The marketing site, where the waitlist and the legal pages live. */

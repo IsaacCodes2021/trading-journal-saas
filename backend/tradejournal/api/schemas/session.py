@@ -75,6 +75,9 @@ class PlanOut(ApiModel):
 class FlagsOut(ApiModel):
     is_admin: bool
     mfa_fresh: bool  # the identity provider reported MFA within the last 15 minutes
+    recently_authenticated: (
+        bool  # they authenticated at the provider within the last 10 minutes (needed to delete the account)
+    )
 
 
 class SessionOut(ApiModel):

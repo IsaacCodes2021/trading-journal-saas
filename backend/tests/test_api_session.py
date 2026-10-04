@@ -59,7 +59,7 @@ def test_session_describes_the_signed_in_user(world):
     }
     assert body["plan"] == {"effective": "free", "source": "free", "expires_at": "2030-01-01T00:00:00Z"}
     assert body["entitlements"] == {"max_accounts": 3, "can_export": True}
-    assert body["flags"] == {"is_admin": False, "mfa_fresh": False}
+    assert body["flags"] == {"is_admin": False, "mfa_fresh": False, "recently_authenticated": True}  # just signed in
     assert body["app_version"] == "build-7"
     assert body["csrf_token"] == csrf_token(SECRET, session.id)
 

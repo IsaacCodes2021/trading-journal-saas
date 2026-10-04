@@ -24,6 +24,7 @@ class Attempt:
     challenge: str
     redirect_uri: str
     step_up: bool
+    reauth: bool = False
 
 
 @dataclass
@@ -41,10 +42,17 @@ class FakeIdp:
         self.fail_with: str | None = None  # make the next complete() raise IdentityError(this reason)
 
     def authorization_url(
-        self, *, state: str, nonce: str, code_challenge: str, redirect_uri: str, step_up: bool = False
+        self,
+        *,
+        state: str,
+        nonce: str,
+        code_challenge: str,
+        redirect_uri: str,
+        step_up: bool = False,
+        reauth: bool = False,
     ) -> str:
-        self.attempts[state] = Attempt(state, nonce, code_challenge, redirect_uri, step_up)
-        return f"https://idp.test/authorize?state={state}&nonce={nonce}&step_up={int(step_up)}"
+        self.attempts[state] = Attempt(state, nonce, code_challenge, redirect_uri, step_up, reauth)
+        return f"https://idp.test/authorize?state={state}&nonce={nonce}&step_up={int(step_up)}&reauth={int(reauth)}"
 
     def attempt_from(self, authorize_url: str) -> Attempt:
         """The attempt a browser started, found from the address it was sent to."""

@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { setCsrfToken } from './api/client'
 import {
   SIGN_IN_ERRORS,
+  deletionDay,
   logoutTarget,
   looksLikeInviteCode,
   normalizeInviteCode,
+  reauthUrl,
   signInErrorOf,
   signInUrl,
   signOut,
@@ -55,8 +57,48 @@ describe('the addresses the browser goes to', () => {
   })
 })
 
+describe('signing in again on purpose', () => {
+  it('asks the server to make the provider check again, and to come back to the page it was asked from', () => {
+    expect(reauthUrl('/settings/privacy?delete=1')).toBe('/auth/login?reauth=1&next=%2Fsettings%2Fprivacy%3Fdelete%3D1')
+    expect(reauthUrl('/x&reauth=0')).toBe('/auth/login?reauth=1&next=%2Fx%26reauth%3D0')
+  })
+})
+
+describe('the day an account will be deleted', () => {
+  it.each([
+    ['2026-10-11T03:20:00Z', 'Oct 11, 2026'],
+    ['2026-10-11T03:20:00.123456Z', 'Oct 11, 2026'],
+    ['2026-10-11T03:20:00+00:00', 'Oct 11, 2026'],
+    ['2026-10-11T03:20Z', 'Oct 11, 2026'],
+    ['2026-12-31T23:59:59Z', 'Dec 31, 2026'],
+    ['2027-01-01T00:00:00Z', 'Jan 1, 2027'],
+  ])('is %s on %s, in UTC whatever the browser’s zone', (value, day) => {
+    expect(deletionDay(value)).toBe(day)
+  })
+
+  it('is a day in UTC, not in the offset it came with', () => {
+    expect(deletionDay('2026-10-11T23:30:00-05:00')).toBe('Oct 12, 2026')
+  })
+
+  it.each([
+    undefined,
+    '',
+    'tomorrow',
+    '2026-10-11',
+    '2026-10-11 03:20:00Z',
+    '2026-10-11T03:20:00',
+    '2026-13-45T03:20:00Z',
+    '2026-10-11T03:20:00Z<script>',
+    '2026-10-11T03:20:00Zjavascript:alert(1)',
+    '<b>2026-10-11T03:20:00Z</b>',
+    '12026-10-11T03:20:00Z',
+  ])('shows nothing for %j', (value) => {
+    expect(deletionDay(value)).toBeNull()
+  })
+})
+
 describe('the sign-in error codes', () => {
-  it('knows the six codes the server uses, each with a sentence of its own', () => {
+  it('knows the seven codes the server uses, each with a sentence of its own', () => {
     // The same list as ERR_* in backend/tradejournal/auth/flow.py (a backend test compares the two).
     expect(Object.keys(SIGN_IN_ERRORS).sort()).toEqual([
       'account_unavailable',
@@ -64,6 +106,7 @@ describe('the sign-in error codes', () => {
       'email_unverified',
       'expired',
       'invite_invalid',
+      'reauth_failed',
       'signin_failed',
     ])
     const sentences = Object.values(SIGN_IN_ERRORS)

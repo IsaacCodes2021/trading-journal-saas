@@ -24,6 +24,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/account/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Deletion
+         * @description Schedule this account's deletion for a week from now, and sign out everywhere.
+         */
+        post: operations["request_deletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounts": {
         parameters: {
             query?: never;
@@ -998,6 +1018,23 @@ export interface components {
              */
             start: string;
         };
+        /** DeletionOut */
+        DeletionOut: {
+            /**
+             * Scheduled For
+             * Format: date-time
+             * @description When the account and everything in it will be deleted, unless the person signs in first
+             */
+            scheduled_for: string;
+        };
+        /** DeletionRequest */
+        DeletionRequest: {
+            /**
+             * Email
+             * @description The account's own email address, typed out: a guard against a stray call
+             */
+            email: string;
+        };
         /** EquityPointOut */
         EquityPointOut: {
             /** At */
@@ -1076,6 +1113,8 @@ export interface components {
             is_admin: boolean;
             /** Mfa Fresh */
             mfa_fresh: boolean;
+            /** Recently Authenticated */
+            recently_authenticated: boolean;
         };
         /**
          * ImportIssueOut
@@ -1709,6 +1748,75 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    request_deletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletionOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from fake_idp import FakeIdp, person
+from auth_world import ALICE, NEWCOMER, ORIGIN, SECRET, Browser, audit_rows, users_with_subject
+from fake_idp import person
 from fastapi.testclient import TestClient
 
 from tradejournal.api.app import create_app
@@ -20,82 +20,6 @@ from tradejournal.api.config import ApiConfig
 from tradejournal.api.deps import SESSION_COOKIE
 from tradejournal.api.routers.auth import LOGIN_COOKIE
 from tradejournal.pg import invites
-
-ORIGIN = "https://app.example.com"
-SECRET = b"k" * 32
-ALICE = person(subject="idp|alice@example.test", email="alice@example.test")  # the user the `alice` fixture made
-NEWCOMER = person(subject="kp_newcomer", email="newcomer@example.test")
-
-
-class Browser:
-    def __init__(self, app, idp: FakeIdp) -> None:
-        self.client = TestClient(app, base_url=ORIGIN, follow_redirects=False)
-        self.idp = idp
-
-    def start(self, **params):
-        response = self.client.get("/auth/login", params=params)
-        assert response.status_code == 302, response.text
-        url = response.headers["location"]
-        return url, parse_qs(urlsplit(url).query)["state"][0]
-
-    def come_back(self, **params):
-        return self.client.get("/auth/callback", params=params)
-
-    def sign_in(self, identity, *, reported_nonce=None, **login_params):
-        """The whole round trip: returns the callback's response."""
-        url, state = self.start(**login_params)
-        code = self.idp.sign_in(url, identity, reported_nonce=reported_nonce)
-        return self.come_back(code=code, state=state)
-
-    def another(self, user_agent: str) -> Browser:
-        """A second device on the same server (same app, same identity provider), with its own cookies."""
-        other = Browser(self.client.app, self.idp)
-        other.client.headers["user-agent"] = user_agent
-        return other
-
-    @property
-    def token(self) -> str | None:
-        return self.client.cookies.get(SESSION_COOKIE)
-
-    def session(self):
-        return self.client.get("/api/v1/session")
-
-
-@pytest.fixture
-def world(db, app_url, login_url, owner, alice):
-    def build(**config_changes):
-        idp = FakeIdp()
-        config = ApiConfig(
-            app_origin=ORIGIN,
-            web_dist=Path("/nonexistent"),
-            session_secret=SECRET,
-            database_url=app_url,
-            login_database_url=login_url,
-            **config_changes,
-        )
-        app = create_app(config, database=db, idp=idp)
-        return Browser(app, idp)
-
-    started = []
-
-    def make(**config_changes) -> Browser:
-        browser = build(**config_changes)
-        browser.client.__enter__()  # runs the app's startup, which opens the sign-in database pool
-        started.append(browser)
-        return browser
-
-    yield make
-    for browser in started:
-        browser.client.__exit__(None, None, None)
-
-
-def audit_rows(owner):
-    return owner.execute("SELECT action, actor, user_id, meta, ip_hash FROM audit_log ORDER BY id").fetchall()
-
-
-def users_with_subject(owner, subject):
-    return owner.execute("SELECT id, email, is_admin FROM users WHERE idp_subject = %s", (subject,)).fetchall()
-
 
 # ---- the way in -------------------------------------------------------------------------------------------------------
 
@@ -107,9 +31,18 @@ def test_a_returning_person_signs_in_and_lands_where_they_were_going(world, owne
     assert browser.token and len(browser.token) == 43
     body = browser.session().json()
     assert body["user"]["id"] == str(alice) and body["user"]["email"] == "alice@example.test"
-    assert body["csrf_token"] and body["flags"] == {"is_admin": False, "mfa_fresh": False}
+    assert body["csrf_token"] and body["flags"] == {
+        "is_admin": False,
+        "mfa_fresh": False,
+        "recently_authenticated": True,
+    }
     [row] = [r for r in audit_rows(owner) if r["action"] == "login"]
-    assert row["user_id"] == alice and row["actor"] == "user" and row["meta"] == {"mfa": False} and row["ip_hash"]
+    assert (
+        row["user_id"] == alice
+        and row["actor"] == "user"
+        and row["meta"] == {"mfa": False, "reauth": False}
+        and row["ip_hash"]
+    )
     assert owner.execute("SELECT last_login_at FROM users WHERE id = %s", (alice,)).fetchone()["last_login_at"]
 
 
@@ -214,7 +147,7 @@ def test_signing_in_with_mfa_remembers_when_and_a_fresh_one_shows_as_fresh(world
     )
     assert browser.session().json()["flags"]["mfa_fresh"] is True
     [row] = [r for r in audit_rows(owner) if r["action"] == "login"]
-    assert row["meta"] == {"mfa": True}
+    assert row["meta"] == {"mfa": True, "reauth": False}
     stale = world()
     stale.sign_in(person(subject=ALICE.subject, email=ALICE.email, acr="mfa", auth_time=just_now - timedelta(hours=2)))
     assert stale.session().json()["flags"]["mfa_fresh"] is False  # MFA happened, but not recently
