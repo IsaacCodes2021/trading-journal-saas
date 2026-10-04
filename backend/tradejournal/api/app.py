@@ -17,8 +17,10 @@ from fastapi.responses import JSONResponse
 
 from ..pg.readiness import DatabaseReadiness
 from ..pg.session import Database
+from ..pg.system import SystemDatabase
 from .config import ApiConfig
 from .deps import utc_now
+from .dev import dev_services
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .ports import ReadinessCheck, Services
@@ -38,7 +40,8 @@ def create_app(
     clock: Callable[[], datetime] = utc_now,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
-    what a deployment looks like until sign-in is built (M5).
+    what a deployment looks like until sign-in is built (M5), except in development with `TJ_DEV_USER_ID` set, where
+    every request is that user (`api/dev.py`).
 
     `database` is the request role's pool, used by the tenant routes. Left out, it is built from
     `config.database_url` (opened at startup, closed at shutdown); with no URL either, those routes answer 503. A
@@ -54,14 +57,22 @@ def create_app(
         database = Database(config.database_url)  # type: ignore[arg-type]  # not None: `owned` checked it
     if readiness is None and database is not None:
         readiness = DatabaseReadiness(database)
+    system: SystemDatabase | None = None
+    if services is None and config.dev_user_id is not None and database is not None and config.login_database_url:
+        system = SystemDatabase({"login": config.login_database_url})
+        services = dev_services(config.dev_user_id, database, system)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         if owned and database is not None:
             database.open(wait=False)  # a database that is briefly away is reported by /readyz, not a failure to boot
+        if system is not None:
+            system.open()  # development only: it must be reachable, there is no sign-in without it
         try:
             yield
         finally:
+            if system is not None:
+                system.close()
             if owned and database is not None:
                 database.close()
 

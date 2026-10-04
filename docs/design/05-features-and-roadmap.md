@@ -271,8 +271,15 @@ The tenant API is built in slices, each one a route family plus the tests that p
 - **The tag catalog** lists groups and tags, each tag with its trade count (the tags page will need it).
 - Tested on the real sample export (8 trades from 14 fill pairs, some scaled in or out): paging covers every trade once, each of the seven sorts and its exact reverse, search and the totals that follow it, the journal flags, the 404s, isolation. Three mutations (search ignoring tags, the total counting only the page, the sort direction ignored) are each caught.
 
+**Slice 3 (2026-10-04): the real account service and a development sign-in.** `PgAccountService` (`api/pg_services.py`) implements `load` and `update_settings` on Postgres, so `GET /api/v1/session` and `PATCH /api/v1/settings` work against the real database; it is what M5 reuses behind real sessions.
+
+- **Who the user is** comes through the `login` system role (the request role cannot read the `users` table; a suspended user or one being deleted is "not signed in"); **their settings** come through a tenant session. `ApiConfig` gains `TJ_LOGIN_DATABASE_URL`.
+- **Changing the trading-day timezone or start recalculates the stored trades in the same transaction**, as the old settings page did (a trade's day depends on them). The plan is a placeholder (`free`, no entitlements) until billing (M9, M10).
+- **A development sign-in** (`api/dev.py`, `TJ_DEV_USER_ID`): every request carrying one fixed cookie word is that user, so the app can run on a laptop before real sign-in exists. `ApiConfig` refuses it in production, and it still goes through the same CSRF and origin checks. `python -m tradejournal.api.devserver` starts it from the gitignored `.env.test` (no password typed or printed) as the one user in `tj_dev`; the Vite dev server sends the cookie when `TJ_DEV_API=real`. See `docs/runbooks/run-locally.md`.
+- Tested against a real Postgres: load, suspended and missing users, partial updates, setting and clearing the CSV timezone, the trade recalculation (and that a theme change does not trigger it), isolation between users, and the dev server end to end including its CSRF refusal. Three mutations (suspended users signing in, no recalculation, any cookie accepted) are each caught.
+
 Decisions and gaps:
 
 - `show_archived` defaults to **false** (as the NiceGUI app did); the front end's filter bar has no toggle yet, so a person whose evaluation account was archived sees it vanish from the dashboard until the toggle is added (a front-end task, listed with the API source work).
-- The sign-in pieces are still the in-memory fakes in tests; the real session store is M5. A development sign-in and a Postgres-backed account service (so `/session` and `/settings` work against the real database) are the next slice.
+- Sessions are still the in-memory fakes in tests and the fixed development cookie locally; the real session store is M5.
 - Not built yet: writes (notes, tags, import, accounts, fees, ledger), import history and undo, the rule tracker and account progress, business totals.

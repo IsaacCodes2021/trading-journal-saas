@@ -51,3 +51,31 @@ def test_the_origin_must_be_exactly_scheme_and_host(origin):
     # It is compared byte for byte with the Origin header, so a trailing slash would reject every write.
     with pytest.raises(ConfigError, match="TJ_APP_ORIGIN"):
         ApiConfig(app_origin=origin)
+
+
+DEV = {
+    "TJ_DATABASE_URL": "postgresql://app_rw@127.0.0.1/tj_dev",
+    "TJ_LOGIN_DATABASE_URL": "postgresql://app_login@127.0.0.1/tj_dev",
+    "TJ_DEV_USER_ID": "60c33757-c760-4735-b03d-f3f436b74b7e",
+}
+
+
+def test_a_development_user_needs_both_database_urls_and_is_a_uuid():
+    config = ApiConfig.from_env(DEV)
+    assert str(config.dev_user_id) == DEV["TJ_DEV_USER_ID"]
+    assert "app_rw" not in repr(config) and "app_login" not in repr(config)  # URLs hold passwords: never in a repr
+    for missing in ("TJ_DATABASE_URL", "TJ_LOGIN_DATABASE_URL"):
+        with pytest.raises(ConfigError, match="needs TJ_DATABASE_URL and TJ_LOGIN_DATABASE_URL"):
+            ApiConfig.from_env({k: v for k, v in DEV.items() if k != missing})
+    with pytest.raises(ConfigError, match="a UUID"):
+        ApiConfig.from_env({**DEV, "TJ_DEV_USER_ID": "alice"})
+
+
+def test_production_refuses_the_development_sign_in_outright():
+    with pytest.raises(ConfigError, match="development only"):
+        ApiConfig.from_env({**PRODUCTION, **DEV})
+
+
+def test_the_login_database_url_must_be_postgres():
+    with pytest.raises(ConfigError, match="TJ_LOGIN_DATABASE_URL must be a postgresql"):
+        ApiConfig.from_env({"TJ_LOGIN_DATABASE_URL": "mysql://x@y/z"})
