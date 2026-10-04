@@ -513,6 +513,48 @@
         "title": "ArchiveIn",
         "type": "object"
       },
+      "Body_import_file": {
+        "properties": {
+          "account_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Account Id",
+            "type": "integer"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "file"
+        ],
+        "title": "Body_import_file",
+        "type": "object"
+      },
+      "Body_preview_import": {
+        "properties": {
+          "account_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Account Id",
+            "type": "integer"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "file"
+        ],
+        "title": "Body_preview_import",
+        "type": "object"
+      },
       "BusinessTotalsOut": {
         "description": "Across every account, archived ones included: is the prop business itself profitable?",
         "properties": {
@@ -893,6 +935,171 @@
         "title": "FlagsOut",
         "type": "object"
       },
+      "ImportIssueOut": {
+        "description": "A line of the file that could not be used, numbered the way a spreadsheet numbers it.",
+        "properties": {
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "message"
+        ],
+        "title": "ImportIssueOut",
+        "type": "object"
+      },
+      "ImportPreviewOut": {
+        "description": "What importing a file would do, worked out without saving anything. Mirrors `FileImportReport`.",
+        "properties": {
+          "duplicates": {
+            "title": "Duplicates",
+            "type": "integer"
+          },
+          "duplicates_in_file": {
+            "title": "Duplicates In File",
+            "type": "integer"
+          },
+          "duplicates_other_accounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Duplicates Other Accounts",
+            "type": "object"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssueOut"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "fatal": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fatal"
+          },
+          "file_bytes": {
+            "title": "File Bytes",
+            "type": "integer"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewRowOut"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "rows_added": {
+            "title": "Rows Added",
+            "type": "integer"
+          },
+          "rows_parsed": {
+            "title": "Rows Parsed",
+            "type": "integer"
+          },
+          "rows_shown_limit": {
+            "title": "Rows Shown Limit",
+            "type": "integer"
+          },
+          "trades_built": {
+            "title": "Trades Built",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssueOut"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "file_name",
+          "file_bytes",
+          "fatal",
+          "rows_parsed",
+          "rows_added",
+          "duplicates",
+          "duplicates_in_file",
+          "duplicates_other_accounts",
+          "errors",
+          "warnings",
+          "trades_built",
+          "rows",
+          "rows_shown_limit"
+        ],
+        "title": "ImportPreviewOut",
+        "type": "object"
+      },
+      "ImportRecordOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountRefOut"
+          },
+          "file_name": {
+            "title": "File Name",
+            "type": "string"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "imported_at": {
+            "format": "date-time",
+            "title": "Imported At",
+            "type": "string"
+          },
+          "rows_added": {
+            "title": "Rows Added",
+            "type": "integer"
+          },
+          "trades_built": {
+            "title": "Trades Built",
+            "type": "integer"
+          },
+          "undone_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Undone At"
+          }
+        },
+        "required": [
+          "id",
+          "imported_at",
+          "file_name",
+          "account",
+          "rows_added",
+          "trades_built",
+          "undone_at"
+        ],
+        "title": "ImportRecordOut",
+        "type": "object"
+      },
       "LedgerEntryOut": {
         "properties": {
           "account_id": {
@@ -1131,6 +1338,89 @@
           "expires_at"
         ],
         "title": "PlanOut",
+        "type": "object"
+      },
+      "PreviewRowOut": {
+        "description": "One fill pair as the file states it: times are written the way the file writes them, in the CSV timezone.",
+        "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          },
+          "bought_at": {
+            "title": "Bought At",
+            "type": "string"
+          },
+          "buy_price": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Buy Price",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Pnl",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "sell_price": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Sell Price",
+            "type": "string"
+          },
+          "sold_at": {
+            "title": "Sold At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "new",
+              "duplicate",
+              "other_account"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "status",
+          "account",
+          "symbol",
+          "bought_at",
+          "sold_at",
+          "qty",
+          "buy_price",
+          "sell_price",
+          "pnl"
+        ],
+        "title": "PreviewRowOut",
         "type": "object"
       },
       "Problem": {
@@ -2004,6 +2294,47 @@
           "net_pnl"
         ],
         "title": "TradesPageOut",
+        "type": "object"
+      },
+      "UndoPreviewOut": {
+        "description": "What undoing an import removes (or, after the undo, removed). Mirrors `UndoReport`.",
+        "properties": {
+          "import_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Import Id",
+            "type": "integer"
+          },
+          "rows_kept": {
+            "title": "Rows Kept",
+            "type": "integer"
+          },
+          "rows_removed": {
+            "title": "Rows Removed",
+            "type": "integer"
+          },
+          "trades_changed": {
+            "title": "Trades Changed",
+            "type": "integer"
+          },
+          "trades_removed": {
+            "title": "Trades Removed",
+            "type": "integer"
+          },
+          "trades_with_journal_removed": {
+            "title": "Trades With Journal Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "import_id",
+          "rows_removed",
+          "rows_kept",
+          "trades_removed",
+          "trades_with_journal_removed",
+          "trades_changed"
+        ],
+        "title": "UndoPreviewOut",
         "type": "object"
       },
       "UserOut": {
@@ -3545,6 +3876,464 @@
         "summary": "Get Filter Options",
         "tags": [
           "stats"
+        ]
+      }
+    },
+    "/api/v1/imports": {
+      "get": {
+        "description": "Every import, newest first (undone ones included, marked).",
+        "operationId": "list_imports",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ImportRecordOut"
+                  },
+                  "title": "Response List Imports",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "List Imports",
+        "tags": [
+          "imports"
+        ]
+      },
+      "post": {
+        "description": "Import the file into the account. Rows already stored are left alone, so importing a file twice is safe.",
+        "operationId": "import_file",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_file"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportRecordOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Import File",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/preview": {
+      "post": {
+        "description": "What importing this file into this account would do: counts, problems, and the first rows with a status each.\nNothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the\nreal import would do.",
+        "operationId": "preview_import",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_preview_import"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Preview Import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/undo": {
+      "post": {
+        "description": "Remove what the import brought in (rows another import also holds stay) and regroup what is left.",
+        "operationId": "undo_import",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Import Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Undo Import",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/api/v1/imports/{import_id}/undo-preview": {
+      "post": {
+        "description": "What undoing the import would remove, without removing it.",
+        "operationId": "undo_preview",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "import_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Import Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UndoPreviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Request Entity Too Large"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Undo Preview",
+        "tags": [
+          "imports"
         ]
       }
     },

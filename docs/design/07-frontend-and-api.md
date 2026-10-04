@@ -195,6 +195,8 @@ Still to build: re-running past imports in a corrected zone (each import already
 - **Checked in a browser** against a throwaway user (the real sample export, removed afterwards): a note typed into the editor was saved (`PUT` 200) and read back; a new tag was made and put on the trade (`POST` 201, `PUT` 200); the accounts page showed the account, its net result and the business totals; adding an account under a taken name in another capitalization showed "You already have an account with that name." in the dialog. The writes carry the CSRF token and a same-origin request through the Vite proxy, as in production.
 - 19 tests on the source (the method, path, body and CSRF header of every write, `*` kept as it is in a fee's address, refusals as sentences, the not-connected calls making no request).
 
+**Slice 8 (2026-10-04): the API data source, for importing.** The import page's preview, import, history, undo preview and undo call the real routes (doc 05 section 10, slice 6). An upload is `multipart/form-data` built with `FormData` (the browser writes the boundary), carrying the account and the file. Only screenshots are still "not connected" (M6). The page needed no change: its preview types already carried a status for every row. Checked in a browser on a throwaway user from choosing a file to an undone import.
+
 ## 8. Appendix: NiceGUI-specific assumptions that no longer apply
 
 Everything in the v1 docs that rested on NiceGUI, and what replaces it. Section numbers are those of the current docs; the v1 text of ADRs is kept in doc 06 on purpose. Rows marked *kept* still appear in the docs as history or as findings about today's code.

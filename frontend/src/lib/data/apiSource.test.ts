@@ -131,13 +131,11 @@ describe('the small reads', () => {
 })
 
 describe('what is not connected yet', () => {
-  it('says so in words for importing and screenshots, without trying the network', async () => {
+  it('says so in words for screenshots, without trying the network', async () => {
     const asked = serve(() => json({}))
-    await expect(apiSource.imports()).rejects.toBeInstanceOf(NotConnectedError)
-    await expect(apiSource.imports()).rejects.toThrow('The import history is not connected to the server yet.')
-    await expect(apiSource.addScreenshots(1, [])).rejects.toThrow('Adding a screenshot')
-    await expect(apiSource.previewImport(1, new File([''], 'x.csv'))).rejects.toThrow('Importing')
-    await expect(apiSource.undoImport(1)).rejects.toThrow('Undoing an import')
+    await expect(apiSource.addScreenshots(1, [])).rejects.toBeInstanceOf(NotConnectedError)
+    await expect(apiSource.addScreenshots(1, [])).rejects.toThrow('Adding a screenshot is not connected')
+    await expect(apiSource.deleteScreenshot(1, 2)).rejects.toThrow('Deleting a screenshot')
     expect(asked).toHaveLength(0)
   })
 
@@ -284,5 +282,66 @@ describe('the account writes', () => {
     await apiSource.accountOverviews()
     await apiSource.businessTotals()
     expect(seen.map((s) => s.path)).toEqual(['/api/v1/account-overviews', '/api/v1/business-totals'])
+  })
+})
+
+describe('importing', () => {
+  beforeEach(() => setCsrfToken('tok'))
+  const csv = new File([['symbol,qty', 'NQH4,1'].join(String.fromCharCode(10))], 'export.csv', { type: 'text/csv' })
+
+  /** Answer every call, remembering how the upload was sent: its path, whether it was multipart, its text, the CSRF header. */
+  function recordUploads(answer: () => Response) {
+    const seen: { path: string; method: string; multipart: boolean; text: string; csrf: string | null }[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (request: Request) => {
+        const multipart = (request.headers.get('content-type') ?? '').startsWith('multipart/form-data')
+        seen.push({
+          path: new URL(request.url).pathname,
+          method: request.method,
+          multipart,
+          text: await request.clone().text(),
+          csrf: request.headers.get('x-csrf-token'),
+        })
+        return answer()
+      }),
+    )
+    return seen
+  }
+
+  it('sends a preview and an import as multipart with the account and the file, never as JSON', async () => {
+    const seen = recordUploads(() => json({ id: 1 }))
+    await apiSource.previewImport(4, csv)
+    await apiSource.commitImport(4, csv)
+    expect(seen.map((s) => [s.method, s.path, s.multipart, s.csrf])).toEqual([
+      ['POST', '/api/v1/imports/preview', true, 'tok'],
+      ['POST', '/api/v1/imports', true, 'tok'],
+    ])
+    for (const { text } of seen) {
+      expect(text).toContain('name="account_id"')
+      // The file is a part of its own. (The test environment's File is not a browser's, so its bytes and file name are
+      // not serialized here; the browser check and the server's tests cover the real upload.)
+      expect(text).toContain('name="file"')
+    }
+  })
+
+  it("shows a refused file as the server's sentence", async () => {
+    recordUploads(() => problem(422, 'That is not a Tradovate Performance export.'))
+    await expect(apiSource.commitImport(4, csv)).rejects.toMatchObject({
+      message: 'That is not a Tradovate Performance export.',
+      status: 422,
+    })
+  })
+
+  it('reads the history and undoes an import after showing what it would remove', async () => {
+    const seen = record(() => json([]))
+    await apiSource.imports()
+    await apiSource.undoPreview(7)
+    await apiSource.undoImport(7)
+    expect(seen.map((s) => [s.method, s.path, s.csrf])).toEqual([
+      ['GET', '/api/v1/imports', null],
+      ['POST', '/api/v1/imports/7/undo-preview', 'tok'],
+      ['POST', '/api/v1/imports/7/undo', 'tok'],
+    ])
   })
 })

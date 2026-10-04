@@ -24,7 +24,7 @@ from .dev import dev_services
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .ports import ReadinessCheck, Services
-from .routers import accounts, journal, session, stats, tags, trades
+from .routers import accounts, imports, journal, session, stats, tags, trades
 from .security import SecurityHeadersMiddleware
 from .spa import mount_spa
 
@@ -122,5 +122,6 @@ def create_app(
     app.include_router(trades.router)
     app.include_router(tags.router)
     app.include_router(journal.router)
+    app.include_router(imports.router)
     mount_spa(app, config.web_dist)  # last, so it never shadows a route above
     return app
