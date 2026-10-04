@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
@@ -21,7 +20,6 @@ from tradejournal.api.schemas import SettingsPatch
 from tradejournal.auth.csrf import csrf_token
 from tradejournal.pg import accounts, importer
 from tradejournal.pg import settings as pg_settings
-from tradejournal.pg.provision import read_env_file
 
 ORIGIN = "http://localhost:5173"
 SECRET = b"k" * 32
@@ -31,12 +29,6 @@ BACKEND = Path(__file__).resolve().parents[2]
 @pytest.fixture
 def service(db, system) -> PgAccountService:
     return PgAccountService(db, system)
-
-
-@pytest.fixture(scope="session")
-def login_url(owner_url) -> str:
-    env = {**read_env_file(BACKEND / ".env.test"), **os.environ}
-    return env["TJ_TEST_LOGIN_URL"]
 
 
 # ---- load ---------------------------------------------------------------------------------------------------------

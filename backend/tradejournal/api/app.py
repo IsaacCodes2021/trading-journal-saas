@@ -15,6 +15,9 @@ from datetime import datetime
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from ..auth.flow import AuthFlow
+from ..auth.idp import IdentityProvider
+from ..auth.kinde import KindeProvider
 from ..pg.readiness import DatabaseReadiness
 from ..pg.session import Database
 from ..pg.system import SystemDatabase
@@ -23,9 +26,11 @@ from .deps import utc_now
 from .dev import dev_services
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
+from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
-from .routers import accounts, imports, journal, session, stats, tags, trades
+from .routers import accounts, auth, imports, journal, session, stats, tags, trades
 from .security import SecurityHeadersMiddleware
+from .sessions import PgSessionStore
 from .spa import mount_spa
 
 API_VERSION = "1"  # the contract's version (`/api/v1`), not the build: that is `ApiConfig.app_version`
@@ -38,6 +43,7 @@ def create_app(
     *,
     database: Database | None = None,
     clock: Callable[[], datetime] = utc_now,
+    idp: IdentityProvider | None = None,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
     what a deployment looks like until sign-in is built (M5), except in development with `TJ_DEV_USER_ID` set, where
@@ -50,7 +56,9 @@ def create_app(
     `readiness` answers `/readyz`. Left out, it is built from the database when there is one; with neither, a
     development process is ready and a production one is not.
 
-    `clock` says what instant it is now. It exists so tests can prove what "today" means for a date preset."""
+    `clock` says what instant it is now. It exists so tests can prove what "today" means for a date preset.
+
+    `idp` is the identity provider for sign-in (Kinde, built from the configuration when left out; tests pass a fake)."""
     config = config or ApiConfig.from_env()
     owned = database is None and config.database_url is not None
     if owned:
@@ -58,9 +66,29 @@ def create_app(
     if readiness is None and database is not None:
         readiness = DatabaseReadiness(database)
     system: SystemDatabase | None = None
+    auth_flow: AuthFlow | None = None
     if services is None and config.dev_user_id is not None and database is not None and config.login_database_url:
         system = SystemDatabase({"login": config.login_database_url})
         services = dev_services(config.dev_user_id, database, system)
+    elif services is None and database is not None and config.login_database_url:
+        # Real sessions, and, when Kinde is configured, real sign-in. Without Kinde nobody can sign in yet.
+        system = SystemDatabase({"login": config.login_database_url})
+        store = PgSessionStore(system)
+        services = Services(sessions=store, accounts=PgAccountService(database, system))
+        if idp is None and config.kinde_domain and config.kinde_client_id and config.kinde_client_secret:
+            idp = KindeProvider(
+                domain=config.kinde_domain, client_id=config.kinde_client_id, client_secret=config.kinde_client_secret
+            )
+        if idp is not None:
+            auth_flow = AuthFlow(
+                idp=idp,
+                system=system,
+                database=database,
+                sessions=store,
+                secret=config.session_secret,
+                app_origin=config.app_origin,
+                invite_only=config.signup_mode == "invite",
+            )
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -92,6 +120,7 @@ def create_app(
     app.state.config = config
     app.state.services = services
     app.state.database = database
+    app.state.auth = auth_flow
     app.state.clock = clock
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
@@ -123,5 +152,7 @@ def create_app(
     app.include_router(tags.router)
     app.include_router(journal.router)
     app.include_router(imports.router)
+    app.include_router(auth.public)
+    app.include_router(auth.router)
     mount_spa(app, config.web_dist)  # last, so it never shadows a route above
     return app

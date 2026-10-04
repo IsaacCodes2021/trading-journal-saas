@@ -1173,6 +1173,20 @@
         "title": "LedgerEntryOut",
         "type": "object"
       },
+      "LogoutOut": {
+        "properties": {
+          "redirect": {
+            "description": "Where to send the browser next: the provider's logout page, or this site's home",
+            "title": "Redirect",
+            "type": "string"
+          }
+        },
+        "required": [
+          "redirect"
+        ],
+        "title": "LogoutOut",
+        "type": "object"
+      },
       "NeighborsOut": {
         "description": "The trades either side of one in the list the person came from; null at either end.",
         "properties": {
@@ -6078,6 +6092,58 @@
         "summary": "Put Trade Tag",
         "tags": [
           "journal"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "End this session. The page then sends the browser to `redirect`, which ends the provider's own session too.",
+        "operationId": "logout",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogoutOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
         ]
       }
     }

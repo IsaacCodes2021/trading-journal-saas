@@ -79,3 +79,42 @@ def test_production_refuses_the_development_sign_in_outright():
 def test_the_login_database_url_must_be_postgres():
     with pytest.raises(ConfigError, match="TJ_LOGIN_DATABASE_URL must be a postgresql"):
         ApiConfig.from_env({"TJ_LOGIN_DATABASE_URL": "mysql://x@y/z"})
+
+
+KINDE = {
+    "TJ_KINDE_DOMAIN": "https://roundturn.kinde.com",
+    "TJ_KINDE_CLIENT_ID": "0123456789abcdef",
+    "TJ_KINDE_CLIENT_SECRET": "very-secret-value",
+}
+
+
+def test_sign_in_settings_are_read_and_the_secret_never_shows_in_a_repr():
+    config = ApiConfig.from_env({**PRODUCTION, **KINDE, "TJ_SIGNUP_MODE": "open"})
+    assert (config.kinde_domain, config.kinde_client_id, config.signup_mode) == (
+        "https://roundturn.kinde.com",
+        "0123456789abcdef",
+        "open",
+    )
+    assert config.kinde_client_secret == KINDE["TJ_KINDE_CLIENT_SECRET"]
+    assert KINDE["TJ_KINDE_CLIENT_SECRET"] not in repr(config)
+
+
+def test_new_people_need_an_invite_unless_sign_up_is_opened_on_purpose():
+    assert ApiConfig.from_env(PRODUCTION).signup_mode == "invite"
+    assert ApiConfig.from_env({**PRODUCTION, "TJ_SIGNUP_MODE": ""}).signup_mode == "invite"
+    with pytest.raises(ConfigError, match="TJ_SIGNUP_MODE"):
+        ApiConfig.from_env({**PRODUCTION, "TJ_SIGNUP_MODE": "everyone"})
+
+
+@pytest.mark.parametrize("missing", list(KINDE))
+def test_the_three_kinde_settings_go_together(missing):
+    with pytest.raises(ConfigError, match="go together"):
+        ApiConfig.from_env({**PRODUCTION, **{k: v for k, v in KINDE.items() if k != missing}})
+
+
+@pytest.mark.parametrize(
+    "domain", ["http://roundturn.kinde.com", "roundturn.kinde.com", "https://roundturn.kinde.com/oauth2", "https://"]
+)
+def test_the_kinde_domain_must_be_an_https_address_without_a_path(domain):
+    with pytest.raises(ConfigError, match="TJ_KINDE_DOMAIN must look like"):
+        ApiConfig.from_env({**PRODUCTION, **KINDE, "TJ_KINDE_DOMAIN": domain})

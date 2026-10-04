@@ -78,11 +78,20 @@ def system(owner_url):
     database.close()
 
 
+@pytest.fixture(scope="session")
+def login_url(owner_url) -> str:
+    """The address the sign-in role (app_login) connects with."""
+    env = {**read_env_file(ENV_FILE), **os.environ}
+    return env["TJ_TEST_LOGIN_URL"]
+
+
 @pytest.fixture
 def owner(owner_url):
     """An owner connection (it can create users and read everything), on an emptied database."""
     with psycopg.connect(owner_url, autocommit=True, row_factory=dict_row) as conn:
-        conn.execute("TRUNCATE users RESTART IDENTITY CASCADE")  # cascades through every tenant table
+        # Cascades through every tenant table; the system tables that hang off no user (invites) are named, so that
+        # no test sees another's leftovers.
+        conn.execute("TRUNCATE users, invites, audit_log RESTART IDENTITY CASCADE")
         yield conn
 
 
