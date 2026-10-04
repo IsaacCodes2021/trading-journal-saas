@@ -25,21 +25,22 @@ class Usage:
 
 
 def refresh(conn: psycopg.Connection) -> None:
-    """Recount this user's accounts, trades, screenshots and latest import, and store them.
+    """Recount this user's accounts, trades, screenshots (and the bytes they take) and latest import, and store them.
 
-    ``storage_bytes`` is left alone: files have no size on record until M6.
-    """
+    A screenshot from before sizes were recorded counts as zero bytes."""
     conn.execute(
-        """INSERT INTO user_usage (accounts_count, trades_count, screenshots_count, last_import_at, updated_at)
+        """INSERT INTO user_usage (accounts_count, trades_count, screenshots_count, storage_bytes, last_import_at, updated_at)
            SELECT (SELECT count(*) FROM accounts),
                   (SELECT count(*) FROM trades),
                   (SELECT count(*) FROM screenshots),
+                  (SELECT coalesce(sum(size_bytes), 0) FROM screenshots),
                   (SELECT max(imported_at) FROM imports WHERE undone_at IS NULL),
                   now()
            ON CONFLICT (user_id) DO UPDATE SET
                accounts_count = EXCLUDED.accounts_count,
                trades_count = EXCLUDED.trades_count,
                screenshots_count = EXCLUDED.screenshots_count,
+               storage_bytes = EXCLUDED.storage_bytes,
                last_import_at = EXCLUDED.last_import_at,
                updated_at = EXCLUDED.updated_at"""
     )

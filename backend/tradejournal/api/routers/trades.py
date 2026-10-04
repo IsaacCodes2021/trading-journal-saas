@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from psycopg import Connection
 
 from ...pg import journal as pg_journal
@@ -25,6 +25,7 @@ from ..schemas.trades import (
     TradesQueryParams,
 )
 from ..trades_view import matches, neighbors_in, page_of, rows_for, sort_rows, trade_out
+from .screenshots import file_url
 
 router = APIRouter(prefix="/api/v1", tags=["trades"], responses={**ERROR_RESPONSES, 404: {"model": Problem}})
 
@@ -45,8 +46,10 @@ def list_trades(query: TradesQueryParams, tenant: TenantDep, clock: ClockDep) ->
 
 
 @router.get("/trades/{trade_id}", response_model=TradeDetailOut)
-def get_trade(trade_id: PathId, tenant: TenantDep) -> TradeDetailOut:
-    """Everything about one trade. Another user's trade and a missing one are both a 404: they look the same."""
+def get_trade(trade_id: PathId, request: Request, tenant: TenantDep) -> TradeDetailOut:
+    """Everything about one trade. Another user's trade and a missing one are both a 404: they look the same. Its
+    screenshots carry the address of their image, or none on a server that has nowhere to keep files."""
+    has_files = request.app.state.files is not None
     with tenant.session() as conn:
         record = pg_queries.load_trade(conn, trade_id)
         if record is None:
@@ -72,7 +75,12 @@ def get_trade(trade_id: PathId, tenant: TenantDep) -> TradeDetailOut:
         ],
         notes_html=record.notes,
         screenshots=[
-            ScreenshotOut(id=shot.id, original_name=shot.original_name, created_at=shot.created_at, src=None)
+            ScreenshotOut(
+                id=shot.id,
+                original_name=shot.original_name,
+                created_at=shot.created_at,
+                src=file_url(shot.id) if has_files else None,
+            )
             for shot in screenshots
         ],
     )

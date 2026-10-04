@@ -44,6 +44,9 @@ class RateLimits:
     export: Rule = Rule("export", 5, 3600)  # an export reads every table
     import_preview: Rule = Rule("import_preview", 60, 3600)
     import_commit: Rule = Rule("import_commit", 30, 3600)
+    screenshot_upload: Rule = Rule(
+        "screenshot_upload", 120, 3600
+    )  # one image per request: a review session of a few dozen
     login: Rule = Rule("login", 30, 60)  # starting a sign-in, per client address
     callback: Rule = Rule("callback", 30, 60)
     invite_attempts: Rule = Rule("invite_attempts", 10, 900)  # sign-in attempts that carry an invite code

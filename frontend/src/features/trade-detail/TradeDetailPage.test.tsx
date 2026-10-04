@@ -300,6 +300,20 @@ describe('screenshots', () => {
     expect(within(card).getByText('No screenshots yet.')).toBeInTheDocument()
   })
 
+  it('shows the images kept before a refusal, together with the refusal', async () => {
+    const { user } = await openTrade(blank.id)
+    const card = await screen.findByRole('region', { name: 'Screenshots' })
+    const keepFirst = demoSource.addScreenshots.bind(demoSource)
+    vi.spyOn(demoSource, 'addScreenshots').mockImplementationOnce(async (id, files) => {
+      await keepFirst(id, files.slice(0, 1))
+      throw new Error('b.png: That is not a PNG, JPEG, GIF or WebP image. 1 image added before it.')
+    })
+    await user.upload(within(card).getByLabelText('Choose images to add'), [png('a.png'), png('b.png')])
+    expect(await within(card).findByRole('button', { name: 'View a.png' })).toBeInTheDocument()
+    expect(within(card).getByRole('alert')).toHaveTextContent('b.png: That is not a PNG')
+    expect(within(card).getByRole('alert')).toHaveTextContent('1 image added before it.')
+  })
+
   it('opens an image full size, steps through them, and gives focus back on Escape', async () => {
     const { user } = await openTrade(pictured.id)
     const card = await screen.findByRole('region', { name: 'Screenshots' })

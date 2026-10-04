@@ -89,16 +89,23 @@ export function useSaveNotes(id: number) {
   })
 }
 
-function useJournalWrite<Variables, Result>(write: (variables: Variables) => Promise<Result>) {
+/** A change to the journal, after which what the pages show is read again. `refreshAfterFailure`: for a change made of
+ * several steps, some of which may have been kept before one was refused. */
+function useJournalWrite<Variables, Result>(
+  write: (variables: Variables) => Promise<Result>,
+  { refreshAfterFailure = false }: { refreshAfterFailure?: boolean } = {},
+) {
   const queryClient = useQueryClient()
+  const refresh = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['trade'] }),
+      queryClient.invalidateQueries({ queryKey: ['trades'] }),
+      queryClient.invalidateQueries({ queryKey: ['tag-catalog'] }),
+    ])
   return useMutation({
     mutationFn: write,
-    onSuccess: () =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['trade'] }),
-        queryClient.invalidateQueries({ queryKey: ['trades'] }),
-        queryClient.invalidateQueries({ queryKey: ['tag-catalog'] }),
-      ]),
+    onSuccess: refresh,
+    ...(refreshAfterFailure ? { onError: refresh } : {}),
   })
 }
 
@@ -158,7 +165,8 @@ export function useCreateTag() {
 
 export function useAddScreenshots(id: number) {
   const source = useDataSource()
-  return useJournalWrite((files: readonly File[]) => source.addScreenshots(id, files))
+  // A drop of several images is sent one at a time: a refusal part-way leaves the earlier ones kept, so show them.
+  return useJournalWrite((files: readonly File[]) => source.addScreenshots(id, files), { refreshAfterFailure: true })
 }
 
 export function useDeleteScreenshot(id: number) {

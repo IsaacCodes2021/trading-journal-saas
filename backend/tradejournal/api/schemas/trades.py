@@ -114,7 +114,7 @@ class ScreenshotOut(ApiModel):
     id: int
     original_name: str
     created_at: datetime
-    src: str | None  # same-origin URL of the image; null until the file route exists (M6)
+    src: str | None  # same-origin URL of the image; null on a server with nowhere to keep files
 
 
 class TradeDetailOut(TradeOut):

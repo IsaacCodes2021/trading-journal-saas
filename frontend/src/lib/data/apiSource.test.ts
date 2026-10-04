@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, setCsrfToken } from '../api/client'
-import { NotConnectedError, apiSource } from './apiSource'
+import { apiSource } from './apiSource'
 import type { TradesQuery } from './model'
 
 const json = (body: unknown, status = 200) =>
@@ -130,15 +130,7 @@ describe('the small reads', () => {
   })
 })
 
-describe('what is not connected yet', () => {
-  it('says so in words for screenshots, without trying the network', async () => {
-    const asked = serve(() => json({}))
-    await expect(apiSource.addScreenshots(1, [])).rejects.toBeInstanceOf(NotConnectedError)
-    await expect(apiSource.addScreenshots(1, [])).rejects.toThrow('Adding a screenshot is not connected')
-    await expect(apiSource.deleteScreenshot(1, 2)).rejects.toThrow('Deleting a screenshot')
-    expect(asked).toHaveLength(0)
-  })
-
+describe('the data source', () => {
   it('is not labelled as sample data', () => {
     expect(apiSource.label).toBeNull()
   })
@@ -343,6 +335,125 @@ describe('importing', () => {
       ['POST', '/api/v1/imports/7/undo-preview', 'tok'],
       ['POST', '/api/v1/imports/7/undo', 'tok'],
     ])
+  })
+})
+
+describe('screenshots', () => {
+  beforeEach(() => setCsrfToken('tok'))
+  const image = (name: string) => new File(['x'], name, { type: 'image/png' })
+  const shot = (id: number) => ({
+    id,
+    original_name: `${id}.png`,
+    created_at: '2024-03-22T12:00:00Z',
+    src: `/files/${id}`,
+  })
+  const NOT_AN_IMAGE = 'That is not a PNG, JPEG, GIF or WebP image.'
+
+  /** Answer the n-th request (from 1) with `answer(n)`, remembering each: its path, whether it was multipart, its text and the CSRF header; and how many were in flight at once. */
+  function upload(answer: (n: number) => Response) {
+    const seen: { method: string; path: string; multipart: boolean; text: string; csrf: string | null }[] = []
+    const flight = { now: 0, most: 0 }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (request: Request) => {
+        flight.now += 1
+        flight.most = Math.max(flight.most, flight.now)
+        const text = await request.clone().text()
+        await new Promise((resolve) => setTimeout(resolve, 5)) // long enough for a second request to start, if one would
+        flight.now -= 1
+        seen.push({
+          method: request.method,
+          path: new URL(request.url).pathname,
+          multipart: (request.headers.get('content-type') ?? '').startsWith('multipart/form-data'),
+          text,
+          csrf: request.headers.get('x-csrf-token'),
+        })
+        return answer(seen.length)
+      }),
+    )
+    return { seen, flight }
+  }
+
+  it('sends each image as a request of its own, one after another, and returns what was added', async () => {
+    const { seen, flight } = upload((n) => json(shot(n), 201))
+    expect(await apiSource.addScreenshots(7, [image('a.png'), image('b.png')])).toEqual([shot(1), shot(2)])
+    expect(seen.map((s) => [s.method, s.path, s.multipart, s.csrf])).toEqual([
+      ['POST', '/api/v1/trades/7/screenshots', true, 'tok'],
+      ['POST', '/api/v1/trades/7/screenshots', true, 'tok'],
+    ])
+    expect(flight.most).toBe(1) // not both at once: each stays under the size limit and has its own answer
+    for (const { text } of seen) {
+      expect(text).toContain('name="file"')
+      expect(text).not.toContain('account_id') // the trade is in the address, not in the form
+    }
+  })
+
+  it('sends nothing for no files', async () => {
+    const { seen } = upload((n) => json(shot(n), 201))
+    expect(await apiSource.addScreenshots(7, [])).toEqual([])
+    expect(seen).toEqual([])
+  })
+
+  it("shows a refused image as the server's sentence, plain when it was the only one", async () => {
+    upload(() => problem(422, NOT_AN_IMAGE))
+    await expect(apiSource.addScreenshots(7, [image('notes.txt')])).rejects.toMatchObject({
+      message: NOT_AN_IMAGE,
+      status: 422,
+    })
+  })
+
+  it('stops at the first refusal, names the file, and says how many were kept before it', async () => {
+    const { seen } = upload((n) => (n === 3 ? problem(422, NOT_AN_IMAGE) : json(shot(n), 201)))
+    await expect(
+      apiSource.addScreenshots(7, [image('a.png'), image('b.png'), image('c.txt'), image('d.png')]),
+    ).rejects.toMatchObject({ message: `c.txt: ${NOT_AN_IMAGE} 2 images added before it.`, status: 422 })
+    expect(seen).toHaveLength(3) // d.png was never sent
+  })
+
+  it('names the file but has nothing kept to report when the first of several is refused', async () => {
+    upload(() => problem(413, 'That image is larger than 10 MB.'))
+    await expect(apiSource.addScreenshots(7, [image('big.png'), image('b.png')])).rejects.toMatchObject({
+      message: 'big.png: That image is larger than 10 MB.',
+      status: 413,
+    })
+  })
+
+  it('says "1 image" for one kept, and leaves a failure that is not the server\'s answer as it is', async () => {
+    upload((n) => (n === 2 ? problem(429, 'You are adding images too fast.') : json(shot(n), 201)))
+    await expect(apiSource.addScreenshots(7, [image('a.png'), image('b.png')])).rejects.toMatchObject({
+      message: 'b.png: You are adding images too fast. 1 image added before it.',
+    })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new TypeError('Failed to fetch'))),
+    )
+    await expect(apiSource.addScreenshots(7, [image('a.png')])).rejects.toBeInstanceOf(TypeError)
+  })
+
+  it("keeps the request's reference on a server failure, so the person can quote it", async () => {
+    upload(
+      () =>
+        new Response(JSON.stringify({ title: 'Internal Server Error', status: 500, detail: null, errors: null }), {
+          status: 500,
+          headers: { 'content-type': 'application/json', 'x-request-id': 'req-abc12345' },
+        }),
+    )
+    await expect(apiSource.addScreenshots(7, [image('a.png')])).rejects.toMatchObject({
+      status: 500,
+      requestId: 'req-abc12345',
+      message: expect.stringContaining('req-abc12345') as unknown,
+    })
+  })
+
+  it("deletes one with the session's CSRF token, and shows a refusal as the server's sentence", async () => {
+    const seen = record(() => json([]))
+    await expect(apiSource.deleteScreenshot(7, 3)).resolves.toBeUndefined()
+    expect(seen).toEqual([{ method: 'DELETE', path: '/api/v1/trades/7/screenshots/3', body: undefined, csrf: 'tok' }])
+    record(() => problem(404, 'That screenshot does not exist.'))
+    await expect(apiSource.deleteScreenshot(7, 3)).rejects.toMatchObject({
+      message: 'That screenshot does not exist.',
+      status: 404,
+    })
   })
 })
 

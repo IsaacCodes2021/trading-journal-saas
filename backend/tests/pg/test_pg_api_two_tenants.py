@@ -1,13 +1,15 @@
 """Tenant isolation, route by route, generated from the OpenAPI document (doc 05 M3 exit criterion; doc 04 T1, R6).
 
-Alice and Bob each have a full journal (accounts, imported trades, notes, categories and tags, fees, a ledger, rules).
+Alice and Bob each have a full journal (accounts, imported trades, notes, a screenshot, categories and tags, fees, a
+ledger, rules).
 Then Bob calls **every route that names something by id**, using Alice's ids, and the suite checks four things:
 
 1. **It is refused**: a 404, never a 2xx and never a 5xx. Also when only one of several references is Alice's and the
    rest are Bob's own (a trade of Bob's with a tag of Alice's, a tag of Bob's moved into a category of Alice's).
 2. **It says nothing**: the answer is *the same* as for an id that does not exist at all (status and sentence), so Bob
    cannot learn whether an id belongs to someone.
-3. **Nothing changed**: Alice's journal and Bob's are exactly as they were (no row changed, none linked, none made).
+3. **Nothing changed**: Alice's journal and Bob's are exactly as they were (no row changed, none linked, none made),
+   and the folder of image files holds the same files.
 4. **Nothing leaked**: no word of Alice's (the names she gave her things, her notes, her file name) appears in any
    answer Bob gets, including the list routes called with Alice's ids in their filters and the export.
 
@@ -33,7 +35,7 @@ import pytest
 from api_fakes import FakeAudit, FakeSessions
 from fastapi.testclient import TestClient
 from helpers import SAMPLE, fixture_bytes
-from pg_helpers import NOON_UTC, ORIGIN, SECRET, write_headers
+from pg_helpers import NOON_UTC, ORIGIN, PNG_1X1, SECRET, write_headers
 
 from tradejournal.api.app import create_app
 from tradejournal.api.config import ApiConfig
@@ -58,6 +60,7 @@ OWNED = {
     "tag_id": "tag",
     "into_id": "tag2",  # the tag a merge moves trades into
     "entry_id": "entry",
+    "screenshot_id": "screenshot",
 }
 # Names that look like ids but are not rows of the person's journal, and why they are not attacked here.
 NOT_JOURNAL_ROWS = {
@@ -91,6 +94,7 @@ class Operation:
     query_params: list[str]
     body: dict | None  # the JSON schema of the body, when it is JSON
     multipart: bool
+    form_fields: list[str]  # the fields of a multipart body ("file", and "account_id" on an import)
 
     @property
     def key(self) -> tuple[str, str]:
@@ -101,7 +105,7 @@ class Operation:
         """The id-shaped names this route takes, in path order and then body order."""
         names = list(self.path_params)
         if self.multipart:
-            names.append("account_id")
+            names += [f for f in self.form_fields if f in OWNED]
         elif self.body:
             names += list(self.body.get("properties", {}))
         return [n for n in names if n in OWNED]
@@ -126,6 +130,7 @@ def operations() -> list[Operation]:
             parameters = op.get("parameters", [])
             request = op.get("requestBody")
             content = next(iter(request["content"].items())) if request else None
+            multipart = bool(content and content[0].startswith("multipart"))
             found.append(
                 Operation(
                     method=method.upper(),
@@ -133,7 +138,8 @@ def operations() -> list[Operation]:
                     path_params=[p["name"] for p in parameters if p["in"] == "path"],
                     query_params=[p["name"] for p in parameters if p["in"] == "query"],
                     body=_deref(content[1]["schema"]) if content and content[0] == "application/json" else None,
-                    multipart=bool(content and content[0].startswith("multipart")),
+                    multipart=multipart,
+                    form_fields=list(_deref(content[1]["schema"]).get("properties", {})) if multipart else [],
                 )
             )
     return found
@@ -155,6 +161,7 @@ class World:
     client: object
     ids: dict[str, int]
     markers: list[str]  # words only this person's journal contains
+    files_dir: Path  # where the screenshots are kept (one folder for both people: their keys differ by person)
 
 
 def _ok(response, what: str, *, status: int | tuple[int, ...] = (200, 201)):
@@ -163,19 +170,34 @@ def _ok(response, what: str, *, status: int | tuple[int, ...] = (200, 201)):
     return response
 
 
-def client_for(db, system, user_id) -> TestClient:
+def client_for(db, system, user_id, files_dir: Path) -> TestClient:
     """A browser signed in as `user_id`, on an app with the real accounts service (export and /session need it)."""
     sessions = FakeSessions()
     token, session = sessions.sign_in(user_id)
     services = Services(sessions=sessions, accounts=PgAccountService(db, system), audit=FakeAudit())
-    config = ApiConfig(app_origin=ORIGIN, web_dist=Path("/nonexistent"), session_secret=SECRET, app_version="v-test")
+    config = ApiConfig(
+        app_origin=ORIGIN,
+        web_dist=Path("/nonexistent"),
+        session_secret=SECRET,
+        app_version="v-test",
+        files_dir=files_dir,
+    )
     app = create_app(config, services, database=db, clock=lambda: NOON_UTC)
     return TestClient(app, base_url=ORIGIN, headers={"cookie": f"{SESSION_COOKIE}={token}", **write_headers(session)})
 
 
-def build_world(db, system, user_id, name: str) -> World:
+def image_of(name: str) -> bytes:
+    """A real PNG with the person's word at the end of it, so an image that reaches the wrong person is caught by its text."""
+    return PNG_1X1 + f"{name}-IMAGE".encode()
+
+
+def stored_files(files_dir: Path) -> list[str]:
+    return sorted(p.relative_to(files_dir).as_posix() for p in files_dir.rglob("*") if p.is_file())
+
+
+def build_world(db, system, user_id, name: str, files_dir: Path) -> World:
     """A person's whole journal, made through the API."""
-    client = client_for(db, system, user_id)
+    client = client_for(db, system, user_id, files_dir)
     account = _ok(
         client.post(
             "/api/v1/accounts",
@@ -205,6 +227,12 @@ def build_world(db, system, user_id, name: str) -> World:
     tags = {t["name"]: t["id"] for t in client.get("/api/v1/tags").json()["tags"]}
     tag, tag2 = tags[f"{name}-TAG"], tags[f"{name}-OTHERTAG"]
     _ok(client.put(f"/api/v1/trades/{trade}/notes", json={"html": f"<p>{name}-NOTE</p>"}), "note")
+    screenshot = _ok(
+        client.post(
+            f"/api/v1/trades/{trade}/screenshots", files={"file": (f"{name}-SHOT.png", image_of(name), "image/png")}
+        ),
+        "screenshot",
+    ).json()["id"]
     _ok(client.put(f"/api/v1/trades/{trade}/tags/{tag}"), "tag a trade", status=(200, 204))
     _ok(client.put(f"/api/v1/accounts/{account}/fees/{SYMBOL_ROOT}", json={"rate": "1.50"}), "fee")
     entry = _ok(
@@ -236,8 +264,9 @@ def build_world(db, system, user_id, name: str) -> World:
         "tag": tag,
         "tag2": tag2,
         "entry": entry,
+        "screenshot": screenshot,
     }
-    return World(name, user_id, client, ids, [f"{name}-"])
+    return World(name, user_id, client, ids, [f"{name}-"], files_dir)
 
 
 def snapshot(world: World) -> dict:
@@ -298,13 +327,15 @@ def send(client, op: Operation, refs: dict[str, int], *, filter_ids: int | None 
         url += f"?account_ids={filter_ids}"
     for param in op.path_params:
         url = url.replace("{" + param + "}", SYMBOL_ROOT if param == "symbol_root" else str(refs[param]))
-    if op.multipart:
+    if op.multipart and "account_id" in op.form_fields:
         return client.request(
             op.method,
             url,
             data={"account_id": str(refs["account_id"])},
             files={"file": (f"{name}-ATTACK.csv", fixture_bytes(SAMPLE), "text/csv")},
         )
+    if op.multipart:  # a screenshot
+        return client.request(op.method, url, files={"file": (f"{name}-ATTACK.png", image_of(name), "image/png")})
     if op.body is not None:
         return client.request(op.method, url, json=_example(op.body, None, refs))
     return client.request(op.method, url)
@@ -326,8 +357,9 @@ def sentence(response) -> tuple[int, object]:
 
 
 @pytest.fixture
-def worlds(db, system, alice, bob):
-    return build_world(db, system, alice, "ALICE"), build_world(db, system, bob, "BOB")
+def worlds(db, system, alice, bob, tmp_path):
+    files_dir = tmp_path / "files"
+    return build_world(db, system, alice, "ALICE", files_dir), build_world(db, system, bob, "BOB", files_dir)
 
 
 def _scenarios(op: Operation, alice: World, bob: World):
@@ -351,6 +383,7 @@ def _words_of_the_other(response, other: World) -> list[str]:
 def attack(op: Operation, alice: World, bob: World) -> list[str]:
     """Bob names Alice's rows in every way there is. Returns what went wrong, in words (nothing, when isolation holds)."""
     before = snapshot(alice), snapshot(bob)
+    files_before = stored_files(alice.files_dir)
     problems: list[str] = []
     for label, attack, twin in _scenarios(op, alice, bob):
         # The twin (ids nobody has) is sent first: it is what a refusal for "no such row" looks like.
@@ -374,6 +407,8 @@ def attack(op: Operation, alice: World, bob: World) -> list[str]:
         problems.append(f"{op.method} {op.path}: Alice's journal changed")
     if before[1] != after[1]:
         problems.append(f"{op.method} {op.path}: Bob's journal changed")
+    if stored_files(alice.files_dir) != files_before:
+        problems.append(f"{op.method} {op.path}: the image files changed (one was kept or removed)")
     return problems
 
 
@@ -447,6 +482,32 @@ def test_reading_alices_own_routes_does_show_her_words_so_the_check_above_can_fa
     for path in ("/api/v1/accounts", "/api/v1/tags", "/api/v1/imports", "/api/v1/export"):
         assert any(m in _text_of(alice.client.get(path)) for m in alice.markers), path
     assert "ALICE-" not in _text_of(bob.client.get("/api/v1/accounts"))
+
+
+# ---- the image route (it is not under /api/v1, so the document-driven attacks above do not reach it) ----------------
+
+
+def test_bob_cannot_fetch_alices_image_and_cannot_tell_that_it_exists(worlds):
+    alice, bob = worlds
+    assert alice.client.get(f"/files/{alice.ids['screenshot']}").content == image_of("ALICE")  # the control
+    assert bob.client.get(f"/files/{bob.ids['screenshot']}").content == image_of("BOB")
+    theirs = bob.client.get(f"/files/{alice.ids['screenshot']}")
+    nothing = bob.client.get(f"/files/{NOWHERE}")
+    assert theirs.status_code == 404
+    assert sentence(theirs) == sentence(nothing)
+    assert b"ALICE-" not in theirs.content
+
+
+def test_the_image_check_can_fail_a_server_that_runs_bobs_request_as_alice_serves_her_image(worlds, monkeypatch):
+    alice, bob = worlds
+    monkeypatch.setattr(
+        Tenant,
+        "session",
+        lambda self, *, snapshot=False, statement_timeout_ms=STATEMENT_TIMEOUT_MS: self.database.tenant_session(
+            alice.user_id, snapshot=snapshot, statement_timeout_ms=statement_timeout_ms
+        ),
+    )
+    assert bob.client.get(f"/files/{alice.ids['screenshot']}").content == image_of("ALICE")
 
 
 def test_every_route_is_accounted_for():
