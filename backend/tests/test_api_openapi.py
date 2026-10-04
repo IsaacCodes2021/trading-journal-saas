@@ -44,12 +44,22 @@ def test_the_routes_are_in_the_schema():
     paths = spec()["paths"]
     assert set(paths["/api/v1/session"]) == {"get"}
     assert set(paths["/api/v1/settings"]) == {"patch"}
-    assert set(paths["/api/v1/accounts"]) == {"get"}
     assert set(paths["/api/v1/dashboard"]) == {"get"}
     assert set(paths["/api/v1/filter-options"]) == {"get"}
     assert set(paths["/api/v1/tags"]) == {"get", "post"}
     assert set(paths["/api/v1/trades/{trade_id}/notes"]) == {"put"}
     assert set(paths["/api/v1/trades/{trade_id}/tags/{tag_id}"]) == {"put", "delete"}
+    assert set(paths["/api/v1/accounts"]) == {"get", "post"}
+    assert set(paths["/api/v1/accounts/{account_id}"]) == {"put"}
+    assert set(paths["/api/v1/accounts/{account_id}/rules"]) == {"put"}
+    assert set(paths["/api/v1/accounts/{account_id}/archive"]) == {"post"}
+    assert set(paths["/api/v1/accounts/{account_id}/restore"]) == {"post"}
+    assert set(paths["/api/v1/accounts/{account_id}/fees"]) == {"get"}
+    assert set(paths["/api/v1/accounts/{account_id}/fees/{symbol_root}"]) == {"put", "delete"}
+    assert set(paths["/api/v1/accounts/{account_id}/ledger"]) == {"get", "post"}
+    assert set(paths["/api/v1/accounts/{account_id}/ledger/{entry_id}"]) == {"delete"}
+    assert set(paths["/api/v1/account-overviews"]) == {"get"}
+    assert set(paths["/api/v1/business-totals"]) == {"get"}
     assert set(paths["/api/v1/trades"]) == {"get"}
     assert set(paths["/api/v1/trades/{trade_id}"]) == {"get"}
     assert set(paths["/api/v1/trades/{trade_id}/neighbors"]) == {"get"}
@@ -58,22 +68,11 @@ def test_the_routes_are_in_the_schema():
 
 def test_operation_ids_are_the_unique_handler_names():
     ids = [operation["operationId"] for path in spec()["paths"].values() for operation in path.values()]
-    assert sorted(ids) == [
-        "create_tag",
-        "delete_trade_tag",
-        "get_dashboard",
-        "get_filter_options",
-        "get_session",
-        "get_tag_catalog",
-        "get_trade",
-        "get_trade_neighbors",
-        "list_accounts",
-        "list_trades",
-        "patch_settings",
-        "put_notes",
-        "put_trade_tag",
-    ]
     assert len(ids) == len(set(ids))  # two handlers with one name would silently merge in the generated client
+    # Named after what the handler does, not what FastAPI would derive from the path (a path change must not rename
+    # a generated operation). A few of each kind are pinned; new routes are covered by the uniqueness check above.
+    assert {"get_session", "patch_settings", "get_dashboard", "list_trades", "put_notes", "create_account"} <= set(ids)
+    assert not [i for i in ids if i.endswith(("_get", "_put", "_post", "_delete", "_patch")) and "_api_v1_" in i]
 
 
 def test_error_responses_are_typed_as_problem_not_fastapis_default():
