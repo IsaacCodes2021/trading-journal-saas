@@ -103,6 +103,15 @@ export const apiSource: DataSource = {
 
   createTag: (groupId, name) => unwrap(api.POST('/api/v1/tags', { body: { group_id: groupId, name } })),
 
+  createGroup: (name) => unwrap(api.POST('/api/v1/tag-groups', { body: { name } })),
+  renameGroup: (id, name) =>
+    unwrap(api.PUT('/api/v1/tag-groups/{group_id}', { params: { path: { group_id: id } }, body: { name } })),
+  deleteGroup: (id) => unwrap(api.DELETE('/api/v1/tag-groups/{group_id}', { params: { path: { group_id: id } } })),
+  editTag: (id, edit) => unwrap(api.PUT('/api/v1/tags/{tag_id}', { params: { path: { tag_id: id } }, body: edit })),
+  mergeTag: (id, intoId) =>
+    unwrap(api.POST('/api/v1/tags/{tag_id}/merge', { params: { path: { tag_id: id } }, body: { into_id: intoId } })),
+  deleteTag: (id) => unwrap(api.DELETE('/api/v1/tags/{tag_id}', { params: { path: { tag_id: id } } })),
+
   addScreenshots: notConnected('Adding a screenshot'),
   deleteScreenshot: notConnected('Deleting a screenshot'),
   previewImport: (accountId, file) =>

@@ -345,3 +345,38 @@ describe('importing', () => {
     ])
   })
 })
+
+describe('managing tags', () => {
+  beforeEach(() => setCsrfToken('tok'))
+  const catalog = { groups: [], tags: [], presets: [], custom_colors: [] }
+
+  it('adds, renames and deletes a category, and edits, merges and deletes a tag, answering with the catalog', async () => {
+    const seen = record(() => json(catalog))
+    expect(await apiSource.createGroup('Regime')).toEqual(catalog)
+    await apiSource.renameGroup(3, 'Entries')
+    await apiSource.deleteGroup(3)
+    await apiSource.editTag(9, { name: 'Gap fade', group_id: 2, color: '#2a78d6' })
+    await apiSource.mergeTag(9, 4)
+    await apiSource.deleteTag(9)
+    expect(seen.map((s) => [s.method, s.path, s.csrf])).toEqual([
+      ['POST', '/api/v1/tag-groups', 'tok'],
+      ['PUT', '/api/v1/tag-groups/3', 'tok'],
+      ['DELETE', '/api/v1/tag-groups/3', 'tok'],
+      ['PUT', '/api/v1/tags/9', 'tok'],
+      ['POST', '/api/v1/tags/9/merge', 'tok'],
+      ['DELETE', '/api/v1/tags/9', 'tok'],
+    ])
+    expect(seen[0]?.body).toEqual({ name: 'Regime' })
+    expect(seen[1]?.body).toEqual({ name: 'Entries' })
+    expect(seen[3]?.body).toEqual({ name: 'Gap fade', group_id: 2, color: '#2a78d6' })
+    expect(seen[4]?.body).toEqual({ into_id: 4 })
+  })
+
+  it("shows a refused change as the server's sentence", async () => {
+    record(() => problem(409, 'There is already a tag called ORB.'))
+    await expect(apiSource.editTag(9, { name: 'orb', group_id: 1, color: '#2a78d6' })).rejects.toMatchObject({
+      message: 'There is already a tag called ORB.',
+      status: 409,
+    })
+  })
+})

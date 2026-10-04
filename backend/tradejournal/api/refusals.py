@@ -31,3 +31,10 @@ def refusals(*, what: str, duplicate: str | None = None) -> Iterator[None]:
         raise HTTPException(422, sentence(problem)) from None
     except psycopg.errors.UniqueViolation:
         raise HTTPException(409, duplicate or "That already exists.") from None
+
+
+def require_row(conn: psycopg.Connection, table: str, row_id: int, what: str) -> None:
+    """404 for a row that is missing *or someone else's*: row-level security hides it, so the two look the same.
+    `table` is always a literal at the call site, never a request value."""
+    if conn.execute(f"SELECT 1 FROM {table} WHERE id = %s", (row_id,)).fetchone() is None:  # noqa: S608
+        raise HTTPException(404, f"That {what} does not exist.")

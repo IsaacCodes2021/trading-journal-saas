@@ -60,6 +60,10 @@ def test_the_routes_are_in_the_schema():
     assert set(paths["/api/v1/accounts/{account_id}/ledger/{entry_id}"]) == {"delete"}
     assert set(paths["/api/v1/account-overviews"]) == {"get"}
     assert set(paths["/api/v1/business-totals"]) == {"get"}
+    assert set(paths["/api/v1/tag-groups"]) == {"post"}
+    assert set(paths["/api/v1/tag-groups/{group_id}"]) == {"put", "delete"}
+    assert set(paths["/api/v1/tags/{tag_id}"]) == {"put", "delete"}
+    assert set(paths["/api/v1/tags/{tag_id}/merge"]) == {"post"}
     assert set(paths["/api/v1/imports"]) == {"get", "post"}
     assert set(paths["/api/v1/imports/preview"]) == {"post"}
     assert set(paths["/api/v1/imports/{import_id}/undo"]) == {"post"}
