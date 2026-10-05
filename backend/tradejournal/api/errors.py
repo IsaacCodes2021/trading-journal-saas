@@ -13,6 +13,7 @@ from psycopg import errors as pg_errors
 from psycopg_pool import PoolTimeout
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from ..bucketstore import StoreUnavailable
 from .config import ApiConfig
 from .ports import AdminRefusal
 from .requestlog import REQUEST_ID_HEADER
@@ -36,6 +37,7 @@ def problem_response(
 
 
 log = logging.getLogger("tj.db")
+files_log = logging.getLogger("tj.files")
 
 # What the person is told, and how many seconds to wait, for each way the database can refuse to go on.
 _BUSY: dict[type[Exception], tuple[str, int]] = {
@@ -79,6 +81,17 @@ def install_error_handlers(app: FastAPI, config: ApiConfig) -> None:
             return problem_response(503, sentence, headers={"Retry-After": str(retry)})
 
         app.add_exception_handler(kind, busy)
+
+    # The file store (a bucket) could not be reached or refused us: pictures cannot be saved or shown for now, nothing else is
+    # wrong. Said in words, with when to come back; the log gets the kind (never the address or the answer).
+    @app.exception_handler(StoreUnavailable)
+    async def files_unavailable(request: Request, exc: StoreUnavailable) -> JSONResponse:
+        files_log.warning("the file store was unavailable", exc_info=exc)
+        return problem_response(
+            503,
+            "Saving and showing pictures is not working right now. Try again in a moment.",
+            headers={"Retry-After": "10"},
+        )
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:

@@ -262,11 +262,12 @@ per error to standard output (`api/logs.py`); the server's own access log is off
 | `TJ_CLIENT_IP_HEADER` | The header that carries the client address behind a proxy (`CF-Connecting-IP`); leave it out otherwise |
 | `TJ_RATE_LIMITS` | `off` switches the rate limits off (development or an emergency) |
 | `TJ_MAX_CONCURRENT_IMPORTS` | How many imports run at once in a process, 1 to 16 (default 2) |
-| `TJ_FILES_DIR` | The folder that holds screenshot files (on a host, a persistent disk). Without it the screenshot routes answer 503 and a trade's screenshots have no address |
+| `TJ_FILES_DIR` | The folder that holds screenshot files (for development, or a host with a persistent disk). Without it **and** without the bucket settings below, the screenshot routes answer 503 and a trade's screenshots have no address |
+| `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY` (`TJ_S3_REGION`, default `auto`) | A private bucket for screenshot files instead of a folder (Cloudflare R2, or anything that speaks the S3 API): all four or none, https in production, **not together with `TJ_FILES_DIR`**. The access key and secret are secrets (the host's secret store only) |
 
 The command-line tools use their own settings: `TJ_OWNER_URL` (the schema owner: migrations, invites, plan codes,
 operators; **never on the host**), `TJ_SWEEP_DATABASE_URL`, the machine-to-machine `TJ_KINDE_M2M_CLIENT_ID` /
-`TJ_KINDE_M2M_CLIENT_SECRET` and `TJ_FILES_DIR` (the deletion sweep, which removes a deleted person's screenshot folder). [rotate-secrets.md](docs/runbooks/rotate-secrets.md) lists every
+`TJ_KINDE_M2M_CLIENT_SECRET` and `TJ_FILES_DIR` or the four `TJ_S3_*` settings (the deletion sweep, which removes a deleted person's screenshot folder). [deploy.md](docs/runbooks/deploy.md) lists every setting for a host. [rotate-secrets.md](docs/runbooks/rotate-secrets.md) lists every
 secret and how to replace it.
 
 ## Command line (optional)

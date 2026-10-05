@@ -14,6 +14,7 @@ owner's decision (``entitlements.LIMITS`` is empty on purpose); when it is made,
 
 from __future__ import annotations
 
+import contextlib
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -96,10 +97,12 @@ def add(
                 info.height,
             ),
         ).fetchone()
-    except BaseException:
-        files.delete(key)
+        usage.refresh(conn)
+    except BaseException:  # the row goes with the transaction, so the file must go too
+        # A store that is down cannot be tidied now: the orphan report finds the file.
+        with contextlib.suppress(OSError):
+            files.delete(key)
         raise
-    usage.refresh(conn)
     return _shot(row)
 
 

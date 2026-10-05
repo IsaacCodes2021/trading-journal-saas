@@ -679,3 +679,68 @@ def test_the_report_never_prints_a_password_or_a_note(app_url, alice, source, ca
     assert (
         "Held for the target" not in out and "chased price" not in out
     )  # the journal's own words stay out of the report
+
+
+# ---- into a bucket ------------------------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def bucket_env(monkeypatch):
+    from fake_s3 import FakeBucket
+
+    access, secret = "test" + "accesskey0123456789", "test" + "secret/with+odd=chars"  # noqa: S105 - made up
+    server = FakeBucket(access_key=access, secret=secret)
+    monkeypatch.delenv("TJ_FILES_DIR", raising=False)
+    for name, value in (
+        ("TJ_S3_ENDPOINT", server.url),
+        ("TJ_S3_BUCKET", server.bucket),
+        ("TJ_S3_ACCESS_KEY_ID", access),
+        ("TJ_S3_SECRET_ACCESS_KEY", secret),
+    ):
+        monkeypatch.setenv(name, value)
+    yield server, secret
+    server.stop()
+
+
+def test_the_command_can_take_the_files_into_a_bucket_and_checks_each_against_its_checksum(
+    app_url, alice, pictured, bucket_env, capsys
+):
+    server, secret = bucket_env
+    args = ["--source", str(pictured), "--user-id", str(alice), "--database-url", app_url]
+    assert migrate_local.main(args) == 0
+    captured = capsys.readouterr()
+    assert "2 screenshot file(s) taken into the file store" in captured.out and "every check passed" in captured.out
+    assert len(server.keys()) == 2 and all(k.startswith(f"u/{alice}/") for k in server.keys())
+    assert secret not in captured.out + captured.err
+
+
+def test_a_dry_run_into_a_bucket_leaves_the_bucket_empty(app_url, alice, pictured, bucket_env, capsys):
+    server, _ = bucket_env
+    args = ["--source", str(pictured), "--user-id", str(alice), "--database-url", app_url, "--dry-run"]
+    assert migrate_local.main(args) == 0
+    assert "2 screenshot file(s) would be taken into the file store" in capsys.readouterr().out
+    assert server.keys() == []
+
+
+def test_a_folder_and_a_bucket_together_are_refused_before_anything_is_read(
+    app_url, alice, pictured, store, bucket_env, capsys
+):
+    args = [
+        "--source",
+        str(pictured),
+        "--user-id",
+        str(alice),
+        "--database-url",
+        app_url,
+        "--files-dir",
+        str(store.root),
+    ]
+    assert migrate_local.main(args) == 2
+    assert "choose one" in capsys.readouterr().err
+
+
+def test_a_half_set_bucket_is_refused_by_name(app_url, alice, pictured, bucket_env, monkeypatch, capsys):
+    monkeypatch.delenv("TJ_S3_BUCKET")
+    args = ["--source", str(pictured), "--user-id", str(alice), "--database-url", app_url]
+    assert migrate_local.main(args) == 2
+    assert "go together" in capsys.readouterr().err

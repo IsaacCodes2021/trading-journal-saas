@@ -4,7 +4,7 @@
     python -m tradejournal.pg.migrate_local --source path/to/journal.db --user-id <uuid>
 
 ``TJ_DATABASE_URL`` (the request role, ``app_rw``) names the database, and ``TJ_FILES_DIR`` (or ``--files-dir``) the
-folder that holds screenshot files. The user must exist already: sign in once, so
+folder that holds screenshot files, or the four ``TJ_S3_*`` settings the bucket that does (one or the other). The user must exist already: sign in once, so
 the identity provider has created the account, then use that account's id. The original journal is never opened. Its
 file (and a ``-wal`` file beside it, if any) is copied to a temporary folder first, and the copy is what is read and
 brought up to the current schema.
@@ -53,6 +53,7 @@ from psycopg.rows import tuple_row
 from .. import db as sqlite_db
 from .. import images
 from .. import settings as sqlite_settings
+from ..bucketstore import BucketFileStore, BucketSettings
 from ..filestore import FileMissing, FileStore, LocalFileStore
 from ..finance import plain, to_money
 from ..settings import DEFAULTS
@@ -755,7 +756,7 @@ def format_report(report: MigrationReport) -> str:
     elif report.copied.get("screenshots"):
         lines += [
             "",
-            "No file store was given (--files-dir or TJ_FILES_DIR), so only the screenshot rows were copied, not the files.",
+            "No file store was given (--files-dir, TJ_FILES_DIR or TJ_S3_*), so only the screenshot rows were copied, not the files.",
         ]
     if report.skipped_settings:
         lines += ["", "Settings with no place in the new schema (not copied): " + ", ".join(report.skipped_settings)]
@@ -789,6 +790,17 @@ def main(argv: list[str]) -> int:
     if not args.database_url:
         print("set TJ_DATABASE_URL or pass --database-url", file=sys.stderr)
         return 2
+    try:
+        bucket = BucketSettings.from_env(os.environ)
+    except ValueError as problem:  # names the settings, never their values
+        print(problem, file=sys.stderr)
+        return 2
+    if bucket is not None and args.files_dir:
+        print("TJ_S3_* and --files-dir (or TJ_FILES_DIR) are two places to keep files: choose one", file=sys.stderr)
+        return 2
+    store: FileStore | None = (
+        LocalFileStore(args.files_dir) if args.files_dir else BucketFileStore(bucket) if bucket is not None else None
+    )
     screenshots = args.screenshots or args.source.parent / "screenshots"
     database = Database(args.database_url, max_size=2)
     database.open()
@@ -798,7 +810,7 @@ def main(argv: list[str]) -> int:
             args.user_id,
             args.source,
             screenshots_dir=screenshots if screenshots.is_dir() else None,
-            files=LocalFileStore(args.files_dir) if args.files_dir else None,
+            files=store,
             dry_run=args.dry_run,
         )
     except MigrationRefused as refusal:

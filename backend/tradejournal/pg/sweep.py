@@ -33,6 +33,7 @@ from pathlib import Path
 import psycopg
 
 from ..auth.idp import IdentityDirectory, IdentityError
+from ..bucketstore import BucketFileStore, BucketSettings
 from ..filestore import FileStore, LocalFileStore
 from . import audit, deletion
 from .system import SystemDatabase
@@ -140,7 +141,14 @@ def _remove_files(system: SystemDatabase, files: FileStore | None, report: Sweep
 
 
 def _files_from_env() -> FileStore | None:
+    """The same place the web server keeps files: the bucket (`TJ_S3_*`) or the folder (`TJ_FILES_DIR`). A bucket is the one
+    a separate job can reach on a host where it cannot share the web server's disk."""
+    bucket = BucketSettings.from_env(os.environ)
     folder = os.environ.get("TJ_FILES_DIR", "").strip()
+    if bucket is not None and folder:
+        raise ValueError("TJ_S3_* and TJ_FILES_DIR are two places to keep files: choose one")
+    if bucket is not None:
+        return BucketFileStore(bucket)
     return LocalFileStore(Path(folder)) if folder else None
 
 
@@ -179,7 +187,11 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
-    files = _files_from_env()
+    try:
+        files = _files_from_env()
+    except ValueError as problem:  # names the settings, never their values
+        print(problem, file=sys.stderr)
+        return 2
     system = SystemDatabase({"sweep": url})
     system.open()
     try:
@@ -193,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
         f"file folders removed {report.files_removed}, file folders still to remove {report.files_pending}"
     )
     if report.files_pending and files is None:
-        print("file folders are waiting because TJ_FILES_DIR is not set on this job", file=sys.stderr)
+        print("file folders are waiting because neither TJ_S3_* nor TJ_FILES_DIR is set on this job", file=sys.stderr)
     return 0
 
 
