@@ -68,6 +68,7 @@ def test_the_routes_are_in_the_schema():
     assert set(paths["/api/v1/imports/preview"]) == {"post"}
     assert set(paths["/api/v1/imports/{import_id}/undo"]) == {"post"}
     assert set(paths["/api/v1/imports/{import_id}/undo-preview"]) == {"post"}
+    assert set(paths["/api/v1/reports"]) == {"get"}
     assert set(paths["/api/v1/trades"]) == {"get"}
     assert set(paths["/api/v1/trades/{trade_id}"]) == {"get"}
     assert set(paths["/api/v1/trades/{trade_id}/neighbors"]) == {"get"}

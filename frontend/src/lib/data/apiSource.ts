@@ -105,6 +105,9 @@ export const apiSource: DataSource = {
     }
   },
 
+  report: (by, filters, signal) =>
+    unwrap(api.GET('/api/v1/reports', { params: { query: { ...filterQuery(filters), by } }, signal })),
+
   async dayNote(day, signal) {
     return (await unwrap(api.GET('/api/v1/day-notes/{day}', { params: { path: { day } }, signal }))).notes_html
   },

@@ -87,7 +87,7 @@ def test_a_signed_in_request_to_a_server_with_no_database_is_a_503_not_an_empty_
     token, _ = sessions.sign_in(accounts.add("a@example.test").user.id)
     config = ApiConfig(app_origin=ORIGIN, web_dist=tmp_path / "none", session_secret=b"k" * 32)
     client = TestClient(create_app(config, services), base_url=ORIGIN)
-    for path in ("/api/v1/dashboard", "/api/v1/accounts", "/api/v1/filter-options"):
+    for path in ("/api/v1/dashboard", "/api/v1/reports", "/api/v1/accounts", "/api/v1/filter-options"):
         assert client.get(path).status_code == 401  # anonymous: signing in comes first
         response = client.get(path, headers={"cookie": f"{SESSION_COOKIE}={token}"})
         assert response.status_code == 503, path

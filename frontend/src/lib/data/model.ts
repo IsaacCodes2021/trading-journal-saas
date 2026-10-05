@@ -152,6 +152,24 @@ export interface DayData {
 /** The most trades one day's page shows. */
 export const DAY_TRADES_LIMIT = 200
 
+/** What a report can break the filtered trades down by. */
+export const REPORT_BYS = ['symbol', 'weekday', 'hour', 'hold', 'tag', 'account'] as const
+export type ReportBy = (typeof REPORT_BYS)[number]
+
+/** One row of a report: a contract, a weekday, an hour, a hold time, a tag or an account, with the dashboard's numbers. */
+export interface ReportGroup {
+  key: string // stable: a contract root, a weekday number, an hour, a hold step, a tag id, an account id
+  label: string // what to show: "NQ", "Monday", "09:00", "5 to 15 minutes", "A+ setup", "Apex 07"
+  detail: string | null // the tag's category, or the account's firm and type; nothing for the others
+  summary: SummaryStats
+}
+
+export interface ReportData {
+  by: ReportBy
+  groups: ReportGroup[] // in the order to read them
+  summary: SummaryStats // over every trade the filters matched (a trade with several tags is one trade here)
+}
+
 /** One row of the broker's export: a buy fill matched to a sell fill. Several of them make one trade. */
 export interface FillPairRow {
   id: number
@@ -402,6 +420,8 @@ export interface DataSource {
   calendar(month: string, filters: Filters, signal?: AbortSignal): Promise<CalendarMonth>
   /** One trading day ("YYYY-MM-DD"), with the same filters. */
   day(day: string, filters: Filters, signal?: AbortSignal): Promise<DayData>
+  /** The filtered trades broken down by `by`, each group with the dashboard's statistics. */
+  report(by: ReportBy, filters: Filters, signal?: AbortSignal): Promise<ReportData>
   /** The note for a trading day, as the editor's HTML; "" when nothing is written. */
   dayNote(day: string, signal?: AbortSignal): Promise<string>
   saveDayNote(day: string, html: string): Promise<void>

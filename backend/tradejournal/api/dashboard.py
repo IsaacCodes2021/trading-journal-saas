@@ -64,6 +64,11 @@ def _ratio(value: Decimal | None) -> float | None:
     return None if value is None else float(value)
 
 
+def summary_of(trades: Sequence[TradeRecord]) -> SummaryOut:
+    """The statistics of any set of trades, in the order they closed: what a dashboard tile or a report row shows."""
+    return _summary(finance.summarize(trades), account_count=len({t.account_id for t in trades}))
+
+
 def _summary(s: finance.Summary, *, account_count: int) -> SummaryOut:
     return SummaryOut(
         trade_count=s.trade_count,

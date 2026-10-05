@@ -6,6 +6,7 @@ import type {
   ArchiveInput,
   DataSource,
   NewLedgerEntry,
+  ReportBy,
   TagCatalog,
   TagEdit,
   TradeDetail,
@@ -39,6 +40,16 @@ export function useCalendar(month: string, filters: Filters) {
   return useQuery({
     queryKey: ['calendar', source.label, month, filters],
     queryFn: ({ signal }) => source.calendar(month, filters, signal),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** The filtered trades broken down by contract, weekday, hour, hold time, tag or account. */
+export function useReport(by: ReportBy, filters: Filters) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['report', source.label, by, filters],
+    queryFn: ({ signal }) => source.report(by, filters, signal),
     placeholderData: keepPreviousData,
   })
 }

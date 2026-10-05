@@ -784,6 +784,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Report
+         * @description The filtered trades broken down by contract, weekday, time of day, hold time, tag or account, with the dashboard's
+         *     statistics for each group. The date range and the other filters are the dashboard's.
+         */
+        get: operations["get_report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/session": {
         parameters: {
             query?: never;
@@ -2234,6 +2255,27 @@ export interface components {
              * Format: date-time
              */
             starts_at: string;
+        };
+        /** ReportGroupOut */
+        ReportGroupOut: {
+            /** Detail */
+            detail: string | null;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            summary: components["schemas"]["SummaryOut"];
+        };
+        /** ReportOut */
+        ReportOut: {
+            /**
+             * By
+             * @enum {string}
+             */
+            by: "symbol" | "weekday" | "hour" | "hold" | "tag" | "account";
+            /** Groups */
+            groups: components["schemas"]["ReportGroupOut"][];
+            summary: components["schemas"]["SummaryOut"];
         };
         /** ScoreAxisOut */
         ScoreAxisOut: {
@@ -6021,6 +6063,73 @@ export interface operations {
             };
             /** @description Request Entity Too Large */
             413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_report: {
+        parameters: {
+            query?: {
+                preset?: "all" | "7d" | "30d" | "90d" | "mtd" | "last_month" | "ytd";
+                start?: string | null;
+                end?: string | null;
+                account_type?: ("evaluation" | "funded") | null;
+                show_archived?: boolean;
+                firms?: string[];
+                account_ids?: number[];
+                symbol_roots?: string[];
+                direction?: ("long" | "short") | null;
+                by?: "symbol" | "weekday" | "hour" | "hold" | "tag" | "account";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

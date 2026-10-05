@@ -2752,6 +2752,73 @@
         "title": "RedemptionOut",
         "type": "object"
       },
+      "ReportGroupOut": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SummaryOut"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "detail",
+          "summary"
+        ],
+        "title": "ReportGroupOut",
+        "type": "object"
+      },
+      "ReportOut": {
+        "properties": {
+          "by": {
+            "enum": [
+              "symbol",
+              "weekday",
+              "hour",
+              "hold",
+              "tag",
+              "account"
+            ],
+            "title": "By",
+            "type": "string"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ReportGroupOut"
+            },
+            "title": "Groups",
+            "type": "array"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SummaryOut"
+          }
+        },
+        "required": [
+          "by",
+          "groups",
+          "summary"
+        ],
+        "title": "ReportOut",
+        "type": "object"
+      },
       "ScoreAxisOut": {
         "properties": {
           "name": {
@@ -8337,6 +8404,232 @@
         "summary": "Undo Preview",
         "tags": [
           "imports"
+        ]
+      }
+    },
+    "/api/v1/reports": {
+      "get": {
+        "description": "The filtered trades broken down by contract, weekday, time of day, hold time, tag or account, with the dashboard's\nstatistics for each group. The date range and the other filters are the dashboard's.",
+        "operationId": "get_report",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "mtd",
+                "last_month",
+                "ytd"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluation",
+                    "funded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Show Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "firms",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Firms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_roots",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Symbol Roots",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "long",
+                    "short"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          },
+          {
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "default": "symbol",
+              "enum": [
+                "symbol",
+                "weekday",
+                "hour",
+                "hold",
+                "tag",
+                "account"
+              ],
+              "title": "By",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Report",
+        "tags": [
+          "stats"
         ]
       }
     },
