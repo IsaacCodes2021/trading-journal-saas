@@ -379,7 +379,17 @@ def test_a_folder_that_is_already_gone_is_not_an_error(db, system, owner, files,
 
 @pytest.fixture
 def env(monkeypatch, sweep_url):
-    for name in ("TJ_KINDE_DOMAIN", "TJ_KINDE_M2M_CLIENT_ID", "TJ_KINDE_M2M_CLIENT_SECRET", "TJ_FILES_DIR"):
+    for name in (
+        "TJ_KINDE_DOMAIN",
+        "TJ_KINDE_M2M_CLIENT_ID",
+        "TJ_KINDE_M2M_CLIENT_SECRET",
+        "TJ_FILES_DIR",
+        "TJ_S3_ENDPOINT",
+        "TJ_S3_BUCKET",
+        "TJ_S3_ACCESS_KEY_ID",
+        "TJ_S3_SECRET_ACCESS_KEY",
+        "TJ_S3_REGION",
+    ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("TJ_SWEEP_DATABASE_URL", sweep_url)
     return monkeypatch
@@ -434,7 +444,7 @@ def test_the_command_says_why_folders_are_waiting_when_the_job_has_no_folder_set
     assert sweep.main(["deletions", "--apply", "--without-identity-provider"]) == 0
     captured = capsys.readouterr()
     assert "file folders removed 0, file folders still to remove 1" in captured.out
-    assert "TJ_FILES_DIR is not set on this job" in captured.err
+    assert "neither TJ_S3_* nor TJ_FILES_DIR is set on this job" in captured.err
     assert present(files, key) and len(folders_waiting(owner)) == 1
 
 

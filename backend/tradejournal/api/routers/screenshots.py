@@ -12,6 +12,8 @@ by its uploader in a header.
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import Response
 
@@ -23,6 +25,8 @@ from ..refusals import refusals, require_row
 from ..schemas import Problem
 from ..schemas.journal import PathId
 from ..schemas.trades import ScreenshotOut
+
+log = logging.getLogger("tj.files")
 
 router = APIRouter(
     tags=["screenshots"],
@@ -81,7 +85,14 @@ def delete_screenshot(
             raise LookupError(f"no screenshot {screenshot_id} on trade {trade_id}")
         pg_screenshots.delete(conn, screenshot_id)
         left = pg_screenshots.for_trade(conn, trade_id)
-    files.delete(shot.key)  # only now that the delete has committed: a rolled-back delete must not have lost the file
+    try:
+        files.delete(
+            shot.key
+        )  # only now that the delete has committed: a rolled-back delete must not have lost the file
+    except OSError as problem:
+        # The screenshot is gone from the person's journal, which is what they asked for; a store that is down must not
+        # turn that into an error they would retry into a 404. The file is left for the orphan report.
+        log.warning("a deleted screenshot's file could not be removed", exc_info=problem)
     return [screenshot_out(s) for s in left]
 
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from ..bucketstore import BucketSettings
 from .ratelimit import RateLimits
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -43,6 +44,9 @@ class ApiConfig:
     # Where screenshot files are kept (filestore.LocalFileStore). Left out, the screenshot routes answer 503: a host with
     # no persistent disk must use the object store instead (doc 03 section 6), which is chosen in api/app.py.
     files_dir: Path | None = None
+    # Or a private bucket (Cloudflare R2, or anything that speaks the S3 API), for a host with no persistent disk and for the
+    # sweep job, which runs in another process: the four TJ_S3_* settings together (bucketstore.py). Not both this and a folder.
+    bucket: BucketSettings | None = field(default=None, repr=False)
     # The request role's connection URL (app_rw). It holds a password, so it never appears in repr or logs. Not
     # required yet: until the routes use the database (M3), a process without it starts, and /readyz says so.
     database_url: str | None = field(default=None, repr=False)
@@ -78,6 +82,10 @@ class ApiConfig:
         ):
             if url is not None and urlsplit(url).scheme not in ("postgresql", "postgres"):
                 raise ConfigError(f"{name} must be a postgresql:// URL")
+        if self.bucket is not None and self.files_dir is not None:
+            raise ConfigError("TJ_S3_* and TJ_FILES_DIR are two places to keep files: choose one")
+        if self.bucket is not None and self.production and not self.bucket.https:
+            raise ConfigError("TJ_S3_ENDPOINT must be https in production")
         kinde = (self.kinde_domain, self.kinde_client_id, self.kinde_client_secret)
         if any(kinde) and not all(kinde):
             raise ConfigError("TJ_KINDE_DOMAIN, TJ_KINDE_CLIENT_ID and TJ_KINDE_CLIENT_SECRET go together")
@@ -141,6 +149,12 @@ class ApiConfig:
                 values[name] = env[key].strip()
         if env.get("TJ_FILES_DIR", "").strip():
             values["files_dir"] = Path(env["TJ_FILES_DIR"].strip())
+        try:
+            bucket = BucketSettings.from_env(env)
+        except ValueError as problem:
+            raise ConfigError(str(problem)) from None
+        if bucket is not None:
+            values["bucket"] = bucket
         if env.get("TJ_MAX_CONCURRENT_IMPORTS"):
             try:
                 values["max_concurrent_imports"] = int(env["TJ_MAX_CONCURRENT_IMPORTS"].strip())
