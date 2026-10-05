@@ -232,7 +232,7 @@ uv run pytest                                          # tests/pg need the local
 cd ../frontend
 pnpm gen:api                                           # regenerate the TypeScript types from openapi.json
 pnpm format:check ; pnpm typecheck ; pnpm lint ; pnpm test ; pnpm build
-pnpm check:bundle ; pnpm check:security                # entry-chunk budget, no sample data in the build, security scan
+pnpm check:bundle ; pnpm check:security                # entry-chunk budget, no sample data loaded up front, security scan
 ```
 
 The container image holds the API and the built front end (a Node stage builds `frontend/`). Build it from the

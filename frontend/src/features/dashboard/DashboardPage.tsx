@@ -8,6 +8,7 @@ import { Button, Card, Pnl, Segmented, Spinner, StatTile } from '../../component
 import type { DashboardData, PerformanceScore } from '../../lib/data/model'
 import { useAccounts, useDashboard, useFilterOptions } from '../../lib/data/queries'
 import type { Filters } from '../../lib/filters'
+import { enterDemo } from '../../lib/demoMode'
 import { formatAmount, formatDay, formatPercent, formatPnl, formatRatio, pluralize } from '../../lib/format'
 import { toChartNumber } from '../../lib/money'
 
@@ -248,6 +249,13 @@ function GetStarted() {
       >
         Start setup
       </Link>
+      <button
+        type="button"
+        onClick={enterDemo}
+        className="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-[13px] text-muted underline hover:text-ink"
+      >
+        Or look around with sample data first
+      </button>
     </Card>
   )
 }

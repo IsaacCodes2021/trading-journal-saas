@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 import { devApi, liveData } from './dev/live-data'
@@ -10,9 +11,21 @@ const API = 'http://localhost:8000'
 export default defineConfig(({ mode, command }) => {
   const api = devApi(loadEnv(mode, process.cwd(), 'TJ_')['TJ_DEV_API'])
   const realApi = api !== 'stub'
+  const live = liveData(command, mode, realApi)
   return {
     // Pages read the real API (true) or the sample journal (false); see dev/live-data.ts for the rule.
-    define: { __TJ_LIVE_DATA__: JSON.stringify(liveData(command, mode, realApi)) },
+    define: { __TJ_LIVE_DATA__: JSON.stringify(live) },
+    // Live: the default source is the real API's, so nothing in the build imports the sample journal statically.
+    resolve: {
+      alias: live
+        ? [
+            {
+              find: './defaultSource',
+              replacement: fileURLToPath(new URL('./src/lib/data/defaultSource.live.ts', import.meta.url)),
+            },
+          ]
+        : [],
+    },
     // The session stub is dev-server only (see dev/session-stub.ts); TJ_DEV_API=real or signin turns it off.
     plugins: [react(), tailwindcss(), devSessionStub(!realApi)],
     server: {

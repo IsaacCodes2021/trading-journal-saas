@@ -3,6 +3,7 @@ import { RouterProvider } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { AppErrorBoundary } from './components/RouteError'
+import { DataSourceRoot } from './components/DataSourceRoot'
 import { router } from './routes'
 import { applyTheme, storedTheme } from './lib/theme'
 import './styles.css'
@@ -19,7 +20,9 @@ createRoot(root).render(
   <StrictMode>
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <DataSourceRoot>
+          <RouterProvider router={router} />
+        </DataSourceRoot>
       </QueryClientProvider>
     </AppErrorBoundary>
   </StrictMode>,
