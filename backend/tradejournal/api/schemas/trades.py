@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from fastapi import Query
-from pydantic import ConfigDict, Field
+from fastapi import Path, Query
+from pydantic import ConfigDict, Field, model_validator
 
 from .base import ApiModel
 from .journal import AccountRefOut, Direction, RowId, TradeFilterQuery
@@ -139,6 +139,41 @@ class NotesIn(ApiModel):
 
 class NotesOut(ApiModel):
     notes_html: str  # what was stored
+
+
+# The days a note may be written for: a typo in a year should be an error, not a note in the year 202.
+FIRST_NOTE_DAY, LAST_NOTE_DAY = date(2000, 1, 1), date(2100, 12, 31)
+NoteDay = Annotated[date, Path(ge=FIRST_NOTE_DAY, le=LAST_NOTE_DAY)]
+MAX_NOTE_DAYS_ASKED = 400  # one month's calendar (with its edges) or one year's overview
+
+
+class DayNoteOut(ApiModel):
+    day: date  # the trading day (the person's own day boundary, as on every trade)
+    notes_html: str  # sanitized again on render, whatever the server did; "" when nothing is written
+
+
+class DayNotesQuery(ApiModel):
+    """A window of trading days, to ask which of them have a note (the calendar marks them)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    start: Annotated[date, Field(ge=FIRST_NOTE_DAY, le=LAST_NOTE_DAY)]
+    end: Annotated[date, Field(ge=FIRST_NOTE_DAY, le=LAST_NOTE_DAY)]
+
+    @model_validator(mode="after")
+    def _a_sane_window(self) -> DayNotesQuery:
+        if self.start > self.end:
+            raise ValueError("start must not be after end")
+        if (self.end - self.start).days >= MAX_NOTE_DAYS_ASKED:
+            raise ValueError(f"ask for at most {MAX_NOTE_DAYS_ASKED} days at a time")
+        return self
+
+
+DayNotesQueryParams = Annotated[DayNotesQuery, Query()]
+
+
+class DaysWithNotesOut(ApiModel):
+    days: list[date]  # oldest first
 
 
 class NewTagIn(ApiModel):

@@ -48,6 +48,7 @@ DOCUMENT = json.loads((Path(__file__).resolve().parents[2] / "openapi.json").rea
 SCHEMAS = DOCUMENT["components"]["schemas"]
 
 NOWHERE = 2**62  # a valid row id that no one has
+DAY = "2024-01-05"  # the day both people write a day note for: the same key, the person is what tells them apart
 MONEY_PATTERN = r"^-?\d+(\.\d+)?$"
 SYMBOL_ROOT = "NQ"
 
@@ -78,6 +79,7 @@ NAMES_NOTHING = {
     ("POST", "/api/v1/tag-groups"),
     ("DELETE", "/api/v1/sessions"),
     ("PATCH", "/api/v1/settings"),
+    ("PUT", "/api/v1/day-notes/{day}"),  # keyed by the person and the date: tested by name below
 }
 # Routes that name a session, which is not a journal row (see NOT_JOURNAL_ROWS).
 SESSION_ROUTES = {("DELETE", "/api/v1/sessions/{session_id}")}
@@ -227,6 +229,7 @@ def build_world(db, system, user_id, name: str, files_dir: Path) -> World:
     tags = {t["name"]: t["id"] for t in client.get("/api/v1/tags").json()["tags"]}
     tag, tag2 = tags[f"{name}-TAG"], tags[f"{name}-OTHERTAG"]
     _ok(client.put(f"/api/v1/trades/{trade}/notes", json={"html": f"<p>{name}-NOTE</p>"}), "note")
+    _ok(client.put(f"/api/v1/day-notes/{DAY}", json={"html": f"<p>{name}-DAYNOTE</p>"}), "day note")
     screenshot = _ok(
         client.post(
             f"/api/v1/trades/{trade}/screenshots", files={"file": (f"{name}-SHOT.png", image_of(name), "image/png")}
@@ -283,6 +286,8 @@ def snapshot(world: World) -> dict:
         "fees": f"/api/v1/accounts/{ids['account']}/fees",
         "ledger": f"/api/v1/accounts/{ids['account']}/ledger",
         "dashboard": "/api/v1/dashboard",
+        "day note": f"/api/v1/day-notes/{DAY}",
+        "days with notes": "/api/v1/day-notes?start=2024-01-01&end=2024-12-31",
     }
     return {name: c.get(url).json() for name, url in reads.items()}
 
@@ -469,6 +474,8 @@ def test_what_bob_reads_never_holds_alices_words_even_when_he_names_her_rows(op,
         params["account_ids"] = [alice.ids["account"]]
     if "q" in op.query_params:
         params["q"] = "ALICE-NOTE"
+    if op.path == "/api/v1/day-notes":  # a window that holds the day both people wrote a note for
+        params.update(start="2024-01-01", end="2024-12-31")
     response = bob.client.get(op.path, params=params)
     assert response.status_code < 500, f"{op.path}: {response.status_code}"
     text = _text_of(response)
@@ -482,6 +489,40 @@ def test_reading_alices_own_routes_does_show_her_words_so_the_check_above_can_fa
     for path in ("/api/v1/accounts", "/api/v1/tags", "/api/v1/imports", "/api/v1/export"):
         assert any(m in _text_of(alice.client.get(path)) for m in alice.markers), path
     assert "ALICE-" not in _text_of(bob.client.get("/api/v1/accounts"))
+
+
+# ---- day notes (keyed by the person and a date, not by a row id, so the document-driven attacks do not name them) -------
+
+
+def test_bob_reads_his_own_day_note_for_the_same_date_and_never_alices(worlds):
+    alice, bob = worlds
+    mine = alice.client.get(f"/api/v1/day-notes/{DAY}").json()["notes_html"]
+    theirs = bob.client.get(f"/api/v1/day-notes/{DAY}").json()["notes_html"]
+    assert "ALICE-DAYNOTE" in mine and "BOB-DAYNOTE" in theirs  # the control: the same date holds a note for each
+    assert "ALICE-" not in theirs and "BOB-" not in mine
+
+
+def test_bob_writing_or_emptying_a_day_note_never_touches_alices(worlds):
+    alice, bob = worlds
+    before = snapshot(alice)
+    bob.client.put(f"/api/v1/day-notes/{DAY}", json={"html": "<p>BOB-changed</p>"})
+    bob.client.put(f"/api/v1/day-notes/{DAY}", json={"html": ""})
+    assert snapshot(alice) == before and "BOB-" not in json.dumps(snapshot(alice))
+
+
+def test_the_day_note_check_can_fail_a_server_that_runs_bobs_request_as_alice_shows_her_note(worlds, monkeypatch):
+    alice, bob = worlds
+    monkeypatch.setattr(
+        Tenant,
+        "session",
+        lambda self, *, snapshot=False, statement_timeout_ms=STATEMENT_TIMEOUT_MS: self.database.tenant_session(
+            alice.user_id, snapshot=snapshot, statement_timeout_ms=statement_timeout_ms
+        ),
+    )
+    assert "ALICE-DAYNOTE" in bob.client.get(f"/api/v1/day-notes/{DAY}").json()["notes_html"]
+    assert bob.client.get("/api/v1/day-notes", params={"start": "2024-01-01", "end": "2024-12-31"}).json()["days"] == [
+        DAY
+    ]
 
 
 # ---- the image route (it is not under /api/v1, so the document-driven attacks above do not reach it) ----------------

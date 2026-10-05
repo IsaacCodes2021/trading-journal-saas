@@ -25,7 +25,7 @@ describe('the app shell', () => {
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 
-  it('names the product, lists the four screens, and carries the filters from one to the next', async () => {
+  it('names the product, lists the five screens, and carries the filters from one to the next', async () => {
     stubApi()
     open('/', { preset: '90d', direction: 'long' })
 
@@ -36,10 +36,12 @@ describe('the app shell', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Dashboard', 'Trades', 'Import', 'Settings'])
-    const trades = within(nav).getByRole('link', { name: 'Trades' })
-    expect(trades.getAttribute('href')).toContain('preset=90d')
-    expect(trades.getAttribute('href')).toContain('direction=long')
+    ).toEqual(['Dashboard', 'Trades', 'Calendar', 'Import', 'Settings'])
+    for (const name of ['Trades', 'Calendar']) {
+      const link = within(nav).getByRole('link', { name })
+      expect(link.getAttribute('href')).toContain('preset=90d')
+      expect(link.getAttribute('href')).toContain('direction=long')
+    }
     expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
   })
 

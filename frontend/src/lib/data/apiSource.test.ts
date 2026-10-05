@@ -130,6 +130,82 @@ describe('the small reads', () => {
   })
 })
 
+describe('the calendar and the day', () => {
+  const dashboard = {
+    range: null,
+    summary: { trade_count: 2 },
+    equity_by_trade: [{ at: '2024-01-05T15:00:00Z', equity: '10.00', drawdown: '0.00' }],
+    daily: [{ day: '2024-01-05', net_pnl: '10.00', trade_count: 2 }],
+    score: null,
+    accounts: [],
+  }
+  const answer = (url: URL) => {
+    if (url.pathname === '/api/v1/dashboard') return json(dashboard)
+    if (url.pathname === '/api/v1/day-notes') return json({ days: ['2024-01-05'] })
+    if (url.pathname === '/api/v1/trades') return json({ items: [{ id: 1 }, { id: 2 }], total: 250, net_pnl: '10.00' })
+    return json({ day: '2024-01-05', notes_html: '<p>Choppy</p>' })
+  }
+
+  it('asks for the whole month by its first and last day, with the filters but not their preset taking effect', async () => {
+    const asked = serve(answer)
+    const month = await apiSource.calendar('2024-02', { preset: '7d', direction: 'long', firms: ['Apex'] })
+    expect(month).toEqual({ daily: dashboard.daily, summary: dashboard.summary, noted: ['2024-01-05'] })
+    const stats = asked.find((u) => u.pathname === '/api/v1/dashboard')
+    expect(stats?.searchParams.get('start')).toBe('2024-02-01')
+    expect(stats?.searchParams.get('end')).toBe('2024-02-29') // a leap year
+    expect(stats?.searchParams.get('direction')).toBe('long')
+    expect(stats?.searchParams.getAll('firms')).toEqual(['Apex'])
+    const notes = asked.find((u) => u.pathname === '/api/v1/day-notes')
+    expect(notes?.searchParams.get('start')).toBe('2024-02-01')
+    expect(notes?.searchParams.get('end')).toBe('2024-02-29')
+  })
+
+  it('asks for one day as a range of that day, the trades oldest first and at most the limit', async () => {
+    const asked = serve(answer)
+    const day = await apiSource.day('2024-01-05', { preset: '30d', account_type: 'funded' })
+    expect(day).toEqual({
+      summary: dashboard.summary,
+      equity_by_trade: dashboard.equity_by_trade,
+      trades: [{ id: 1 }, { id: 2 }],
+      total: 250, // more than came back: the page says the day was cut off
+    })
+    const trades = asked.find((u) => u.pathname === '/api/v1/trades')
+    expect(trades?.searchParams.get('start')).toBe('2024-01-05')
+    expect(trades?.searchParams.get('end')).toBe('2024-01-05')
+    expect(trades?.searchParams.get('sort')).toBe('date')
+    expect(trades?.searchParams.get('limit')).toBe('200')
+    expect(trades?.searchParams.get('offset')).toBe('0')
+    expect(trades?.searchParams.get('account_type')).toBe('funded')
+    const stats = asked.find((u) => u.pathname === '/api/v1/dashboard')
+    expect([stats?.searchParams.get('start'), stats?.searchParams.get('end')]).toEqual(['2024-01-05', '2024-01-05'])
+  })
+
+  it('reads and saves the note of a day with the session’s CSRF token', async () => {
+    setCsrfToken('tok')
+    const seen = record((call) =>
+      json({ day: '2024-01-05', notes_html: call.method === 'PUT' ? '<p>x</p>' : '<p>Choppy</p>' }),
+    )
+    expect(await apiSource.dayNote('2024-01-05')).toBe('<p>Choppy</p>')
+    await apiSource.saveDayNote('2024-01-05', '<p>x</p>')
+    expect(seen).toEqual([
+      { method: 'GET', path: '/api/v1/day-notes/2024-01-05', body: undefined, csrf: null },
+      { method: 'PUT', path: '/api/v1/day-notes/2024-01-05', body: { html: '<p>x</p>' }, csrf: 'tok' },
+    ])
+  })
+
+  it("shows a refusal as the server's own sentence, from any of the four calls", async () => {
+    const problemBody = { title: 'Unprocessable Entity', status: 422, detail: 'That day is not allowed.', errors: null }
+    serve(() => json(problemBody, 422))
+    await expect(apiSource.calendar('2024-02', { preset: 'all' })).rejects.toMatchObject({
+      message: 'That day is not allowed.',
+      status: 422,
+    })
+    await expect(apiSource.day('2024-01-05', { preset: 'all' })).rejects.toMatchObject({ status: 422 })
+    await expect(apiSource.dayNote('2024-01-05')).rejects.toMatchObject({ status: 422 })
+    await expect(apiSource.saveDayNote('2024-01-05', '<p>x</p>')).rejects.toMatchObject({ status: 422 })
+  })
+})
+
 describe('the data source', () => {
   it('is not labelled as sample data', () => {
     expect(apiSource.label).toBeNull()

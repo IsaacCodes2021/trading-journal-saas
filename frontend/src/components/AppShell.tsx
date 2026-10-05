@@ -16,6 +16,7 @@ type Session = components['schemas']['SessionOut']
 const NAV = [
   { to: '/', label: 'Dashboard', exact: true },
   { to: '/trades', label: 'Trades', exact: false },
+  { to: '/calendar', label: 'Calendar', exact: false },
   { to: '/import', label: 'Import', exact: false },
   { to: '/settings', label: 'Settings', exact: false },
 ] as const

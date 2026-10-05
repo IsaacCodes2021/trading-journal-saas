@@ -1,8 +1,9 @@
 import { ApiError, api, unwrap, type ProblemBody } from '../api/client'
 import type { components } from '../api/schema'
 import type { Filters } from '../filters'
+import { monthRange } from '../calendar'
 import { pluralize } from '../format'
-import type { DataSource, ScreenshotRef, TradesQuery } from './model'
+import { DAY_TRADES_LIMIT, type DataSource, type ScreenshotRef, type TradesQuery } from './model'
 
 /*
  * The data source that talks to the real API. Everything is connected.
@@ -71,6 +72,46 @@ export const apiSource: DataSource = {
     ),
 
   filterOptions: (signal) => unwrap(api.GET('/api/v1/filter-options', { signal })),
+
+  // The month is the date range, so the server is given explicit days (they take the place of the filters' preset).
+  async calendar(month, filters, signal) {
+    const { start, end } = monthRange(month)
+    const [dashboard, notes] = await Promise.all([
+      unwrap(api.GET('/api/v1/dashboard', { params: { query: { ...filterQuery(filters), start, end } }, signal })),
+      unwrap(api.GET('/api/v1/day-notes', { params: { query: { start, end } }, signal })),
+    ])
+    return { daily: dashboard.daily, summary: dashboard.summary, noted: notes.days }
+  },
+
+  async day(day, filters, signal) {
+    const [dashboard, trades] = await Promise.all([
+      unwrap(
+        api.GET('/api/v1/dashboard', { params: { query: { ...filterQuery(filters), start: day, end: day } }, signal }),
+      ),
+      unwrap(
+        api.GET('/api/v1/trades', {
+          params: {
+            query: { ...filterQuery(filters), start: day, end: day, sort: 'date', limit: DAY_TRADES_LIMIT, offset: 0 },
+          },
+          signal,
+        }),
+      ),
+    ])
+    return {
+      summary: dashboard.summary,
+      equity_by_trade: dashboard.equity_by_trade,
+      trades: trades.items,
+      total: trades.total,
+    }
+  },
+
+  async dayNote(day, signal) {
+    return (await unwrap(api.GET('/api/v1/day-notes/{day}', { params: { path: { day } }, signal }))).notes_html
+  },
+
+  async saveDayNote(day, html) {
+    await unwrap(api.PUT('/api/v1/day-notes/{day}', { params: { path: { day } }, body: { html } }))
+  },
 
   async trade(id, signal) {
     const { data, error, response } = await api.GET('/api/v1/trades/{trade_id}', {

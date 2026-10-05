@@ -41,6 +41,7 @@ from .routers import (
     admin_codes,
     admin_users,
     auth,
+    day_notes,
     export,
     grants,
     imports,
@@ -200,6 +201,7 @@ def create_app(
     app.include_router(trades.router)
     app.include_router(tags.router)
     app.include_router(journal.router)
+    app.include_router(day_notes.router)
     app.include_router(screenshots.router)
     app.include_router(imports.router)
     app.include_router(auth.public)

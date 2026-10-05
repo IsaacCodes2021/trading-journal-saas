@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterable
+from datetime import date
 from pathlib import Path
 
 import psycopg
@@ -216,6 +217,35 @@ def notes(conn: psycopg.Connection, trade_id: int) -> str:
 
 def set_notes(conn: psycopg.Connection, trade_id: int, html: str | None) -> None:
     conn.execute("UPDATE trades SET notes = %s WHERE id = %s", (clean_notes(html), trade_id))
+
+
+def day_note(conn: psycopg.Connection, day: date) -> str:
+    """The note for one trading day, or "" (a day with nothing written has no row)."""
+    row = conn.execute("SELECT notes FROM day_notes WHERE trade_date = %s", (day,)).fetchone()
+    return row["notes"] if row else ""
+
+
+def set_day_note(conn: psycopg.Connection, day: date, html: str | None) -> None:
+    """Replace the note for a trading day. A note with no visible text removes the row, so "which days have a note" stays
+    exact. Any date is allowed: a day with no trades can have a note too."""
+    text = clean_notes(html)
+    if text == "":
+        conn.execute("DELETE FROM day_notes WHERE trade_date = %s", (day,))
+        return
+    conn.execute(
+        """INSERT INTO day_notes (trade_date, notes, updated_at) VALUES (%s, %s, now())
+           ON CONFLICT (user_id, trade_date) DO UPDATE SET notes = EXCLUDED.notes, updated_at = now()""",
+        (day, text),
+    )
+
+
+def days_with_notes(conn: psycopg.Connection, start: date, end: date) -> list[date]:
+    """The trading days from `start` to `end` (both included) that have a note, oldest first."""
+    rows = conn.execute(
+        "SELECT trade_date FROM day_notes WHERE notes <> '' AND trade_date BETWEEN %s AND %s ORDER BY trade_date",
+        (start, end),
+    )
+    return [r["trade_date"] for r in rows]
 
 
 # ---------------------------------------------------------------------------

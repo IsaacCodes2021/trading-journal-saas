@@ -122,11 +122,14 @@ export function FilterBar({
   options,
   onChange,
   summary,
+  showRange = true,
 }: {
   filters: Filters
   options: FilterOptions | undefined
   onChange: (next: Filters) => void
   summary?: ReactNode
+  /** False on a page whose date range is its own (the calendar's month, a single day): only the other filters show. */
+  showRange?: boolean
 }) {
   const set = (patch: Partial<Filters>) => {
     // A cleared filter arrives as undefined; leave the key out so it disappears from the URL.
@@ -135,12 +138,14 @@ export function FilterBar({
   }
   return (
     <Card className="flex flex-wrap items-center gap-2.5 px-4 py-3" role="search" aria-label="Filters">
-      <Segmented
-        label="Date range"
-        options={PRESET_OPTIONS}
-        value={filters.preset}
-        onChange={(preset) => set({ preset })}
-      />
+      {showRange ? (
+        <Segmented
+          label="Date range"
+          options={PRESET_OPTIONS}
+          value={filters.preset}
+          onChange={(preset) => set({ preset })}
+        />
+      ) : null}
       <ChoiceFilter<AccountType>
         label="Account type"
         allLabel="All account types"

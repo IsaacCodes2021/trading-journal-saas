@@ -18,13 +18,33 @@ const STATUS_TEXT: Record<Status, string> = {
   failed: 'Could not save. Your text is still here.',
 }
 
-/**
- * The journal note for one trade. It saves by itself a moment after typing stops, and when the editor loses focus (so
- * moving to the next trade never drops a change). Keyed by trade in the page, so each trade starts with its own text.
- * `onEditor` hands the editor to a caller that wants to drive it (the tests do).
- */
+/** What saves a note: a react-query mutation (`mutate`) or anything that calls back when the save worked or did not. */
+export interface NoteSaver {
+  mutate: (html: string, callbacks: { onSuccess: () => void; onError: () => void }) => void
+}
+
+/** The journal note for one trade (see `NoteEditorCard`). Keyed by trade in the page, so each starts with its own text. */
 export function NotesCard({ trade, onEditor }: { trade: TradeDetail; onEditor?: (editor: Editor) => void }) {
   const save = useSaveNotes(trade.id)
+  return <NoteEditorCard title="Notes" html={trade.notes_html} saver={save} onEditor={onEditor} />
+}
+
+/**
+ * A rich-text note that saves by itself a moment after typing stops, and when the editor loses focus (so moving on never
+ * drops a change). Used for a trade's notes and a day's note. Keyed by what it is a note for, so each starts with its own
+ * text. `onEditor` hands the editor to a caller that wants to drive it (the tests do).
+ */
+export function NoteEditorCard({
+  title,
+  html,
+  saver: save,
+  onEditor,
+}: {
+  title: string
+  html: string
+  saver: NoteSaver
+  onEditor?: (editor: Editor) => void
+}) {
   const [status, setStatus] = useState<Status>('saved')
   const latest = useRef<string | null>(null) // what the editor holds now; null until it has started
   const saved = useRef<string | null>(null) // what the server holds, as the editor writes it
@@ -58,9 +78,9 @@ export function NotesCard({ trade, onEditor }: { trade: TradeDetail; onEditor?: 
   useEffect(() => () => clearTimeout(timer.current), [])
 
   return (
-    <Card className="p-0" role="region" aria-label="Notes">
+    <Card className="p-0" role="region" aria-label={title}>
       <div className="flex flex-wrap items-center gap-2 border-b border-line px-5 py-3.5">
-        <h2 className="m-0 text-base font-semibold">Notes</h2>
+        <h2 className="m-0 text-base font-semibold">{title}</h2>
         <span className="grow" />
         <span role="status" className="text-xs text-muted">
           {STATUS_TEXT[status]}
@@ -75,7 +95,8 @@ export function NotesCard({ trade, onEditor }: { trade: TradeDetail; onEditor?: 
         }
       >
         <NotesEditor
-          html={trade.notes_html}
+          html={html}
+          label={title}
           onChange={changed}
           onBlur={persist}
           onReady={(start, editor) => {
