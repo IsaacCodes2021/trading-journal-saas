@@ -26,7 +26,7 @@ Never put a secret in this repository, a chat, a ticket or a log. The continuous
 | Host, Cloudflare, GitHub, registrar, Kinde and email logins and their recovery codes | The accounts that control the product | Owner's password manager; recovery codes offline | Total | |
 | Cloudflare API tokens, GitHub tokens, deploy keys | Deploying and the site | The tool that uses them | Deploy code or change DNS. Critical | |
 | Payment provider keys, webhook signing secret | (When billing exists, M9) | Host environment | Fake or hidden payments | n/a yet |
-| Object-storage keys (R2) | (When screenshots exist, M6) | Host environment | Read or delete screenshots | n/a yet |
+| `TJ_S3_ACCESS_KEY_ID` and `TJ_S3_SECRET_ACCESS_KEY` (the R2 API token) | Reading, writing and deleting every person's screenshot files | The web service's environment **and** the sweep's | Read, overwrite or delete anyone's pictures. **Critical** (the files are the only content a person cannot re-import) | |
 
 **Not secrets, so there is nothing to rotate:** invite codes and plan codes (only their hashes are stored; to take one away, revoke it in the operator tools, Codes & audit); the Kinde client *id* and *domain*; the public site's D1 database id.
 
@@ -70,6 +70,16 @@ People already signed in are unaffected (their session does not touch Kinde agai
 1. In Kinde, rotate the secret of the machine-to-machine application (the one with only the read-users and delete-users permissions).
 2. Update `TJ_KINDE_M2M_CLIENT_SECRET` in the sweep's environment (and nowhere else: the API server does not need it).
 3. Check with a count that deletes nothing: `python -m tradejournal.pg.sweep deletions` (no `--apply`; the default only counts). **Never run it with `--apply` against a database that holds data you want to keep.**
+
+## Object-storage token (`TJ_S3_*`)
+
+The token is limited to the one bucket, so a leak is limited to the pictures (never the database). Rotate with no gap:
+
+1. In Cloudflare, create a **second** API token for the same bucket (object read and write). Do not revoke the first yet.
+2. Put the new key id and secret in `TJ_S3_ACCESS_KEY_ID` and `TJ_S3_SECRET_ACCESS_KEY` for **both** the web service and the sweep job, then restart the web service.
+3. Check with your own account that a picture still shows and a new one uploads; the logs say "the file store was unavailable" (type only, never the address or the answer) if the new token is wrong.
+4. Revoke the first token in Cloudflare.
+5. If the old token leaked, also look in the bucket for objects you did not expect, and use the bucket's versions (a bucket with versioning on keeps overwritten and deleted files) to put back what was changed. Everything under `u/<person's id>/` belongs to one person.
 
 ## Database role passwords
 

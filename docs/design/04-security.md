@@ -84,7 +84,7 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 ### Access control and tenancy
 - [x] **GATE** `app_rw` is not superuser and lacks `BYPASSRLS` (checked in CI) (`tests/pg/test_pg_schema.py`, `test_pg_system_roles.py`)
 - [x] **GATE** Schema lint passes: RLS enabled and forced, policy present, index leads with `user_id`, on every tenant table (`tests/pg/test_pg_schema.py`)
-- [ ] **GATE** Two-tenant suite passes for every domain function and `/files/{id}` (**domain functions: `tests/pg/test_pg_tenancy.py`; every route that names a row: `tests/pg/test_pg_api_two_tenants.py`, generated from the OpenAPI document**; `/files/{id}` has no route yet, it comes with screenshots in M6)
+- [x] **GATE** Two-tenant suite passes for every domain function and `/files/{id}` (**domain functions: `tests/pg/test_pg_tenancy.py`; every route that names a row: `tests/pg/test_pg_api_two_tenants.py`, generated from the OpenAPI document; `/files/{id}` and the screenshot routes are in it (2026-10-04): Bob names Alice's picture and gets the same 404 as a missing one, her folder of files is unchanged by every attack, and a server run as Alice shows her picture, so the check can fail**)
 - [x] **GATE** No tenant route can reach `system_session`, and no admin route can reach `tenant_session` (import-boundary test) (`tests/test_import_boundary.py`)
 - [ ] Entitlement checks live in the domain/service layer; the effective plan is computed and never stored, so webhooks cannot overwrite an override
 
@@ -92,7 +92,7 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 - [x] **GATE** Notes sanitized on write and read; XSS payload tests (2026-10-04: `nh3` on write, DOMPurify on render, the same list pinned by a test; 58 tests in `tests/test_api_sanitize.py`; **the note for a trading day goes through the same function**, and a route test sends it script, event handlers, an image with `onerror` and a `javascript:` address)
 - [ ] **GATE** Upload limits at the edge, the route and the streaming reader; pixel cap; CSV row cap; import concurrency limit (**CSV row cap and import concurrency limit built 2026-10-04; so are the screenshot limits: 10 MB, 50 million pixels, 20,000 a side, read from the file's own header, with SVG refused**; the edge cap comes at deploy, and decoding and re-encoding with Pillow comes when the owner approves the dependency)
 - [x] **GATE** No raw HTML injection outside `SafeHtml` (ESLint `react/no-danger` plus a CI grep for `dangerouslySetInnerHTML` and `innerHTML`) (`frontend/scripts/check-security.mjs` fails the build on `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval` and `new Function` outside the one allowed place, and has its own tests)
-- [ ] Private bucket; no public object URLs; presigned URLs 60 s
+- [ ] Private bucket; no public object URLs; **no presigned URLs at all**: pictures are streamed through `GET /files/{id}`, so `img-src` stays `'self'` (built 2026-10-05, `bucketstore.py`, doc 05 section 14 slice 7; **left: a real bucket, made by the owner, and a real upload, view and deletion against it**)
 
 ### Transport and headers
 - [ ] **GATE** HTTPS only, HSTS; Cloudflare "Full (strict)" TLS

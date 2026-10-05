@@ -9,7 +9,7 @@ Related: [incident.md](incident.md), [rotate-secrets.md](rotate-secrets.md), des
 | Data | Where it lives | Backup (design) | Decided? |
 |---|---|---|---|
 | Everything about people, trades, notes, accounts, plans, sessions, the audit log | Postgres | The provider's point-in-time recovery (restore to a chosen moment) **and** a nightly dump to a bucket at a different provider or account | The host and provider are not chosen (S4) |
-| Screenshot files | Object storage (R2, M6) | Bucket versioning plus a lifecycle rule | Not built yet |
+| Screenshot files | A private R2 bucket (`bucketstore.py`) | Bucket versioning plus a lifecycle rule (set in Cloudflare, [deploy.md](deploy.md) section 2) | Code built; the bucket and its settings are the owner's to create |
 | The marketing site's waitlist | Cloudflare D1 (`roundturn-waitlist`) | Export on request; low value | Not scheduled |
 | Code and documents | GitHub | The repository itself; clone it somewhere else now and then | Done by being a Git repository |
 | Identity (who can sign in) | Kinde | Kinde's own; the product does not hold passwords | n/a |
@@ -67,7 +67,7 @@ There is no tool for restoring a single account from a backup, and the operator 
 
 ## Screenshots
 
-Not built yet (M6). The design is: versioned bucket, so a deleted or overwritten file can be restored by version; the database holds the references. Restoring the database to an earlier moment and the bucket to a later one leaves files with no row; the orphan job (design doc 03 section 6) **reports** them first, deletes an object only after it has been unreferenced across two runs at least 7 days apart, and is designed to refuse to run when the database looks older than the bucket (the sign of a restore). **Do not run an orphan clean-up right after a restore.**
+The files are in a versioned bucket, so a deleted or overwritten file can be restored by version in Cloudflare (the object's key is `u/<person's id>/<random>.<ext>`, and the database row names it); the database holds the references. **Not rehearsed**: no bucket exists yet. Restoring the database to an earlier moment and the bucket to a later one leaves files with no row; the orphan job (design doc 03 section 6; **not built**: it needs its own decision, see doc 05 section 14, slice 7) would **report** them first, deletes an object only after it has been unreferenced across two runs at least 7 days apart, and is designed to refuse to run when the database looks older than the bucket (the sign of a restore). **Do not run an orphan clean-up right after a restore.**
 
 ## The drill
 
