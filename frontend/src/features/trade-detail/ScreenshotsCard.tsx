@@ -4,6 +4,7 @@ import { cx } from '../../components/ui/cx'
 import type { ScreenshotRef, TradeDetail } from '../../lib/data/model'
 import { useAddScreenshots, useDeleteScreenshot } from '../../lib/data/queries'
 import { pluralize } from '../../lib/format'
+import { MAX_IMAGE_MB } from '../../lib/limits'
 import { Lightbox, Picture } from './Lightbox'
 
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
@@ -67,7 +68,7 @@ export function ScreenshotsCard({ trade }: { trade: TradeDetail }) {
       <div className="mb-2.5 flex items-center gap-2">
         <h2 className="m-0 text-[13px] font-semibold tracking-wide text-muted uppercase">Screenshots</h2>
         <span className="grow" />
-        <span className="text-xs text-muted">PNG, JPEG, GIF or WebP, up to 10 MB each</span>
+        <span className="text-xs text-muted">PNG, JPEG, GIF or WebP, up to {MAX_IMAGE_MB} MB each</span>
       </div>
 
       {shots.length > 0 ? (

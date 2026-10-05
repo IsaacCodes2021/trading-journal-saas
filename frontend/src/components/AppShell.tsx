@@ -117,6 +117,9 @@ export function AccountMenu({ email, operator = false }: { email: string; operat
           <div data-testid="who" className="px-2 text-[13px] break-all">
             {email}
           </div>
+          <Link to="/help" className="px-2 py-1 text-[13px]">
+            Help
+          </Link>
           {operator ? (
             <Link to="/admin" className="px-2 py-1 text-[13px]">
               Operator tools
