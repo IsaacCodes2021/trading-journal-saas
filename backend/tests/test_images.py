@@ -309,3 +309,18 @@ def test_a_stored_name_gives_its_type(name, expected):
 
 def test_nothing_in_the_table_of_types_is_svg_or_html():
     assert not any("svg" in t or "html" in t for t, _ in images._TYPES.values())
+
+
+def test_the_front_end_tells_people_the_same_screenshot_limits_the_server_enforces():
+    """`frontend/src/lib/limits.ts` is what the trade page and the Help page say; if the server's numbers change, this fails
+    until the front end says the same."""
+    import re
+    from pathlib import Path
+
+    from tradejournal.pg.screenshots import MAX_FILE_BYTES, MAX_PER_TRADE
+
+    source = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "limits.ts").read_text(
+        encoding="utf-8"
+    )
+    assert int(re.search(r"export const MAX_IMAGE_MB = (\d+)", source).group(1)) * 1024 * 1024 == MAX_FILE_BYTES
+    assert int(re.search(r"export const MAX_IMAGES_PER_TRADE = (\d+)", source).group(1)) == MAX_PER_TRADE

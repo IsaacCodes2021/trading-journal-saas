@@ -46,6 +46,7 @@ const TradeDetailPage = lazy(() =>
 )
 const CalendarPage = lazy(() => import('./features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })))
 const DayPage = lazy(() => import('./features/calendar/DayPage').then((m) => ({ default: m.DayPage })))
+const HelpPage = lazy(() => import('./features/help/HelpPage').then((m) => ({ default: m.HelpPage })))
 const ReportsPage = lazy(() => import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 
 /*
@@ -238,6 +239,20 @@ const reportsRoute = createRoute({
     return { ...pickFilters(search), ...(by ? { by } : {}) }
   },
   component: ReportsRoute,
+})
+
+// ---- help --------------------------------------------------------------------------------------------------------
+
+const helpRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/help',
+  component: function HelpRoute() {
+    return (
+      <Suspense fallback={<Spinner label="Loading help" />}>
+        <HelpPage />
+      </Suspense>
+    )
+  },
 })
 
 // ---- import ----------------------------------------------------------------------------------------------------
@@ -463,6 +478,7 @@ const routeTree = rootRoute.addChildren([
   tradeDetailRoute,
   calendarRoute,
   reportsRoute,
+  helpRoute,
   dayRoute,
   importRoute,
   welcomeRoute,
