@@ -567,3 +567,24 @@ describe('managing tags', () => {
     })
   })
 })
+
+describe('the reports', () => {
+  it('asks for the breakdown and sends the filters the dashboard sends', async () => {
+    const body = { by: 'hour', groups: [], summary: {} }
+    const asked = serve(() => json(body))
+    const result = await apiSource.report('hour', { preset: '7d', firms: ['Apex'], direction: 'short' })
+    expect(result).toEqual(body)
+    const [url] = asked
+    expect(url?.pathname).toBe('/api/v1/reports')
+    expect(url?.searchParams.get('by')).toBe('hour')
+    expect(url?.searchParams.get('preset')).toBe('7d')
+    expect(url?.searchParams.getAll('firms')).toEqual(['Apex'])
+    expect(url?.searchParams.get('direction')).toBe('short')
+    expect(url?.searchParams.has('start')).toBe(false) // the report has no range of its own: the preset is the range
+  })
+
+  it('turns a refusal into an error the page can show', async () => {
+    serve(() => json({ title: 'Unprocessable Entity', status: 422, detail: null, errors: null }, 422))
+    await expect(apiSource.report('symbol', { preset: 'all' })).rejects.toMatchObject({ status: 422 })
+  })
+})

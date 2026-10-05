@@ -103,6 +103,7 @@ export type AppPath =
   | '/'
   | '/trades'
   | '/calendar'
+  | '/reports'
   | '/import'
   | '/invite'
   | '/welcome'

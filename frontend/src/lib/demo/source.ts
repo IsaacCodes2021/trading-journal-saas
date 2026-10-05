@@ -6,6 +6,8 @@ import type {
   DayData,
   FilterOptions,
   Neighbors,
+  ReportBy,
+  ReportData,
   TradeDetail,
   TradeRow,
   TradeSort,
@@ -17,6 +19,7 @@ import { SAMPLE_ACCOUNTS, SAMPLE_TRADES, fillPairsFor, pointsFor } from './gener
 import * as accounts from './accounts'
 import * as imports from './imports'
 import * as journal from './journal'
+import { report as reportOf } from './reports'
 import {
   accountSummaries,
   applyFilters,
@@ -62,6 +65,11 @@ function day(date: string, filters: Filters): DayData {
     'date',
   )
   return { summary: summarize(trades), equity_by_trade: equityByTrade(trades), trades, total: trades.length }
+}
+
+function report(by: ReportBy, filters: Filters): ReportData {
+  const trades = applyFilters(SAMPLE_TRADES.map(journal.withJournal), filters, LAST_DAY)
+  return reportOf(by, trades, new Map(journal.tagCatalog().groups.map((g) => [g.id, g.name])))
 }
 
 function compare(a: TradeRow, b: TradeRow, field: string): number {
@@ -156,6 +164,7 @@ export const demoSource: DataSource = {
   filterOptions: () => Promise.resolve(filterOptions()),
   calendar: (month, filters) => Promise.resolve(calendar(month, filters)),
   day: (date, filters) => Promise.resolve(day(date, filters)),
+  report: (by, filters) => Promise.resolve(report(by, filters)),
   dayNote: (date) => Promise.resolve(journal.dayNoteOf(date)),
   saveDayNote: (date, html) => run(() => journal.saveDayNote(date, html)),
   trade: (id) => Promise.resolve(detail(id)),

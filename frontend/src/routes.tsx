@@ -18,6 +18,8 @@ import { TradeLogPage } from './features/trades/TradeLogPage'
 import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
 import { isTab, type Tab } from './features/accounts/tabs'
 import { isDay, parseMonth } from './lib/calendar'
+import type { ReportBy } from './lib/data/model'
+import { parseBy } from './lib/reports'
 import { parseFilters, pickFilters, type Filters } from './lib/filters'
 import { parseStep, type StepNumber } from './features/onboarding/steps'
 import { deletionDay, signInErrorOf, type SignInErrorCode } from './lib/auth'
@@ -44,6 +46,7 @@ const TradeDetailPage = lazy(() =>
 )
 const CalendarPage = lazy(() => import('./features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })))
 const DayPage = lazy(() => import('./features/calendar/DayPage').then((m) => ({ default: m.DayPage })))
+const ReportsPage = lazy(() => import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
 
 /*
  * The route tree. Each page's state lives in the URL (filters, search text, sort, page), so a view survives a reload and
@@ -206,6 +209,35 @@ const dayRoute = createRoute({
   path: '/day/$day',
   validateSearch: pickFilters,
   component: DayRoute,
+})
+
+// ---- reports -----------------------------------------------------------------------------------------------------
+
+function ReportsRoute() {
+  const navigate = useNavigate({ from: '/reports' })
+  const session = useSession()
+  const { by: raw, ...rest } = reportsRoute.useSearch()
+  const by = parseBy(raw) // the router keeps what it could not validate too, so the choice is checked again
+  return (
+    <Suspense fallback={<Spinner label="Loading the reports" />}>
+      <ReportsPage
+        search={{ ...parseFilters(rest), ...(by ? { by } : {}) }}
+        timeZone={session.data?.settings.timezone ?? 'UTC'}
+        onSearch={(next) => void navigate({ search: next })}
+      />
+    </Suspense>
+  )
+}
+
+const reportsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/reports',
+  // A choice that is not one of the six is dropped, so the page shows the first (contract) rather than an error.
+  validateSearch: (search: Record<string, unknown>): Partial<Filters> & { by?: ReportBy } => {
+    const by = parseBy(search['by'])
+    return { ...pickFilters(search), ...(by ? { by } : {}) }
+  },
+  component: ReportsRoute,
 })
 
 // ---- import ----------------------------------------------------------------------------------------------------
@@ -430,6 +462,7 @@ const routeTree = rootRoute.addChildren([
   tradesRoute,
   tradeDetailRoute,
   calendarRoute,
+  reportsRoute,
   dayRoute,
   importRoute,
   welcomeRoute,

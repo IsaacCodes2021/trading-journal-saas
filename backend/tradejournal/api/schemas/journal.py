@@ -147,6 +147,31 @@ class AccountSummaryOut(ApiModel):
     net_pnl: Money
 
 
+ReportBy = Literal["symbol", "weekday", "hour", "hold", "tag", "account"]
+
+
+class ReportQuery(TradeFilterQuery):
+    """The shared filters, and what to break the trades down by."""
+
+    by: ReportBy = "symbol"
+
+
+ReportQueryParams = Annotated[ReportQuery, Query()]
+
+
+class ReportGroupOut(ApiModel):
+    key: str  # stable: a contract root, a weekday number, an hour, a hold bucket, a tag id, an account id
+    label: str  # what to show: "NQ", "Monday", "09:00", "5 to 15 minutes", "A+ setup", "Apex 07"
+    detail: str | None  # the tag's category, the account's firm and type; nothing for the others
+    summary: SummaryOut  # the same statistics as the dashboard, over this group's trades
+
+
+class ReportOut(ApiModel):
+    by: ReportBy
+    groups: list[ReportGroupOut]  # in the order to read them (see `api/reports.py`)
+    summary: SummaryOut  # over every trade the filters matched
+
+
 class DashboardOut(ApiModel):
     range: DateRangeOut | None  # the trading days the data covers; null when there are no trades
     summary: SummaryOut
