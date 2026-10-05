@@ -2,6 +2,7 @@ import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AccountDetail, AccountRef } from '../../lib/data/model'
+import { go } from '../../lib/auth'
 import { resetDemoAccounts } from '../../lib/demo/accounts'
 import { resetDemoImports } from '../../lib/demo/imports'
 import { demoSource } from '../../lib/demo/source'
@@ -15,6 +16,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   resetDemoAccounts()
   resetDemoImports()
+  sessionStorage.clear()
   document.documentElement.removeAttribute('data-theme')
 })
 
@@ -354,6 +356,17 @@ describe('where a new person starts', () => {
     await userEvent.setup().click(link)
     expect(await screen.findByRole('heading', { name: /^Welcome\./ })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/welcome')
+  })
+
+  it('also offers a look around on sample data first, which starts the demo from the dashboard', async () => {
+    noAccountsYet()
+    stubApi()
+    const leaving = vi.spyOn(go, 'to').mockImplementation(() => undefined)
+    openApp('/')
+    const card = await screen.findByRole('region', { name: 'Get started' })
+    await userEvent.setup().click(within(card).getByRole('button', { name: 'Or look around with sample data first' }))
+    expect(sessionStorage.getItem('roundturn-demo')).toBe('1')
+    expect(leaving).toHaveBeenCalledExactlyOnceWith('/')
   })
 
   it('is not shown to anyone who has an account', async () => {

@@ -2,6 +2,7 @@ import { Link, useLocation, useSearch } from '@tanstack/react-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { components } from '../lib/api/schema'
 import { go, signOut } from '../lib/auth'
+import { exitDemo, isDemo } from '../lib/demoMode'
 import { useDataSource } from '../lib/data/source'
 import { filtersOf, parseFilters } from '../lib/filters'
 import { daysLeft } from '../lib/format'
@@ -147,6 +148,24 @@ function SampleDataBanner() {
   const label = useDataSource().label
   const { pathname } = useLocation()
   if (label === null || REAL_PAGES.test(pathname)) return null
+  if (isDemo())
+    return (
+      <div
+        role="note"
+        className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-warn-line bg-panel px-4 py-1.5 text-center text-xs text-warn sm:px-8"
+      >
+        <span>
+          <strong>Demo.</strong> You are looking at sample data: none of it is yours, and nothing you change is kept.
+        </span>
+        <button
+          type="button"
+          onClick={exitDemo}
+          className="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-xs font-semibold text-warn underline"
+        >
+          Back to my own data
+        </button>
+      </div>
+    )
   return (
     <div role="note" className="border-b border-warn-line bg-panel px-4 py-1.5 text-center text-xs text-warn sm:px-8">
       <strong>{label}.</strong> These numbers are made up so the screens can be tried, and changes you make are not

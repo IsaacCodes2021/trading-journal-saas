@@ -23,16 +23,27 @@ for (const chunk of chunks) {
   console.log(`${chunk.name === entry ? '* ' : '  '}${chunk.name.padEnd(40)} ${chunk.gzipKb.toFixed(1)} KB gzipped`)
 }
 
-// The sample journal (src/lib/demo) is for `pnpm dev` and tests only. Its account names must not be in a build: if they
-// are, a real person could be shown made-up numbers, and __TJ_LIVE_DATA__ (dev/live-data.ts) or the CSS-only
-// "sideEffects" flag in package.json has stopped working.
+// The sample journal (src/lib/demo) is for `pnpm dev`, tests and the demo mode (a person who asks for it, announced on every
+// page). In a build it may exist only in code that nothing loads until the demo is asked for. If its account names are in a
+// chunk that the page, or any other chunk, loads up front, a real person could be shown made-up numbers they did not ask
+// for, and `__TJ_LIVE_DATA__` (dev/live-data.ts) or the CSS-only "sideEffects" flag in package.json has stopped working.
 const SAMPLE_MARKERS = ['Lucid 100K', 'Apex 150K']
-const withSample = chunks.filter((chunk) => {
-  const text = readFileSync(new URL(`assets/${chunk.name}`, dist), 'utf8')
-  return SAMPLE_MARKERS.some((marker) => text.includes(marker))
-})
-if (withSample.length > 0) {
-  console.error(`check-bundle: the sample journal is in the build (${withSample.map((c) => c.name).join(', ')})`)
+const text = (name) => readFileSync(new URL(`assets/${name}`, dist), 'utf8')
+const withSample = chunks.filter((chunk) => SAMPLE_MARKERS.some((marker) => text(chunk.name).includes(marker)))
+// "Up front" means named by the page, or imported statically: `from"./x.js"` or `import"./x.js"` (with any quote or space). A
+// dynamic `import("./x.js")` has a bracket after `import`, so it does not match any of these.
+const staticForms = (name) =>
+  ['"', "'", '`'].flatMap((quote) =>
+    ['from', 'from ', 'import', 'import '].map((word) => `${word}${quote}./${name}${quote}`),
+  )
+const loadedUpFront = (name) =>
+  html.includes(name) ||
+  chunks.some((other) => other.name !== name && staticForms(name).some((form) => text(other.name).includes(form)))
+const eager = withSample.filter((chunk) => loadedUpFront(chunk.name))
+if (eager.length > 0) {
+  console.error(
+    `check-bundle: the sample journal is loaded up front in the build (${eager.map((c) => c.name).join(', ')})`,
+  )
   process.exit(1)
 }
 
@@ -41,6 +52,7 @@ if (entryKb > ENTRY_BUDGET_KB) {
   console.error(`check-bundle: entry chunk is ${entryKb.toFixed(1)} KB gzipped, over the ${ENTRY_BUDGET_KB} KB budget`)
   process.exit(1)
 }
+const sample = withSample.length > 0 ? 'the sample journal only in an on-demand chunk' : 'no sample journal'
 console.log(
-  `check-bundle: entry chunk ${entryKb.toFixed(1)} KB gzipped, within the ${ENTRY_BUDGET_KB} KB budget; no sample journal`,
+  `check-bundle: entry chunk ${entryKb.toFixed(1)} KB gzipped, within the ${ENTRY_BUDGET_KB} KB budget; ${sample}`,
 )

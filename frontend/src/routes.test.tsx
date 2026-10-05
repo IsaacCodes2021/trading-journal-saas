@@ -6,6 +6,8 @@ import { json, openApp as open, stubApi } from './test-utils'
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
+  sessionStorage.clear()
   document.documentElement.removeAttribute('data-theme')
 })
 
@@ -51,6 +53,29 @@ describe('the app shell', () => {
     const note = await screen.findByRole('note')
     expect(note).toHaveTextContent('Sample data.')
     expect(note).toHaveTextContent('made up')
+  })
+
+  it('says it is the demo, and how to leave it, when a person asked for the sample journal', async () => {
+    sessionStorage.setItem('roundturn-demo', '1')
+    const leaving = vi.spyOn(go, 'to').mockImplementation(() => undefined)
+    stubApi()
+    open('/')
+    const note = await screen.findByRole('note')
+    expect(note).toHaveTextContent('Demo.')
+    expect(note).toHaveTextContent('none of it is yours')
+    expect(note).toHaveTextContent('nothing you change is kept')
+    expect(note).not.toHaveTextContent('Your own data arrives with the next releases')
+    await userEvent.setup().click(within(note).getByRole('button', { name: 'Back to my own data' }))
+    expect(leaving).toHaveBeenCalledExactlyOnceWith('/')
+    expect(sessionStorage.getItem('roundturn-demo')).toBeNull()
+  })
+
+  it('has no demo banner on the settings pages that are the person’s own, even in the demo', async () => {
+    sessionStorage.setItem('roundturn-demo', '1')
+    stubApi()
+    open('/settings/preferences')
+    await screen.findByRole('navigation', { name: 'Main' })
+    expect(screen.queryByRole('note')).not.toBeInTheDocument()
   })
 
   it('shows the plan, and the days left on one that is running out', async () => {
