@@ -6,6 +6,7 @@ import {
   formatClock,
   formatDay,
   formatDuration,
+  formatHourMinute,
   formatPercent,
   formatPnl,
   formatPoints,
@@ -89,6 +90,13 @@ describe('dates', () => {
   it('shows a clock time to the second in the viewer’s time zone', () => {
     expect(formatClock('2026-09-30T13:41:07Z', 'America/New_York')).toBe('09:41:07')
     expect(formatClock('2026-09-30T13:41:07Z', 'UTC')).toBe('13:41:07')
+  })
+
+  it('shows the hour and minute in the viewer’s time zone, with midnight as 00', () => {
+    expect(formatHourMinute('2026-09-30T13:41:07Z', 'America/New_York')).toBe('09:41')
+    expect(formatHourMinute('2026-09-30T13:41:07Z', 'UTC')).toBe('13:41')
+    expect(formatHourMinute('2026-09-04T07:05:00Z', 'America/Los_Angeles')).toBe('00:05') // never 24:05
+    expect(formatHourMinute('2026-09-04T00:00:00Z', 'UTC')).toBe('00:00')
   })
 
   it('shows a trading day without shifting it by a time zone', () => {

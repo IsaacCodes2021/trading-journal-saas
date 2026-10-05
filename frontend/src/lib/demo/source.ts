@@ -1,7 +1,9 @@
 import Decimal from 'decimal.js'
 import type {
+  CalendarMonth,
   DashboardData,
   DataSource,
+  DayData,
   FilterOptions,
   Neighbors,
   TradeDetail,
@@ -40,6 +42,26 @@ function dashboard(filters: Filters): DashboardData {
     score: performanceScore(summary, daily),
     accounts: accountSummaries(trades),
   }
+}
+
+/** The trades the filters keep on the days named by `inRange`: the date range is the caller's, so the preset is ignored. */
+function onDays(filters: Filters, inRange: (day: string) => boolean): TradeRow[] {
+  return applyFilters(SAMPLE_TRADES.map(journal.withJournal), { ...filters, preset: 'all' }, LAST_DAY).filter((t) =>
+    inRange(t.trade_day),
+  )
+}
+
+function calendar(month: string, filters: Filters): CalendarMonth {
+  const trades = onDays(filters, (day) => day.startsWith(`${month}-`))
+  return { daily: dailyResults(trades), summary: summarize(trades), noted: journal.daysWithNotes(month) }
+}
+
+function day(date: string, filters: Filters): DayData {
+  const trades = sortTrades(
+    onDays(filters, (d) => d === date),
+    'date',
+  )
+  return { summary: summarize(trades), equity_by_trade: equityByTrade(trades), trades, total: trades.length }
 }
 
 function compare(a: TradeRow, b: TradeRow, field: string): number {
@@ -132,6 +154,10 @@ export const demoSource: DataSource = {
   dashboard: (filters) => Promise.resolve(dashboard(filters)),
   trades: (query) => Promise.resolve(trades(query)),
   filterOptions: () => Promise.resolve(filterOptions()),
+  calendar: (month, filters) => Promise.resolve(calendar(month, filters)),
+  day: (date, filters) => Promise.resolve(day(date, filters)),
+  dayNote: (date) => Promise.resolve(journal.dayNoteOf(date)),
+  saveDayNote: (date, html) => run(() => journal.saveDayNote(date, html)),
   trade: (id) => Promise.resolve(detail(id)),
   neighbors: (id, query) => Promise.resolve(neighbors(id, query)),
   tagCatalog: () => Promise.resolve(journal.tagCatalog()),

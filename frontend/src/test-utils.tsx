@@ -102,6 +102,7 @@ export function stubApi(opts: ApiOptions = {}) {
 export type AppPath =
   | '/'
   | '/trades'
+  | '/calendar'
   | '/import'
   | '/invite'
   | '/welcome'
@@ -109,6 +110,7 @@ export type AppPath =
   | '/admin'
   | '/admin/codes'
   | `/trades/${string}`
+  | `/day/${string}`
   | `/settings/${string}`
 
 export function openApp(to: AppPath, search: Record<string, string | number> = {}) {

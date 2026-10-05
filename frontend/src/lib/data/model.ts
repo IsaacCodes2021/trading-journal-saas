@@ -134,6 +134,24 @@ export interface FilterOptions {
   symbol_roots: string[]
 }
 
+/** One month of the calendar: what traded each day, the month's statistics, and which days have a note. */
+export interface CalendarMonth {
+  daily: DailyResult[] // only the days that traded
+  summary: SummaryStats
+  noted: string[] // trading days ("YYYY-MM-DD") with a note, oldest first
+}
+
+/** One trading day: its statistics, its trades in the order they were entered, and how many there were in all. */
+export interface DayData {
+  summary: SummaryStats
+  equity_by_trade: EquityPoint[]
+  trades: TradeRow[]
+  total: number // more than `trades.length` when a very busy day was cut off
+}
+
+/** The most trades one day's page shows. */
+export const DAY_TRADES_LIMIT = 200
+
 /** One row of the broker's export: a buy fill matched to a sell fill. Several of them make one trade. */
 export interface FillPairRow {
   id: number
@@ -380,6 +398,13 @@ export interface DataSource {
   dashboard(filters: Filters, signal?: AbortSignal): Promise<DashboardData>
   trades(query: TradesQuery, signal?: AbortSignal): Promise<TradesPage>
   filterOptions(signal?: AbortSignal): Promise<FilterOptions>
+  /** The calendar's month ("YYYY-MM"): the filters apply, but their date range does not (the month is the range). */
+  calendar(month: string, filters: Filters, signal?: AbortSignal): Promise<CalendarMonth>
+  /** One trading day ("YYYY-MM-DD"), with the same filters. */
+  day(day: string, filters: Filters, signal?: AbortSignal): Promise<DayData>
+  /** The note for a trading day, as the editor's HTML; "" when nothing is written. */
+  dayNote(day: string, signal?: AbortSignal): Promise<string>
+  saveDayNote(day: string, html: string): Promise<void>
   /** Null when there is no such trade (or it is not this user's: the two look the same from outside). */
   trade(id: number, signal?: AbortSignal): Promise<TradeDetail | null>
   neighbors(id: number, query: TradesQuery, signal?: AbortSignal): Promise<Neighbors>

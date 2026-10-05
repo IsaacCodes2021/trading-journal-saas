@@ -33,6 +33,49 @@ export function useTrades(query: TradesQuery) {
   })
 }
 
+/** One month of the calendar. The old month stays on screen while the next one loads, so paging does not flash. */
+export function useCalendar(month: string, filters: Filters) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['calendar', source.label, month, filters],
+    queryFn: ({ signal }) => source.calendar(month, filters, signal),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** One trading day's statistics and trades. */
+export function useDay(day: string, filters: Filters) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['day', source.label, day, filters],
+    queryFn: ({ signal }) => source.day(day, filters, signal),
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** The note for a trading day: the editor's HTML, "" when nothing is written. */
+export function useDayNote(day: string) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['day-note', source.label, day],
+    queryFn: ({ signal }) => source.dayNote(day, signal),
+  })
+}
+
+/** Like the trade's notes: the saved text goes straight into the cache (the editor already shows it); only the calendar's
+ * marker for "this day has a note" is read again. */
+export function useSaveDayNote(day: string) {
+  const source = useDataSource()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (html: string) => source.saveDayNote(day, html),
+    onSuccess: (_result, html) => {
+      queryClient.setQueryData<string>(['day-note', source.label, day], html)
+      return queryClient.invalidateQueries({ queryKey: ['calendar'] })
+    },
+  })
+}
+
 export function useFilterOptions() {
   const source = useDataSource()
   return useQuery({

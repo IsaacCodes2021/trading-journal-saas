@@ -17,7 +17,8 @@ import { DashboardPage } from './features/dashboard/DashboardPage'
 import { TradeLogPage } from './features/trades/TradeLogPage'
 import { parseTradeSearch, pickTradeSearch } from './features/trades/search'
 import { isTab, type Tab } from './features/accounts/tabs'
-import { parseFilters, pickFilters } from './lib/filters'
+import { isDay, parseMonth } from './lib/calendar'
+import { parseFilters, pickFilters, type Filters } from './lib/filters'
 import { parseStep, type StepNumber } from './features/onboarding/steps'
 import { deletionDay, signInErrorOf, type SignInErrorCode } from './lib/auth'
 import { useSession } from './lib/session'
@@ -41,6 +42,8 @@ const ImportPage = lazy(() => import('./features/imports/ImportPage').then((m) =
 const TradeDetailPage = lazy(() =>
   import('./features/trade-detail/TradeDetailPage').then((m) => ({ default: m.TradeDetailPage })),
 )
+const CalendarPage = lazy(() => import('./features/calendar/CalendarPage').then((m) => ({ default: m.CalendarPage })))
+const DayPage = lazy(() => import('./features/calendar/DayPage').then((m) => ({ default: m.DayPage })))
 
 /*
  * The route tree. Each page's state lives in the URL (filters, search text, sort, page), so a view survives a reload and
@@ -153,6 +156,56 @@ const tradeDetailRoute = createRoute({
   path: '/trades/$tradeId',
   validateSearch: pickTradeSearch,
   component: TradeDetailRoute,
+})
+
+// ---- calendar and day --------------------------------------------------------------------------------------------
+
+function CalendarRoute() {
+  const navigate = useNavigate({ from: '/calendar' })
+  const { month: raw, ...rest } = calendarRoute.useSearch()
+  const month = parseMonth(raw) // the router keeps what it could not validate too, so the month is checked again
+  return (
+    <Suspense fallback={<Spinner label="Loading the calendar" />}>
+      <CalendarPage
+        search={{ ...parseFilters(rest), ...(month ? { month } : {}) }}
+        onSearch={(next) => void navigate({ search: next })}
+      />
+    </Suspense>
+  )
+}
+
+const calendarRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/calendar',
+  // A month that is not a month the app has is dropped, so the page shows the latest one rather than an error.
+  validateSearch: (search: Record<string, unknown>): Partial<Filters> & { month?: string } => {
+    const month = parseMonth(search['month'])
+    return { ...pickFilters(search), ...(month ? { month } : {}) }
+  },
+  component: CalendarRoute,
+})
+
+function DayRoute() {
+  const { day } = dayRoute.useParams()
+  const navigate = useNavigate({ from: '/day/$day' })
+  const session = useSession()
+  return (
+    <Suspense fallback={<Spinner label="Loading the day" />}>
+      <DayPage
+        day={isDay(day) ? day : null}
+        filters={parseFilters(dayRoute.useSearch())}
+        timeZone={session.data?.settings.timezone ?? 'UTC'}
+        onFilters={(next) => void navigate({ search: next })}
+      />
+    </Suspense>
+  )
+}
+
+const dayRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/day/$day',
+  validateSearch: pickFilters,
+  component: DayRoute,
 })
 
 // ---- import ----------------------------------------------------------------------------------------------------
@@ -376,6 +429,8 @@ const routeTree = rootRoute.addChildren([
   dashboardRoute,
   tradesRoute,
   tradeDetailRoute,
+  calendarRoute,
+  dayRoute,
   importRoute,
   welcomeRoute,
   inviteRoute,

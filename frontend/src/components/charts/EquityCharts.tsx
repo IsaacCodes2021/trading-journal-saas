@@ -1,5 +1,5 @@
 import type { EquityPoint } from '../../lib/data/model'
-import { formatAmount, formatAxisMoney, formatDay, formatPnl } from '../../lib/format'
+import { formatAmount, formatAxisMoney, formatDay, formatHourMinute, formatPnl } from '../../lib/format'
 import { toChartNumber } from '../../lib/money'
 import { linePath, linear, niceTicks, spreadIndices } from './scale'
 import { useMeasuredWidth } from './useMeasuredWidth'
@@ -11,8 +11,20 @@ function dayOf(at: string): string {
   return formatDay(at.slice(0, 10))
 }
 
-/** Cumulative net P&L: a line and a soft fill down to $0. Green when it ends up, red when it ends down. */
-export function EquityChart({ points, unit }: { points: readonly EquityPoint[]; unit: 'trade' | 'day' }) {
+/**
+ * Cumulative net P&L: a line and a soft fill down to $0. Green when it ends up, red when it ends down. The axis names
+ * the day of each point; with `timeZone` it names the time of day in that zone instead (for a chart of a single day,
+ * where every point would say the same date).
+ */
+export function EquityChart({
+  points,
+  unit,
+  timeZone,
+}: {
+  points: readonly EquityPoint[]
+  unit: 'trade' | 'day'
+  timeZone?: string
+}) {
   const [ref, W] = useMeasuredWidth<HTMLDivElement>()
   if (points.length === 0) return <p className="py-10 text-center text-muted">No trades in this range.</p>
   const H = 270
@@ -73,7 +85,7 @@ export function EquityChart({ points, unit }: { points: readonly EquityPoint[]; 
             textAnchor={n === 0 ? 'start' : n === all.length - 1 ? 'end' : 'middle'}
             className="fill-muted"
           >
-            {dayOf(points[i]?.at ?? '')}
+            {timeZone ? formatHourMinute(points[i]?.at ?? '', timeZone) : dayOf(points[i]?.at ?? '')}
           </text>
         ))}
       </svg>

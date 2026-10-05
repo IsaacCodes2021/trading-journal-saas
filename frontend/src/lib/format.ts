@@ -73,6 +73,14 @@ export function formatTradeTime(iso: string, timeZone: string): string {
   return `${day} · ${time}`
 }
 
+/** "09:41" in the user's timezone, from an ISO UTC timestamp. */
+export function formatHourMinute(iso: string, timeZone: string): string {
+  // `h23`: midnight is "00:05", never "24:05" (what `hour12: false` gives in some browsers)
+  return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone }).format(
+    new Date(iso),
+  )
+}
+
 /** "09:41:07" in the user's timezone, from an ISO UTC timestamp. */
 export function formatClock(iso: string, timeZone: string): string {
   return new Intl.DateTimeFormat('en-GB', {

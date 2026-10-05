@@ -37,6 +37,7 @@ const freshGroups = (): TagGroupRef[] => SAMPLE_TAG_GROUPS.map((g) => ({ ...g })
 const freshTags = (): TagRef[] => Object.values(SAMPLE_TAGS).map((t) => ({ ...t }))
 
 let entries = new Map<number, Entry>()
+let dayNotes = new Map<string, string>() // trading day to the note's HTML; a day with no visible text has no entry
 let groups = freshGroups()
 let tags = freshTags()
 let nextTagId = 100
@@ -46,6 +47,7 @@ let nextShotId = 1_000_000
 /** Back to the generated state. For tests; a page reload does the same. */
 export function resetDemoJournal(): void {
   entries = new Map()
+  dayNotes = new Map()
   groups = freshGroups()
   tags = freshTags()
   nextTagId = 100
@@ -115,6 +117,21 @@ export function screenshotsOf(trade: TradeRow): ScreenshotRef[] {
 
 export function saveNotes(trade: TradeRow, html: string): void {
   entryFor(trade).notes = html
+}
+
+export function dayNoteOf(day: string): string {
+  return dayNotes.get(day) ?? ''
+}
+
+/** Like the server: a note with no visible text removes the day's note. */
+export function saveDayNote(day: string, html: string): void {
+  if (hasText(html)) dayNotes.set(day, html.trim())
+  else dayNotes.delete(day)
+}
+
+/** The days of one month ("YYYY-MM") that have a note, oldest first. */
+export function daysWithNotes(month: string): string[] {
+  return [...dayNotes.keys()].filter((day) => day.startsWith(`${month}-`)).sort()
 }
 
 export function setTradeTag(trade: TradeRow, tagId: number, on: boolean): void {

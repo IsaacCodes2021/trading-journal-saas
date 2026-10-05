@@ -89,7 +89,7 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 - [ ] Entitlement checks live in the domain/service layer; the effective plan is computed and never stored, so webhooks cannot overwrite an override
 
 ### Input, output, files
-- [x] **GATE** Notes sanitized on write and read; XSS payload tests (2026-10-04: `nh3` on write, DOMPurify on render, the same list pinned by a test; 58 tests in `tests/test_api_sanitize.py`)
+- [x] **GATE** Notes sanitized on write and read; XSS payload tests (2026-10-04: `nh3` on write, DOMPurify on render, the same list pinned by a test; 58 tests in `tests/test_api_sanitize.py`; **the note for a trading day goes through the same function**, and a route test sends it script, event handlers, an image with `onerror` and a `javascript:` address)
 - [ ] **GATE** Upload limits at the edge, the route and the streaming reader; pixel cap; CSV row cap; import concurrency limit (**CSV row cap and import concurrency limit built 2026-10-04; so are the screenshot limits: 10 MB, 50 million pixels, 20,000 a side, read from the file's own header, with SVG refused**; the edge cap comes at deploy, and decoding and re-encoding with Pillow comes when the owner approves the dependency)
 - [x] **GATE** No raw HTML injection outside `SafeHtml` (ESLint `react/no-danger` plus a CI grep for `dangerouslySetInnerHTML` and `innerHTML`) (`frontend/scripts/check-security.mjs` fails the build on `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval` and `new Function` outside the one allowed place, and has its own tests)
 - [ ] Private bucket; no public object URLs; presigned URLs 60 s

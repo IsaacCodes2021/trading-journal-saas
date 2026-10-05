@@ -201,11 +201,14 @@ function Toolbar({ editor }: { editor: Editor }) {
  */
 export default function NotesEditor({
   html,
+  label = 'Notes',
   onChange,
   onBlur,
   onReady,
 }: {
   html: string
+  /** The textbox's accessible name: "Notes" for a trade, "Day note" for a trading day. */
+  label?: string
   onChange: (html: string) => void
   onBlur: () => void
   /** Hands over the editor once it exists: the starting text as the editor will write it, and the editor itself. */
@@ -217,7 +220,7 @@ export default function NotesEditor({
     // Tiptap would inject a <style> element; the content security policy blocks that, so styles.css has its rules.
     injectCSS: false,
     editorProps: {
-      attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Notes' },
+      attributes: { role: 'textbox', 'aria-multiline': 'true', 'aria-label': label },
     },
     onCreate: ({ editor: e }) => onReady?.(e.isEmpty ? '' : e.getHTML(), e),
     onUpdate: ({ editor: e }) => onChange(e.isEmpty ? '' : e.getHTML()),
