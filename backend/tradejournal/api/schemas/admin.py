@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field, StringConstraints
+from pydantic import ConfigDict, Field, StringConstraints
 
 from .base import ApiModel
 from .session import PlanOut
@@ -82,10 +82,14 @@ class AdminUserDetailOut(ApiModel):
 
 
 class ReasonIn(ApiModel):
+    model_config = ConfigDict(extra="forbid")  # an unknown or misspelled field is an error, not ignored
+
     reason: Reason
 
 
 class OverrideIn(ApiModel):
+    model_config = ConfigDict(extra="forbid")  # an unknown or misspelled field is an error, not ignored
+
     plan: Literal["free", "pro"]
     expires_at: datetime | None = Field(default=None, description="When it ends; none means until revoked")
     reason: Reason
@@ -123,6 +127,8 @@ class InviteListOut(ApiModel):
 
 
 class InviteIn(ApiModel):
+    model_config = ConfigDict(extra="forbid")  # an unknown or misspelled field is an error, not ignored
+
     label: Label = ""
     email: (
         Annotated[
@@ -164,6 +170,8 @@ class GrantCodeListOut(ApiModel):
 
 
 class GrantCodeIn(ApiModel):
+    model_config = ConfigDict(extra="forbid")  # an unknown or misspelled field is an error, not ignored
+
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
     plan: Literal["pro"] = "pro"
     days: int = Field(ge=1, le=3650, description="How long the plan lasts once it is redeemed")
