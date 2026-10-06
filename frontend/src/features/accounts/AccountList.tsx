@@ -132,7 +132,7 @@ export function AccountList({
                       type="button"
                       aria-pressed={selected === account.id}
                       onClick={() => onSelect(account.id)}
-                      className="cursor-pointer border-0 bg-transparent p-0 text-left font-[inherit] text-ink hover:text-accent"
+                      className="-my-2 cursor-pointer border-0 bg-transparent px-0 py-2 text-left font-[inherit] text-ink hover:text-accent"
                     >
                       {account.name}
                     </button>
@@ -175,7 +175,7 @@ export function AccountList({
                 type="button"
                 aria-pressed={selected === account.id}
                 onClick={() => onSelect(account.id)}
-                className="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-ink hover:text-accent"
+                className="-my-2 cursor-pointer border-0 bg-transparent px-0 py-2 font-[inherit] text-ink hover:text-accent"
               >
                 {account.name}
               </button>

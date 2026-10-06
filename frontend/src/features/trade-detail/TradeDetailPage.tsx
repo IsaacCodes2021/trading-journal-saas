@@ -133,7 +133,7 @@ export function TradeDetailPage({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Link to="/trades" search={(prev) => prev} className="no-underline">
+        <Link to="/trades" search={(prev) => prev} className="-my-2 inline-block py-2 no-underline">
           &larr; Trades
         </Link>
         <span className="text-muted">/</span>

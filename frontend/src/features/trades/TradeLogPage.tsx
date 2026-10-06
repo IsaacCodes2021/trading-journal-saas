@@ -62,7 +62,7 @@ function SortHeader({
           type="button"
           onClick={() => column.field && onSort(column.field)}
           className={cx(
-            'cursor-pointer border-0 bg-transparent p-0 font-[inherit] hover:text-ink',
+            '-mx-1.5 -my-2 inline-flex min-h-8 cursor-pointer items-center border-0 bg-transparent px-1.5 py-0 font-[inherit] hover:text-ink',
             active ? 'text-ink' : 'text-muted',
           )}
         >
@@ -181,7 +181,7 @@ export function TradeLogPage({
                         to="/trades/$tradeId"
                         params={{ tradeId: String(trade.id) }}
                         search={(prev) => prev}
-                        className="text-ink no-underline hover:text-accent"
+                        className="-my-2 inline-block py-2 text-ink no-underline hover:text-accent"
                       >
                         {formatTradeTime(trade.entry_at, timeZone)}
                       </Link>
