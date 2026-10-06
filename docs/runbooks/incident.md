@@ -6,7 +6,8 @@ Related: [rotate-secrets.md](rotate-secrets.md) (every secret, how to replace it
 
 ## Status of this runbook
 
-- **Not yet rehearsed.** The design asks for one tabletop run before the beta opens (pick a scenario below, follow the steps without touching production, and write down every step that did not work). Nothing here has been used in a real incident.
+- **Scenario 1 was also read through** (2026-10-06) and found missing its first step, which is now in section 4: check that row-level security is still in force before looking anywhere else.
+- **Walked through on paper once** (2026-10-06, scenario 3 in section 9: an operator account signed in from somewhere you do not recognise), by following each step and reading the code behind it. That found one real gap, now fixed in section 3 (there was no way to end an operator's sessions: the tools refuse to act on an operator, and `remove-operator` does not end them). It also confirmed that the operator check reads the database on every request (so `remove-operator` bites at once on every instance), that **Suspend** ends the person's sessions at once on the instance that did it and within a minute on the others, and that the audit actions and actors the queries in section 4 name are the ones the code writes. **The other four scenarios, and every step against a live system, are still not rehearsed**, and nothing here has been used in a real incident.
 - **Not yet verified against a database:** the "end every session" statement in section 3. Run it inside `BEGIN; ... ROLLBACK;` first and look at the row count before committing.
 - **Open for the owner:** the contact list and the notice templates (section 7) are blank on purpose. The legal wording of the company name is still pending, and notices must use it.
 
@@ -39,7 +40,20 @@ Everything here can be reversed. Prefer the narrowest lever that stops the probl
 
 **Stop a plan code being used:** Codes & audit, Plan codes, **Revoke**. People who already used it keep what they got; take that back per person with a plan override if you must.
 
-**Take an operator out:** as the schema owner, `python -m tradejournal.pg.users remove-operator --email <address>`. Their next request to the operator tools is refused. Do this first if an operator account may be taken over; then also end that person's sessions.
+**Take an operator out:** as the schema owner, `python -m tradejournal.pg.users remove-operator --email <address>`. Their next request to the operator tools is refused, on every instance (the check reads the database each time; it is not cached). Do this **first** if an operator account may be taken over. It does **not** end their sessions or stop them using the account as an ordinary person, and the operator tools **refuse to act on an operator's account**, so the order matters:
+
+1. `remove-operator`: the account is now an ordinary one.
+2. If another operator exists, use the tools on it: **Suspend** (which ends its sessions at once on that instance, and within a minute on the others).
+3. If you are the only operator, or the tools are not reachable, do it as the schema owner:
+
+```sql
+BEGIN;
+UPDATE users SET status = 'suspended' WHERE id = '<account id>';
+UPDATE sessions SET revoked_at = now() WHERE user_id = '<account id>' AND revoked_at IS NULL;
+-- each should say 1 row for the account, and the second the number of sessions you expect; then COMMIT; (or ROLLBACK;)
+```
+
+A suspended account cannot sign in again (the attempt is refused and recorded as `login_failed`). A change made by hand does not write an audit row, so **write what you did in the incident note**: it is the record. Restore access with **Unsuspend** in the operator tools once the person has secured their identity-provider account. (This statement is unrun, like the one below: try it inside `BEGIN; ... ROLLBACK;` first.)
 
 **End every session** (the whole product is signed out; people sign in again through the identity provider, which is quick and does not lose data). As the schema owner (`TJ_OWNER_URL`), inside a transaction you can check first:
 
@@ -75,6 +89,21 @@ FROM audit_log WHERE action IN ('login_failed', 'grant_refused') AND created_at 
 -- everything about one account
 SELECT id, created_at, actor, action, meta FROM audit_log WHERE user_id = '<account id>' ORDER BY id DESC LIMIT 200;
 ```
+
+**If a person may be seeing someone else's data** (scenario 1), first check that the database's protection is still in force, as the schema owner. Both statements are unrun; they only read the catalog:
+
+```sql
+-- tables that are NOT protected by row-level security: only the system tables should appear
+-- (the list is SYSTEM_TABLES in backend/tests/pg/test_pg_tenancy.py; a tenant table here is the finding)
+SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'public' AND c.relkind = 'r' AND NOT (c.relrowsecurity AND c.relforcerowsecurity) ORDER BY 1;
+
+-- no role the application uses may skip it: every row should say false and false
+SELECT rolname, rolsuper, rolbypassrls FROM pg_roles
+WHERE rolname IN ('tj_owner', 'app_rw', 'app_login', 'app_webhook', 'app_sweep', 'app_admin');
+```
+
+If either answer is wrong, treat it as **Critical** and stop the service. If both are right, the cause is in the code (a route that names a row, or a cache), not in the database's rules: ask the person for the reference the page showed and find the request in the log (below), and run the generated two-tenant suite (`tests/pg/test_pg_api_two_tenants.py`) against a copy with the failing route's data. Never look at either person's trades to "see what happened": section 4 explains why.
 
 What to look for: an operator action you did not take (only you should be an operator; `operator_granted` should appear only with `cli:owner` as the actor); a burst of `login_failed`; sessions from addresses (the log keeps only a keyed hash of the address, so you can tell two events came from the same place but not where it is); many `grant_refused` from one account (someone guessing codes; the limit is 10 an hour per person).
 
