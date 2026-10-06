@@ -109,3 +109,21 @@ def test_response_schemas_list_defaulted_fields_as_required():
     # The pairing with `openapi-typescript --default-non-nullable false` (doc 07 section 2).
     problem = spec()["components"]["schemas"]["Problem"]
     assert {"type", "detail", "errors"} <= set(problem["required"])
+
+
+def test_every_json_request_body_refuses_fields_it_does_not_know():
+    """A misspelled or invented field is a 422, not a silent no-op (an optional field that is mistyped would otherwise be
+    ignored, and a plan override would lose its end date). Multipart bodies are forms, checked by their own routes."""
+    document = spec()
+    schemas = document["components"]["schemas"]
+    open_bodies = []
+    for path, operations in document["paths"].items():
+        for method, operation in operations.items():
+            body = operation.get("requestBody", {}).get("content", {}).get("application/json")
+            if body is None:
+                continue
+            ref = body["schema"].get("$ref")
+            assert ref is not None, f"{method.upper()} {path} has an inline request body: give it a named model"
+            if schemas[ref.split("/")[-1]].get("additionalProperties") is not False:
+                open_bodies.append(f"{method.upper()} {path}")
+    assert not open_bodies, f"these accept unknown fields: {open_bodies}"

@@ -1305,6 +1305,7 @@
         "type": "object"
       },
       "DeletionRequest": {
+        "additionalProperties": false,
         "properties": {
           "email": {
             "description": "The account's own email address, typed out: a guard against a stray call",
@@ -1571,6 +1572,7 @@
         "type": "object"
       },
       "GrantCodeIn": {
+        "additionalProperties": false,
         "properties": {
           "days": {
             "description": "How long the plan lasts once it is redeemed",
@@ -1918,6 +1920,7 @@
         "type": "object"
       },
       "InviteIn": {
+        "additionalProperties": false,
         "properties": {
           "days": {
             "anyOf": [
@@ -2314,6 +2317,7 @@
         "type": "object"
       },
       "OverrideIn": {
+        "additionalProperties": false,
         "properties": {
           "expires_at": {
             "anyOf": [
@@ -2692,6 +2696,7 @@
         "type": "object"
       },
       "ReasonIn": {
+        "additionalProperties": false,
         "properties": {
           "reason": {
             "maxLength": 500,
@@ -2707,6 +2712,7 @@
         "type": "object"
       },
       "RedeemRequest": {
+        "additionalProperties": false,
         "properties": {
           "code": {
             "description": "The plan code, as it was given (case and spaces do not matter)",
