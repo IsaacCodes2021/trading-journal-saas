@@ -79,7 +79,7 @@ function DayTrades({ trades, total, timeZone }: { trades: TradeRow[]; total: num
                     to="/trades/$tradeId"
                     params={{ tradeId: String(trade.id) }}
                     search={(prev) => prev}
-                    className="text-ink no-underline hover:text-accent"
+                    className="-my-2 inline-block py-2 text-ink no-underline hover:text-accent"
                   >
                     {formatClock(trade.entry_at, timeZone)}
                   </Link>
@@ -144,7 +144,7 @@ function DayView({
         summary="The day is the date range"
       />
       <Card className="flex flex-wrap items-center gap-2 px-4 py-3" role="navigation" aria-label="Day">
-        <Link to="/calendar" search={{ ...filters, month }} className="mr-2 text-[13px]">
+        <Link to="/calendar" search={{ ...filters, month }} className="-my-2 mr-2 inline-block py-2 text-[13px]">
           &lsaquo; Calendar
         </Link>
         {earlier ? (

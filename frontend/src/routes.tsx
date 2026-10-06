@@ -81,7 +81,7 @@ function Root() {
       <AppShell
         focused
         action={
-          <Link to="/" className="text-muted">
+          <Link to="/" className="-my-2 inline-block py-2 text-muted">
             Skip setup for now
           </Link>
         }

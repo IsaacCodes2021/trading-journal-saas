@@ -57,7 +57,11 @@ function GroupLabel({ group, by, filters }: { group: ReportGroup; by: ReportBy; 
   return (
     <>
       {by === 'symbol' ? (
-        <Link to="/trades" search={{ ...filters, symbol_roots: [group.key] }}>
+        <Link
+          to="/trades"
+          search={{ ...filters, symbol_roots: [group.key] }}
+          className="-mx-2 -my-2 inline-block px-2 py-2"
+        >
           {group.label}
         </Link>
       ) : (
