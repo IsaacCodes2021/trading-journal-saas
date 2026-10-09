@@ -33,3 +33,21 @@ services:
       # A new person needs an invitation code. "open" lets anyone sign up.
       - key: TJ_SIGNUP_MODE
         value: invite
+
+  # The daily deletion sweep: finishes account deletions (rows, picture files, the person at Kinde). It runs the same image as
+  # the web service with a different command, once a day at 11:00 UTC (4 in the morning on the US west coast). A cron job is
+  # billed only for the seconds it runs, with a floor of $1 a month (render.com/docs/cronjobs; check the pricing page).
+  #
+  # Its settings are not in this file (Render asks for `sync: false` values only when a Blueprint is first created): add them
+  # in the job's Environment page. docs/runbooks/first-deploy.md, "Adding the deletion sweep", builds the file to paste:
+  #   TJ_SWEEP_DATABASE_URL                                   the app_sweep role's address (private host)
+  #   TJ_KINDE_DOMAIN, TJ_KINDE_M2M_CLIENT_ID, TJ_KINDE_M2M_CLIENT_SECRET    the machine-to-machine Kinde application
+  #   TJ_S3_ENDPOINT, TJ_S3_BUCKET, TJ_S3_ACCESS_KEY_ID, TJ_S3_SECRET_ACCESS_KEY    the same bucket as the web service
+  - type: cron
+    name: roundturn-sweep
+    runtime: docker
+    region: oregon
+    schedule: "0 11 * * *"
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerCommand: python -m tradejournal.pg.sweep deletions --apply

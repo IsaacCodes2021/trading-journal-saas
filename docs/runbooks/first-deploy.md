@@ -103,9 +103,37 @@ A **private** R2 bucket (`roundturn-screenshots`, public access and the r2.dev a
 
 **Checked from outside after the switch** (a script, not a person): the sign-in route redirects to Kinde with the callback `https://app.roundturn.app/auth/callback`; a request carrying a **made-up** `CF-Connecting-IP` is refused with a 403 by the edge and never reaches the app, so that header cannot be forged to dodge a limit; and 40 plain requests to the sign-in start route get 302 for about the first 30 and then 429 with a `Retry-After`, so the per-address limit is in force. **Not distinguishable from one machine:** that the app's key is the visitor's real address rather than a shared proxy address; the header is the one Render's documentation names for that, and a second visitor from another network would show it.
 
+## Making yourself the operator (done 2026-10-09)
+
+1. Kinde: turn on multi-factor authentication for the environment (Settings, Authentication), authenticator app.
+2. Sign in once on `https://app.roundturn.app` so the account exists; the step-up address `/auth/login?stepup=true` asks Kinde for a second factor (`acr_values=mfa`, `max_age=0`) and enrols you if you have none.
+3. As the schema owner (`TJ_OWNER_URL` loaded from `.env.hosted`): `python -m tradejournal.pg.users make-operator --email <your sign-up email>`.
+4. Add `TJ_ADMIN_DATABASE_URL` (the commented line in `.env.hosted`; it was copied to the clipboard without being displayed) to the web service and redeploy.
+5. Result seen: the account menu shows the operator tools, `/admin` shows the "Operator" badge, "Two-step verification current", and a list of one account with its plan and counters (no trades, notes or screenshots).
+
+## Adding the deletion sweep
+
+A person who deletes their account is removed seven days later by this job; until it has run once, nothing is removed, so a missing job is a privacy failure, not a chore. `render.yaml` declares it as a Render **cron job** (`roundturn-sweep`, same image, command `python -m tradejournal.pg.sweep deletions --apply`, daily at 11:00 UTC). It is billed by the second while it runs with a floor of $1 a month (*check* the pricing page). Merging the Blueprint change creates it; **it has no settings yet**, so its first run fails harmlessly until you add them.
+
+1. In Render, open the web service's **Environment** page and use **Export** to download its variables as a `.env` file. It holds every secret of the web service: it is only used in step 2 and deleted straight afterwards.
+2. In PowerShell, in the `backend` folder (use the exported file's real path; `dir $env:USERPROFILE\Downloads\*.env` finds it). The last line prints **only the names** of what is in the file:
+
+```powershell
+$hosted = Get-Content .env.hosted | Where-Object { $_ -match '^# TJ_SWEEP_DATABASE_URL=' } | ForEach-Object { $_ -replace '^# ','' }
+$kinde = Get-Content .env.kinde | Where-Object { $_ -match '^KINDE_(DOMAIN|M2M_CLIENT_ID|M2M_CLIENT_SECRET)=' } | ForEach-Object { "TJ_$_" }
+$s3 = Get-Content $env:USERPROFILE\Downloads\roundturn.env | Where-Object { $_ -match '^TJ_S3_' }
+(@($hosted) + @($kinde) + @($s3)) | Set-Content .env.sweep-paste
+Get-Content .env.sweep-paste | ForEach-Object { ($_ -split '=')[0] }
+```
+
+   Expected names: `TJ_SWEEP_DATABASE_URL`, `TJ_KINDE_DOMAIN`, `TJ_KINDE_M2M_CLIENT_ID`, `TJ_KINDE_M2M_CLIENT_SECRET`, `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY` (eight). Open the file in Notepad, copy it all, and paste it into the **cron job's** Environment page (Edit, then paste, then save).
+3. Delete both files: `Remove-Item .env.sweep-paste, $env:USERPROFILE\Downloads\roundturn.env`.
+4. On the cron job's page, **Trigger Run**. The log should end with `applied; due 0, deleted 0, ...` (nothing is due). That is the one run that must be seen; after it the schedule takes over.
+
+The Kinde machine-to-machine credentials were checked read-only on 2026-10-09 (a token is issued, and a lookup of an id that cannot exist answers 400, which the code reads as "gone"); the delete permission was proven on a live tenant in spike S1b and has not been exercised since.
+
 ## What is deliberately not here yet
 
-- **Operator tools** (deploy.md section 7, step 2) and **the deletion sweep** (section 6).
 - **A separate Kinde environment for production.** This reuses the spike's application, which is fine for you alone; make a clean one before real users.
 - **Releases.** A merge to `main` deploys by itself. A release that adds a migration must be migrated first (`provision_hosted --migrate` is safe to run again, or `python -m tradejournal.pg.migrate` with `TJ_OWNER_URL`); until it is, the new instance stays out of traffic and the old one keeps serving, because `/readyz` stays red.
 - **The restore drill** ([restore.md](restore.md)). Do it before anyone else's data is in the database.
