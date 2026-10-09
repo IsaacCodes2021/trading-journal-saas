@@ -24,7 +24,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [x] Audit log events, structured logs with a scrubber, request ids shown on server errors
 - [ ] Kinde configured as the design says: email verification required, breached-password check, MFA available, brute-force protection, exact callback and logout URLs **(you)**
 - [ ] Separate credentials per environment; the schema owner's password used only by the migration step **(host)**
-- [ ] HTTPS only with HSTS, Cloudflare TLS "Full (strict)" **(host)**: HTTPS and the HSTS header are seen on the deployed site (2026-10-09); Cloudflare is not in front of it yet
+- [x] HTTPS only with HSTS **(host)**: seen on `https://app.roundturn.app` (2026-10-09), certificate by Google Trust Services via Render; the design's own Cloudflare proxy and "Full (strict)" are not used (DNS only, [first-deploy.md](first-deploy.md))
 - [ ] Private bucket proven with a real upload, a view and a deletion **(you)**: upload and view reported working on the deployed site (2026-10-09), deletion not yet reported ([deploy.md](deploy.md) section 2)
 - [ ] A second copy of the screenshot bucket, because R2 has no versioning **(me, then you for a second bucket)**: [deploy.md](deploy.md) section 2, step 4
 - [ ] Two-factor authentication on GitHub, the host, Cloudflare, the registrar, Kinde and the payment provider **(you)**

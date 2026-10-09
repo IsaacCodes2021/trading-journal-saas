@@ -1,6 +1,6 @@
 # First deploy: from nothing to a website you can sign in to
 
-The shortest path to a working Roundturn on the internet, with who does each step. It uses Render for the database and the web service and the Kinde application you already have. **Screenshots (the Cloudflare bucket), the custom address, the operator tools and the deletion sweep come after**, and the site works without them (screenshots answer "not set up" until the bucket exists).
+The shortest path to a working Roundturn on the internet, with who does each step. It uses Render for the database and the web service and the Kinde application you already have. **Screenshots (the Cloudflare bucket), the custom address, the operator tools and the deletion sweep come after**, and the site works without them (screenshots answer "not set up" until the bucket exists). Screenshots and the custom address were added the same day (2026-10-09), and the sections at the end say how.
 
 [deploy.md](deploy.md) is the reference behind this (every setting, the order of a normal release). This file is only the first pass. **It has been run once, for real (2026-10-09)**, from an empty Render account to a signed-in journal whose data was still there after signing out and in again; the notes below record what the screens actually looked like and where the written steps were wrong or unclear.
 
@@ -88,10 +88,23 @@ Close the window afterwards, or clear the variables, so the owner's address is n
 - **A plain request to `/` is a 404 by design.** The built app is served only to requests that ask for a web page (`Accept: text/html`), as a browser does and as CI's image check does. A bare `curl` and Render's own port probe (`HEAD /`, which shows in the log as a 404) therefore see a 404. Use `curl -H "Accept: text/html"` to check the page, and `/healthz` and `/readyz` for health.
 - **Not checked in that run:** the cost on Render's screen (the guide's figure is still the estimate), memory under a real import, the second-browser and "sign out everywhere else" checks (not reported), and every step that needs the bucket.
 
+## Adding screenshots (done 2026-10-09)
+
+A **private** R2 bucket (`roundturn-screenshots`, public access and the r2.dev address left off), an **account** API token with *Object Read & Write* on **that bucket only** (not the broad Admin token that may already exist), and four settings on the service: `TJ_S3_ENDPOINT` (the account's S3 address, ending at `.com`), `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY`. The access key and secret are shown **once**, on the page after the token is created: copy each straight into Render, and if the page is closed first, delete the token and make a new one. The owner reported that a screenshot uploaded and showed. **R2 has no versioning**, so there is no history to restore from: see [deploy.md](deploy.md) section 2, step 4.
+
+## Adding the address `app.roundturn.app` (done 2026-10-09)
+
+1. Render: the service's **Settings, Custom Domains, Add Custom Domain**, `app.roundturn.app`. It asks for one record.
+2. Cloudflare (zone `roundturn.app`, DNS): `CNAME`, name `app`, target `roundturn.onrender.com`, **DNS only** (grey cloud). No `AAAA` record. Back in Render, **Verify**; it verified and issued a certificate within minutes (Google Trust Services).
+3. Kinde: add `https://app.roundturn.app/auth/callback` and `https://app.roundturn.app/invite`; keep the old ones until the switch has been seen to work.
+4. Render, Environment: `TJ_APP_ORIGIN` = `https://app.roundturn.app`, and add `TJ_CLIENT_IP_HEADER` = `CF-Connecting-IP`. Save and deploy, then sign in again on the new address (the cookie belongs to the host).
+
+**Why DNS only, not the orange cloud:** Render's own edge is already Cloudflare, and it is that edge which sets `CF-Connecting-IP` to the visitor's real address. A second Cloudflare in front would probably make the app see the outer Cloudflare's address instead (not tested), and Render's guide asks for DNS only while it verifies the domain and issues its certificate. So the design's own Cloudflare rate-limit rule (deploy.md section 5) is not in use; Render's edge and the server's own limits are.
+
+**Checked from outside after the switch** (a script, not a person): the sign-in route redirects to Kinde with the callback `https://app.roundturn.app/auth/callback`; a request carrying a **made-up** `CF-Connecting-IP` is refused with a 403 by the edge and never reaches the app, so that header cannot be forged to dodge a limit; and 40 plain requests to the sign-in start route get 302 for about the first 30 and then 429 with a `Retry-After`, so the per-address limit is in force. **Not distinguishable from one machine:** that the app's key is the visitor's real address rather than a shared proxy address; the header is the one Render's documentation names for that, and a second visitor from another network would show it.
+
 ## What is deliberately not here yet
 
-- **Screenshots.** Needs the Cloudflare R2 bucket: [deploy.md](deploy.md) section 2. Add the four `TJ_S3_*` settings and redeploy.
-- **The address `app.roundturn.app`.** A custom domain on Render plus a DNS record on Cloudflare; then change `TJ_APP_ORIGIN` and the two Kinde addresses to match, and set `TJ_CLIENT_IP_HEADER=CF-Connecting-IP` once every request really passes through Cloudflare. Until then every visitor looks like Render's proxy to the rate limits, which is harmless for one person and wrong for many.
 - **Operator tools** (deploy.md section 7, step 2) and **the deletion sweep** (section 6).
 - **A separate Kinde environment for production.** This reuses the spike's application, which is fine for you alone; make a clean one before real users.
 - **Releases.** A merge to `main` deploys by itself. A release that adds a migration must be migrated first (`provision_hosted --migrate` is safe to run again, or `python -m tradejournal.pg.migrate` with `TJ_OWNER_URL`); until it is, the new instance stays out of traffic and the old one keeps serving, because `/readyz` stays red.
