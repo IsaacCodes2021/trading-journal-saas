@@ -1,6 +1,6 @@
 # Putting Roundturn on a host
 
-The first deploy, in order, with every setting the server reads and what to check afterwards. **Nothing here has been run on a host yet**: the host (spike S4) is not set up, so this is written from the code (`api/config.py`, `Dockerfile`, the `pg/` command line tools) and the design (docs 02, 03 and 04), and every step that depends on a provider's screens is marked *check*. When the first deploy is done, correct this file from what actually happened, and tick the launch gate it satisfies.
+The first deploy, in order, with every setting the server reads and what to check afterwards. **Sections 1, 3 and 4 were followed for real on 2026-10-09** (the first deploy on Render, see [first-deploy.md](first-deploy.md), "What the first real run showed"); sections 2 (the bucket), 5 (Cloudflare), 6 (the sweep), 7 steps 2 to 6 and 8 have not been run. It is written from the code (`api/config.py`, `Dockerfile`, the `pg/` command line tools) and the design (docs 02, 03 and 04), and every step that depends on a provider's screens is marked *check*.
 
 **Doing it for the first time? Follow [first-deploy.md](first-deploy.md)**: the same steps in order, with who does each, and the one command (`python -m tradejournal.pg.provision_hosted`) that makes the roles and builds the tables.
 

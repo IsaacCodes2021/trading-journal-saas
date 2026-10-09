@@ -10,7 +10,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 
 ### The product works for a person
 
-- [x] Sign-in flow with every check (state, nonce, PKCE, signature, issuer, audience, expiry, verified email), invite-only sign-up, sessions you can list and end, sign out **(real)**: the flow is tested against a fake provider; one run on the real Kinde tenant is still to do **(you)**, steps in [try-real-sign-in.md](try-real-sign-in.md)
+- [x] Sign-in flow with every check (state, nonce, PKCE, signature, issuer, audience, expiry, verified email), invite-only sign-up, sessions you can list and end, sign out **(proven 2026-10-09)**: tested against a fake provider, then run for real on the deployed site (an invitation, sign-up at Kinde, sign-in, sign-out and back in; the owner reported that everything worked and the data was still there)
 - [x] Import (preview, confirm, history, undo), dashboard, trade log, trade page with notes, tags and screenshots, calendar and day notes, reports, prop accounts with fees, rules and ledger
 - [x] Export of everything and deletion of the account with a 7-day grace, including the picture files; the sweep that finishes deletions
 - [x] First-run setup (`/welcome`), plans and plan codes, the operator's tools (`/admin`)
@@ -24,7 +24,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [x] Audit log events, structured logs with a scrubber, request ids shown on server errors
 - [ ] Kinde configured as the design says: email verification required, breached-password check, MFA available, brute-force protection, exact callback and logout URLs **(you)**
 - [ ] Separate credentials per environment; the schema owner's password used only by the migration step **(host)**
-- [ ] HTTPS only with HSTS, Cloudflare TLS "Full (strict)" **(host)**
+- [ ] HTTPS only with HSTS, Cloudflare TLS "Full (strict)" **(host)**: HTTPS and the HSTS header are seen on the deployed site (2026-10-09); Cloudflare is not in front of it yet
 - [ ] Private bucket proven with a real upload, a view and a deletion **(you)** (the code is built and tested against a fake: [deploy.md](deploy.md) section 2)
 - [ ] Two-factor authentication on GitHub, the host, Cloudflare, the registrar, Kinde and the payment provider **(you)**
 - [ ] The operator account made, with two-step verification on Kinde first **(you)**
@@ -38,7 +38,8 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 
 ### Operations
 
-- [ ] One image deployed to a staging host and then production, from the same image **(you, host)**, steps in [deploy.md](deploy.md)
+- [x] One image deployed to a host (Render, from `main`, 2026-10-09), `/readyz` ready, sign-in working, steps in [first-deploy.md](first-deploy.md)
+- [ ] A staging and a production environment from the same image (there is one environment today) **(you, host)**, steps in [deploy.md](deploy.md)
 - [ ] Alerts that have been seen to fire in a test: a 5xx spike, a failed readiness check, a backup older than 26 hours **(host)**
 - [ ] An error tracker with scrubbing checked against a real error **(you)** (needs an account and a dependency)
 - [ ] The incident runbook rehearsed once, as a tabletop **(me, with you)**; the contact list and notice templates filled in, which needs the company's exact legal name **(you)**
