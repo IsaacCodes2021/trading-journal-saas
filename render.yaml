@@ -28,7 +28,7 @@ services:
     autoDeployTrigger: commit # deploys every commit to main. "checksPass" would wait on the unrelated Workers Builds check, which is red
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    healthCheckPath: /healthz
+    healthCheckPath: /readyz # not /healthz: a new instance whose database is missing a migration stays out of traffic and the old one keeps serving
     envVars:
       # A new person needs an invitation code. "open" lets anyone sign up.
       - key: TJ_SIGNUP_MODE
