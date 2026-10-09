@@ -2,7 +2,7 @@
 
 The shortest path to a working Roundturn on the internet, with who does each step. It uses Render for the database and the web service and the Kinde application you already have. **Screenshots (the Cloudflare bucket), the custom address, the operator tools and the deletion sweep come after**, and the site works without them (screenshots answer "not set up" until the bucket exists).
 
-[deploy.md](deploy.md) is the reference behind this (every setting, the order of a normal release). This file is only the first pass. **Nothing here has run on Render yet**: the parts that depend on Render's and Kinde's screens are marked *check*; the parts that are ours (the database setup, the settings file, the server starting from it) have a test that does them against a stand-in for Render's limited administrator account.
+[deploy.md](deploy.md) is the reference behind this (every setting, the order of a normal release). This file is only the first pass. **It has been run once, for real (2026-10-09)**, from an empty Render account to a signed-in journal whose data was still there after signing out and in again; the notes below record what the screens actually looked like and where the written steps were wrong or unclear.
 
 Run the commands in PowerShell, in the `backend` folder of the repository. Never paste a password, the `.env.*` files, or an address with a password in it into a chat or a commit. `.env.*` files are ignored by git.
 
@@ -78,6 +78,15 @@ Get-Content .env.hosted | ForEach-Object { if ($_ -match '^#?\s*(TJ_[A-Z_]+)=(.*
 (The first command loads the settings into this window, including the owner's address; use your own email.) It prints a code like `TJ-7KQ2-M9XA`, valid for one use. Open `https://roundturn.onrender.com/invite?code=TJ-7KQ2-M9XA`, press **Continue to sign up**, sign in at Kinde, and you land in an empty journal. Then work through the checklist in [try-real-sign-in.md](try-real-sign-in.md), step 5, on the real address: import `backend/tests/fixtures/01-05-2024-performance.csv`, add a note and a tag, download your data, open a second browser, sign out.
 
 Close the window afterwards, or clear the variables, so the owner's address is not left in your environment.
+
+## What the first real run showed (2026-10-09)
+
+- **It worked end to end**: database, the setup command (roles, owner, 13 migrations), the Blueprint, the pasted settings, `/healthz` 200, `/readyz` 200 with the database "ok", an invitation, sign-up at Kinde, an empty journal, data kept across a sign-out and sign-in. The sign-in route sent the browser to Kinde with the callback `https://roundturn.onrender.com/auth/callback`, and the response carried the strict security headers (HSTS, a content policy with no inline script, no framing, `nosniff`).
+- **The service's address was the one in the guide** (`https://roundturn.onrender.com`).
+- **Render's screens.** The Blueprint form asks for a *Blueprint Name* (any label; leave the path empty) and accepted the plan name `0.5c-512mb` as written. The environment variables are edited through the **Edit** button on the Environment page; The first deploy ended **Failed** after about a minute, as predicted (no settings), and the deploy with the settings went **Live**.
+- **Kinde's screens.** The right application is the one of type "Back-end web" (not the machine-to-machine one). The environment is labelled "Production, Not live"; that label does not stop sign-in.
+- **A plain request to `/` is a 404 by design.** The built app is served only to requests that ask for a web page (`Accept: text/html`), as a browser does and as CI's image check does. A bare `curl` and Render's own port probe (`HEAD /`, which shows in the log as a 404) therefore see a 404. Use `curl -H "Accept: text/html"` to check the page, and `/healthz` and `/readyz` for health.
+- **Not checked in that run:** the cost on Render's screen (the guide's figure is still the estimate), memory under a real import, the second-browser and "sign out everywhere else" checks (not reported), and every step that needs the bucket.
 
 ## What is deliberately not here yet
 

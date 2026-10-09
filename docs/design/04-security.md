@@ -74,7 +74,7 @@ Items marked **GATE** must be done before any real user data is stored. Others m
 
 ### Authentication and sessions
 - [ ] **GATE** Hosted IdP configured: email verification required, breached-password check on, MFA available, brute-force protection on
-- [ ] **GATE** Callback validates `state`, `nonce`, PKCE, ID-token `iss/aud/exp`; requires `email_verified`; exact redirect-URI allow-list (**the code is built and tested** (`auth/flow.py`, `auth/kinde.py`, `tests/pg/test_pg_auth_flow.py`); what is left is the owner's: the exact callback and logout URLs in the Kinde application, checked in a real sign-in run, `docs/runbooks/try-real-sign-in.md`)
+- [x] **GATE** Callback validates `state`, `nonce`, PKCE, ID-token `iss/aud/exp`; requires `email_verified`; exact redirect-URI allow-list (**the code is built and tested** (`auth/flow.py`, `auth/kinde.py`, `tests/pg/test_pg_auth_flow.py`) **and was run for real on 2026-10-09**: the exact callback and logout URLs are set in the Kinde application and a real invited sign-up and sign-in worked on the deployed site; the sign-in redirect carried the exact callback address)
 - [x] **GATE** Cookie flags and `__Host-` prefix; session rotation; server-side revocation; idle and absolute timeouts (2026-10-04; section 4.1 and `tests/pg/test_pg_sessions.py`)
 - [x] **GATE** CSRF: `Origin` / `Sec-Fetch-Site` check and `X-CSRF-Token` enforced on every unsafe route; no CORS middleware (tests generated from the OpenAPI document) (2026-10-03; `tests/test_api_gates.py`, which now also runs for the operator routes)
 - [ ] Re-authentication for email change, MFA change and account deletion (**account deletion built 2026-10-04**: a sign-in within ten minutes, checked in the callback; email and MFA changes happen at the IdP)
