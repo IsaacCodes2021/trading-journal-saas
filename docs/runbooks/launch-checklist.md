@@ -28,7 +28,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] Private bucket proven with a real upload, a view and a deletion **(you)**: upload and view reported working on the deployed site (2026-10-09), deletion not yet reported ([deploy.md](deploy.md) section 2)
 - [ ] A second copy of the screenshot bucket, because R2 has no versioning **(me, then you for a second bucket)**: [deploy.md](deploy.md) section 2, step 4
 - [ ] Two-factor authentication on GitHub, the host, Cloudflare, the registrar, Kinde and the payment provider **(you)**
-- [ ] The operator account made, with two-step verification on Kinde first **(you)**
+- [x] The operator account made, with two-step verification on Kinde first (2026-10-09; `/admin` seen working with "Two-step verification current")
 - [ ] A short security review of the deployed system, including `/admin` **(me, after the host exists)**; a penetration test if the budget allows **(you)**
 
 ### Data safety
