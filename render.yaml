@@ -1,0 +1,35 @@
+# Render Blueprint for the web service (the API and the built front end, one container).
+#
+# The database is NOT here on purpose. Roundturn's six database roles are made by hand once, with
+# `python -m tradejournal.pg.provision_hosted`, which needs the database to exist first; a Blueprint that created the
+# database and the service together would start the service before the roles and the migrations are there.
+#
+# The secrets are not here either, and are not asked for at creation: the first deploy starts without them and stops
+# ("refusing to start unconfigured"), and you then paste them all at once (Environment, "Add from .env").
+# docs/runbooks/first-deploy.md has the whole order and builds the file to paste. The settings it holds:
+#
+#   TJ_APP_ORIGIN                     where the browser reaches the app: https://<host>, no slash, no path
+#   TJ_SESSION_SECRET                 64 hexadecimal characters, fixed across deploys
+#   TJ_DATABASE_URL                   the app_rw role's address (the private one, inside Render)
+#   TJ_LOGIN_DATABASE_URL             the app_login role's address
+#   TJ_KINDE_DOMAIN, TJ_KINDE_CLIENT_ID, TJ_KINDE_CLIENT_SECRET     the Kinde web application (all three, or none)
+#   TJ_S3_ENDPOINT, TJ_S3_BUCKET, TJ_S3_ACCESS_KEY_ID, TJ_S3_SECRET_ACCESS_KEY    the private screenshot bucket (all four, or none)
+#
+# Plan names and fields were taken from Render's Blueprint reference (render.com/docs/blueprint-spec); if the form
+# rejects one, change it in the dashboard and fix it here.
+
+services:
+  - type: web
+    name: roundturn
+    runtime: docker
+    region: oregon # keep in the same region as the database, so the private address works
+    plan: 0.5c-512mb # the smallest; watch memory after the first big import and move up if it climbs (design doc 02, "Sizing")
+    branch: main
+    autoDeployTrigger: commit # deploys every commit to main. "checksPass" would wait on the unrelated Workers Builds check, which is red
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      # A new person needs an invitation code. "open" lets anyone sign up.
+      - key: TJ_SIGNUP_MODE
+        value: invite
