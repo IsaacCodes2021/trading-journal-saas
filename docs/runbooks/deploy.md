@@ -66,7 +66,7 @@ Build from the repository root: `docker build -f backend/Dockerfile -t roundturn
 | `TJ_KINDE_DOMAIN`, `TJ_KINDE_CLIENT_ID`, `TJ_KINDE_CLIENT_SECRET` | from the Kinde web application (all three, or sign-in answers 503) | the last one |
 | `TJ_SIGNUP_MODE` | `invite` for the private beta (the default) | no |
 | `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY` | from section 2 | the last two |
-| `TJ_CLIENT_IP_HEADER` | `CF-Connecting-IP` **only** when every request really comes through Cloudflare; otherwise leave it out | no |
+| `TJ_CLIENT_IP_HEADER` | `CF-Connecting-IP` **only** when every request really comes through Cloudflare; otherwise leave it out. On Render it is set (2026-10-09): Render's edge is Cloudflare and sets it, and a request with a forged value is refused there | no |
 | `TJ_APP_VERSION` | the commit the image was built from, so a stale browser tab can tell it is stale | no |
 | `TJ_MAX_CONCURRENT_IMPORTS` | leave out (the default is 2 per process) | no |
 | `TJ_RATE_LIMITS` | **leave out.** `off` is an emergency switch | no |
@@ -78,6 +78,8 @@ Never put any of these in the repository, in a chat or in a log. If one leaks, f
 The server stores nothing on its own disk. It can run as several instances: sessions and the audit log are in Postgres, and the bucket is shared. (Rate limits are counted per process, on purpose: two instances give a person twice the allowance.)
 
 ## 5. In front of it: Cloudflare
+
+**As deployed (2026-10-09, [first-deploy.md](first-deploy.md)):** a `CNAME` for `app` to the service's `onrender.com` address, **DNS only** (grey cloud), because Render's own edge is Cloudflare and supplies the visitor's real address in `CF-Connecting-IP` (`TJ_CLIENT_IP_HEADER`); a second Cloudflare in front would probably hide it (not tested), and Render's guide asks for the DNS-only record while it verifies the domain and issues its certificate. The list below is the original plan with the orange cloud; none of it is in use, and the rate-limit rule needs a decision (Render's edge plus the server's own limits are what runs).
 
 - A DNS record for the app's host, proxied (orange cloud), pointing at the host.
 - **A rate-limit rule** on the sign-in routes and on `POST /api/v1/*` (the free plan allows one; the marketing site's form already uses it, so this needs a plan decision or a combined expression). The server has its own limits underneath; this one stops floods before they reach it.
