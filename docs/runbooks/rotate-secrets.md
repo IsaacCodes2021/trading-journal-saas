@@ -79,7 +79,7 @@ The token is limited to the one bucket, so a leak is limited to the pictures (ne
 2. Put the new key id and secret in `TJ_S3_ACCESS_KEY_ID` and `TJ_S3_SECRET_ACCESS_KEY` for **both** the web service and the sweep job, then restart the web service.
 3. Check with your own account that a picture still shows and a new one uploads; the logs say "the file store was unavailable" (type only, never the address or the answer) if the new token is wrong.
 4. Revoke the first token in Cloudflare.
-5. If the old token leaked, also look in the bucket for objects you did not expect, and use the bucket's versions (a bucket with versioning on keeps overwritten and deleted files) to put back what was changed. Everything under `u/<person's id>/` belongs to one person.
+5. If the old token leaked, also look in the bucket for objects you did not expect, and note that **R2 keeps no versions** (there is no way to put back a changed or deleted picture until a second copy of the bucket exists; see [deploy.md](deploy.md) section 2, step 4), so write down what you find for the affected people. Everything under `u/<person's id>/` belongs to one person.
 
 ## Database role passwords
 

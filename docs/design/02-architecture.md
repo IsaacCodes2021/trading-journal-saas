@@ -231,7 +231,7 @@ Do not add third-party session-replay or ad analytics inside the app (it renders
 ## 9. Backup and disaster recovery
 
 - **Postgres:** provider PITR (RPO about 5 minutes within the retention window) plus a **nightly logical dump** to a *separate* R2 bucket in a different account/credentials, 30-day lifecycle, so one stolen credential or one mistaken `DROP` cannot take out both the data and its backups.
-- **R2:** enable object versioning on the screenshots bucket and a 30-day lifecycle on noncurrent versions; orphan cleanup never hard-deletes (see doc 04).
+- **R2:** ~~enable object versioning on the screenshots bucket and a 30-day lifecycle on noncurrent versions~~ **R2 has no versioning** (Cloudflare's S3 compatibility page lists `PutBucketVersioning` and `GetBucketVersioning` as not implemented (checked 2026-10-09)); the replacement is a second copy of the bucket (a scheduled copy of objects the copy lacks, ideally at another provider), not built yet. Orphan cleanup never hard-deletes (see doc 04).
 - **Restore drill:** restore the latest dump into staging and run the app against it, quarterly and before launch. A backup that has never been restored is a hope, not a backup.
 - **Runbook:** a short `docs/runbooks/restore.md` written during M7.
 - **Targets:** RPO 5 minutes, RTO 4 hours (doc 01).
