@@ -67,9 +67,11 @@ jobs:
 
       # TJ_REQUIRE_POSTGRES turns "no database configured" from a skip into a failure, so these tests cannot be
       # silently skipped in CI.
+      # PGPASSWORD (the throwaway container's superuser) lets the hosted-setup test make its stand-in administrator.
       - name: Tests
         env:
           TJ_REQUIRE_POSTGRES: "1"
+          PGPASSWORD: ci-throwaway
         run: uv run --frozen pytest -q
 
   audit:

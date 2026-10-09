@@ -2,6 +2,8 @@
 
 The first deploy, in order, with every setting the server reads and what to check afterwards. **Nothing here has been run on a host yet**: the host (spike S4) is not set up, so this is written from the code (`api/config.py`, `Dockerfile`, the `pg/` command line tools) and the design (docs 02, 03 and 04), and every step that depends on a provider's screens is marked *check*. When the first deploy is done, correct this file from what actually happened, and tick the launch gate it satisfies.
 
+**Doing it for the first time? Follow [first-deploy.md](first-deploy.md)**: the same steps in order, with who does each, and the one command (`python -m tradejournal.pg.provision_hosted`) that makes the roles and builds the tables.
+
 Related: [restore.md](restore.md), [rotate-secrets.md](rotate-secrets.md), [incident.md](incident.md), [run-locally.md](run-locally.md) (the same settings, on your own machine), design doc 02 section 7 (release steps) and doc 03 section 1 (the database roles).
 
 ## What runs where
@@ -20,7 +22,7 @@ The marketing site (`site/`) is a separate Cloudflare Worker and has nothing to 
 ## 1. The database
 
 1. **Create a database** on the managed Postgres 18 and keep its administrator's connection string to hand (it is used for this step only).
-2. **Create the six roles by hand**, each `LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE` with its own long random password: `tj_owner` (owns the schema, runs migrations), `app_rw` (serves requests), and the four system roles `app_login`, `app_webhook`, `app_sweep`, `app_admin`. `backend/tradejournal/pg/provision.py` shows the exact statements; it is for development and CI, but the same statements can be pasted into the provider's SQL console. *Check: whether the provider's administrator may create roles at all. If not, this is the question to put to their support, and it can change the choice of host (doc 02).*
+2. **Create the six roles**: `python -m tradejournal.pg.provision_hosted` does steps 2 to 4 in one go (it needs the host's administrator address in `TJ_SETUP_URL`, and `--migrate` runs step 4); [first-deploy.md](first-deploy.md) section 2 has the command. By hand, each `LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE` with its own long random password: `tj_owner` (owns the schema, runs migrations), `app_rw` (serves requests), and the four system roles `app_login`, `app_webhook`, `app_sweep`, `app_admin`. `backend/tradejournal/pg/provision.py` shows the exact statements; it is for development and CI, but the same statements can be pasted into the provider's SQL console. *Check: whether the provider's administrator may create roles at all. If not, this is the question to put to their support, and it can change the choice of host (doc 02).*
 3. **Make `tj_owner` own the database and its `public` schema**, so the migrations can create everything and nothing else can.
 4. **Run the migrations** as `tj_owner`, once, before the first start and again before every release that adds one:
 

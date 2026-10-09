@@ -3,8 +3,9 @@
     # PGPASSWORD holds the superuser's password; nothing is printed.
     python -m tradejournal.pg.provision --superuser-url postgresql://postgres@127.0.0.1:54318/postgres --env-file .env.test
 
-Production creates the same roles once, by hand, on the managed database (doc 03 section 1). Every one is a plain login
-role: not a superuser, no BYPASSRLS, no CREATEDB or CREATEROLE.
+Production creates the same roles once on the managed database, with `provision_hosted` (the host's administrator is
+not a superuser; doc 03 section 1). Every one is a plain login role: not a superuser, no BYPASSRLS, no CREATEDB or
+CREATEROLE.
 
 - ``tj_owner`` owns the schema and runs migrations.
 - ``app_rw`` serves requests as a tenant: row-level security always applies to it.
@@ -43,21 +44,33 @@ def random_password(length: int = 32) -> str:
     return "".join(secrets.choice(_ALPHABET) for _ in range(length))
 
 
+def apply_roles(conn: psycopg.Connection, passwords: Mapping[str, str], *, reset_attributes: bool = True) -> None:
+    """Create each role (or re-set its password): a plain login role that cannot skip row-level security.
+
+    ``reset_attributes`` re-states the attributes on a role that already exists. A superuser can; an administrator who is
+    not one cannot (Postgres refuses any mention of SUPERUSER or BYPASSRLS from a role without them, even to turn them off),
+    so on a managed host a role is only ever created with the attributes and then has its password re-set.
+    """
+    plain = "NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE"
+    for role, password in passwords.items():
+        exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone()
+        verb = "ALTER" if exists else "CREATE"
+        attributes = plain if (reset_attributes or not exists) else ""
+        # CREATE ROLE is a utility statement: it takes no bound parameters, so the password is quoted client side.
+        conn.execute(
+            sql.SQL(f"{verb} ROLE {{}} LOGIN {attributes} PASSWORD {{}}").format(
+                sql.Identifier(role), sql.Literal(password)
+            )
+        )
+
+
 def provision(superuser_url: str, *, passwords: Mapping[str, str]) -> None:
     """Idempotent: running it again re-applies the passwords and leaves existing roles and databases in place.
 
     ``passwords`` maps each role name (``tj_owner``, ``app_rw``, and the system roles) to its password.
     """
     with psycopg.connect(superuser_url, autocommit=True) as conn:
-        for role, password in passwords.items():
-            exists = conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)).fetchone()
-            verb = "ALTER" if exists else "CREATE"
-            # CREATE ROLE is a utility statement: it takes no bound parameters, so the password is quoted client side.
-            conn.execute(
-                sql.SQL(f"{verb} ROLE {{}} LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE PASSWORD {{}}").format(
-                    sql.Identifier(role), sql.Literal(password)
-                )
-            )
+        apply_roles(conn, passwords)
         for database in DATABASES.values():
             if not conn.execute("SELECT 1 FROM pg_database WHERE datname = %s", (database,)).fetchone():
                 conn.execute(
