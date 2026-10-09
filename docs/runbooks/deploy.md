@@ -71,7 +71,7 @@ Build from the repository root: `docker build -f backend/Dockerfile -t roundturn
 | `TJ_MAX_CONCURRENT_IMPORTS` | leave out (the default is 2 per process) | no |
 | `TJ_RATE_LIMITS` | **leave out.** `off` is an emergency switch | no |
 | `WEB_CONCURRENCY` | `2` on a plan with two processors (the load test in doc 05 section 8 recommends it) | no |
-| health check path | `/healthz` (liveness). `/readyz` says whether the database is reachable and migrated | n/a |
+| health check path | `/readyz` (the database is reachable and has every migration this image ships with), so a release that forgot its migration never takes traffic and the old instance keeps serving. `/healthz` is plain liveness | n/a |
 
 Never put any of these in the repository, in a chat or in a log. If one leaks, follow [rotate-secrets.md](rotate-secrets.md).
 
