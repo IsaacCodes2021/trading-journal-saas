@@ -26,7 +26,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] Separate credentials per environment; the schema owner's password used only by the migration step **(host)**
 - [x] HTTPS only with HSTS **(host)**: seen on `https://app.roundturn.app` (2026-10-09), certificate by Google Trust Services via Render; the design's own Cloudflare proxy and "Full (strict)" are not used (DNS only, [first-deploy.md](first-deploy.md))
 - [ ] Private bucket proven with a real upload, a view and a deletion **(you)**: upload and view reported working on the deployed site (2026-10-09), deletion not yet reported ([deploy.md](deploy.md) section 2)
-- [ ] A second copy of the screenshot bucket, because R2 has no versioning **(me, then you for a second bucket)**: [deploy.md](deploy.md) section 2, step 4
+- [ ] A second copy of the screenshot bucket, because R2 has no versioning: the tool is built and tested (`python -m tradejournal.filebackup`); **(you)** a second bucket, its token and a daily job, then one restore, [deploy.md](deploy.md) section 2, step 4
 - [ ] Two-factor authentication on GitHub, the host, Cloudflare, the registrar, Kinde and the payment provider **(you)**
 - [x] The operator account made, with two-step verification on Kinde first (2026-10-09; `/admin` seen working with "Two-step verification current")
 - [ ] A short security review of the deployed system, including `/admin` **(me, after the host exists)**; a penetration test if the budget allows **(you)**
@@ -50,6 +50,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 
 - [ ] The company's exact legal wording (pinned): for the Terms "operated by" line, the Privacy Policy controller line and the payment emails **(you)**
 - [ ] Privacy Policy, Terms and the financial disclaimer reviewed by a professional, then published **(you)**: the drafts are in `docs/legal/` and are **not** on the site
+- [ ] The privacy wording says backups hold a deleted picture for up to 30 days (the second copy's keep time) **(you)**
 - [ ] The invite email says: invite-only beta, best-effort support, what is and is not promised **(you)**
 
 ## B. Before it opens to everyone (public launch)
