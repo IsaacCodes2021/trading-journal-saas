@@ -1,0 +1,9 @@
+{
+  "name": "roundturn-kinde-pages",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Only here so Kinde can install @kinde/infrastructure when it builds the sign-in page code in kinde/ (see kinde/README.md). The app itself has no root package: the front end is in frontend/.",
+  "dependencies": {
+    "@kinde/infrastructure": "0.12.0"
+  }
+}
