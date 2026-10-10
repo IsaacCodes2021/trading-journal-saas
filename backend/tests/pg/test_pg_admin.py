@@ -683,7 +683,9 @@ def test_an_override_changes_what_the_person_sees_on_their_own_account_on_the_re
         == 200
     )
     assert (mine.session().json()["plan"]["effective"], mine.session().json()["plan"]["source"]) == ("pro", "override")
-    assert "reason" not in json.dumps(mine.session().json())  # the operator's reason is never shown to the person
+    shown = mine.session().json()
+    assert "press" not in json.dumps(shown)  # the operator's reason is never shown to the person
+    assert shown["access"]["reason"] is None  # the session's own "reason" is the state's word, not their text
     revoked = browser.client.post(
         f"/api/admin/v1/users/{alice}/plan-override/revoke", json={"reason": "over"}, headers=writes(browser)
     )
