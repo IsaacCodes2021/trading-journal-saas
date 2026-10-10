@@ -102,6 +102,7 @@ class KindeProvider:
         step_up: bool = False,
         reauth: bool = False,
         login_hint: str | None = None,
+        create: bool = False,
     ) -> str:
         params = {
             "response_type": "code",
@@ -117,6 +118,8 @@ class KindeProvider:
             params.update({"acr_values": "mfa", "max_age": "0"})
         if reauth:
             params.update({"prompt": "login", "max_age": "0"})
+        elif create and not step_up:
+            params["prompt"] = "create"
         if login_hint:
             params["login_hint"] = login_hint
         return f"{self._metadata()['authorization_endpoint']}?{urlencode(params)}"

@@ -339,6 +339,19 @@ def test_signing_in_without_a_code_is_not_checked_up_front(world, alice):
     assert browser.idp.attempt_from(url).login_hint is None
 
 
+def test_a_good_code_opens_the_providers_registration_screen_and_a_plain_sign_in_does_not(world, system, owner, alice):
+    _, code = join(system, email=NEWCOMER.email)
+    browser = world()
+    url, _state = browser.start(invite=code)
+    assert browser.idp.attempt_from(url).create is True
+    other = world()
+    url, _state = other.start(invite=invites.create_invite(owner))
+    assert other.idp.attempt_from(url).create is True  # any valid code means an account is being made
+    plain = world()
+    url, _state = plain.start()
+    assert plain.idp.attempt_from(url).create is False  # an ordinary sign-in opens the sign-in screen
+
+
 def test_when_sign_up_is_open_a_code_is_not_required_up_front(world):
     browser = world(signup_mode="open")
     response = browser.client.get("/auth/login", params={"invite": "TJ-NOPE-NOPE"})

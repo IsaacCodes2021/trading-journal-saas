@@ -205,6 +205,19 @@ def test_the_authorization_address_asks_for_pkce_and_openid_and_a_step_up_only_w
     assert provider.logout_url(return_to="https://app.test/") == f"{DOMAIN}/logout?redirect=https%3A%2F%2Fapp.test%2F"
 
 
+def test_the_registration_screen_is_asked_for_only_for_someone_making_an_account(world):
+    provider, _, _ = world
+
+    def query(**kw):
+        url = provider.authorization_url(state="s", nonce="n", code_challenge="c", redirect_uri="x", **kw)
+        return parse_qs(urlsplit(url).query)
+
+    assert query(create=True)["prompt"] == ["create"]
+    assert "prompt" not in query()  # an ordinary sign-in opens the sign-in screen
+    assert query(create=True, reauth=True)["prompt"] == ["login"]  # asking someone to prove who they are wins
+    assert "prompt" not in query(create=True, step_up=True)  # a step-up is not a sign-up
+
+
 # ---- every way a token can be wrong ---------------------------------------------------------------------------------
 
 
