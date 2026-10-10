@@ -109,6 +109,7 @@ export type AppPath =
   | '/import'
   | '/signin'
   | '/signup'
+  | '/join'
   | '/invite'
   | '/welcome'
   | '/settings'

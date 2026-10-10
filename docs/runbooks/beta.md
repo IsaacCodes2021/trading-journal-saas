@@ -41,7 +41,8 @@ this page says what they are and how to work with them.
 | The daily job that sends the same email when the 30 days run out | Not built |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
 | Our own sign-in and sign-up pages (`/signin`, `/signup`; `/invite` still works) and a signed-out visit going to `/signin` instead of straight to Kinde | Built and tested (front end only); Kinde's own password screen is still the default look until its branding is applied |
-| The marketing site's landing page and its "Sign up for the beta" form | Designed (the canvas), not built |
+| The beta form page in the app (`/join`: first name, address, favourite firm; three states; the same answer whatever became of the address) | Built and tested (front end only); it works once the email sender is set up |
+| The marketing site's landing page, linking to `/join`, `/signin` and `/signup` | Designed (the canvas), not built |
 
 ## Releasing the migration
 

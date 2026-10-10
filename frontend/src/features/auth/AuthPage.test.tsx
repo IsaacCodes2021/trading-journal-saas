@@ -61,7 +61,7 @@ describe('signing in', () => {
   it('points people without a code at the beta form, and at the terms and the privacy policy', async () => {
     open('/signin')
     await screen.findByRole('heading', signInHeading)
-    expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', 'https://roundturn.app/#join')
+    expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', '/join')
     expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', 'https://roundturn.app/terms/')
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
       'href',
@@ -147,7 +147,7 @@ describe('signing up', () => {
   it('points people without a code at the beta form', async () => {
     open('/signup')
     await screen.findByRole('heading', signUpHeading)
-    expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', 'https://roundturn.app/#join')
+    expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', '/join')
   })
 
   it('keeps the page reachable by keyboard in a sensible order', async () => {
@@ -164,10 +164,7 @@ describe('signing up', () => {
     open('/signup', { error: 'invite_invalid' })
     expect(await screen.findByRole('alert')).toHaveTextContent(SIGN_IN_ERRORS.invite_invalid)
     expect(screen.getByLabelText('Sign-up code')).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByRole('link', { name: 'join the beta again' })).toHaveAttribute(
-      'href',
-      'https://roundturn.app/#join',
-    )
+    expect(screen.getByRole('link', { name: 'join the beta again' })).toHaveAttribute('href', '/join')
     expect(screen.getByRole('link', { name: 'hello@roundturn.app' })).toHaveAttribute(
       'href',
       'mailto:hello@roundturn.app',

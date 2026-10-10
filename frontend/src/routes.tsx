@@ -36,6 +36,7 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
 ) => lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType })))
 
 const AuthPage = lazy(() => import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })))
+const JoinPage = lazy(() => import('./features/auth/JoinPage').then((m) => ({ default: m.JoinPage })))
 const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => ({ default: m.AdminShell })))
 const CodesPage = lazy(() => import('./features/admin/CodesPage').then((m) => ({ default: m.CodesPage })))
 const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
@@ -59,7 +60,7 @@ const ReportsPage = lazy(() => import('./features/reports/ReportsPage').then((m)
  */
 
 /** Pages that work before sign-in: no session is asked for, and the app's header and menu are not shown. */
-const PUBLIC_PAGES = /^\/(?:signin|signup|invite)(?:\/|$)/
+const PUBLIC_PAGES = /^\/(?:signin|signup|invite|join)(?:\/|$)/
 
 /** The first-run setup keeps the person's attention: a small header with one way out, and no navigation. */
 const FOCUSED_PAGES = /^\/welcome(?:\/|$)/
@@ -359,6 +360,18 @@ const signupRoute = createRoute({
   },
 })
 
+const joinRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/join',
+  component: function JoinRoute() {
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <JoinPage />
+      </Suspense>
+    )
+  },
+})
+
 // The address the server and the emails already use: an email links here with the code (/invite?code=TJ-7KQ2-M9XA), a
 // sign-in that did not complete comes back as /invite?error=<code>, a deleted account lands on /invite?deleted=<time>,
 // and signing out ends here. It opens on the sign-up form when there is a code to put in or the code was refused, and
@@ -559,6 +572,7 @@ const routeTree = rootRoute.addChildren([
   welcomeRoute,
   signinRoute,
   signupRoute,
+  joinRoute,
   inviteRoute,
   adminRoute,
   adminBetaRoute,

@@ -4,7 +4,6 @@ import {
   deletionDay,
   EXAMPLE_INVITE,
   SIGN_IN_ERRORS,
-  SITE,
   go,
   looksLikeInviteCode,
   normalizeInviteCode,
@@ -12,6 +11,7 @@ import {
   signInUrl,
   signUpUrl,
 } from '../../lib/auth'
+import { AuthFrame } from './AuthFrame'
 
 export type AuthMode = 'signin' | 'signup'
 
@@ -44,31 +44,18 @@ export function AuthPage({
   const deletionDate = deletionDay(deleted)
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-bg px-6 pt-14 pb-8 text-ink">
-      <div className="flex items-center gap-2.5 text-[19px] font-semibold">
-        <span aria-hidden="true" className="inline-block size-[26px] rounded-lg bg-accent" />
-        Roundturn
-      </div>
+    <AuthFrame>
+      <Switch mode={mode} next={next} />
 
-      <main className="mt-9 flex w-full max-w-[440px] flex-col rounded-2xl border border-line bg-panel p-8">
-        <Switch mode={mode} next={next} />
+      {deletionDate ? (
+        <div role="status" className="mt-6 rounded-lg border border-line-strong bg-bg px-3.5 py-3 text-[13px]">
+          <strong>Your account is scheduled for deletion on {deletionDate}.</strong> You have been signed out
+          everywhere. If you change your mind, sign in before then and nothing is lost.
+        </div>
+      ) : null}
 
-        {deletionDate ? (
-          <div role="status" className="mt-6 rounded-lg border border-line-strong bg-bg px-3.5 py-3 text-[13px]">
-            <strong>Your account is scheduled for deletion on {deletionDate}.</strong> You have been signed out
-            everywhere. If you change your mind, sign in before then and nothing is lost.
-          </div>
-        ) : null}
-
-        {mode === 'signin' ? <SignIn error={error} next={next} /> : <SignUp error={error} initial={initial} />}
-      </main>
-
-      <p className="mt-6 mb-0 max-w-[440px] text-center text-xs text-muted">
-        By continuing you agree to the <a href={`${SITE}/terms/`}>Terms</a> and{' '}
-        <a href={`${SITE}/privacy/`}>Privacy Policy</a>. Roundturn analyzes data you upload and is not investment
-        advice.
-      </p>
-    </div>
+      {mode === 'signin' ? <SignIn error={error} next={next} /> : <SignUp error={error} initial={initial} />}
+    </AuthFrame>
   )
 }
 
@@ -135,9 +122,9 @@ function JoinTheBeta({ children = 'No code yet?' }: { children?: string }) {
   return (
     <p className="m-0 text-center text-sm text-muted">
       {children}{' '}
-      <a href={`${SITE}/#join`} className="font-medium">
+      <Link to="/join" className="font-medium">
         Join the beta
-      </a>
+      </Link>
     </p>
   )
 }
@@ -239,9 +226,9 @@ function SignUp({ error, initial }: { error: keyof typeof SIGN_IN_ERRORS | null;
               {refused ? (
                 <>
                   Check the code in your email, or{' '}
-                  <a href={`${SITE}/#join`} className="font-medium">
+                  <Link to="/join" className="font-medium">
                     join the beta again
-                  </a>{' '}
+                  </Link>{' '}
                   for a new one.
                 </>
               ) : (
