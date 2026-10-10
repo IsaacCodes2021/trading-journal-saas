@@ -40,7 +40,8 @@ this page says what they are and how to work with them.
 | The "access ended" email, sent once, after a revoke (and recorded as sent) | Built and tested |
 | The daily job that sends the same email when the 30 days run out | Not built |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
-| Landing page, sign-in and sign-up pages | Designed (the canvas), not built |
+| Our own sign-in and sign-up pages (`/signin`, `/signup`; `/invite` still works) and a signed-out visit going to `/signin` instead of straight to Kinde | Built and tested (front end only); Kinde's own password screen is still the default look until its branding is applied |
+| The marketing site's landing page and its "Sign up for the beta" form | Designed (the canvas), not built |
 
 ## Releasing the migration
 

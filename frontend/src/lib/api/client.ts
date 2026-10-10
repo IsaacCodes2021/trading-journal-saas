@@ -1,4 +1,5 @@
 import createClient, { type Middleware } from 'openapi-fetch'
+import { signInPage } from '../nextPath'
 import type { paths } from './schema'
 
 let csrfToken = ''
@@ -23,8 +24,8 @@ const middleware: Middleware = {
   },
   onResponse({ response }) {
     if (response.status === 401) {
-      const next = encodeURIComponent(window.location.pathname + window.location.search)
-      window.location.assign(`/auth/login?next=${next}`)
+      // Our own sign-in page, not the identity provider's: the person lands somewhere that looks like this site.
+      window.location.assign(signInPage(window.location.pathname + window.location.search))
     }
     return undefined
   },
