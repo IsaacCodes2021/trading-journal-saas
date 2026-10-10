@@ -147,6 +147,8 @@ test("the privacy page matches what the code does", () => {
     "keyed hash of your ip address",
     "deleting takes effect 7 days after you ask",
     "recovery copies for up to 7 days",
+    "copied once a day to a second private bucket",
+    "stays in that copy for up to 30 days",
     "no period for deleting them has been set yet",
     "within 30 days",
     "18 and over",

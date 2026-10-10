@@ -57,7 +57,7 @@ We use these providers to run Roundturn. Each handles data only on our instructi
 
 | Provider | What for | Status |
 |---|---|---|
-| Cloudflare | the marketing site, DNS, email forwarding, and private object storage (R2) for screenshots | in use |
+| Cloudflare | the marketing site, DNS, email forwarding, and private object storage (R2) for screenshots and their daily copy | in use |
 | Render | runs the application and hosts its Postgres database (Oregon, United States) | in use |
 | Kinde | sign-in, second step, account identity; stores that data in Oregon, United States (owner, 2026-10-10) | in use |
 | Resend (email sending) | the email with your beta code and the email that says your access has ended; the provider sees the recipient's address, your first name and the message | in use (domain verified 2026-10-10) |
@@ -79,7 +79,7 @@ There are no advertising or analytics cookies, and no session recording. [Confir
 ## 7. How long we keep it
 
 - **Your journal and account:** until you delete it. Deleting takes effect 7 days after you ask (signing in again cancels it); the hourly cleanup then removes the journal, settings, screenshots, beta sign-up and codes, and asks the sign-in provider to remove the sign-in record, usually within an hour of the 7 days.
-- **Backups:** the database host keeps recovery copies for up to 7 days (3 days on its Hobby workspace plan, 7 on Pro; its logical backups 7 days), so deleted data can remain in them until they age out. Screenshots are not backed up at present; once a second copy exists, deleted pictures can remain in it for up to 30 days.
+- **Backups:** the database host keeps recovery copies for up to 7 days (3 days on its Hobby workspace plan, 7 on Pro; its logical backups 7 days), so deleted data can remain in them until they age out. Screenshots are copied once a day to a second private bucket (Cloudflare R2, the same account), where a deleted picture can remain for up to 30 days.
 - **Security and audit records:** kept after an account is deleted, detached from the person (the log is append-only), holding the kind of event, its date and the keyed IP hash, never the content of trades, notes or screenshots. No deletion period has been set (owner decision 2026-10-10: say so plainly).
 - **Billing records:** as long as tax law requires. [When paid plans open.]
 - **Support email:** [N months] after the conversation ends.

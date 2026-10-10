@@ -61,9 +61,9 @@ services:
 
   # The second copy of the screenshot bucket (`python -m tradejournal.filebackup`; docs/runbooks/deploy.md, section 2,
   # step 4). R2 keeps no old versions, so a deleted or overwritten picture is otherwise gone for good. The job copies what
-  # the second bucket lacks and forgets what has been gone from the source for 30 days. It starts as a DRY RUN (no
-  # `--apply`): it prints counts and changes nothing. Look at one run, then add `--apply` here and in the dashboard's
-  # Start Command in the same change so the file and the dashboard agree.
+  # the second bucket lacks and forgets what has been gone from the source for 30 days. Switched on with `--apply`
+  # on 2026-10-10, after a dry run (without `--apply` it only counts and changes nothing). Blueprint-managed: a
+  # change to the command below reaches the job on the next sync.
   #
   # Its settings are not in this file (same reason as the sweep): add them in the job's Environment page.
   #   TJ_S3_ENDPOINT, TJ_S3_BUCKET, TJ_S3_ACCESS_KEY_ID, TJ_S3_SECRET_ACCESS_KEY    the source bucket (the web service's):
@@ -77,4 +77,4 @@ services:
     schedule: "30 3 * * *"
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
-    dockerCommand: python -m tradejournal.filebackup
+    dockerCommand: python -m tradejournal.filebackup --apply

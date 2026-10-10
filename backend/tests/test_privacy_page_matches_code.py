@@ -5,6 +5,7 @@ This fails when one of them changes and the page does not, so the page cannot qu
 
 from pathlib import Path
 
+from tradejournal import filebackup
 from tradejournal.pg import deletion, sessions, sweep
 
 PAGE = Path(__file__).resolve().parents[2] / "site" / "public" / "privacy" / "index.html"
@@ -30,3 +31,7 @@ def test_the_session_limits_are_what_the_page_says() -> None:
     page = _page()
     idle, absolute = sessions.IDLE_TIMEOUT.days, sessions.ABSOLUTE_LIFETIME.days
     assert f"end after {idle} days without use, or after {absolute} days in all" in page
+
+
+def test_a_deleted_screenshot_stays_in_the_copy_as_long_as_the_page_says() -> None:
+    assert f"stays in that copy for up to {filebackup.DEFAULT_KEEP_DAYS} days" in _page()
