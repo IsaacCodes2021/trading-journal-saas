@@ -2,6 +2,9 @@
 
     python -m tradejournal.pg.sweep deletions              # a dry run: how many are due, nothing is touched
     python -m tradejournal.pg.sweep deletions --apply      # delete them
+    python -m tradejournal.pg.sweep ended-notices          # a dry run: who is due the "your access has ended" email
+    python -m tradejournal.pg.sweep ended-notices --apply  # send it, and record that it was sent
+    python -m tradejournal.pg.sweep all --apply            # both, in that order (what the scheduled job runs)
 
 Run it as a scheduled job on the host (hourly is plenty). It connects as the `sweep` role (`TJ_SWEEP_DATABASE_URL`), which
 can find accounts that are due and delete them, and nothing else about a person.
@@ -19,6 +22,11 @@ For each due account, in this order and for good reasons:
 It prints counts and never an email, a name, a provider id or a file name. `--apply` is required to change anything; without a provider
 configured it refuses (an account deleted here and left at the provider would still be someone's personal data), unless
 `--without-identity-provider` says so on purpose (local development).
+
+`ended-notices` is the other job, run daily: people whose time-limited access (a beta code, a plan code) ran out, or was
+ended by an operator and whose email did not go, are sent the "your access has ended" email once (`pg/ended_notices.py`,
+migration 0016). A send that fails leaves the person due, so the next run tries again. It needs `TJ_EMAIL_API_KEY` and
+`TJ_EMAIL_FROM` (the web service's settings) to apply, and prints counts and the short reason codes of failures only.
 """
 
 from __future__ import annotations
@@ -26,16 +34,18 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
 import psycopg
 
+from ..api.emails import access_ended_email
+from ..api.mailer import DEFAULT_API_URL, Mailer, MailError, ResendMailer
 from ..auth.idp import IdentityDirectory, IdentityError
 from ..bucketstore import BucketFileStore, BucketSettings
 from ..filestore import FileStore, LocalFileStore
-from . import audit, deletion
+from . import audit, deletion, ended_notices
 from .system import SystemDatabase
 
 BATCH = 50
@@ -87,6 +97,48 @@ def run(
     report.skipped = report.due - report.deleted
     _remove_identities(system, directory, report)
     _remove_files(system, files, report)
+    return report
+
+
+@dataclass
+class NoticeReport:
+    due: int = 0
+    sent: int = 0
+    failed: int = 0  # still due: the next run tries again
+    reasons: dict[str, int] = field(default_factory=dict)  # the provider's short reason codes of the failures, counted
+    dry_run: bool = True
+
+
+def run_notices(
+    system: SystemDatabase,
+    mailer: Mailer | None,
+    *,
+    apply: bool,
+    now: datetime | None = None,
+    limit: int = ended_notices.BATCH,
+    since: datetime | None = None,
+) -> NoticeReport:
+    """Send the "your access has ended" email to everyone who is due it, and record each one that left."""
+    moment = now or datetime.now(UTC)
+    report = NoticeReport(dry_run=not apply)
+    with system.system_session("sweep") as conn:
+        waiting = ended_notices.due(conn, now=moment, since=since, limit=limit)
+    report.due = len(waiting)
+    if not apply:
+        return report
+    if mailer is None:
+        raise ValueError("a mailer is needed to send")
+    for notice in waiting:
+        try:
+            mailer.send(access_ended_email(to=notice.email, first_name=notice.first_name))
+        except MailError as problem:
+            report.failed += 1
+            report.reasons[problem.reason] = report.reasons.get(problem.reason, 0) + 1
+            continue
+        with system.system_session("sweep") as conn, conn.transaction():
+            if ended_notices.mark_sent(conn, notice.redemption_id, now=moment):
+                audit.record(conn, "access_ended_notice_sent", user_id=notice.user_id, actor=ACTOR_SYSTEM)
+        report.sent += 1
     return report
 
 
@@ -163,21 +215,36 @@ def _directory_from_env() -> IdentityDirectory | None:
     return KindeManagement(domain=domain, client_id=client, client_secret=secret)
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Delete the accounts whose scheduled time has come.")
-    parser.add_argument("command", choices=["deletions"])
-    parser.add_argument("--apply", action="store_true", help="actually delete (the default only counts)")
-    parser.add_argument("--limit", type=int, default=BATCH, help="at most this many accounts per run")
-    parser.add_argument(
-        "--without-identity-provider",
-        action="store_true",
-        help="do not remove identities at the provider (local development only)",
+def _mailer_from_env() -> Mailer | None:
+    """The web service's own email settings (`TJ_EMAIL_API_KEY`, `TJ_EMAIL_FROM`, optionally `TJ_EMAIL_API_URL`)."""
+    key = os.environ.get("TJ_EMAIL_API_KEY", "").strip()
+    sender = os.environ.get("TJ_EMAIL_FROM", "").strip()
+    if not (key and sender):
+        return None
+    return ResendMailer(
+        api_key=key, sender=sender, base_url=os.environ.get("TJ_EMAIL_API_URL", "").strip() or DEFAULT_API_URL
     )
-    args = parser.parse_args(argv)
-    url = os.environ.get("TJ_SWEEP_DATABASE_URL")
-    if not url:
-        print("TJ_SWEEP_DATABASE_URL is not set", file=sys.stderr)
+
+
+def _main_notices(args: argparse.Namespace, url: str) -> int:
+    mailer = _mailer_from_env()
+    if args.apply and mailer is None:
+        print("refusing to send without TJ_EMAIL_API_KEY and TJ_EMAIL_FROM", file=sys.stderr)
         return 2
+    system = SystemDatabase({"sweep": url})
+    system.open()
+    try:
+        report = run_notices(system, mailer, apply=args.apply, limit=min(args.limit, ended_notices.BATCH * 5))
+    finally:
+        system.close()
+    mode = "dry run: nothing changed" if report.dry_run else "applied"
+    print(f"{mode}; due {report.due}, sent {report.sent}, failed {report.failed}")
+    for reason, count in sorted(report.reasons.items()):
+        print(f"  {reason}: {count}", file=sys.stderr)
+    return 0
+
+
+def _main_deletions(args: argparse.Namespace, url: str) -> int:
     directory = None if args.without_identity_provider else _directory_from_env()
     if args.apply and directory is None and not args.without_identity_provider:
         print(
@@ -207,6 +274,35 @@ def main(argv: list[str] | None = None) -> int:
     if report.files_pending and files is None:
         print("file folders are waiting because neither TJ_S3_* nor TJ_FILES_DIR is set on this job", file=sys.stderr)
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Scheduled jobs: delete accounts whose time has come, and send the ending notices."
+    )
+    parser.add_argument(
+        "command",
+        choices=["deletions", "ended-notices", "all"],
+        help="`all` runs both, in that order, and fails if either did (so one scheduled job covers them)",
+    )
+    parser.add_argument("--apply", action="store_true", help="actually do it (the default only counts)")
+    parser.add_argument("--limit", type=int, default=BATCH, help="at most this many per run")
+    parser.add_argument(
+        "--without-identity-provider",
+        action="store_true",
+        help="do not remove identities at the provider (local development only)",
+    )
+    args = parser.parse_args(argv)
+    url = os.environ.get("TJ_SWEEP_DATABASE_URL")
+    if not url:
+        print("TJ_SWEEP_DATABASE_URL is not set", file=sys.stderr)
+        return 2
+    if args.command == "deletions":
+        return _main_deletions(args, url)
+    if args.command == "ended-notices":
+        return _main_notices(args, url)
+    # `all`: both, even when the first cannot run, so a missing setting for one never stops the other.
+    return max(_main_deletions(args, url), _main_notices(args, url))
 
 
 if __name__ == "__main__":
