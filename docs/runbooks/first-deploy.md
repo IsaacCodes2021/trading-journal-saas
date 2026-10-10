@@ -121,18 +121,18 @@ A person who deletes their account is removed seven days later by this job; unti
 ```powershell
 $hosted = Get-Content .env.hosted | Where-Object { $_ -match '^# TJ_SWEEP_DATABASE_URL=' } | ForEach-Object { $_ -replace '^# ','' }
 $kinde = Get-Content .env.kinde | Where-Object { $_ -match '^KINDE_(DOMAIN|M2M_CLIENT_ID|M2M_CLIENT_SECRET)=' } | ForEach-Object { "TJ_$_" }
-$s3 = Get-Content $env:USERPROFILE\Downloads\roundturn.env | Where-Object { $_ -match '^TJ_S3_' }
+$s3 = Get-Content $env:USERPROFILE\Downloads\roundturn.env | Where-Object { $_ -match '^TJ_(S3|EMAIL)_' }
 (@($hosted) + @($kinde) + @($s3)) | Set-Content .env.sweep-paste
 Get-Content .env.sweep-paste | ForEach-Object { ($_ -split '=')[0] }
 ```
 
-   Expected names: `TJ_SWEEP_DATABASE_URL`, `TJ_KINDE_DOMAIN`, `TJ_KINDE_M2M_CLIENT_ID`, `TJ_KINDE_M2M_CLIENT_SECRET`, `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY` (eight). Open the file in Notepad, copy it all, and paste it into the **cron job's** Environment page (Edit, then paste, then save).
+   Expected names: `TJ_SWEEP_DATABASE_URL`, `TJ_KINDE_DOMAIN`, `TJ_KINDE_M2M_CLIENT_ID`, `TJ_KINDE_M2M_CLIENT_SECRET`, `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY`, and, once email is set up, `TJ_EMAIL_API_KEY`, `TJ_EMAIL_FROM` (ten). `TJ_KINDE_DOMAIN` here is the Kinde **tenant address** (`https://<tenant>.kinde.com`) from `.env.kinde`, not the custom domain the web service uses. This file goes on the **cron job** (type Cron Job, with a Trigger Run button), never on the web service. Open the file in Notepad, copy it all, and paste it into the **cron job's** Environment page (Edit, then paste, then save).
 3. Delete both files: `Remove-Item .env.sweep-paste, $env:USERPROFILE\Downloads\roundturn.env`.
 4. On the cron job's page, **Trigger Run**. The log should end with `applied; due 0, deleted 0, ...` (nothing is due). That is the one run that must be seen; after it the schedule takes over.
 
 The Kinde machine-to-machine credentials were checked read-only on 2026-10-09 (a token is issued, and a lookup of an id that cannot exist answers 400, which the code reads as "gone"); the delete permission was proven on a live tenant in spike S1b and has not been exercised since.
 
-**Later, once email is set up** (the beta, [beta.md](beta.md)): the same job also sends the "your access has ended" email. That is two more settings on the cron job and a different command (`all --apply`), done in the order in [deploy.md](deploy.md) section 6, "The 'your access has ended' email". Until then the job keeps running `deletions --apply` and nothing changes.
+**Done 2026-10-10** (the beta, [beta.md](beta.md)): the same job also sends the "your access has ended" email. That is two more settings on the cron job and a different command (`all --apply`), done in the order in [deploy.md](deploy.md) section 6, "The 'your access has ended' email". The job now runs `all --apply` every hour with the two email settings.
 
 ## What is deliberately not here yet
 

@@ -2,7 +2,7 @@
 
 **Who does what:** you (the owner) in the Kinde and Cloudflare dashboards and in GitHub. The code is already written, in `kinde/` in this repository, with Kinde's two small files at the repository root. Nothing in the app needs to change except one setting on Render, in step 2.
 
-**Status (2026-10-10):** step 2 (the custom domain, `auth.roundturn.app`, and `TJ_KINDE_DOMAIN`) is **done and checked by a real sign-in**. Step 3 (connecting this repository) is the one left.
+**Status (2026-10-10):** steps 2 and 3 are **done**: the custom domain (`auth.roundturn.app`) is in use, `TJ_KINDE_DOMAIN` on the web service matches it and was checked by a real sign-in, and the custom code is live.
 
 **Why this is a separate step.** The app has its own sign-in and sign-up pages (`/signin`, `/signup`, `/join`). They are the *first* screen. The password, the one-time code and the second factor are asked for by Kinde, on Kinde's page, and that cannot be moved into the app (Kinde does not allow entering credentials anywhere but its own domain). What can be done is to make Kinde's page look like ours. Until this is done, those later steps show Kinde's default look. Everything works either way.
 
@@ -28,7 +28,7 @@ What the code does: one page for every Kinde screen. It wraps Kinde's form in th
 
 1. Kinde: Settings, Environment, **Custom domain** (Kinde's guide is called "Pointing your domain"). Enter `auth.roundturn.app` and follow the prompts. Kinde shows **two CNAME records** to add (as done on 2026-10-10): `auth` pointing at `us.kinde.com`, and `_acme-challenge.auth` pointing at a long `_acme-challenge.<id>.<tenant>.kinde.com` value (copy it with the icon beside it).
 2. Cloudflare: DNS, add both exactly as shown, each **DNS only** (the grey cloud, not proxied). There is no verify button: Kinde checks by itself and the badge goes from "Unverified" to "Provisioned" within minutes. You can check from outside: `https://auth.roundturn.app/.well-known/openid-configuration` answers with `"issuer": "https://auth.roundturn.app"`.
-3. **Then change one setting on Render**, in the same sitting: the web service's Environment, `TJ_KINDE_DOMAIN`, from `https://<tenant>.kinde.com` to `https://auth.roundturn.app`. The app checks that Kinde's discovery document names exactly this address as its issuer, so with the custom domain on and the old value in place, **sign-in fails** until the setting matches. Save, let Render redeploy, then sign in once to check.
+3. **Then change one setting on Render**, in the same sitting: the web service's Environment, `TJ_KINDE_DOMAIN`, from `https://<tenant>.kinde.com` to `https://auth.roundturn.app`. The app checks that Kinde's discovery document names exactly this address as its issuer, so with the custom domain on and the old value in place, **sign-in fails** until the setting matches. Save, let Render redeploy, then sign in once to check. **This is the web service only.** The sweep cron job keeps the tenant address (`https://<tenant>.kinde.com`): Kinde refuses its management token on the custom domain.
 4. In the Kinde application (the one named in `TJ_KINDE_CLIENT_ID`), the callback and logout addresses do not change: `https://app.roundturn.app/auth/callback` and `https://app.roundturn.app/invite`.
 
 If sign-in breaks after step 3, put the old `TJ_KINDE_DOMAIN` value back and redeploy; the custom domain can stay.

@@ -99,8 +99,11 @@ python -m tradejournal.pg.sweep deletions --apply
 | Setting | Value |
 |---|---|
 | `TJ_SWEEP_DATABASE_URL` | the `app_sweep` connection string |
-| `TJ_KINDE_DOMAIN`, `TJ_KINDE_M2M_CLIENT_ID`, `TJ_KINDE_M2M_CLIENT_SECRET` | the management application |
+| `TJ_KINDE_DOMAIN` | the Kinde **tenant address**, `https://<tenant>.kinde.com`. **Not** the web service's custom domain: Kinde refuses the management token there (HTTP 400, checked 2026-10-10) |
+| `TJ_KINDE_M2M_CLIENT_ID`, `TJ_KINDE_M2M_CLIENT_SECRET` | the management application |
 | `TJ_S3_*` | the same four as the web service |
+
+These settings go on the **cron job** only: the Render service of type Cron Job, which has a Trigger Run button. Never put them on the web service (the one that shows `app.roundturn.app`). On 2026-10-10 they were entered on the web service by mistake, which sent its sign-in back to Kinde's default address until it was put right.
 
 It prints only counts. Run it once **without** `--apply` first (a dry run) and check that it says what you expect. A person is deleted seven days after they ask; until the job runs, nothing is removed, so a missing schedule is a privacy failure, not just a chore. **Never run it with `--apply` against a database you care about while testing.**
 
