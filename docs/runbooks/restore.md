@@ -10,7 +10,7 @@ Related: [incident.md](incident.md), [rotate-secrets.md](rotate-secrets.md), des
 |---|---|---|---|
 | Everything about people, trades, notes, accounts, plans, sessions, the audit log | Postgres | The provider's point-in-time recovery (restore to a chosen moment) **and** a nightly dump to a bucket at a different provider or account | The host and provider are not chosen (S4) |
 | Screenshot files | A private R2 bucket (`bucketstore.py`) | **None yet.** R2 has no versioning (Cloudflare's S3 compatibility page lists `PutBucketVersioning` and `GetBucketVersioning` as not implemented (checked 2026-10-09)); a second copy of the bucket is the plan; the tool is built (`python -m tradejournal.filebackup`) and not in use until a second bucket and a daily job exist ([deploy.md](deploy.md) section 2, step 4) | The bucket exists and screenshots work (2026-10-09); a lost or wrongly deleted picture cannot be restored |
-| The marketing site's waitlist | Cloudflare D1 (`roundturn-waitlist`) | Export on request; low value | Not scheduled |
+| The old marketing-site waitlist (retired; the beta form replaced it, nothing writes to it any more) | Cloudflare D1 (`roundturn-waitlist`) | Export on request; low value | Not scheduled |
 | Code and documents | GitHub | The repository itself; clone it somewhere else now and then | Done by being a Git repository |
 | Identity (who can sign in) | Kinde | Kinde's own; the product does not hold passwords | n/a |
 

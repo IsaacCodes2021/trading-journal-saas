@@ -212,7 +212,7 @@ One container serves the JSON API and the built React app on a single origin ([d
 | `backend/tradejournal/pg/` | Postgres: migrations `0001` to `0011`, the request role with forced row-level security, the narrow system roles (login, webhook, sweep, admin), the ported domain queries, the command-line tools (`invites`, `plans`, `users`, `sweep`, `migrate`) |
 | `backend/tradejournal/auth/` | Sign-in through Kinde (an identity-provider port with a fake for tests), signed state, CSRF tokens |
 | `frontend/` | The React app (Vite, React 19, TypeScript, Tailwind, TanStack Router and Query). `pnpm dev` runs it with sample data; see the runbook for the real API |
-| `site/` | The marketing site at roundturn.app, a Cloudflare Worker with a waitlist |
+| `site/` | The marketing site at roundturn.app: static pages that link to the app's beta form and sign-in, on a Cloudflare Worker that stores nothing |
 | `docs/design/` | The design (requirements to decisions), the roadmap with a running log of what is built, and the security gates |
 | `docs/runbooks/` | Running it locally, trying real sign-in, migrating a local journal, **incident response, rotating secrets and restoring** |
 | `docs/legal/` | Drafts of the Terms and Privacy Policy (not published) |

@@ -260,6 +260,6 @@ jobs:
           node-version-file: frontend/.nvmrc
 
       # No dependencies: Node's own test runner. Checks the pages (nothing external or inline, links resolve, the
-      # disclaimers are present, the CSP is strict) and the waitlist function.
+      # disclaimers are present, the CSP is strict, the home page sends people to the app) and the Worker's routing.
       - name: Tests
         run: node --test "site/test/*.test.mjs"

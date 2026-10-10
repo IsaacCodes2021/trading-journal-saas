@@ -26,7 +26,7 @@ const pageNamed = (url) => {
 };
 
 test("there are pages to check", () => {
-  assert.ok(pages.length >= 5, `found only ${pages.length} pages`);
+  assert.ok(pages.length >= 4, `found only ${pages.length} pages`);
 });
 
 for (const page of pages) {
@@ -69,11 +69,38 @@ for (const page of pages) {
   });
 }
 
-test("the home page has the waitlist form, a honeypot, and posts to the function", () => {
-  const html = pageNamed("/index.html").replace(/\r?\n/g, " ");
-  assert.match(html, /<form id="join" class="join" action="\/api\/waitlist" method="post">/);
-  assert.match(html, /name="email" type="email" required/);
-  assert.match(html, /name="website" type="text" tabindex="-1" autocomplete="off"/);
+test("the home page has no form of its own: it sends people to the app for the beta form, sign-in and sign-up", () => {
+  const html = pageNamed("/index.html");
+  assert.ok(!/<form[\s>]/i.test(html), "the site has a form");
+  assert.ok(!/<input[\s>]/i.test(html), "the site has an input");
+  // Each link is an anchor to the app's address whose visible text starts with the words people look for.
+  const anchors = [...html.matchAll(/<a\b([^>]*)>([^<]*)<\/a>/g)].map((m) => ({ attrs: m[1], text: m[2] }));
+  for (const [target, text] of [
+    ["https://app.roundturn.app/join", "Sign up for the beta"],
+    ["https://app.roundturn.app/signin", "Sign in"],
+    ["https://app.roundturn.app/signup", "Sign up here"],
+  ]) {
+    const found = anchors.find((a) => a.attrs.includes(`href="${target}"`) && a.text.trim() === text);
+    assert.ok(found, `no "${text}" link to ${target}`);
+    assert.ok(found.attrs.includes('rel="noopener noreferrer"'), `${target} has no rel`);
+  }
+});
+
+test("the home page tells people who it is for, what it does, where it falls short and where it is going", () => {
+  const html = pageNamed("/index.html");
+  for (const heading of ["Who it is for", "What it does", "Where it falls short today", "Where it is going"]) {
+    assert.ok(html.includes(`>${heading}</h2>`), `no "${heading}" section`);
+  }
+  assert.match(html, /Tradovate auto-sync/);
+  assert.match(html, /not built yet, and there is no date/);
+});
+
+test("every page links to the app only at its own address, over https", () => {
+  for (const page of pages) {
+    for (const [, url] of read(page).matchAll(/href="(https?:\/\/[^"]*roundturn[^"]*)"/g)) {
+      assert.match(url, /^https:\/\/app\.roundturn\.app\/(?:join|signin|signup)$/, `${urlOf(page)} links to ${url}`);
+    }
+  }
 });
 
 test("the pages say what the payment providers and visitors need to be told", () => {
@@ -107,13 +134,22 @@ test("nothing on the site promises what the product does not do", () => {
 test("the privacy page matches what the code does", () => {
   const privacy = pageNamed("/privacy/index.html").toLowerCase();
   assert.ok(privacy.includes("sets no cookies") && privacy.includes("no analytics, advertising or tracking scripts"));
-  assert.ok(privacy.includes("your email address and the date you joined"));
-  const script = read(join(PUBLIC, "waitlist.js"));
-  assert.ok(!/document\.cookie|localStorage|sessionStorage|indexedDB/.test(script), "the script stores something in the browser");
-  assert.ok(!/fetch\(\s*["'`]https?:/.test(script), "the script calls another origin");
-  const fn = readFileSync(new URL("../src/waitlist.js", import.meta.url), "utf8");
-  assert.ok(!/set-cookie/i.test(fn), "the function sets a cookie");
-  assert.ok(!/cf-connecting-ip|user-agent|referer/i.test(fn), "the function reads something the privacy page says it does not store");
+  for (const text of [
+    "your first name, your email address, the prop firm you named, and when you joined",
+    "one-way hash",
+    "does not store your ip address",
+    "cloudflare",
+    "render",
+    "resend",
+    "until you ask for it to be removed",
+  ]) {
+    assert.ok(privacy.includes(text), `the privacy page is missing: ${text}`);
+  }
+  // The site itself runs no script and stores nothing, so what it says about cookies and tracking holds.
+  for (const page of pages) assert.ok(!/<script/i.test(read(page)), `${urlOf(page)} loads a script`);
+  assert.ok(!files.some((f) => f.endsWith(".js")), "there is a script in public/");
+  const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
+  assert.ok(!/set-cookie|env\.DB|\.prepare\(|cf-connecting-ip|user-agent|referer/i.test(worker.replace(/\/\/.*$/gm, "")), "the Worker stores or reads something the page says it does not");
 });
 
 test("the headers file carries a strict CSP and the other protections", () => {
@@ -121,7 +157,7 @@ test("the headers file carries a strict CSP and the other protections", () => {
   const csp = headers.match(/Content-Security-Policy:\s*(.+)/)?.[1] ?? "";
   assert.ok(csp, "no CSP");
   assert.ok(!/unsafe-inline|unsafe-eval|\*|https?:|data:/.test(csp), `CSP is loose: ${csp}`);
-  for (const directive of ["default-src 'none'", "script-src 'self'", "style-src 'self'", "form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'"]) {
+  for (const directive of ["default-src 'none'", "script-src 'self'", "style-src 'self'", "font-src 'self'", "form-action 'self'", "base-uri 'none'", "frame-ancestors 'none'"]) {
     assert.ok(csp.includes(directive), `CSP lacks ${directive}`);
   }
   for (const header of ["X-Content-Type-Options: nosniff", "Referrer-Policy: no-referrer", "Strict-Transport-Security:", "Permissions-Policy:"]) {
@@ -129,8 +165,15 @@ test("the headers file carries a strict CSP and the other protections", () => {
   }
 });
 
-test("the stylesheet makes no outside requests", () => {
-  assert.ok(!/@import|url\(/i.test(read(join(PUBLIC, "style.css"))));
+test("the stylesheet makes no outside requests, and its fonts are files in /fonts/ that exist", () => {
+  const css = read(join(PUBLIC, "style.css"));
+  assert.ok(!/@import/i.test(css));
+  const urls = [...css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)].map((m) => m[1]);
+  assert.ok(urls.length >= 5, "no @font-face sources");
+  for (const url of urls) {
+    assert.match(url, /^\/fonts\/[a-z0-9-]+\.woff2$/, `the stylesheet loads ${url}`);
+    assert.ok(existsSync(join(PUBLIC, url)), `${url} is missing`);
+  }
 });
 
 test("the contact address is the one the site says it uses", () => {

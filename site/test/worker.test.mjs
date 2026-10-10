@@ -9,54 +9,21 @@ import worker from "../src/worker.js";
 const ORIGIN = "https://roundturn.app";
 const SITE = fileURLToPath(new URL("../", import.meta.url));
 
-class FakeDb {
-  rows = new Map();
-  prepare(sql) {
-    const db = this;
-    return {
-      async run() {
-        return { success: true };
-      },
-      bind(...args) {
-        return {
-          async run() {
-            if (sql.startsWith("INSERT")) db.rows.set(args[0], args[1]);
-            return { success: true };
-          },
-        };
-      },
-    };
-  }
-}
-
-function envWith(db = new FakeDb()) {
+function envWith() {
   const served = [];
-  return { DB: db, ASSETS: { fetch: async (request) => (served.push(request), new Response("a static file", { status: 200 })) }, served };
+  return { ASSETS: { fetch: async (request) => (served.push(request), new Response("a static file", { status: 200 })) }, served };
 }
 
 const request = (path, init = {}) => new Request(`${ORIGIN}${path}`, init);
 
-test("POST /api/waitlist reaches the waitlist handler", async () => {
+test("the site has no API: every /api path is a 404, whatever the method, and never falls through to a static file", async () => {
   const env = envWith();
-  const response = await worker.fetch(request("/api/waitlist", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: "a@example.com" }) }), env);
-  assert.equal(response.status, 200);
-  assert.deepEqual([...env.DB.rows.keys()], ["a@example.com"]);
-  assert.equal(env.served.length, 0);
-});
-
-test("other methods on /api/waitlist get 405", async () => {
-  for (const method of ["GET", "PUT", "DELETE", "HEAD"]) {
-    const response = await worker.fetch(request("/api/waitlist", { method }), envWith());
-    assert.equal(response.status, 405, method);
-    assert.equal(response.headers.get("allow"), "POST");
-  }
-});
-
-test("any other /api path is a 404 and never falls through to a static file", async () => {
-  const env = envWith();
-  for (const path of ["/api/", "/api/waitlist/", "/api/admin", "/api/waitlist.json"]) {
-    const response = await worker.fetch(request(path), env);
-    assert.equal(response.status, 404, path);
+  for (const path of ["/api/", "/api/waitlist", "/api/waitlist/", "/api/admin", "/api/v1/beta/join"]) {
+    for (const method of ["GET", "POST", "PUT", "DELETE"]) {
+      const response = await worker.fetch(request(path, { method, ...(method === "POST" ? { body: "{}" } : {}) }), env);
+      assert.equal(response.status, 404, `${method} ${path}`);
+      assert.equal(response.headers.get("cache-control"), "no-store");
+    }
   }
   assert.equal(env.served.length, 0);
 });
@@ -104,12 +71,11 @@ test("only /api/* runs code; pages are served straight from the assets", () => {
   assert.ok(existsSync(SITE + "public/404.html"));
 });
 
-test("the waitlist database is bound as DB, with a real database id (not the placeholder)", () => {
-  const { d1_databases: databases } = readConfig();
-  assert.equal(databases.length, 1);
-  assert.equal(databases[0].binding, "DB");
-  assert.equal(databases[0].database_name, "roundturn-waitlist");
-  assert.match(databases[0].database_id, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/, "put the D1 database id in wrangler.jsonc before merging");
+test("the site stores nothing: no database, key-value store or bucket is bound to it", () => {
+  const config = readConfig();
+  for (const binding of ["d1_databases", "kv_namespaces", "r2_buckets", "durable_objects", "queues", "services"]) {
+    assert.equal(config[binding], undefined, `${binding} is bound`);
+  }
 });
 
 test("the config holds no secret: no token, key or password", () => {
