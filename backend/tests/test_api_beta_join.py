@@ -191,7 +191,8 @@ def test_a_huge_body_is_refused_by_the_global_limit_before_it_is_read():
 
 def test_it_is_not_in_the_api_description_and_sets_no_cookie():
     client, _, _ = build()
-    assert all("/beta" not in path for path in client.app.openapi()["paths"])
+    # the operator's list is described (under /api/admin); the public join route is not
+    assert all(not path.startswith("/api/v1/beta") for path in client.app.openapi()["paths"])
     assert "set-cookie" not in post(client).headers
 
 
