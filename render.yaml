@@ -44,7 +44,9 @@ services:
   # Its settings are not in this file (Render asks for `sync: false` values only when a Blueprint is first created): add them
   # in the job's Environment page. docs/runbooks/first-deploy.md, "Adding the deletion sweep", builds the file to paste:
   #   TJ_SWEEP_DATABASE_URL                                   the app_sweep role's address (private host)
-  #   TJ_KINDE_DOMAIN, TJ_KINDE_M2M_CLIENT_ID, TJ_KINDE_M2M_CLIENT_SECRET    the machine-to-machine Kinde application
+  #   TJ_KINDE_DOMAIN                                         the Kinde TENANT address (https://<tenant>.kinde.com), NOT the web
+  #                                                           service's custom domain: Kinde refuses the management token there
+  #   TJ_KINDE_M2M_CLIENT_ID, TJ_KINDE_M2M_CLIENT_SECRET      the machine-to-machine Kinde application
   #   TJ_S3_ENDPOINT, TJ_S3_BUCKET, TJ_S3_ACCESS_KEY_ID, TJ_S3_SECRET_ACCESS_KEY    the same bucket as the web service
   #   TJ_EMAIL_API_KEY, TJ_EMAIL_FROM                         the same two as the web service (without them the email step
   #                                                           refuses and the run ends with an error; the other two steps still run)
