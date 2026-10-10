@@ -351,6 +351,31 @@ def test_applying_without_the_email_settings_is_refused_by_name_and_sends_nothin
     )
 
 
+def test_a_run_that_sent_everything_exits_zero_and_one_that_was_refused_does_not(
+    env, capsys, system, owner, alice, bob
+):
+    # Two people due. The provider takes Alice's and refuses Bob's: the run must look failed on the host (exit 1), say why
+    # in a short code, still have told Alice, and leave Bob due for tomorrow.
+    box = Mailbox()
+    env.setattr(sweep, "_mailer_from_env", lambda: box)
+    give(owner, system, alice, ended=DAY)
+    give(owner, system, bob, ended=DAY)
+    owner.execute(
+        "UPDATE grant_redemptions SET ends_at = now() - interval '1 day', starts_at = now() - interval '31 days'"
+    )
+    emails = {r["id"]: r["email"] for r in owner.execute("SELECT id, email FROM users")}
+    box.refuse[emails[bob]] = "mail_refused_422"
+    assert sweep.main(["ended-notices", "--apply"]) == 1
+    captured = capsys.readouterr()
+    assert "applied; due 2, sent 1, failed 1" in captured.out
+    assert "mail_refused_422: 1" in captured.err
+    assert "@" not in captured.out + captured.err
+    del box.refuse[emails[bob]]
+    assert sweep.main(["ended-notices", "--apply"]) == 0  # tomorrow's run: Bob is told, and nothing is left
+    assert "applied; due 1, sent 1, failed 0" in capsys.readouterr().out
+    assert sweep.main(["all", "--apply", "--without-identity-provider"]) == 0  # and then there is nothing to do
+
+
 def test_the_command_needs_the_sweep_connection(monkeypatch, capsys):
     monkeypatch.delenv("TJ_SWEEP_DATABASE_URL", raising=False)
     assert sweep.main(["ended-notices"]) == 2

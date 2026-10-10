@@ -132,6 +132,8 @@ Get-Content .env.sweep-paste | ForEach-Object { ($_ -split '=')[0] }
 
 The Kinde machine-to-machine credentials were checked read-only on 2026-10-09 (a token is issued, and a lookup of an id that cannot exist answers 400, which the code reads as "gone"); the delete permission was proven on a live tenant in spike S1b and has not been exercised since.
 
+**Later, once email is set up** (the beta, [beta.md](beta.md)): the same job also sends the "your access has ended" email. That is two more settings on the cron job and a different command (`all --apply`), done in the order in [deploy.md](deploy.md) section 6, "The 'your access has ended' email". Until then the job keeps running `deletions --apply` and nothing changes.
+
 ## What is deliberately not here yet
 
 - **A separate Kinde environment for production.** This reuses the spike's application, which is fine for you alone; make a clean one before real users.

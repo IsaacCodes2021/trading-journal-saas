@@ -241,7 +241,7 @@ def _main_notices(args: argparse.Namespace, url: str) -> int:
     print(f"{mode}; due {report.due}, sent {report.sent}, failed {report.failed}")
     for reason, count in sorted(report.reasons.items()):
         print(f"  {reason}: {count}", file=sys.stderr)
-    return 0
+    return 1 if report.failed else 0  # a refused email is a failed run on the host, where someone will see it
 
 
 def _main_deletions(args: argparse.Namespace, url: str) -> int:

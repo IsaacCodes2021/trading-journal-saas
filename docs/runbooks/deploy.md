@@ -13,7 +13,7 @@ Related: [restore.md](restore.md), [rotate-secrets.md](rotate-secrets.md), [inci
 | **Web service** | One container built from `backend/Dockerfile` (the API and the built front end, one origin) | Listens on `$PORT`; refuses to start unconfigured (`TJ_ENV=production` is the image's default) |
 | **Postgres 18** | The only place people's data lives | Roles are made by hand once; migrations are a release step, never run by the app |
 | **Object storage** | A private Cloudflare R2 bucket for screenshots | The server reads and writes it; pictures are never linked to it directly |
-| **Sweep job** | `python -m tradejournal.pg.sweep deletions --apply`, daily | Finishes account deletions (rows, picture files, the identity at Kinde). Needs the bucket, so it works as a separate scheduled process |
+| **Sweep job** | `python -m tradejournal.pg.sweep deletions --apply`, daily (`all --apply` once the email settings are on the job, section 6) | Finishes account deletions (rows, picture files, the identity at Kinde) and, with `all`, sends the "your access has ended" email. Needs the bucket, so it works as a separate scheduled process |
 | **Kinde** | Sign-in (OIDC) and, for the sweep, its management API | Two applications: the web app, and a machine-to-machine one |
 | **Cloudflare** | In front of the host: DNS, TLS, caching of `/assets/*`, a rate-limit rule | `roundturn.app` already points a Worker at the marketing site; the app needs its own host name |
 
@@ -103,6 +103,22 @@ python -m tradejournal.pg.sweep deletions --apply
 | `TJ_S3_*` | the same four as the web service |
 
 It prints only counts. Run it once **without** `--apply` first (a dry run) and check that it says what you expect. A person is deleted seven days after they ask; until the job runs, nothing is removed, so a missing schedule is a privacy failure, not just a chore. **Never run it with `--apply` against a database you care about while testing.**
+
+### The "your access has ended" email (migration 0016)
+
+The same job also sends one email to each person whose time-limited access (a beta code, a plan code) has run out, or was ended by an operator and the email at that moment did not go. It is a second command of the same program, so it needs no new service, only two more settings and a different command line:
+
+| Setting | Value |
+|---|---|
+| `TJ_EMAIL_API_KEY`, `TJ_EMAIL_FROM` | the same two as the web service (section 4). Both or neither |
+
+1. Run the migration (0016) first; the command fails on an older database.
+2. Add the two settings to the cron job's Environment page.
+3. **Look before sending**: `python -m tradejournal.pg.sweep ended-notices` (no `--apply`) in the job's shell, or **Trigger Run** after temporarily setting the command to that. It prints how many people are due and nothing else. A first run on a database that has had beta users for a while should say a small number (only grants that ended in the last 14 days count); a large number means something is wrong, so stop and look.
+4. Change the job's command to `python -m tradejournal.pg.sweep all --apply` (the Start Command on the cron job's Settings page, and the `dockerCommand` line of `render.yaml` in the same change so the file and the dashboard agree). `all` runs deletions first and then the notices, and exits non-zero if either could not run or had a send refused, so Render shows a failed run (and emails you, if its notifications are on).
+5. After a run: the log ends with the notice counts (`due`, `sent`, `failed`) and, for failures, the provider's short reason codes with counts and no address: `mail_network` (could not reach it), `mail_refused_<status>` (it refused the message; the number is its HTTP status, and 401 or 403 usually means the key or the sender's domain is not accepted), `mail_unavailable_<status>` (it was down or limiting you: 429 or a 5xx). A person whose send failed is simply due again tomorrow, for as long as their access ended within the last 14 days; nothing is lost, and a person is never sent the same notice twice.
+
+`TJ_EMAIL_API_KEY` is a secret: it goes into the dashboard, never into the chat or this repository (rotate it with [rotate-secrets.md](rotate-secrets.md)). With the settings missing, `ended-notices --apply` refuses to run (it does not pretend to send), and `all --apply` still finishes the deletions first and then exits with an error.
 
 ## 7. After the first start
 

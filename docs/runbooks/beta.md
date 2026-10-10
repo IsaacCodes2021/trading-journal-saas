@@ -38,7 +38,7 @@ this page says what they are and how to work with them.
 | The public form's endpoint (`POST /api/v1/beta/join`), the email sender (Resend behind `api/mailer.py`) and the email with the code | Built and tested; needs a Resend account, a verified `roundturn.app` and the two settings before it answers anything but 503 |
 | The operator's list of beta sign-ups (`GET /api/admin/v1/beta`, with states, filters, search and counts) and **revoke** (`POST /api/admin/v1/beta/{id}/revoke`: ends the access at once and sends the "access ended" email; for someone with no account yet it withdraws their code) | Built and tested (migration 0015); the screen is **Operator tools > Beta testers** (`/admin/beta`) |
 | The "access ended" email, sent once, after a revoke (and recorded as sent) | Built and tested |
-| The daily job that sends the same email when the 30 days run out | Not built |
+| The daily job that sends the same email when the 30 days run out (`python -m tradejournal.pg.sweep ended-notices`, or `all` with the deletions; once per person; a refused send is tried again the next day for 14 days) | Built and tested (migration 0016); switched on by two settings and a command change on the cron job ([deploy.md](deploy.md) section 6) |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
 | Our own sign-in and sign-up pages (`/signin`, `/signup`; `/invite` still works) and a signed-out visit going to `/signin` instead of straight to Kinde | Built and tested (front end only); Kinde's own password screen is still the default look until its branding is applied |
 | Kinde's own password, code and second-factor screens in the app's look (`kinde/` holds the code, `kinde-branding.md` the steps) | Written, **not run**: needs Kinde's custom domain, a GitHub repository and one setting on Render (owner's steps) |
@@ -49,5 +49,7 @@ this page says what they are and how to work with them.
 
 Render deploys every commit to `main`, and a new image stays out of traffic until `/readyz` says the database has its
 migration. So: merge, then run the migration (`python -m tradejournal.pg.migrate` with `TJ_OWNER_URL`, or
-`provision_hosted --migrate`), then the new instance takes over. Nothing in this migration changes how an existing account
-behaves.
+`provision_hosted --migrate`), then the new instance takes over. Nothing in these migrations changes how an existing account
+behaves. Migrations 0014, 0015 and 0016 ship together in this stack of pull requests and are run in one pass after the first
+merge; all three are additive (new tables, columns and functions, and one check that keeps new codes to 30 days or fewer,
+added `NOT VALID` so it looks at no existing row).
