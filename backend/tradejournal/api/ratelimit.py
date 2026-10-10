@@ -48,6 +48,7 @@ class RateLimits:
         "screenshot_upload", 120, 3600
     )  # one image per request: a review session of a few dozen
     login: Rule = Rule("login", 30, 60)  # starting a sign-in, per client address
+    beta_join: Rule = Rule("beta_join", 5, 3600)  # asking to join the beta, per client address
     callback: Rule = Rule("callback", 30, 60)
     invite_attempts: Rule = Rule("invite_attempts", 10, 900)  # sign-in attempts that carry an invite code
     redeem: Rule = Rule("redeem", 10, 3600)  # plan codes a person tries, right or wrong

@@ -9,8 +9,8 @@ this page says what they are and how to work with them.
    expiring. The server checks it **before** the browser is sent to Kinde, and again after, against the address Kinde
    verified. Kinde itself still lets anyone register an identity on its own page; that identity cannot get into Roundturn,
    and it can be deleted in Kinde's dashboard.
-2. **Joining the beta makes a personal code** for that address (`beta_join`, called as the sign-in role; the public form that
-   calls it comes next). The code carries **30 days of full access (Pro)**, counted from the day the account is created.
+2. **Joining the beta makes a personal code** for that address (`beta_join`, called as the sign-in role by the form's
+   endpoint, which then emails it; the code is shown on no page). The code carries **30 days of full access (Pro)**, counted from the day the account is created.
    Rules in the database: one code an hour per address, five in all, none for an address that already has an account or has
    used its code, none while the beta grant is revoked. A new code withdraws the previous one. The same answer is given to
    everyone, so the form cannot be used to find out who has joined.
@@ -32,7 +32,8 @@ this page says what they are and how to work with them.
 |---|---|
 | Table, personal code, the rules above, the 30-day cap, ending a grant early (`grant_redemptions.revoked_at`), the access rule (`plans.access`) | Built and tested (migration 0014) |
 | The code is checked before Kinde; a grant that cannot be given refuses the sign-up | Built and tested |
-| The public form, the email with the code, the "ended" email and the daily job that sends it | Not built |
+| The public form's endpoint (`POST /api/v1/beta/join`), the email sender (Resend behind `api/mailer.py`) and the email with the code | Built and tested; needs a Resend account, a verified `roundturn.app` and the two settings before it answers anything but 503 |
+| The "ended" email and the daily job that sends it | Not built |
 | The read-only rule enforced on write routes, and `access` in the session | Not built |
 | The operator's Beta testers list and the revoke action | Not built |
 | Landing page, sign-in and sign-up pages | Designed (the canvas), not built |

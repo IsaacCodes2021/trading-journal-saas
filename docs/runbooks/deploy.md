@@ -66,6 +66,8 @@ Build from the repository root: `docker build -f backend/Dockerfile -t roundturn
 | `TJ_KINDE_DOMAIN`, `TJ_KINDE_CLIENT_ID`, `TJ_KINDE_CLIENT_SECRET` | from the Kinde web application (all three, or sign-in answers 503) | the last one |
 | `TJ_SIGNUP_MODE` | `invite` for the private beta (the default) | no |
 | `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY` | from section 2 | the last two |
+| `TJ_EMAIL_API_KEY`, `TJ_EMAIL_FROM` | the email service's key (Resend) and the address mail comes from, like `Roundturn <beta@roundturn.app>` (the domain must be verified at the provider). Both or neither: with neither, the form that joins the beta answers 503 and no code can be sent | the first |
+| `TJ_EMAIL_API_URL` | leave out (the default is `https://api.resend.com`); it exists for tests | no |
 | `TJ_CLIENT_IP_HEADER` | `CF-Connecting-IP` **only** when every request really comes through Cloudflare; otherwise leave it out. On Render it is set (2026-10-09): Render's edge is Cloudflare and sets it, and a request with a forged value is refused there | no |
 | `TJ_APP_VERSION` | the commit the image was built from, so a stale browser tab can tell it is stale | no |
 | `TJ_MAX_CONCURRENT_IMPORTS` | leave out (the default is 2 per process) | no |

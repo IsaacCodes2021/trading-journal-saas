@@ -118,3 +118,41 @@ def test_the_three_kinde_settings_go_together(missing):
 def test_the_kinde_domain_must_be_an_https_address_without_a_path(domain):
     with pytest.raises(ConfigError, match="TJ_KINDE_DOMAIN must look like"):
         ApiConfig.from_env({**PRODUCTION, **KINDE, "TJ_KINDE_DOMAIN": domain})
+
+
+# ---- email -----------------------------------------------------------------------------------------------------------
+
+EMAIL = {"TJ_EMAIL_API_KEY": "re_" + "test" + "0123456789", "TJ_EMAIL_FROM": "Roundturn <beta@roundturn.app>"}
+
+
+def test_the_email_settings_are_read_and_the_key_is_not_in_the_text_of_the_config():
+    config = ApiConfig.from_env({**PRODUCTION, **EMAIL})
+    assert (config.email_api_key, config.email_from) == (EMAIL["TJ_EMAIL_API_KEY"], EMAIL["TJ_EMAIL_FROM"])
+    assert EMAIL["TJ_EMAIL_API_KEY"] not in repr(config)
+
+
+def test_without_them_there_is_no_email_and_that_is_fine_for_a_server_that_is_not_taking_sign_ups_yet():
+    config = ApiConfig.from_env(PRODUCTION)
+    assert (config.email_api_key, config.email_from) == (None, None)
+
+
+@pytest.mark.parametrize("missing", list(EMAIL))
+def test_the_two_email_settings_go_together(missing):
+    with pytest.raises(ConfigError, match="TJ_EMAIL_API_KEY and TJ_EMAIL_FROM go together"):
+        ApiConfig.from_env({**PRODUCTION, **{k: v for k, v in EMAIL.items() if k != missing}})
+
+
+@pytest.mark.parametrize("sender", ["not an address", "a@b", "a@b.cc\r\nBcc: x@y.zz", "<a@b.cc>", "Name <a@b.cc"])
+def test_the_sender_must_be_an_address_and_cannot_carry_a_second_header(sender):
+    with pytest.raises(ConfigError, match="TJ_EMAIL_FROM must look like"):
+        ApiConfig.from_env({**PRODUCTION, **EMAIL, "TJ_EMAIL_FROM": sender})
+
+
+def test_a_bare_address_is_a_sender_too():
+    assert ApiConfig.from_env({**PRODUCTION, **EMAIL, "TJ_EMAIL_FROM": "beta@roundturn.app"}).email_from
+
+
+def test_in_production_the_providers_address_must_be_https():
+    with pytest.raises(ConfigError, match="TJ_EMAIL_API_URL must be https"):
+        ApiConfig.from_env({**PRODUCTION, **EMAIL, "TJ_EMAIL_API_URL": "http://mail.example.com"})
+    assert ApiConfig.from_env({**PRODUCTION, **EMAIL, "TJ_EMAIL_API_URL": "https://mail.example.com"})

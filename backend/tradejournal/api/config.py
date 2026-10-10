@@ -21,6 +21,9 @@ MAX_CONCURRENT_IMPORTS = (
 )
 
 
+_SENDER = re.compile(r"(?:[^<>\r\n@]{1,80} <[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+>|[^<>\s@]+@[^<>\s@]+\.[^<>\s@]+)")
+
+
 class ConfigError(ValueError):
     """The environment is not a configuration the API can run with."""
 
@@ -65,6 +68,11 @@ class ApiConfig:
     kinde_client_secret: str | None = field(default=None, repr=False)
     # "invite": a new person needs a valid invitation code (the private beta). "open": anyone may sign up.
     signup_mode: str = "invite"
+    # Email (api/mailer.py): the provider's key and the address mail comes from, together or not at all. With neither, the form
+    # that joins the beta answers 503 (nobody could receive the code). `email_api_url` is the provider's address, for tests.
+    email_api_key: str | None = field(default=None, repr=False)
+    email_from: str | None = None
+    email_api_url: str = "https://api.resend.com"
     # Rate limits (api/ratelimit.py). `client_ip_header` names the header that carries the real client address when every
     # request comes through a proxy that sets it (CF-Connecting-IP behind Cloudflare); left out, the socket's address is used.
     rate_limits: RateLimits = field(default_factory=RateLimits)
@@ -99,6 +107,12 @@ class ApiConfig:
                 or domain.fragment
             ):
                 raise ConfigError("TJ_KINDE_DOMAIN must look like https://your-tenant.kinde.com (no path)")
+        if bool(self.email_api_key) != bool(self.email_from):
+            raise ConfigError("TJ_EMAIL_API_KEY and TJ_EMAIL_FROM go together")
+        if self.email_from is not None and not _SENDER.fullmatch(self.email_from):
+            raise ConfigError("TJ_EMAIL_FROM must look like hello@example.com or Name <hello@example.com>")
+        if self.production and self.email_api_key and not self.email_api_url.startswith("https://"):
+            raise ConfigError("TJ_EMAIL_API_URL must be https in production")
         if self.client_ip_header is not None and not re.fullmatch(r"[A-Za-z0-9-]{1,64}", self.client_ip_header):
             raise ConfigError("TJ_CLIENT_IP_HEADER must be a header name such as CF-Connecting-IP")
         if self.signup_mode not in ("invite", "open"):
@@ -144,6 +158,9 @@ class ApiConfig:
             ("TJ_KINDE_CLIENT_SECRET", "kinde_client_secret"),
             ("TJ_SIGNUP_MODE", "signup_mode"),
             ("TJ_CLIENT_IP_HEADER", "client_ip_header"),
+            ("TJ_EMAIL_API_KEY", "email_api_key"),
+            ("TJ_EMAIL_FROM", "email_from"),
+            ("TJ_EMAIL_API_URL", "email_api_url"),
         ):
             if env.get(key):
                 values[name] = env[key].strip()

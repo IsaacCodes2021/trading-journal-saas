@@ -31,6 +31,8 @@ from .dev import dev_services
 from .errors import install_error_handlers
 from .limits import BodyLimitMiddleware
 from .logs import configure_logging
+from .mailer import LogMailer, Mailer, ResendMailer
+from .pg_beta import PgBetaService
 from .pg_services import PgAccountService
 from .ports import ReadinessCheck, Services
 from .ratelimit import RateLimiter
@@ -42,6 +44,7 @@ from .routers import (
     admin_codes,
     admin_users,
     auth,
+    beta,
     day_notes,
     export,
     grants,
@@ -62,6 +65,14 @@ from .spa import mount_spa
 API_VERSION = "1"  # the contract's version (`/api/v1`), not the build: that is `ApiConfig.app_version`
 
 
+def _mailer_for(config: ApiConfig) -> Mailer | None:
+    """Email goes through the provider when it is configured. In development without one the message is logged (so the code
+    can be read from the console); in production without one there is no mailer and the form answers 503."""
+    if config.email_api_key and config.email_from:
+        return ResendMailer(api_key=config.email_api_key, sender=config.email_from, base_url=config.email_api_url)
+    return None if config.production else LogMailer()
+
+
 def _store_for(config: ApiConfig) -> FileStore | None:
     """Where the files are kept: the bucket if one is configured, else the folder, else nowhere (the routes then answer 503)."""
     if config.bucket is not None:
@@ -79,6 +90,7 @@ def create_app(
     idp: IdentityProvider | None = None,
     limiter: RateLimiter | None = None,
     files: FileStore | None = None,
+    mailer: Mailer | None = None,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
     what a deployment looks like until sign-in is built (M5), except in development with `TJ_DEV_USER_ID` set, where
@@ -120,6 +132,7 @@ def create_app(
             accounts=PgAccountService(database, system),
             audit=PgAuditLog(system),
             admin=PgAdminService(system, store, clock=clock) if config.admin_database_url else None,
+            beta=PgBetaService(system),
         )
         if idp is None and config.kinde_domain and config.kinde_client_id and config.kinde_client_secret:
             idp = KindeProvider(
@@ -173,6 +186,7 @@ def create_app(
     app.state.limiter = limiter or RateLimiter()
     app.state.import_slots = ImportSlots(config.max_concurrent_imports)
     app.state.files = files if files is not None else _store_for(config)
+    app.state.mailer = mailer if mailer is not None else _mailer_for(config)
     # The last one added is the outermost: the security headers must wrap everything, including a 413 from the limit.
     app.add_middleware(BodyLimitMiddleware, json_limit=config.max_json_bytes, upload_limit=config.max_upload_bytes)
     app.add_middleware(SecurityHeadersMiddleware, config=config)
@@ -215,5 +229,6 @@ def create_app(
     app.include_router(imports.router)
     app.include_router(auth.public)
     app.include_router(auth.router)
+    app.include_router(beta.public)
     mount_spa(app, config.web_dist)  # last, so it never shadows a route above
     return app

@@ -4,13 +4,15 @@ last section."""
 
 from __future__ import annotations
 
+import re
 import threading
 from datetime import UTC, datetime, timedelta
 
 import psycopg
 import pytest
-from auth_world import NEWCOMER, audit_rows
+from auth_world import NEWCOMER, ORIGIN, audit_rows
 
+from tradejournal.api.mailer import MailError
 from tradejournal.pg import beta, invites, plans
 
 NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
@@ -430,3 +432,77 @@ def test_the_most_recent_end_is_the_one_reported(system, owner, alice):
     give(owner, system, alice, days=30, now=NOW + 12 * DAY)  # day 12 to day 42
     state = access(system, alice, NOW + 60 * DAY)
     assert (state.state, state.ends_at, state.reason) == ("ended", NOW + 42 * DAY, "expired")
+
+
+# ---- the form, the email and the sign-up, end to end ----------------------------------------------------------------
+
+
+class RecordingMailer:
+    def __init__(self) -> None:
+        self.sent = []
+        self.fail_with = None
+
+    def send(self, email) -> None:
+        if self.fail_with:
+            raise MailError(self.fail_with)
+        self.sent.append(email)
+
+
+def fill_in_the_form(browser, email=NEWCOMER.email, **over):
+    body = {"first_name": "Newcomer", "email": email, "prop_firm": "Apex", "website": "", **over}
+    headers = {"Origin": ORIGIN, "Sec-Fetch-Site": "same-origin"}
+    return browser.client.post("/api/v1/beta/join", json=body, headers=headers)
+
+
+def code_in(email) -> str:
+    return re.search(r"TJ-[A-Z0-9]{4}-[A-Z0-9]{4}", email.text).group(0)
+
+
+def test_from_the_form_to_a_signed_in_account_with_thirty_days(world, owner):
+    browser = world()
+    mailer = browser.client.app.state.mailer = RecordingMailer()
+    assert fill_in_the_form(browser).status_code == 202
+    [email] = mailer.sent
+    assert email.to == NEWCOMER.email
+    signed_up = browser.sign_in(NEWCOMER, invite=code_in(email))
+    assert signed_up.status_code == 303 and signed_up.headers["location"] == "/"
+    body = browser.session().json()
+    assert (body["plan"]["effective"], body["plan"]["source"]) == ("pro", "grant")
+    row_ = row(owner, "beta_signups", email=NEWCOMER.email)
+    assert (row_["first_name"], row_["prop_firm"], row_["email_sent_at"] is not None) == ("Newcomer", "Apex", True)
+
+
+def test_the_same_form_again_sends_nothing_more_and_says_the_same(world, owner):
+    browser = world()
+    mailer = browser.client.app.state.mailer = RecordingMailer()
+    first = fill_in_the_form(browser)
+    again = fill_in_the_form(browser)
+    assert (first.status_code, first.json()) == (again.status_code, again.json())
+    assert len(mailer.sent) == 1
+
+
+def test_an_address_that_already_has_an_account_gets_the_same_answer_and_no_email(world, owner, alice):
+    browser = world()
+    mailer = browser.client.app.state.mailer = RecordingMailer()
+    response = fill_in_the_form(browser, email="alice@example.test")
+    assert response.status_code == 202 and response.json() == {"status": "ok"}
+    assert mailer.sent == [] and count(owner, "beta_signups") == 0
+
+
+def test_when_the_email_cannot_be_sent_the_person_may_ask_again_at_once(world, owner):
+    browser = world()
+    mailer = browser.client.app.state.mailer = RecordingMailer()
+    mailer.fail_with = "mail_unavailable_503"
+    assert fill_in_the_form(browser).status_code == 202 and mailer.sent == []
+    assert row(owner, "beta_signups")["email_failures"] == 1
+    mailer.fail_with = None
+    assert fill_in_the_form(browser).status_code == 202
+    [email] = mailer.sent
+    assert browser.sign_in(NEWCOMER, invite=code_in(email)).status_code == 303
+
+
+def test_the_form_answers_503_when_no_email_provider_is_configured(world, owner):
+    browser = world()
+    browser.client.app.state.mailer = None
+    response = fill_in_the_form(browser)
+    assert response.status_code == 503 and count(owner, "beta_signups") == 0

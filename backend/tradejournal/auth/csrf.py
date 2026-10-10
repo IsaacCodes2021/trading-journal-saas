@@ -22,8 +22,7 @@ def csrf_token(secret: bytes, session_id: str) -> str:
     return hmac.new(secret, session_id.encode(), hashlib.sha256).hexdigest()
 
 
-def check_csrf(request: Request, expected_token: str, app_origin: str) -> None:
-    """Raise 403 (or 415) unless this unsafe request clearly came from our own page."""
+def _check_same_origin(request: Request, app_origin: str) -> None:
     fetch_site = request.headers.get("sec-fetch-site")
     origin = request.headers.get("origin")
     if origin is not None and origin != app_origin:
@@ -33,9 +32,23 @@ def check_csrf(request: Request, expected_token: str, app_origin: str) -> None:
             raise HTTPException(403, "cross-site request refused")
     elif origin is None:
         raise HTTPException(403, "origin missing")  # a browser always sends one of the two on unsafe methods
+
+
+def check_csrf(request: Request, expected_token: str, app_origin: str) -> None:
+    """Raise 403 (or 415) unless this unsafe request clearly came from our own page."""
+    _check_same_origin(request, app_origin)
     # Compared as bytes: `compare_digest` raises TypeError on a str with non-ASCII characters, which a client controls.
     if not hmac.compare_digest(request.headers.get(CSRF_HEADER, "").encode(), expected_token.encode()):
         raise HTTPException(403, "CSRF token missing or wrong")
     content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
     if content_type not in ALLOWED_CONTENT_TYPES:
+        raise HTTPException(415, "unsupported content type")
+
+
+def check_public_post(request: Request, app_origin: str) -> None:
+    """The same checks for a POST that has no session and so no token (the form that joins the beta): it must come from
+    our own page, as JSON. Without a token this is weaker than `check_csrf`, which is why such a route may do nothing that
+    needs an identity, and is rate limited by address."""
+    _check_same_origin(request, app_origin)
+    if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
         raise HTTPException(415, "unsupported content type")

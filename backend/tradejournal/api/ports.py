@@ -238,8 +238,29 @@ class AdminService(Protocol):
 
 
 @dataclass(frozen=True)
+class BetaCode:
+    """A personal sign-up code that was just made, to be emailed (and shown to nobody)."""
+
+    signup_id: int
+    code: str
+
+
+class BetaService(Protocol):
+    def join(self, *, first_name: str, email: str, prop_firm: str) -> BetaCode | None:
+        """Record the request and make the personal code, under the rules in the database. None when nothing was made:
+        the same answer for an address that already has an account, one asked about a moment ago, and one that is not an
+        address. The caller says the same thing to all of them."""
+        ...
+
+    def email_result(self, signup_id: int, *, ok: bool) -> None:
+        """Whether the email carrying the code left. A failure lets the person ask again at once."""
+        ...
+
+
+@dataclass(frozen=True)
 class Services:
     sessions: SessionStore
     accounts: AccountService
     audit: AuditLog
     admin: AdminService | None = None  # the operator's tools; routes answer 503 where there are none
+    beta: BetaService | None = None  # joining the beta; the route answers 503 where there is none
