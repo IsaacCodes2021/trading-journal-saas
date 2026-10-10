@@ -9,9 +9,11 @@ import {
   CODE_TEXT,
   STATE_TEXT,
   accessText,
+  canRemove,
   daysLeft,
   revokeKind,
   useBeta,
+  useRemoveBeta,
   useRevokeBeta,
   type BetaPerson,
   type BetaQuery,
@@ -152,6 +154,64 @@ function RevokeDialog({
   )
 }
 
+/** Ask why, then remove a sign-up that has no account and every code tied to its address. */
+function RemoveDialog({ person, onClose, onDone }: { person: BetaPerson; onClose: () => void; onDone: () => void }) {
+  const remove = useRemoveBeta()
+  const [reason, setReason] = useState('')
+  const typed = reason.trim()
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault()
+    if (!typed || remove.isPending) return
+    remove.mutate({ id: person.id, reason: typed }, { onSuccess: onDone })
+  }
+
+  return (
+    <Modal
+      label="Remove this sign-up?"
+      onClose={remove.isPending ? () => undefined : onClose}
+      className="max-w-[520px]"
+    >
+      <form onSubmit={submit} className="flex flex-col gap-3.5">
+        <h2 className="m-0 text-lg font-semibold">Remove this sign-up?</h2>
+        <p className="m-0 text-muted">
+          <strong className="text-ink">{person.first_name}</strong> ({person.email}) has not made an account. Their
+          name, address, favourite firm and every code made for them are deleted for good. Nothing is emailed. If they
+          ask again later they start from nothing.
+        </p>
+        <Field id="beta-remove-reason" label="Reason (kept in the audit log, never emailed)">
+          <textarea
+            id="beta-remove-reason"
+            rows={3}
+            maxLength={500}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            data-autofocus
+            className={`${CONTROL} h-auto py-2`}
+          />
+        </Field>
+        {remove.isError ? (
+          <p role="alert" className="m-0 text-[13px] text-neg">
+            {messageOf(remove.error)}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button onClick={onClose} disabled={remove.isPending}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="border-neg bg-neg! font-semibold text-accent-on! hover:opacity-90 disabled:hover:opacity-50"
+            disabled={!typed || remove.isPending}
+          >
+            {remove.isPending ? 'Working…' : 'Remove sign-up'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <>
@@ -162,7 +222,17 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 /** One person's facts, and the one thing an operator can do to them. */
-function Panel({ person, now, onRevoke }: { person: BetaPerson; now: number; onRevoke: () => void }) {
+function Panel({
+  person,
+  now,
+  onRevoke,
+  onRemove,
+}: {
+  person: BetaPerson
+  now: number
+  onRevoke: () => void
+  onRemove: () => void
+}) {
   const kind = revokeKind(person)
   const ends = person.access_ends_at
   return (
@@ -202,10 +272,16 @@ function Panel({ person, now, onRevoke }: { person: BetaPerson; now: number; onR
         ) : (
           <p className="m-0 text-[13px] text-muted">There is nothing left to end for this person.</p>
         )}
+        {canRemove(person) ? (
+          <Button onClick={onRemove} className="h-10 border-neg/50 text-neg hover:border-neg">
+            Remove sign-up
+          </Button>
+        ) : null}
       </div>
       <p className="mt-3.5 mb-0 text-xs text-muted">
         Revoking ends their access now and emails them that they need to sign up to continue. The same email goes out
-        when the 30 days end.
+        when the 30 days end. Removing is for a request to delete what we hold: it works only for someone who has not
+        made an account (for anyone else, delete the account).
       </p>
     </Card>
   )
@@ -235,7 +311,8 @@ export function BetaPage({
   const people = beta.data?.people ?? []
   const open = people.find((p) => p.id === selected) ?? null
   const [revoking, setRevoking] = useState<BetaPerson | null>(null)
-  const [result, setResult] = useState<{ name: string; notice: BetaRevoked['notice'] } | null>(null)
+  const [removing, setRemoving] = useState<BetaPerson | null>(null)
+  const [result, setResult] = useState<{ name: string; text: string } | null>(null)
   const revokeOf = revoking ? revokeKind(revoking) : null
 
   return (
@@ -250,7 +327,7 @@ export function BetaPage({
           className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-[13px]"
         >
           <span>
-            <strong>{result.name}</strong>: {NOTICE[result.notice]}
+            <strong>{result.name}</strong>: {result.text}
           </span>
           <Button variant="ghost" onClick={() => setResult(null)}>
             Dismiss
@@ -353,7 +430,13 @@ export function BetaPage({
         </Card>
         <aside className="flex min-w-0 flex-[2_1_360px] flex-col gap-4" aria-label="Selected person">
           {open ? (
-            <Panel key={open.id} person={open} now={now} onRevoke={() => setRevoking(open)} />
+            <Panel
+              key={open.id}
+              person={open}
+              now={now}
+              onRevoke={() => setRevoking(open)}
+              onRemove={() => setRemoving(open)}
+            />
           ) : (
             <Card className="px-5 py-4 text-muted">
               Choose a person to see their code, their 30 days and their emails.
@@ -367,8 +450,19 @@ export function BetaPage({
           kind={revokeOf}
           onClose={() => setRevoking(null)}
           onDone={(done) => {
-            setResult({ name: revoking.first_name, notice: done.notice })
+            setResult({ name: revoking.first_name, text: NOTICE[done.notice] })
             setRevoking(null)
+          }}
+        />
+      ) : null}
+      {removing ? (
+        <RemoveDialog
+          person={removing}
+          onClose={() => setRemoving(null)}
+          onDone={() => {
+            setResult({ name: removing.first_name, text: 'Their sign-up and every code made for them were deleted.' })
+            setRemoving(null)
+            onSelect(null)
           }}
         />
       ) : null}

@@ -37,6 +37,7 @@ from .schemas.admin import (
     AuditPageOut,
     BetaListOut,
     BetaPersonOut,
+    BetaRemovedOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
     EventOut,
@@ -57,6 +58,7 @@ NOT_FOUND = "There is no such account."
 NO_INVITE = "There is no such invite."
 NO_GRANT = "There is no such plan code."
 NO_PERSON = "There is no such person in the beta."
+HAS_ACCOUNT = "They have an account. Delete the account instead: that removes the sign-up and its codes with it."
 NOTHING_TO_REVOKE = (
     "There is nothing to revoke: their access has already ended, or their code is used up, expired or withdrawn."
 )
@@ -430,6 +432,17 @@ class PgAdminService:
                 out, notice_to=person.email, notice_name=person.first_name, redemption_id=done.redemption_id
             )
         return BetaRevoked(out)
+
+    def remove_beta(self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None) -> BetaRemovedOut:
+        """Remove a sign-up that has no account, and every code tied to its address (a removal request by email)."""
+        with self._system.system_session(ADMIN) as conn:
+            outcome = pg_beta.remove(conn, signup_id)
+            if outcome == "not_found":
+                raise AdminRefusal(404, NO_PERSON)
+            if outcome == "has_account":
+                raise AdminRefusal(409, HAS_ACCOUNT)
+            self._record(conn, "admin_beta_removed", actor, None, ip_hash, signup=signup_id, reason=reason)
+        return BetaRemovedOut(removed=signup_id)
 
     def beta_notice_sent(self, redemption_id: int) -> None:
         with self._system.system_session(ADMIN) as conn:

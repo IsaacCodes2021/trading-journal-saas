@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { openApp } from '../../test-utils'
@@ -289,7 +289,7 @@ describe('one person', () => {
     expect(await within(await panel()).findByText(/Choose a person/)).toBeInTheDocument()
   })
 
-  it.each(['Sam', 'Chris', 'Dana'])('offers no action for %s: there is nothing left to end', async (name) => {
+  it.each(['Sam', 'Chris'])('offers no action for %s: there is nothing left to end', async (name) => {
     const { user: u } = await open()
     await u.click(await screen.findByRole('button', { name }))
     const side = await panel()
@@ -394,5 +394,131 @@ describe('ending someone’s access', () => {
     const note = await screen.findByRole('status')
     await u.click(within(note).getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
+
+describe('removing a sign-up', () => {
+  async function ask(name: string, options: AdminStubOptions = {}) {
+    const app = await open(options)
+    await app.user.click(await screen.findByRole('button', { name }))
+    const side = await panel()
+    await app.user.click(await within(side).findByRole('button', { name: 'Remove sign-up' }))
+    const dialog = await screen.findByRole('dialog')
+    return { ...app, dialog }
+  }
+
+  it.each(['Jordan', 'Dana'])('is offered for %s, who has no account', async (name) => {
+    const { user: u } = await open()
+    await u.click(await screen.findByRole('button', { name }))
+    const side = await panel()
+    expect(await within(side).findByRole('button', { name: 'Remove sign-up' })).toBeInTheDocument()
+  })
+
+  it.each(['Alex', 'Sam', 'Chris'])('is not offered for %s, who has an account', async (name) => {
+    const { user: u } = await open()
+    await u.click(await screen.findByRole('button', { name }))
+    const side = await panel()
+    await within(side).findByRole('heading', { name })
+    expect(within(side).queryByRole('button', { name: 'Remove sign-up' })).not.toBeInTheDocument()
+  })
+
+  it('leaves Dana, whose code ran out, with nothing to end and only the removal', async () => {
+    const { user: u } = await open()
+    await u.click(await screen.findByRole('button', { name: 'Dana' }))
+    const side = await panel()
+    await within(side).findByRole('heading', { name: 'Dana' })
+    expect(side).toHaveTextContent('There is nothing left to end for this person.')
+    expect(
+      within(side)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Remove sign-up'])
+  })
+
+  it('sits beside withdrawing the code for someone whose code is still good', async () => {
+    const { user: u } = await open()
+    await u.click(await screen.findByRole('button', { name: 'Jordan' }))
+    const side = await panel()
+    await within(side).findByRole('heading', { name: 'Jordan' })
+    expect(
+      within(side)
+        .getAllByRole('button')
+        .map((b) => b.textContent),
+    ).toEqual(['Withdraw code', 'Remove sign-up'])
+  })
+
+  it('says what is deleted, and that nothing is emailed', async () => {
+    const { dialog } = await ask('Jordan')
+    expect(within(dialog).getByRole('heading', { name: 'Remove this sign-up?' })).toBeInTheDocument()
+    expect(dialog).toHaveTextContent('Jordan (jordan@example.test) has not made an account.')
+    expect(dialog).toHaveTextContent('every code made for them are deleted for good')
+    expect(dialog).toHaveTextContent('Nothing is emailed.')
+  })
+
+  it('needs a reason before it can be sent', async () => {
+    const { dialog, calls, user: u } = await ask('Jordan')
+    const send = within(dialog).getByRole('button', { name: 'Remove sign-up' })
+    expect(send).toBeDisabled()
+    await u.type(within(dialog).getByLabelText(/^Reason/), '   ')
+    expect(send).toBeDisabled()
+    expect(changes(calls)).toEqual([])
+  })
+
+  it('sends the trimmed reason with the CSRF token, closes, says it is gone, and the person leaves the list', async () => {
+    const { dialog, calls, router, user: u } = await ask('Jordan')
+    expect(router.state.location.search).toMatchObject({ person: 3 })
+    await u.type(within(dialog).getByLabelText(/^Reason/), '  They asked by email to be removed.  ')
+    await u.click(within(dialog).getByRole('button', { name: 'Remove sign-up' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(changes(calls)).toEqual([
+      {
+        method: 'POST',
+        path: '/api/admin/v1/beta/3/remove',
+        query: {},
+        body: { reason: 'They asked by email to be removed.' },
+        csrf: 'tok',
+      },
+    ])
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Jordan: Their sign-up and every code made for them were deleted.',
+    )
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Jordan' })).not.toBeInTheDocument())
+    expect(await within(await panel()).findByText(/Choose a person/)).toBeInTheDocument()
+    expect(router.state.location.search).not.toHaveProperty('person') // the address no longer points at them
+  })
+
+  it('keeps the dialog open and says what the server said when it is refused', async () => {
+    const { dialog, user: u } = await ask('Jordan', {
+      changeFails: { status: 409, detail: 'They have an account. Delete the account instead.' },
+    })
+    await u.type(within(dialog).getByLabelText(/^Reason/), 'asked')
+    await u.click(within(dialog).getByRole('button', { name: 'Remove sign-up' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'They have an account. Delete the account instead.',
+    )
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('does nothing when it is cancelled', async () => {
+    const { dialog, calls, user: u } = await ask('Jordan')
+    await u.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(changes(calls)).toEqual([])
+    expect(screen.getByRole('button', { name: 'Jordan' })).toBeInTheDocument()
+  })
+})
+
+describe('removing a sign-up: the form guards itself as well as the button', () => {
+  it('does not send an empty reason even when the form is submitted without the button', async () => {
+    const app = await open()
+    await app.user.click(await screen.findByRole('button', { name: 'Jordan' }))
+    await app.user.click(await within(await panel()).findByRole('button', { name: 'Remove sign-up' }))
+    const dialog = await screen.findByRole('dialog')
+    await app.user.type(within(dialog).getByLabelText(/^Reason/), '   ')
+    fireEvent.submit(dialog.querySelector('form') as HTMLFormElement)
+    await new Promise((resolve) => setTimeout(resolve, 50)) // long enough for a request to have been made
+    expect(changes(app.calls)).toEqual([])
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

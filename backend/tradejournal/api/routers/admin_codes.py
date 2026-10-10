@@ -20,6 +20,7 @@ from ..schemas import Problem
 from ..schemas.admin import (
     AuditPageOut,
     BetaListOut,
+    BetaRemovedOut,
     BetaRevokeOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
@@ -162,6 +163,21 @@ def revoke_beta(
     if sent:
         admin.beta_notice_sent(done.redemption_id)
     return BetaRevokeOut(person=done.person, notice="sent" if sent else "pending")
+
+
+@router.post("/beta/{signup_id}/remove", response_model=BetaRemovedOut)
+def remove_beta(
+    signup_id: RowId,
+    body: ReasonIn,
+    request: Request,
+    operator: WriteAdminDep,
+    admin: AdminServiceDep,
+    config: ConfigDep,
+) -> BetaRemovedOut:
+    """Remove a sign-up that has no account, and every code tied to its address: for a removal request by email. Someone
+    with an account is refused (409): deleting the account removes the sign-up with it. The reason is kept in the audit
+    log with the sign-up's number, never the address."""
+    return admin.remove_beta(operator.user_id, signup_id, body.reason, ip_hash=_ip(request, config))
 
 
 @router.get("/audit", response_model=AuditPageOut)

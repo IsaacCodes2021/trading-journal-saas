@@ -164,6 +164,13 @@ def revoke(conn: psycopg.Connection, person: BetaRow, *, now: datetime | None = 
     return None
 
 
+def remove(conn: psycopg.Connection, signup_id: int) -> Literal["removed", "has_account", "not_found"]:
+    """Delete a sign-up and every code tied to its address (migration 0017). Refused, by the database, when the address
+    has an account: deleting the account does it."""
+    row = conn.execute("SELECT remove_beta_signup(%s) AS outcome", (signup_id,)).fetchone()
+    return row["outcome"]  # type: ignore[no-any-return]
+
+
 def mark_notice_sent(conn: psycopg.Connection, redemption_id: int, *, now: datetime | None = None) -> bool:
     """Record that the "your access has ended" email left, once. False if it was already recorded."""
     done = conn.execute(

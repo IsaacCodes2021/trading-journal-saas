@@ -12,7 +12,11 @@
 --    The date is the caller's choice on purpose: how long to keep them is a decision for the owner, and the job refuses to run
 --    without it. A sign-up whose address has an account is never touched here; it goes with the account.
 --
--- Neither function returns an address, a name or a code; the second returns a count.
+-- 3. `remove_beta_signup`: the operator's way to honour a removal request for someone who never made an account (for
+--    one who did, deleting the account does it). It refuses when the address has an account, so it can never be used
+--    to strip a live account's sign-up, and it names no address in its answer.
+--
+-- None of the functions returns an address, a name or a code; the second returns a count.
 
 CREATE FUNCTION erase_beta_traces() RETURNS trigger
 LANGUAGE plpgsql
@@ -73,6 +77,30 @@ BEGIN
     RETURN v_count;
 END
 $$;
+
+CREATE FUNCTION remove_beta_signup(p_signup bigint) RETURNS text
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_email text;
+BEGIN
+    SELECT email INTO v_email FROM beta_signups WHERE id = p_signup FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN 'not_found';
+    END IF;
+    IF EXISTS (SELECT 1 FROM users u WHERE lower(u.email) = v_email) THEN
+        RETURN 'has_account';
+    END IF;
+    DELETE FROM beta_signups WHERE id = p_signup;
+    DELETE FROM invites WHERE lower(email) = v_email;
+    RETURN 'removed';
+END
+$$;
+
+REVOKE ALL ON FUNCTION remove_beta_signup(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION remove_beta_signup(bigint) TO app_admin;
 
 REVOKE ALL ON FUNCTION erase_unused_beta_signups(timestamptz, integer, boolean) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION erase_unused_beta_signups(timestamptz, integer, boolean) TO app_sweep;

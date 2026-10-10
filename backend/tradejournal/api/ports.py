@@ -21,6 +21,7 @@ from .schemas.admin import (
     AuditPageOut,
     BetaListOut,
     BetaPersonOut,
+    BetaRemovedOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
     GrantCodeListOut,
@@ -218,6 +219,10 @@ class AdminService(Protocol):
     def list_beta(self, *, state: str | None, q: str | None, limit: int, offset: int) -> BetaListOut: ...
 
     def revoke_beta(self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None) -> BetaRevoked: ...
+
+    def remove_beta(
+        self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None
+    ) -> BetaRemovedOut: ...
 
     def beta_notice_sent(self, redemption_id: int) -> None: ...
 

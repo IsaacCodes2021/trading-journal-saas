@@ -334,3 +334,95 @@ def test_the_notice_stamp_is_set_once_and_keeps_its_first_value(world, system, o
         owner.execute("SELECT ended_notice_sent_at FROM grant_redemptions").fetchone()["ended_notice_sent_at"]
         == NOW + DAY
     )
+
+
+# ---- removing a sign-up that has no account (migration 0017) ---------------------------------------------------------
+
+
+def test_removing_a_sign_up_deletes_it_and_its_codes_and_the_audit_row_names_no_address(system, owner, service, op):
+    gone, _ = join(system, email="gone.person@example.test")
+    stays, _ = join(system, email="stays@example.test")
+    done = service.remove_beta(op, gone, "asked by email", ip_hash="h")
+    assert done.removed == gone
+    assert [r["email"] for r in owner.execute("SELECT email FROM beta_signups")] == ["stays@example.test"]
+    assert [r["email"] for r in owner.execute("SELECT email FROM invites")] == ["stays@example.test"]
+    assert service.list_beta(state=None, q=None, limit=10, offset=0).total == 1
+    [event] = owner.execute("SELECT * FROM audit_log WHERE action = 'admin_beta_removed'").fetchall()
+    assert event["actor"] == "admin" and event["actor_user_id"] == op and event["ip_hash"] == "h"
+    assert event["meta"] == {"signup": gone, "reason": "asked by email"}
+    assert "gone.person" not in str(owner.execute("SELECT * FROM audit_log").fetchall())
+    assert stays
+
+
+def test_every_code_ever_made_for_the_address_goes_with_it(system, owner, service, op):
+    signup, _ = join(system, email="again@example.test")
+    with system.system_session("login") as conn:
+        beta.email_result(conn, signup, ok=False)
+    join(system, email="again@example.test")  # a second code; the first is withdrawn but still a row
+    assert owner.execute("SELECT count(*) AS n FROM invites").fetchone()["n"] == 2
+    service.remove_beta(op, signup, "asked by email")
+    assert owner.execute("SELECT count(*) AS n FROM invites").fetchone()["n"] == 0
+
+
+def test_someone_with_an_account_is_refused_and_nothing_changes(world, system, owner, service, op):
+    signup, _ = sign_up(world, system, "member@example.test")
+    with pytest.raises(AdminRefusal) as refused:
+        service.remove_beta(op, signup, "asked by email")
+    assert refused.value.status == 409 and "Delete the account" in refused.value.detail
+    assert owner.execute("SELECT count(*) AS n FROM beta_signups").fetchone()["n"] == 1
+    assert owner.execute("SELECT count(*) AS n FROM audit_log WHERE action = 'admin_beta_removed'").fetchone()["n"] == 0
+
+
+def test_an_unknown_sign_up_is_a_404_and_a_removed_one_cannot_be_removed_twice(system, owner, service, op):
+    with pytest.raises(AdminRefusal) as unknown:
+        service.remove_beta(op, 9999, "x")
+    assert unknown.value.status == 404
+    signup, _ = join(system, email="once@example.test")
+    service.remove_beta(op, signup, "x")
+    with pytest.raises(AdminRefusal) as twice:
+        service.remove_beta(op, signup, "x")
+    assert twice.value.status == 404
+
+
+def test_only_the_operator_role_may_call_the_remover(owner):
+    sql = "SELECT has_function_privilege(%s, 'remove_beta_signup(bigint)', 'EXECUTE') AS ok"
+    assert owner.execute(sql, ("app_admin",)).fetchone()["ok"]
+    for role in ("app_rw", "app_login", "app_webhook", "app_sweep"):
+        assert not owner.execute(sql, (role,)).fetchone()["ok"], role
+
+
+def test_an_operator_removes_a_sign_up_over_the_api(world, admin_url, system, owner, op):
+    signup, _ = join(system, email="request@example.test")
+    operator = operator_browser(world, admin_url)
+    removed = operator.client.post(
+        f"/api/admin/v1/beta/{signup}/remove", json={"reason": "asked by email"}, headers=writes(operator)
+    )
+    assert removed.status_code == 200, removed.text
+    assert removed.json() == {"removed": signup}
+    assert operator.client.get("/api/admin/v1/beta").json()["total"] == 0
+    again = operator.client.post(
+        f"/api/admin/v1/beta/{signup}/remove", json={"reason": "again"}, headers=writes(operator)
+    )
+    assert again.status_code == 404
+
+
+def test_the_removal_needs_a_reason_and_the_write_checks_like_every_operator_write(world, admin_url, system, owner, op):
+    signup, _ = join(system, email="request@example.test")
+    operator = operator_browser(world, admin_url)
+    assert (
+        operator.client.post(f"/api/admin/v1/beta/{signup}/remove", json={}, headers=writes(operator)).status_code
+        == 422
+    )
+    no_token = operator.client.post(
+        f"/api/admin/v1/beta/{signup}/remove", json={"reason": "x"}, headers={"sec-fetch-site": "same-origin"}
+    )
+    assert no_token.status_code in (400, 403)
+    assert owner.execute("SELECT count(*) AS n FROM beta_signups").fetchone()["n"] == 1
+
+
+def test_an_account_spelled_in_capitals_still_counts_as_an_account(world, system, owner, service, op):
+    signup, _ = sign_up(world, system, "member@example.test")
+    owner.execute("UPDATE users SET email = 'Member@Example.TEST' WHERE email = 'member@example.test'")
+    with pytest.raises(AdminRefusal) as refused:
+        service.remove_beta(op, signup, "asked by email")
+    assert refused.value.status == 409

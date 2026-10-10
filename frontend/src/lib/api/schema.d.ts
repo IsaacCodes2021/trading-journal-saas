@@ -44,6 +44,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/v1/beta/{signup_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Beta
+         * @description Remove a sign-up that has no account, and every code tied to its address: for a removal request by email. Someone
+         *     with an account is refused (409): deleting the account removes the sign-up with it. The reason is kept in the audit
+         *     log with the sign-up's number, never the address.
+         */
+        post: operations["remove_beta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/v1/beta/{signup_id}/revoke": {
         parameters: {
             query?: never;
@@ -1646,6 +1668,14 @@ export interface components {
              */
             state: "waiting" | "active" | "ended" | "revoked";
         };
+        /** BetaRemovedOut */
+        BetaRemovedOut: {
+            /**
+             * Removed
+             * @description The sign-up that was removed, with every code tied to its address
+             */
+            removed: number;
+        };
         /** BetaRevokeOut */
         BetaRevokeOut: {
             /**
@@ -2917,6 +2947,86 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BetaListOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    remove_beta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signup_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BetaRemovedOut"];
                 };
             };
             /** @description Unauthorized */

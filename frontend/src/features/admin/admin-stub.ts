@@ -134,7 +134,16 @@ export interface AdminStubOptions extends ApiOptions {
 /** Replaces `fetch`: the app's usual calls (as an operator who just verified, unless told otherwise) plus the operator API. */
 export function stubAdmin(options: AdminStubOptions = {}) {
   const { users = [], details = {}, changeFails, listFails, detailFails, ...rest } = options
-  const { invites = [], grantCodes = [], auditEvents = [], overview = OVERVIEW, codesFail, beta = [], ...more } = rest
+  const {
+    invites = [],
+    grantCodes = [],
+    auditEvents = [],
+    overview = OVERVIEW,
+    codesFail,
+    beta: given = [],
+    ...more
+  } = rest
+  const beta = [...given] // a removal takes the person out of the list the next read sees
   const { betaNoticeFails = false, ...api } = more
   let nextId = 100
   stubApi({ operator: true, mfaFresh: true, ...api })
@@ -187,6 +196,17 @@ export function stubAdmin(options: AdminStubOptions = {}) {
         if (changeFails) return problem(changeFails)
         const found = beta.find((p) => String(p.id) === rawId)
         if (!found) return problem({ status: 404, detail: 'There is no such person.' })
+        if (verb === 'remove') {
+          if (found.state !== 'waiting') {
+            return problem({
+              status: 409,
+              detail:
+                'They have an account. Delete the account instead: that removes the sign-up and its codes with it.',
+            })
+          }
+          beta.splice(beta.indexOf(found), 1)
+          return json({ removed: found.id })
+        }
         if (found.state === 'active') {
           const changed = { ...found, state: 'revoked' as const, revoked_at: '2026-10-10T12:00:00Z' }
           return json({ person: changed, notice: betaNoticeFails ? 'pending' : 'sent' })

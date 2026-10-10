@@ -6,6 +6,7 @@ import { utcDay } from './admin'
 export type BetaPerson = components['schemas']['BetaPersonOut']
 export type BetaState = BetaPerson['state']
 export type BetaRevoked = components['schemas']['BetaRevokeOut']
+export type BetaRemoved = components['schemas']['BetaRemovedOut']
 
 export const BETA_PAGE = 25
 
@@ -67,6 +68,29 @@ export function useRevokeBeta() {
   })
 }
 
+/**
+ * Remove a sign-up that has no account, and every code tied to its address (a removal request by email). The reason goes
+ * to the audit log. Someone with an account is refused by the server: deleting the account does it.
+ */
+export function useRemoveBeta() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      unwrap(
+        api.POST('/api/admin/v1/beta/{signup_id}/remove', {
+          params: { path: { signup_id: id } },
+          body: { reason },
+        }),
+      ),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: KEY }),
+        queryClient.invalidateQueries({ queryKey: ['admin-codes'] }),
+        queryClient.invalidateQueries({ queryKey: ['admin'] }),
+      ]),
+  })
+}
+
 export const STATE_TEXT: Record<BetaState, string> = {
   waiting: 'Waiting',
   active: 'Active',
@@ -103,6 +127,11 @@ export function accessText(person: BetaPerson, now: number): string {
     case 'revoked':
       return person.revoked_at ? `Revoked · ${utcDay(person.revoked_at)}` : 'Revoked'
   }
+}
+
+/** Only someone with no account can be removed: for anyone else the account is what to delete. */
+export function canRemove(person: BetaPerson): boolean {
+  return person.state === 'waiting'
 }
 
 /** What revoking does to this person, or null when there is nothing left to end. */

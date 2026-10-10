@@ -35,11 +35,11 @@ this page says what they are and how to work with them.
    are removed by `python -m tradejournal.pg.sweep beta-signups --keep-days N [--apply]`: the age is required, has no default
    and cannot be under 30 days (a code lives 14), and the command is not part of `all` and is not scheduled; the owner picks
    N and adds it to the cron job's command (or a second cron job). A dry run prints the count only. Someone who has an account
-   is never touched by it. An operator's "delete this sign-up" button (for a removal request by email) is **not built**:
-   until it is, the owner removes such a request in a SQL console with the owner address, in this order (the sign-up first,
-   because it points at the code): `DELETE FROM beta_signups WHERE email = lower('them@example.com');` then
-   `DELETE FROM invites WHERE lower(email) = lower('them@example.com');`. If they also have an account, deleting the
-   account does both by itself.
+   is never touched by it. A removal request by email is
+   honoured by the operator's `POST /api/admin/v1/beta/{id}/remove` (a reason is required and kept in the audit log with the
+   sign-up's number, never the address): it removes a sign-up that has **no account** and every code tied to its address.
+   For someone with an account it answers 409: delete the account, which does both by itself. In **Operator tools > Beta
+   testers** it is the "Remove sign-up" button in a waiting person's panel.
 
 ## What is built and what is not
 
@@ -51,7 +51,7 @@ this page says what they are and how to work with them.
 | The operator's list of beta sign-ups (`GET /api/admin/v1/beta`, with states, filters, search and counts) and **revoke** (`POST /api/admin/v1/beta/{id}/revoke`: ends the access at once and sends the "access ended" email; for someone with no account yet it withdraws their code) | Built and tested (migration 0015); the screen is **Operator tools > Beta testers** (`/admin/beta`) |
 | The "access ended" email, sent once, after a revoke (and recorded as sent) | Built and tested |
 | The daily job that sends the same email when the 30 days run out (`python -m tradejournal.pg.sweep ended-notices`, or `all` with the deletions; once per person; a refused send is tried again the next day for 14 days) | Built and tested (migration 0016); switched on by two settings and a command change on the cron job ([deploy.md](deploy.md) section 6) |
-| A deleted account takes its beta sign-up and codes with it (a trigger); `sweep beta-signups --keep-days N` removes sign-ups that never became accounts (not in `all`, not scheduled; N is the owner's call) | Built and tested (migration 0017); an operator's delete button for removal requests is **not built** |
+| A deleted account takes its beta sign-up and codes with it (a trigger); `sweep beta-signups --keep-days N` removes sign-ups that never became accounts (not in `all`, not scheduled; N is the owner's call) | Built and tested (migration 0017); the operator's "Remove sign-up" (route and button) for a removal request is built |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
 | Our own sign-in and sign-up pages (`/signin`, `/signup`; `/invite` still works) and a signed-out visit going to `/signin` instead of straight to Kinde | Built and tested (front end only); Kinde's own password screen is still the default look until its branding is applied |
 | Kinde's own password, code and second-factor screens in the app's look (`kinde/` holds the code, `kinde-branding.md` the steps) | Written, **not run**: needs Kinde's custom domain, a GitHub repository and one setting on Render (owner's steps) |

@@ -1136,6 +1136,20 @@
         "title": "BetaPersonOut",
         "type": "object"
       },
+      "BetaRemovedOut": {
+        "properties": {
+          "removed": {
+            "description": "The sign-up that was removed, with every code tied to its address",
+            "title": "Removed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "removed"
+        ],
+        "title": "BetaRemovedOut",
+        "type": "object"
+      },
       "BetaRevokeOut": {
         "properties": {
           "notice": {
@@ -4408,6 +4422,111 @@
           }
         },
         "summary": "List Beta",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/beta/{signup_id}/remove": {
+      "post": {
+        "description": "Remove a sign-up that has no account, and every code tied to its address: for a removal request by email. Someone\nwith an account is refused (409): deleting the account removes the sign-up with it. The reason is kept in the audit\nlog with the sign-up's number, never the address.",
+        "operationId": "remove_beta",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Signup Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BetaRemovedOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Remove Beta",
         "tags": [
           "admin"
         ]

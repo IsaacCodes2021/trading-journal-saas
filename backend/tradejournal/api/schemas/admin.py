@@ -254,6 +254,10 @@ class BetaListOut(ApiModel):
     counts: dict[str, int] = Field(description="How many people are in each state, and `all`")
 
 
+class BetaRemovedOut(ApiModel):
+    removed: int = Field(description="The sign-up that was removed, with every code tied to its address")
+
+
 class BetaRevokeOut(ApiModel):
     person: BetaPersonOut
     notice: Literal["sent", "pending", "not_needed"] = Field(
