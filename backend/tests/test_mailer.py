@@ -114,7 +114,7 @@ def test_the_email_has_the_code_the_link_and_the_terms_of_the_beta_in_both_forms
     assert email.subject == "Your Roundturn beta code" and email.to == "alex@example.test"
     for body in (email.text, email.html):
         assert "TJ-7KQ2-M9XA" in body and "https://app.roundturn.app/invite?code=TJ-7KQ2-M9XA" in body
-        assert "30 days of full access" in body and "14 days" in body and "hello@roundturn.app" in body
+        assert "30 days of full access" in body and "24 hours" in body and "hello@roundturn.app" in body
         assert "not investment advice" in body
         assert "once" in body
 

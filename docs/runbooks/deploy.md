@@ -13,7 +13,7 @@ Related: [restore.md](restore.md), [rotate-secrets.md](rotate-secrets.md), [inci
 | **Web service** | One container built from `backend/Dockerfile` (the API and the built front end, one origin) | Listens on `$PORT`; refuses to start unconfigured (`TJ_ENV=production` is the image's default) |
 | **Postgres 18** | The only place people's data lives | Roles are made by hand once; migrations are a release step, never run by the app |
 | **Object storage** | A private Cloudflare R2 bucket for screenshots | The server reads and writes it; pictures are never linked to it directly |
-| **Sweep job** | `python -m tradejournal.pg.sweep deletions --apply`, daily (`all --apply` once the email settings are on the job, section 6) | Finishes account deletions (rows, picture files, the identity at Kinde) and, with `all`, sends the "your access has ended" email. Needs the bucket, so it works as a separate scheduled process |
+| **Sweep job** | `python -m tradejournal.pg.sweep deletions --apply`, daily; **`all --apply` every hour once the email settings are on the job** (section 6), which also sends the ended-access email and removes beta sign-ups with no account after 24 hours | Finishes account deletions (rows, picture files, the identity at Kinde) and, with `all`, sends the "your access has ended" email. Needs the bucket, so it works as a separate scheduled process |
 | **Kinde** | Sign-in (OIDC) and, for the sweep, its management API | Two applications: the web app, and a machine-to-machine one |
 | **Cloudflare** | In front of the host: DNS, TLS, caching of `/assets/*`, a rate-limit rule | `roundturn.app` already points a Worker at the marketing site; the app needs its own host name |
 
@@ -90,7 +90,7 @@ The server stores nothing on its own disk. It can run as several instances: sess
 
 ## 6. The deletion sweep
 
-A scheduled job, once a day, running the same image with the command below. It needs the sweep role's connection string, the Kinde management settings and the bucket.
+A scheduled job running the same image with the command below: once a day while it only finishes deletions, every hour once it is the `all` command (section 6, below). It needs the sweep role's connection string, the Kinde management settings and the bucket.
 
 ```bash
 python -m tradejournal.pg.sweep deletions --apply
@@ -120,9 +120,9 @@ The same job also sends one email to each person whose time-limited access (a be
 
 `TJ_EMAIL_API_KEY` is a secret: it goes into the dashboard, never into the chat or this repository (rotate it with [rotate-secrets.md](rotate-secrets.md)). With the settings missing, `ended-notices --apply` refuses to run (it does not pretend to send), and `all --apply` still finishes the deletions first and then exits with an error.
 
-### Beta sign-ups that never became accounts (migration 0017)
+### Beta sign-ups that never became accounts (migrations 0017 and 0018)
 
-`python -m tradejournal.pg.sweep beta-signups --keep-days N [--apply]` removes the sign-ups (address, first name, favourite firm) and codes of people who asked to join, never made an account, and whose last code is older than N days. It needs only `TJ_SWEEP_DATABASE_URL`. `--keep-days` is required, has no default, and cannot be under 30. It is **not** part of `all`: how long to keep them is the owner's decision (see [beta.md](beta.md) rule 6), so nothing removes them until the command is added to a job on purpose. Run it once without `--apply` and look at the count. A person who does have an account is never removed by it; their sign-up goes when the account is deleted, which the database does by itself.
+`python -m tradejournal.pg.sweep beta-signups [--keep-hours N] [--apply]` removes the sign-ups (address, first name, favourite firm) and codes of people who asked to join, never made an account, and whose last code is older than 24 hours (the owner's decision of 2026-10-10; a code works for 24 hours since migration 0018). It needs only `TJ_SWEEP_DATABASE_URL`. `--keep-hours` can lengthen that and cannot go below 24. **It is the third step of `all`**, so the one cron job does it; because the promise is 24 hours, the job should run **every hour** (`0 * * * *`), not daily, or a sign-up can be kept for up to 47 hours. To switch it on: on the `roundturn-sweep` job set the schedule to `0 * * * *`, the command to `python -m tradejournal.pg.sweep all --apply`, and add `TJ_EMAIL_API_KEY` and `TJ_EMAIL_FROM` (the same values as the web service; **add them before changing the command**, or every run ends with an error because the email step refuses). Run it once without `--apply` and look at the count. A person who does have an account is never removed by it; their sign-up goes when the account is deleted, which the database does by itself.
 
 ## 7. After the first start
 

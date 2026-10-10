@@ -45,7 +45,9 @@ describe('the form', () => {
     open()
     expect(await screen.findByRole('heading', heading)).toBeInTheDocument()
     expect(
-      screen.getByText(/We will email you a sign-up code. It works once and is tied to your email address./),
+      screen.getByText(
+        /We will email you a sign-up code. It works once, for 24 hours, and is tied to your email address./,
+      ),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('First name')).toHaveValue('')
     expect(screen.getByLabelText('Email')).toHaveValue('')
@@ -177,7 +179,11 @@ describe('sending it', () => {
     expect(note).toHaveTextContent('alex@example.com')
     expect(note).toHaveTextContent('your sign-up code is on its way')
     expect(note).toHaveTextContent('check your spam folder')
-    expect(screen.getByText(/30 days of full access, counted from the day you create your account/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /The code works for 24 hours. It gives you 30 days of full access, counted from the day you create your account/,
+      ),
+    ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /I have my code/ })).toHaveAttribute('href', '/signup')
     expect(screen.getByRole('link', { name: 'Back to roundturn.app' })).toHaveAttribute('href', 'https://roundturn.app')
   })

@@ -683,7 +683,14 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 **Slice 15 (2026-10-10): what the beta keeps about a person** (migration 0017, `pg/beta.py`, `pg/admin_beta.py`, the operator route `POST /api/admin/v1/beta/{id}/remove`).
 
 - **A gap, found and closed.** A beta sign-up (address, first name, favourite firm) and its codes hang off no user, so deleting an account removed the journal and left those behind. A trigger on `users` now removes both with the account, by any route.
-- **Retention.** `sweep beta-signups --keep-days N [--apply]` removes the sign-ups and codes of addresses that never made an account once their last code is older than N days. N is required, has no default and cannot be under 30; it is not part of `all` and nothing schedules it, because how long to keep them is the owner's decision.
+- **Retention.** `sweep beta-signups` removes the sign-ups and codes of addresses that never made an account once their last code is older than a set time. (First built with the age as the owner's decision; it was set on 2026-10-10, see slice 16.)
 - **A removal request by email.** The operator's route removes a sign-up that has no account and every code tied to its address (409 for someone with an account: delete the account instead); the audit row has the sign-up's number and the reason, never the address.
 - **The screen.** In Beta testers, a waiting person's panel has "Remove sign-up": a dialog that says what is deleted, asks for a reason, and shows the server's sentence if it is refused. Someone with an account is not offered it.
 - **Tests.** 15 on the erasure and the command and 8 on the removal, on a real Postgres; 33 mutants of the SQL and the code, all caught. Front end: 13 tests of the button and dialog; 9 mutants, all caught.
+
+**Slice 16 (2026-10-10): a sign-up that never becomes an account is kept 24 hours** (migration 0018, `pg/sweep.py`, `api/emails.py`, `/join`, the privacy page).
+
+- **The owner's rule.** Someone who asks to join and does not make an account within a day is not kept: the sign-up (address, first name, favourite firm) and every code are deleted 24 hours after the code was made.
+- **A code works for 24 hours** (it was 14 days), so it never outlives its sign-up; the email, the join page and the privacy page say so. Migration 0018 replaces `beta_join` with that one interval changed.
+- **The sweep** runs it as the third step of `all`, and the cron job is meant to run hourly, because a daily run would keep a sign-up up to 47 hours. The command also runs alone (`beta-signups [--keep-hours N]`, N not below 24).
+- **Not reached:** the host's backups until they age out, the email provider's own log, and an identity someone started at Kinde and never finished. The privacy draft says so.

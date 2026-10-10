@@ -10,7 +10,8 @@ this page says what they are and how to work with them.
    verified. Kinde itself still lets anyone register an identity on its own page; that identity cannot get into Roundturn,
    and it can be deleted in Kinde's dashboard.
 2. **Joining the beta makes a personal code** for that address (`beta_join`, called as the sign-in role by the form's
-   endpoint, which then emails it; the code is shown on no page). The code carries **30 days of full access (Pro)**, counted from the day the account is created.
+   endpoint, which then emails it; the code is shown on no page). **The code works for 24 hours** (migration 0018; it was 14 days
+   before). It carries **30 days of full access (Pro)**, counted from the day the account is created.
    Rules in the database: one code an hour per address, five in all, none for an address that already has an account or has
    used its code, none while the beta grant is revoked. A new code withdraws the previous one. The same answer is given to
    everyone, so the form cannot be used to find out who has joined.
@@ -32,10 +33,14 @@ this page says what they are and how to work with them.
    favourite prop firm; each code made for it is an invite tied to the address. **When an account is deleted, its sign-up and
    every invite tied to its address are removed in the same statement** (a trigger on `users`, so it holds for any way a user
    row goes, not only the sweep). Before 0017 they were left behind. **People who asked to join and never made an account**
-   are removed by `python -m tradejournal.pg.sweep beta-signups --keep-days N [--apply]`: the age is required, has no default
-   and cannot be under 30 days (a code lives 14), and the command is not part of `all` and is not scheduled; the owner picks
-   N and adds it to the cron job's command (or a second cron job). A dry run prints the count only. Someone who has an account
-   is never touched by it. A removal request by email is
+   are removed **24 hours after their code was made** (the owner's decision, 2026-10-10: sign-up, address, first name, firm
+   and every code; the code stops working at the same moment). That is the third step of the sweep job
+   (`python -m tradejournal.pg.sweep all --apply`, hourly) and also runs alone as
+   `python -m tradejournal.pg.sweep beta-signups [--keep-hours N] [--apply]`; N defaults to 24 and cannot be lower, because a
+   shorter time would remove someone whose code still works. A dry run prints the count only. Someone who has an account
+   is never touched by it. What this does **not** reach: the host's database backups (they keep deleted rows until they age
+   out), the email provider's own log of messages it delivered, and a person's identity at Kinde if they started
+   registering there and never finished (Kinde keeps that until it is deleted in Kinde). A removal request by email is
    honoured by the operator's `POST /api/admin/v1/beta/{id}/remove` (a reason is required and kept in the audit log with the
    sign-up's number, never the address): it removes a sign-up that has **no account** and every code tied to its address.
    For someone with an account it answers 409: delete the account, which does both by itself. In **Operator tools > Beta
@@ -51,7 +56,7 @@ this page says what they are and how to work with them.
 | The operator's list of beta sign-ups (`GET /api/admin/v1/beta`, with states, filters, search and counts) and **revoke** (`POST /api/admin/v1/beta/{id}/revoke`: ends the access at once and sends the "access ended" email; for someone with no account yet it withdraws their code) | Built and tested (migration 0015); the screen is **Operator tools > Beta testers** (`/admin/beta`) |
 | The "access ended" email, sent once, after a revoke (and recorded as sent) | Built and tested |
 | The daily job that sends the same email when the 30 days run out (`python -m tradejournal.pg.sweep ended-notices`, or `all` with the deletions; once per person; a refused send is tried again the next day for 14 days) | Built and tested (migration 0016); switched on by two settings and a command change on the cron job ([deploy.md](deploy.md) section 6) |
-| A deleted account takes its beta sign-up and codes with it (a trigger); `sweep beta-signups --keep-days N` removes sign-ups that never became accounts (not in `all`, not scheduled; N is the owner's call) | Built and tested (migration 0017); the operator's "Remove sign-up" (route and button) for a removal request is built |
+| A deleted account takes its beta sign-up and codes with it (a trigger); the sweep removes sign-ups that never became accounts 24 hours after their code was made (`beta-signups`, the third step of `all`) | Built and tested (migration 0017); the operator's "Remove sign-up" (route and button) for a removal request is built |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
 | Our own sign-in and sign-up pages (`/signin`, `/signup`; `/invite` still works) and a signed-out visit going to `/signin` instead of straight to Kinde | Built and tested (front end only); Kinde's own password screen is still the default look until its branding is applied |
 | Kinde's own password, code and second-factor screens in the app's look (`kinde/` holds the code, `kinde-branding.md` the steps) | Written, **not run**: needs Kinde's custom domain, a GitHub repository and one setting on Render (owner's steps) |

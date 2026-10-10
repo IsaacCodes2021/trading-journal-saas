@@ -112,7 +112,8 @@ export function JoinPage() {
           code is on its way. It can take a few minutes. If you do not see it, check your spam folder.
         </p>
         <div className="mt-6 rounded-[10px] border border-line bg-bg px-[18px] py-4 text-sm text-muted">
-          The code gives you 30 days of full access, counted from the day you create your account.
+          The code works for 24 hours. It gives you 30 days of full access, counted from the day you create your
+          account.
         </div>
         <Link
           to="/signup"
@@ -133,7 +134,7 @@ export function JoinPage() {
     <AuthFrame>
       <h1 className="m-0 text-[26px] leading-tight font-semibold tracking-[-0.02em]">Join the beta</h1>
       <p className="mt-2 mb-0 text-[15px] text-muted">
-        We will email you a sign-up code. It works once and is tied to your email address.
+        We will email you a sign-up code. It works once, for 24 hours, and is tied to your email address.
       </p>
 
       <form onSubmit={(event) => void submit(event)} noValidate className="mt-6 flex flex-col gap-[18px]">
