@@ -5,6 +5,8 @@
     python -m tradejournal.pg.sweep ended-notices          # a dry run: who is due the "your access has ended" email
     python -m tradejournal.pg.sweep ended-notices --apply  # send it, and record that it was sent
     python -m tradejournal.pg.sweep all --apply            # both, in that order (what the scheduled job runs)
+    python -m tradejournal.pg.sweep beta-signups --keep-days 90          # a dry run: unused beta sign-ups past that age
+    python -m tradejournal.pg.sweep beta-signups --keep-days 90 --apply  # remove them and their codes
 
 Run it as a scheduled job on the host (hourly is plenty). It connects as the `sweep` role (`TJ_SWEEP_DATABASE_URL`), which
 can find accounts that are due and delete them, and nothing else about a person.
@@ -27,6 +29,11 @@ configured it refuses (an account deleted here and left at the provider would st
 ended by an operator and whose email did not go, are sent the "your access has ended" email once (`pg/ended_notices.py`,
 migration 0016). A send that fails leaves the person due, so the next run tries again. It needs `TJ_EMAIL_API_KEY` and
 `TJ_EMAIL_FROM` (the web service's settings) to apply, and prints counts and the short reason codes of failures only.
+
+`beta-signups` removes the sign-ups (an address, a first name, a favourite firm) and the codes of people who asked to join
+and never made an account, once their last code is older than `--keep-days` (migration 0017). The age is required, with no
+default and a floor of 30 days: how long to keep them is the owner's decision, and the scheduled job does not run this until
+it is made. It is not part of `all`. A sign-up that has an account goes with the account, not here.
 """
 
 from __future__ import annotations
@@ -35,7 +42,7 @@ import argparse
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import psycopg
@@ -45,10 +52,11 @@ from ..api.mailer import DEFAULT_API_URL, Mailer, MailError, ResendMailer
 from ..auth.idp import IdentityDirectory, IdentityError
 from ..bucketstore import BucketFileStore, BucketSettings
 from ..filestore import FileStore, LocalFileStore
-from . import audit, deletion, ended_notices
+from . import audit, beta, deletion, ended_notices
 from .system import SystemDatabase
 
 BATCH = 50
+MIN_KEEP_DAYS = 30  # a code lives 14 days; nobody who is still waiting for theirs is removed
 ACTOR_SYSTEM = audit.ACTOR_SYSTEM
 
 
@@ -139,6 +147,32 @@ def run_notices(
             if ended_notices.mark_sent(conn, notice.redemption_id, now=moment):
                 audit.record(conn, "access_ended_notice_sent", user_id=notice.user_id, actor=ACTOR_SYSTEM)
         report.sent += 1
+    return report
+
+
+@dataclass
+class BetaSignupReport:
+    due: int = 0  # unused sign-ups older than the age given
+    erased: int = 0
+    dry_run: bool = True
+
+
+def run_beta_signups(
+    system: SystemDatabase, *, keep: timedelta, apply: bool, now: datetime | None = None, limit: int = 100
+) -> BetaSignupReport:
+    """Remove the sign-ups and codes of addresses with no account whose last code is older than `keep`."""
+    if keep < timedelta(days=MIN_KEEP_DAYS):
+        raise ValueError(f"beta sign-ups are kept at least {MIN_KEEP_DAYS} days")
+    before = (now or datetime.now(UTC)) - keep
+    report = BetaSignupReport(dry_run=not apply)
+    with system.system_session("sweep") as conn:
+        report.due = beta.erase_unused(conn, before=before, limit=limit, apply=False)
+    if not apply or report.due == 0:
+        return report
+    with system.system_session("sweep") as conn, conn.transaction():
+        report.erased = beta.erase_unused(conn, before=before, limit=limit, apply=True)
+        if report.erased:
+            audit.record(conn, "beta_signups_erased", actor=ACTOR_SYSTEM, meta={"count": report.erased})
     return report
 
 
@@ -244,6 +278,26 @@ def _main_notices(args: argparse.Namespace, url: str) -> int:
     return 1 if report.failed else 0  # a refused email is a failed run on the host, where someone will see it
 
 
+def _main_beta_signups(args: argparse.Namespace, url: str) -> int:
+    if args.keep_days is None:
+        print("beta-signups needs --keep-days: how long a sign-up with no account is kept", file=sys.stderr)
+        return 2
+    if args.keep_days < MIN_KEEP_DAYS:
+        print(f"--keep-days must be at least {MIN_KEEP_DAYS}", file=sys.stderr)
+        return 2
+    system = SystemDatabase({"sweep": url})
+    system.open()
+    try:
+        report = run_beta_signups(
+            system, keep=timedelta(days=args.keep_days), apply=args.apply, limit=min(args.limit, 500)
+        )
+    finally:
+        system.close()
+    mode = "dry run: nothing changed" if report.dry_run else "applied"
+    print(f"{mode}; unused sign-ups past {args.keep_days} days: {report.due}, removed {report.erased}")
+    return 0
+
+
 def _main_deletions(args: argparse.Namespace, url: str) -> int:
     directory = None if args.without_identity_provider else _directory_from_env()
     if args.apply and directory is None and not args.without_identity_provider:
@@ -282,11 +336,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "command",
-        choices=["deletions", "ended-notices", "all"],
+        choices=["deletions", "ended-notices", "all", "beta-signups"],
         help="`all` runs both, in that order, and fails if either did (so one scheduled job covers them)",
     )
     parser.add_argument("--apply", action="store_true", help="actually do it (the default only counts)")
     parser.add_argument("--limit", type=int, default=BATCH, help="at most this many per run")
+    parser.add_argument(
+        "--keep-days",
+        type=int,
+        default=None,
+        help="beta-signups only: remove sign-ups with no account whose last code is older than this (at least 30)",
+    )
     parser.add_argument(
         "--without-identity-provider",
         action="store_true",
@@ -301,6 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         return _main_deletions(args, url)
     if args.command == "ended-notices":
         return _main_notices(args, url)
+    if args.command == "beta-signups":
+        return _main_beta_signups(args, url)
     # `all`: both, even when the first cannot run, so a missing setting for one never stops the other.
     return max(_main_deletions(args, url), _main_notices(args, url))
 

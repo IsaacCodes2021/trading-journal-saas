@@ -28,6 +28,18 @@ this page says what they are and how to work with them.
    access came from a code or an invite and has ended. An account that never had one (yours, accounts made with a plain
    invite) is never affected, and neither is anyone with an operator override or, later, a subscription. A new code gives
    access back.
+6. **What the beta keeps about a person, and for how long** (migration 0017). A sign-up holds an address, a first name and a
+   favourite prop firm; each code made for it is an invite tied to the address. **When an account is deleted, its sign-up and
+   every invite tied to its address are removed in the same statement** (a trigger on `users`, so it holds for any way a user
+   row goes, not only the sweep). Before 0017 they were left behind. **People who asked to join and never made an account**
+   are removed by `python -m tradejournal.pg.sweep beta-signups --keep-days N [--apply]`: the age is required, has no default
+   and cannot be under 30 days (a code lives 14), and the command is not part of `all` and is not scheduled; the owner picks
+   N and adds it to the cron job's command (or a second cron job). A dry run prints the count only. Someone who has an account
+   is never touched by it. An operator's "delete this sign-up" button (for a removal request by email) is **not built**:
+   until it is, the owner removes such a request in a SQL console with the owner address, in this order (the sign-up first,
+   because it points at the code): `DELETE FROM beta_signups WHERE email = lower('them@example.com');` then
+   `DELETE FROM invites WHERE lower(email) = lower('them@example.com');`. If they also have an account, deleting the
+   account does both by itself.
 
 ## What is built and what is not
 
@@ -39,6 +51,7 @@ this page says what they are and how to work with them.
 | The operator's list of beta sign-ups (`GET /api/admin/v1/beta`, with states, filters, search and counts) and **revoke** (`POST /api/admin/v1/beta/{id}/revoke`: ends the access at once and sends the "access ended" email; for someone with no account yet it withdraws their code) | Built and tested (migration 0015); the screen is **Operator tools > Beta testers** (`/admin/beta`) |
 | The "access ended" email, sent once, after a revoke (and recorded as sent) | Built and tested |
 | The daily job that sends the same email when the 30 days run out (`python -m tradejournal.pg.sweep ended-notices`, or `all` with the deletions; once per person; a refused send is tried again the next day for 14 days) | Built and tested (migration 0016); switched on by two settings and a command change on the cron job ([deploy.md](deploy.md) section 6) |
+| A deleted account takes its beta sign-up and codes with it (a trigger); `sweep beta-signups --keep-days N` removes sign-ups that never became accounts (not in `all`, not scheduled; N is the owner's call) | Built and tested (migration 0017); an operator's delete button for removal requests is **not built** |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
 | Our own sign-in and sign-up pages (`/signin`, `/signup`; `/invite` still works) and a signed-out visit going to `/signin` instead of straight to Kinde | Built and tested (front end only); Kinde's own password screen is still the default look until its branding is applied |
 | Kinde's own password, code and second-factor screens in the app's look (`kinde/` holds the code, `kinde-branding.md` the steps) | Written, **not run**: needs Kinde's custom domain, a GitHub repository and one setting on Render (owner's steps) |
@@ -50,6 +63,6 @@ this page says what they are and how to work with them.
 Render deploys every commit to `main`, and a new image stays out of traffic until `/readyz` says the database has its
 migration. So: merge, then run the migration (`python -m tradejournal.pg.migrate` with `TJ_OWNER_URL`, or
 `provision_hosted --migrate`), then the new instance takes over. Nothing in these migrations changes how an existing account
-behaves. Migrations 0014, 0015 and 0016 ship together in this stack of pull requests and are run in one pass after the first
-merge; all three are additive (new tables, columns and functions, and one check that keeps new codes to 30 days or fewer,
+behaves. Migrations 0014 to 0017 ship together in this stack of pull requests and are run in one pass after the first
+merge; all four are additive (new tables, columns, functions and a trigger, and one check that keeps new codes to 30 days or fewer,
 added `NOT VALID` so it looks at no existing row).

@@ -13,6 +13,8 @@ nobody, and goes to the person by email: it is returned only so the caller can s
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import psycopg
 
 from .invites import hash_code
@@ -31,3 +33,11 @@ def join(conn: psycopg.Connection, *, email: str, first_name: str, prop_firm: st
 def email_result(conn: psycopg.Connection, signup_id: int, *, ok: bool) -> None:
     """Whether the email carrying the latest code left. A failure lets the person ask again at once."""
     conn.execute("SELECT beta_email_result(%s, %s)", (signup_id, ok))
+
+
+def erase_unused(conn: psycopg.Connection, *, before: datetime, limit: int = 100, apply: bool = False) -> int:
+    """Remove the sign-ups (and their codes) of addresses that have no account and whose last code was made before `before`
+    (the `sweep` role; migration 0017). Returns how many; with `apply` false it only counts. Someone who has an account is
+    never touched here: their sign-up goes with the account."""
+    row = conn.execute("SELECT erase_unused_beta_signups(%s, %s, %s) AS n", (before, limit, apply)).fetchone()
+    return row["n"]

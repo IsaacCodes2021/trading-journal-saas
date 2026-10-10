@@ -120,6 +120,10 @@ The same job also sends one email to each person whose time-limited access (a be
 
 `TJ_EMAIL_API_KEY` is a secret: it goes into the dashboard, never into the chat or this repository (rotate it with [rotate-secrets.md](rotate-secrets.md)). With the settings missing, `ended-notices --apply` refuses to run (it does not pretend to send), and `all --apply` still finishes the deletions first and then exits with an error.
 
+### Beta sign-ups that never became accounts (migration 0017)
+
+`python -m tradejournal.pg.sweep beta-signups --keep-days N [--apply]` removes the sign-ups (address, first name, favourite firm) and codes of people who asked to join, never made an account, and whose last code is older than N days. It needs only `TJ_SWEEP_DATABASE_URL`. `--keep-days` is required, has no default, and cannot be under 30. It is **not** part of `all`: how long to keep them is the owner's decision (see [beta.md](beta.md) rule 6), so nothing removes them until the command is added to a job on purpose. Run it once without `--apply` and look at the count. A person who does have an account is never removed by it; their sign-up goes when the account is deleted, which the database does by itself.
+
 ## 7. After the first start
 
 1. `GET /healthz` is 200 and `GET /readyz` is 200 with every check "ok".
