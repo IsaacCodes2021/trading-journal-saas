@@ -709,3 +709,10 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 - **The page.** Sections for the form, for accounts (Kinde's part, the journal, sign-in records, the security log), who can see it, cookies, where it is stored (Cloudflare, Render, Kinde, Resend), how long each thing is kept, choices and age. Two things are stated as limits: unfinished Kinde sign-ups are not reached by the 24-hour rule, and screenshots have no backup yet.
 - **Tests.** The site test pins the new wording; a backend test (`test_privacy_page_matches_code.py`) fails if the session limits, the deletion grace or the sign-up keep time change and the page does not.
 - **Kinde's region** is Oregon (the owner, 2026-10-10), and the page says so. **Still open:** the rest of the bracketed items in the full draft, whether an email contact suffices without a postal address (a question for the professional), and a professional's review.
+
+**Slice 19 (2026-10-10): the "access ended" email says what is true** (`api/emails.py`, `routers/admin_codes.py`, `BetaPage.tsx`).
+
+- **What was wrong.** The email carried an unfinished line ("[Sign-up link and plan details to be added when plans are available]") and said importing and editing were paused "until you sign up", and the revoke dialog promised the person "they need to sign up to continue", while no paid plan exists to sign up for.
+- **Now.** The email says importing and editing are paused and that paid plans are not open yet, so there is nothing to sign up for today (the owner approved the wording). The dialog, the result line and the API's description say the person is emailed that their access has ended.
+- **Tests.** The mailer test now fails on any square-bracketed placeholder in either body and requires the "not open yet" sentence; the Beta testers tests pin the new dialog and result wording.
+- **When plans exist,** the email gets its sign-up line back in the same place, as a real link.

@@ -62,8 +62,8 @@ def access_ended_email(*, to: str, first_name: str) -> Email:
         f"Hi {first_name},\n\n"
         "Your beta access to Roundturn has ended. Thank you for testing it and for any notes you sent.\n\n"
         "Your journal is still there. You can look at your trades, notes and reports and download everything as a ZIP. "
-        "Importing and editing are paused until you sign up.\n\n"
-        "[Sign-up link and plan details to be added when plans are available]\n\n"
+        "Importing and editing are paused.\n\n"
+        "Paid plans are not open yet, so there is nothing to sign up for today.\n\n"
         "Want your data out first? Sign in, open Settings, then Data and privacy, and choose Download my data. You can "
         "also delete your account there.\n\n"
         f"Questions? Reply to this email or write to {SUPPORT}.\n\n"
@@ -77,8 +77,8 @@ def access_ended_email(*, to: str, first_name: str) -> Email:
         f"<p>Hi {name},</p>"
         "<p>Your beta access to Roundturn has ended. Thank you for testing it and for any notes you sent.</p>"
         "<p>Your journal is still there. You can look at your trades, notes and reports and download everything as a ZIP. "
-        "Importing and editing are paused until you sign up.</p>"
-        '<p style="color:#566476">[Sign-up link and plan details to be added when plans are available]</p>'
+        "Importing and editing are paused.</p>"
+        "<p>Paid plans are not open yet, so there is nothing to sign up for today.</p>"
         '<p style="padding:14px 16px;border:1px solid #d3dae5;border-radius:10px;background:#f4f6fa;color:#566476;'
         'font-size:14px">Want your data out first? Sign in, open Settings, then Data and privacy, and choose Download my '
         "data. You can also delete your account there.</p>"

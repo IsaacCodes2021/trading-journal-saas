@@ -77,7 +77,7 @@ export interface paths {
         put?: never;
         /**
          * Revoke Beta
-         * @description End a person's beta access now, and email them that they need to sign up to continue. For someone who has not made an
+         * @description End a person's beta access now, and email them that their access has ended. For someone who has not made an
          *     account yet, withdraw their code instead (nothing to email). The reason is kept in the audit log and never sent.
          */
         post: operations["revoke_beta"];
