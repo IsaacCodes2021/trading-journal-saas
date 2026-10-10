@@ -87,7 +87,7 @@ There are no advertising or analytics cookies, and no session recording. [Confir
 - **Security and audit records:** [N months], without trade content.
 - **Billing records:** as long as tax law requires. [When paid plans open.]
 - **Support email:** [N months] after the conversation ends.
-- **Beta sign-up:** if you made an account, until you delete the account (the sign-up and any codes made for your address are removed at the same moment; migration 0017). If you never made one, until [N days: owner decision, at least 30] after your last code was made; a command removes them and is not scheduled until that number is chosen. You can also ask us to remove it by email.
+- **Beta sign-up:** if you made an account, until you delete the account (the sign-up and any codes made for your address are removed at the same moment; migration 0017). If you never made one, **24 hours** after your code was made (the owner's decision of 2026-10-10; a code works for 24 hours; removed by the hourly sweep, migrations 0017 and 0018). You can also ask us to remove it by email. Not reached by this: the host's database backups until they age out [period: from the plan, to be confirmed], the email provider's own record of messages it delivered [to be confirmed with the provider], and an identity started at the sign-in provider and never finished.
 - **Earlier waitlist:** [owner decision: invited and then deleted, or deleted unused].
 
 ## 8. Your choices and rights

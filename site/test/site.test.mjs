@@ -141,7 +141,8 @@ test("the privacy page matches what the code does", () => {
     "cloudflare",
     "render",
     "resend",
-    "until you ask for it to be removed",
+    "deleted automatically 24 hours after the code was made",
+    "deleted when you delete the account",
   ]) {
     assert.ok(privacy.includes(text), `the privacy page is missing: ${text}`);
   }

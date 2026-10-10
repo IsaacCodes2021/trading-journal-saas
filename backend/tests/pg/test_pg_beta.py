@@ -56,7 +56,7 @@ def test_joining_makes_a_signup_and_a_personal_code_tied_to_the_address(system, 
     invite = row(owner, "invites", id=person_row["invite_id"])
     assert invite["email"] == "alex@example.test" and invite["max_uses"] == 1
     assert invite["revoked_at"] is None
-    assert timedelta(days=13, hours=23) < invite["expires_at"] - datetime.now(UTC) <= timedelta(days=14, minutes=1)
+    assert timedelta(hours=23, minutes=55) < invite["expires_at"] - datetime.now(UTC) <= timedelta(hours=24, minutes=1)
     # the code that was offered is the one that works, and only its hash is stored
     assert bytes(invite["code_hash"]) == invites.hash_code(code)
     assert code not in str(owner.execute("SELECT * FROM invites").fetchall())

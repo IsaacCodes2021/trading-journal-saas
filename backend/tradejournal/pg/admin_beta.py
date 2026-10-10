@@ -4,7 +4,7 @@ Every function takes a connection from `SystemDatabase.system_session("admin")`.
 `revoked_at` and `ended_notice_sent_at` on a grant; it cannot read a code's hash or change what a grant gives.
 
 A person's **state**: *waiting* (joined, no account yet), *active* (an account and the 30 days are running), *ended* (they ran
-out), *revoked* (an operator ended it early). Their **code**: *unused*, *used*, *expired* (14 days passed) or *withdrawn*.
+out), *revoked* (an operator ended it early). Their **code**: *unused*, *used*, *expired* (24 hours passed) or *withdrawn*.
 """
 
 from __future__ import annotations

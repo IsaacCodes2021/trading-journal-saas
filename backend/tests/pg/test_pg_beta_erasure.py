@@ -202,42 +202,74 @@ def env(monkeypatch, sweep_url):
     return monkeypatch
 
 
-def test_the_command_will_not_run_without_an_age_or_with_a_short_one(env, capsys, system, owner):
+def test_the_command_will_not_remove_anyone_whose_code_still_works(env, capsys, system, owner):
     signup, _ = join(system)
     aged(owner, signup, days=500)
-    assert sweep.main(["beta-signups", "--apply"]) == 2
-    assert "--keep-days" in capsys.readouterr().err
-    assert sweep.main(["beta-signups", "--keep-days", "29", "--apply"]) == 2
-    assert "at least 30" in capsys.readouterr().err
+    assert sweep.main(["beta-signups", "--keep-hours", "23", "--apply"]) == 2
+    assert "at least 24" in capsys.readouterr().err
     assert count(owner, "beta_signups") == 1
     with pytest.raises(ValueError):
-        sweep.run_beta_signups(system, keep=timedelta(days=29), apply=True)
+        sweep.run_beta_signups(system, keep=timedelta(hours=23), apply=True)
 
 
-def test_the_command_is_a_dry_run_unless_told_prints_counts_and_writes_one_audit_row(env, capsys, system, owner):
-    join(system, email="old@example.test")
+def hours_old(owner, hours):
     owner.execute(
-        "UPDATE beta_signups SET last_code_at = now() - interval '100 days', created_at = now() - interval '100 days'"
+        "UPDATE beta_signups SET last_code_at = now() - %s * interval '1 hour', created_at = now() - %s * interval '1 hour'",
+        (hours, hours),
     )
-    assert sweep.main(["beta-signups", "--keep-days", "90"]) == 0
+
+
+def test_the_command_defaults_to_a_day_is_a_dry_run_unless_told_and_writes_one_audit_row(env, capsys, system, owner):
+    join(system, email="old@example.test")
+    hours_old(owner, 25)
+    assert sweep.main(["beta-signups"]) == 0
     out = capsys.readouterr()
-    assert "dry run: nothing changed; unused sign-ups past 90 days: 1, removed 0" in out.out
+    assert "dry run: nothing changed; sign-ups with no account past 24 hours: 1, removed 0" in out.out
     assert "old@example" not in out.out + out.err and count(owner, "beta_signups") == 1
-    assert sweep.main(["beta-signups", "--keep-days", "90", "--apply"]) == 0
-    assert "applied; unused sign-ups past 90 days: 1, removed 1" in capsys.readouterr().out
+    assert sweep.main(["beta-signups", "--apply"]) == 0
+    assert "applied; sign-ups with no account past 24 hours: 1, removed 1" in capsys.readouterr().out
     assert count(owner, "beta_signups") == 0 and count(owner, "invites") == 0
     events = owner.execute("SELECT actor, meta FROM audit_log WHERE action = 'beta_signups_erased'").fetchall()
     assert [(e["actor"], e["meta"]) for e in events] == [("system", {"count": 1})]
     assert "old@example" not in str(owner.execute("SELECT * FROM audit_log").fetchall())
-    assert sweep.main(["beta-signups", "--keep-days", "90", "--apply"]) == 0  # nothing left: no second audit row
+    assert sweep.main(["beta-signups", "--apply"]) == 0  # nothing left: no second audit row
     assert (
         owner.execute("SELECT count(*) AS n FROM audit_log WHERE action = 'beta_signups_erased'").fetchone()["n"] == 1
     )
 
 
-def test_all_does_not_include_it(env, capsys, system, owner):
-    signup, _ = join(system)
-    aged(owner, signup, days=500)
-    assert sweep.main(["all"]) == 0
+def test_a_day_is_a_day_not_an_hour_less(env, system, owner):
+    join(system, email="almost@example.test")
+    hours_old(owner, 23)
+    assert sweep.main(["beta-signups", "--apply"]) == 0
+    assert count(owner, "beta_signups") == 1  # 23 hours: its code still works
+    hours_old(owner, 25)
+    assert sweep.main(["beta-signups", "--apply"]) == 0
+    assert count(owner, "beta_signups") == 0
+
+
+def test_a_longer_time_can_be_asked_for(env, system, owner):
+    join(system, email="old@example.test")
+    hours_old(owner, 30)
+    assert sweep.main(["beta-signups", "--keep-hours", "48", "--apply"]) == 0
     assert count(owner, "beta_signups") == 1
-    assert "unused sign-ups" not in capsys.readouterr().out
+    assert sweep.main(["beta-signups", "--keep-hours", "24", "--apply"]) == 0
+    assert count(owner, "beta_signups") == 0
+
+
+def test_all_runs_it_as_its_third_step_and_leaves_an_account_alone(env, capsys, system, owner):
+    join(system, email="gone@example.test")
+    join(system, email="member@example.test")
+    hours_old(owner, 25)
+    account(owner, "member@example.test")
+    assert sweep.main(["all", "--apply", "--without-identity-provider"]) == 2  # no email settings on this job
+    captured = capsys.readouterr()
+    assert "sign-ups with no account past 24 hours: 1, removed 1" in captured.out  # and it ran anyway
+    assert "TJ_EMAIL_API_KEY" in captured.err
+    assert emails_of(owner, "beta_signups") == ["member@example.test"]
+
+
+def test_a_code_works_for_a_day_and_not_longer(system, owner):
+    signup, _ = join(system)
+    invite = row(owner, "invites", id=row(owner, "beta_signups", id=signup)["invite_id"])
+    assert timedelta(hours=23, minutes=55) < invite["expires_at"] - datetime.now(UTC) <= timedelta(hours=24, minutes=1)

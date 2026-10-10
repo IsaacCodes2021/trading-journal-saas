@@ -11,7 +11,7 @@ from html import escape
 from .mailer import Email
 
 SUPPORT = "hello@roundturn.app"
-CODE_DAYS = 14  # how long an unused personal code works (migration 0014: beta_join)
+CODE_HOURS = 24  # how long an unused personal code works (migration 0018: beta_join)
 ACCESS_DAYS = 30
 
 
@@ -25,7 +25,7 @@ def beta_code_email(*, to: str, first_name: str, code: str, link: str) -> Email:
         "Or go to the sign-up page and enter the code.\n\n"
         "It works once and is tied to this email address.\n"
         f"It gives you {ACCESS_DAYS} days of full access, counted from the day you create your account.\n"
-        f"Use it within {CODE_DAYS} days, or ask for a new one.\n\n"
+        f"Use it within {CODE_HOURS} hours, or ask for a new one.\n\n"
         f"Roundturn is in development, so expect rough edges. Reply to this email or write to {SUPPORT}. "
         "We answer on a best-effort basis.\n\n"
         "You are getting this because you asked to join the Roundturn beta. If that was not you, ignore this email and "
@@ -44,7 +44,7 @@ def beta_code_email(*, to: str, first_name: str, code: str, link: str) -> Email:
         "<ul>"
         "<li>It works once and is tied to this email address.</li>"
         f"<li>It gives you {ACCESS_DAYS} days of full access, counted from the day you create your account.</li>"
-        f"<li>Use it within {CODE_DAYS} days, or ask for a new one.</li>"
+        f"<li>Use it within {CODE_HOURS} hours, or ask for a new one.</li>"
         "</ul>"
         f'<p style="color:#566476;font-size:14px">Roundturn is in development, so expect rough edges. Reply to this email or '
         f"write to {SUPPORT}. We answer on a best-effort basis.</p>"
