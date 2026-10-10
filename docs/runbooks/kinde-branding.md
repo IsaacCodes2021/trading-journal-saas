@@ -44,6 +44,7 @@ If sign-in breaks after step 3, put the old `TJ_KINDE_DOMAIN` value back and red
 These are the fallback if the code is switched off, and what Kinde uses for its emails:
 
 - Design: brand colour `#6EA8FE` (dark) or `#1F5FD1` (light), the page title "Roundturn", and a logo if you have one.
+- **Hiding "No account? Create one" on Kinde's sign-in screen** (the owner asked for this, 2026-10-10). In the Kinde application (the one named in `TJ_KINDE_CLIENT_ID`): Details, Authentication experience, switch **off** "Show 'No account? Create one' on sign-in page". Leave "Use your own sign-up and sign-in screens" **off**: that one bypasses Kinde's screens and expects the app to take credentials, which it never does. This is safe only with the app version that sends a person who arrives with a valid sign-up code **straight to Kinde's registration screen** (`prompt=create`; `auth/flow.py` `begin`, `auth/kinde.py`). Before that version is live, the link is how a newcomer reached registration, so do not hide it earlier. Someone who reaches Kinde's sign-in screen without a code and has no account is still refused by the app (`/invite?error=invite_invalid`); the link only removed a dead end.
 - Do **not** turn off sign-up in Kinde. A new account is made *through* Kinde's sign-up, after the app has already checked the code; closing it there would stop every new person. The app refuses any account that arrives without a valid code, so Kinde's own sign-up page cannot be used to get in.
 
 ## If something looks wrong

@@ -154,6 +154,9 @@ class AuthFlow:
             step_up=step_up,
             reauth=reauth,
             login_hint=hint,
+            # Someone with a valid sign-up code is making an account: open the provider's registration screen, so its
+            # sign-in screen does not have to offer "create an account" to everyone who reaches it.
+            create=code is not None and not step_up and not reauth,
         )
         return LoginStart(url, cookie)
 
