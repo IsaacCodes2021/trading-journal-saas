@@ -143,7 +143,7 @@ test("the privacy page matches what the code does", () => {
     "resend",
     "deleted automatically 24 hours after the code was made",
     "northfield labs, llc",
-    "kinde",
+    "kinde, which stores that data in oregon, in the united states",
     "keyed hash of your ip address",
     "deleting takes effect 7 days after you ask",
     "recovery copies for up to 7 days",

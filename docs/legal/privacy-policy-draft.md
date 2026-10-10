@@ -59,10 +59,10 @@ We use these providers to run Roundturn. Each handles data only on our instructi
 |---|---|---|
 | Cloudflare | the marketing site, DNS, email forwarding, and private object storage (R2) for screenshots | in use |
 | Render | runs the application and hosts its Postgres database (Oregon, United States) | in use |
-| Kinde | sign-in, second step, account identity; stores that data in the region chosen when the business was created [region: owner to confirm in Kinde, Business details] | in use |
+| Kinde | sign-in, second step, account identity; stores that data in Oregon, United States (owner, 2026-10-10) | in use |
 | Resend (email sending) | the email with your beta code and the email that says your access has ended; the provider sees the recipient's address, your first name and the message | in use (domain verified 2026-10-10) |
 
-**Region.** The application and its database run in the United States (Render, Oregon); screenshots are held by Cloudflare; sign-in data is held by Kinde in the region chosen when the business was created [owner to confirm]. Add a payment provider and an error-tracking provider to the list above when they are in use (neither is today). Where data of people in the EU or UK is transferred to the United States, we rely on [the provider's standard contractual clauses or the Data Privacy Framework certification: CONFIRM PER PROVIDER].
+**Region.** The application and its database run in the United States (Render, Oregon); screenshots are held by Cloudflare; sign-in data is held by Kinde in Oregon, United States. Add a payment provider and an error-tracking provider to the list above when they are in use (neither is today). Where data of people in the EU or UK is transferred to the United States, we rely on [the provider's standard contractual clauses or the Data Privacy Framework certification: CONFIRM PER PROVIDER].
 
 We may also disclose data if the law requires it, to protect people's safety or our rights, or as part of a sale or reorganization of the Service (with the same protections).
 
