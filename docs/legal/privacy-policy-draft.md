@@ -1,9 +1,9 @@
 # Roundturn Privacy Policy
 
-> **DRAFT. Not legal advice, not reviewed by a lawyer, not published.** It replaces the short beta-form notice at roundturn.app/privacy/ once the app opens, and it describes what the design documents say the product will do, not what is built today. Everything in `[square brackets]` is a decision or a fact only the owner can supply. Rows marked *planned* or *undecided* in the lists below must be settled before this is published. See `README.md` in this folder.
+> **DRAFT. Not legal advice, not reviewed by a lawyer, not published.** An interim notice for the beta form and for accounts has been live at roundturn.app/privacy/ since 2026-10-10; this full policy replaces it once the app opens widely. It describes what the product does as of 2026-10-10. Everything in `[square brackets]` is a decision or a fact only the owner can supply. Rows marked *planned* or *undecided* in the lists below must be settled before this is published. See `README.md` in this folder.
 
 **Last updated:** [date of publication]
-**Responsible for your data (the "controller"):** [LEGAL NAME OF THE OPERATING ENTITY OR PERSON], [ADDRESS OR COUNTRY]
+**Responsible for your data (the "controller"):** Northfield Labs, LLC, [STATE OF FORMATION AND POSTAL ADDRESS: owner to supply]
 **Contact for privacy questions and requests:** hello@roundturn.app
 
 ## 1. The short version
@@ -28,7 +28,7 @@
 
 **Plan and billing.** Which plan you have and until when, and codes you redeem. [When paid plans open: payment details are handled by our payment provider; we receive a customer reference, the plan, the status and receipts, not your card number.]
 
-**Security and operations.** Records that keep the Service safe and working: sign-in and security events, import and export events, actions taken by an administrator on your account (with their reason), error reports, and server logs. We keep IP addresses only in a shortened or hashed form [CONFIRM WHEN BUILT]. We **do not** put your trades, notes or screenshot names in logs or error reports.
+**Security and operations.** Records that keep the Service safe and working: sign-in and security events, import and export events, actions taken by an administrator on your account (with their reason), error reports, and server logs. We keep IP addresses only as a keyed hash (HMAC-SHA-256 with a secret key; the address itself is not stored). Each sign-in record also keeps the browser description that your browser sends, cut to 300 characters. We **do not** put your trades, notes or screenshot names in logs or error reports.
 
 **Support and the beta sign-up.** If you email us, we keep the email and our replies. If you asked to join the beta on the sign-up form, we keep your email address, your first name, your favourite prop firm, when each personal code was made and whether the email carrying it was sent, and a one-way fingerprint of the code (never the code itself).
 
@@ -57,15 +57,12 @@ We use these providers to run Roundturn. Each handles data only on our instructi
 
 | Provider | What for | Status |
 |---|---|---|
-| Cloudflare | the marketing site, DNS, email forwarding, and [object storage for screenshots and backups] | in use for the site and DNS; storage built, in use once the first deploy settings are set |
-| [Application host, for example Render] | runs the application | *planned* |
-| [Database provider] | stores your journal | *undecided* |
-| [Sign-in provider, for example Kinde] | sign-in, second step, account identity | *planned (being tested)* |
-| Resend (email sending) | the email with your beta code and the email that says your access has ended; the provider sees the recipient's address, your first name and the message | *chosen, built, not yet in use* (needs the account and the verified domain) |
-| [Payment provider] | payments, tax, receipts [when paid plans open] | *undecided* |
-| [Error-tracking provider, for example Sentry] | error reports, configured not to send personal data | *planned* |
+| Cloudflare | the marketing site, DNS, email forwarding, and private object storage (R2) for screenshots | in use |
+| Render | runs the application and hosts its Postgres database (Oregon, United States) | in use |
+| Kinde | sign-in, second step, account identity; stores that data in the region chosen when the business was created [region: owner to confirm in Kinde, Business details] | in use |
+| Resend (email sending) | the email with your beta code and the email that says your access has ended; the provider sees the recipient's address, your first name and the message | in use (domain verified 2026-10-10) |
 
-**Region.** [US region; data is stored in the United States.] Where data of people in the EU or UK is transferred to the United States, we rely on [the provider's standard contractual clauses or the Data Privacy Framework certification: CONFIRM PER PROVIDER].
+**Region.** The application and its database run in the United States (Render, Oregon); screenshots are held by Cloudflare; sign-in data is held by Kinde in the region chosen when the business was created [owner to confirm]. Add a payment provider and an error-tracking provider to the list above when they are in use (neither is today). Where data of people in the EU or UK is transferred to the United States, we rely on [the provider's standard contractual clauses or the Data Privacy Framework certification: CONFIRM PER PROVIDER].
 
 We may also disclose data if the law requires it, to protect people's safety or our rights, or as part of a sale or reorganization of the Service (with the same protections).
 
@@ -81,23 +78,23 @@ There are no advertising or analytics cookies, and no session recording. [Confir
 
 ## 7. How long we keep it
 
-- **Your journal and account:** until you delete it. [We then remove it from the live service within [30] days.]
-- **Backups:** copies in backups are overwritten as backups age out, within [N] days of deletion. [Fill in from the backup settings.]
-- **Security and audit records:** [N months], without trade content.
+- **Your journal and account:** until you delete it. Deleting takes effect 7 days after you ask (signing in again cancels it); the hourly cleanup then removes the journal, settings, screenshots, beta sign-up and codes, and asks the sign-in provider to remove the sign-in record, usually within an hour of the 7 days.
+- **Backups:** the database host keeps recovery copies for up to 7 days (3 days on its Hobby workspace plan, 7 on Pro; its logical backups 7 days), so deleted data can remain in them until they age out. Screenshots are not backed up at present; once a second copy exists, deleted pictures can remain in it for up to 30 days.
+- **Security and audit records:** kept after an account is deleted, detached from the person (the log is append-only), holding the kind of event, its date and the keyed IP hash, never the content of trades, notes or screenshots. No deletion period has been set (owner decision 2026-10-10: say so plainly).
 - **Billing records:** as long as tax law requires. [When paid plans open.]
 - **Support email:** [N months] after the conversation ends.
-- **Beta sign-up:** if you made an account, until you delete the account (the sign-up and any codes made for your address are removed at the same moment; migration 0017). If you never made one, **24 hours** after your code was made (the owner's decision of 2026-10-10; a code works for 24 hours; removed by the hourly sweep, migrations 0017 and 0018). You can also ask us to remove it by email. Not reached by this: the host's database backups until they age out [period: from the plan, to be confirmed], the email provider's own record of messages it delivered [to be confirmed with the provider], and an identity started at the sign-in provider and never finished.
+- **Beta sign-up:** if you made an account, until you delete the account (the sign-up and any codes made for your address are removed at the same moment; migration 0017). If you never made one, **24 hours** after your code was made (the owner's decision of 2026-10-10; a code works for 24 hours; removed by the hourly sweep, migrations 0017 and 0018). You can also ask us to remove it by email. Not reached by this: the host's database backups until they age out up to 7 days, the email provider's own record of messages it delivered [to be confirmed with the provider], and an identity started at the sign-in provider and never finished.
 - **Earlier waitlist:** the database was deleted on 2026-10-10. It held one entry, nobody was invited from it, and nothing was copied elsewhere.
 
 ## 8. Your choices and rights
 
-- **See and export** your data: from within the app you can download your journal (data as CSV files and your screenshots). [Required before the beta opens.]
+- **See and export** your data: from within the app you can download your journal (data as CSV files and your screenshots).
 - **Correct** it: edit it in the app, or ask us.
-- **Delete** it: delete your account in the app, or email us. You will be asked to confirm, and it cannot be undone after the [grace period].
+- **Delete** it: delete your account in the app, or email us. You will be asked to confirm, and it cannot be undone after the 7-day grace period.
 - **Object, restrict or withdraw consent** where the law gives you that right, and **complain** to your data-protection authority.
 - **California and similar US state laws:** we do not sell or share personal information as those laws define them. You can ask to know, correct or delete what we hold.
 
-To use any right, email hello@roundturn.app from the address on your account. We may need to confirm it is you. We reply within [30] days.
+To use any right, email hello@roundturn.app from the address on your account. We may need to confirm it is you. We reply within 30 days.
 
 ## 9. Security
 
@@ -119,7 +116,7 @@ If we change this policy in a way that matters to you, we will tell you (for exa
 
 ## Notes for the reviewing professional
 
-1. **Controller and region.** The beta is operated personally by [OWNER/BUSINESS NAME]. US storage with GDPR-ready deletion and export is the stated design. Is a representative in the EU or UK needed at beta scale?
+1. **Controller and region.** The beta is operated by Northfield Labs, LLC (owner, 2026-10-10). US storage with GDPR-ready deletion and export is the stated design. Is a representative in the EU or UK needed at beta scale?
 2. **Lawful bases** in section 3: confirm the table, in particular the "steps at your request before a contract" basis for the beta sign-up and legitimate interests for security records.
 3. **Subprocessors and transfers** in section 5: confirm what contracts (data-processing agreements, standard contractual clauses) are needed per provider once chosen, and whether the list must be published as its own page.
 4. **Retention periods** are placeholders; they depend on the backup and deletion design (point-in-time recovery window, soft-delete grace period) still to be set.

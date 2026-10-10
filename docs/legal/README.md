@@ -5,7 +5,7 @@
 | File | What it is |
 |---|---|
 | `terms-of-service-draft.md` | Terms of Service for the private beta and, with section 8 completed, the paid plans |
-| `privacy-policy-draft.md` | The full Privacy Policy that replaces the waitlist-only notice at roundturn.app/privacy/ once the app opens |
+| `privacy-policy-draft.md` | The full Privacy Policy that replaces the interim notice (beta form and accounts) at roundturn.app/privacy/ once the app opens widely |
 
 Both end with a list of questions for the reviewing professional.
 
