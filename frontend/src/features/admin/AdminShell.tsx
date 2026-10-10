@@ -12,6 +12,7 @@ const RECHECK_MS = 60_000
 
 const NAV = [
   { to: '/admin', label: 'Users', exact: true },
+  { to: '/admin/beta', label: 'Beta testers', exact: false },
   { to: '/admin/codes', label: 'Codes & audit', exact: false },
 ] as const
 

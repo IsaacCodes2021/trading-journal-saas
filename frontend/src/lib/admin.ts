@@ -156,6 +156,7 @@ const ACTIONS: Record<string, string> = {
   admin_deletion_cancelled: 'Deletion cancelled',
   admin_plan_override_set: 'Plan override set',
   admin_plan_override_revoked: 'Plan override revoked',
+  admin_beta_revoked: 'Beta access ended or code withdrawn',
   operator_granted: 'Made an operator',
   operator_removed: 'Operator removed',
   signup: 'Signed up',

@@ -27,6 +27,7 @@ import { safeNext } from './lib/nextPath'
 import { useSession } from './lib/session'
 import { pickAdminSearch, queryOf, searchOf } from './features/admin/search'
 import { pickCodesSearch } from './features/admin/codesSearch'
+import { betaQueryOf, betaSearchOf, pickBetaSearch } from './features/admin/betaSearch'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
 const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends keyof T>(
@@ -38,6 +39,7 @@ const AuthPage = lazy(() => import('./features/auth/AuthPage').then((m) => ({ de
 const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => ({ default: m.AdminShell })))
 const CodesPage = lazy(() => import('./features/admin/CodesPage').then((m) => ({ default: m.CodesPage })))
 const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
+const BetaPage = lazy(() => import('./features/admin/BetaPage').then((m) => ({ default: m.BetaPage })))
 const OnboardingPage = lazy(() =>
   import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
 )
@@ -396,6 +398,27 @@ const adminRoute = createRoute({
   },
 })
 
+const adminBetaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/beta',
+  validateSearch: pickBetaSearch,
+  component: function AdminBetaRoute() {
+    const search = pickBetaSearch(adminBetaRoute.useSearch()) // the router keeps what it could not validate too
+    const navigate = useNavigate({ from: '/admin/beta' })
+    const query = betaQueryOf(search)
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <BetaPage
+          query={query}
+          selected={search.person ?? null}
+          onQuery={(next) => void navigate({ search: betaSearchOf(next, null), replace: true })}
+          onSelect={(id) => void navigate({ search: betaSearchOf(query, id) })}
+        />
+      </Suspense>
+    )
+  },
+})
+
 const adminCodesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/admin/codes',
@@ -538,6 +561,7 @@ const routeTree = rootRoute.addChildren([
   signupRoute,
   inviteRoute,
   adminRoute,
+  adminBetaRoute,
   adminCodesRoute,
   settingsRoute.addChildren([
     settingsIndexRoute,
