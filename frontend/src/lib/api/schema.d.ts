@@ -1800,7 +1800,7 @@ export interface components {
         GrantCodeIn: {
             /**
              * Days
-             * @description How long the plan lasts once it is redeemed
+             * @description How long the plan lasts once it is redeemed (30 at most)
              */
             days: number;
             /**

@@ -39,7 +39,7 @@ def make_grant(service, op, **kwargs):
         **{
             "label": "Beta testers",
             "plan": "pro",
-            "days": 90,
+            "days": 30,
             "max_redemptions": None,
             "expires_in_days": None,
             **kwargs,
@@ -105,7 +105,7 @@ def test_an_invite_for_one_address_is_refused_to_anyone_else_on_the_real_app(wor
 
 
 def test_an_invite_that_carries_a_plan_code_gives_that_plan_at_sign_up(world, service, owner, op):
-    grant = make_grant(service, op, days=60)
+    grant = make_grant(service, op, days=25)
     made = make_invite(service, op, grant_code_id=grant.grant_code.id)
     assert (made.invite.grant_code_id, made.invite.grant_label) == (grant.grant_code.id, "Beta testers")
     browser = world()
@@ -212,21 +212,21 @@ def test_people_who_already_signed_up_with_a_revoked_invite_keep_their_accounts(
 
 
 def test_a_plan_code_is_made_with_a_code_shown_once_and_only_its_hash_kept(service, owner, op):
-    made = make_grant(service, op, label="Beta testers", days=90, max_redemptions=25, expires_in_days=60)
+    made = make_grant(service, op, label="Beta testers", days=30, max_redemptions=25, expires_in_days=60)
     code = made.code
     assert code.startswith("GR-") and len(code) == 12
     row = owner.execute("SELECT * FROM grant_codes").fetchone()
     assert bytes(row["code_hash"]) == invites.hash_code(code) and row["created_by"] == f"admin:{op}"
     assert code not in str(dict(row)) and code not in json.dumps(made.grant_code.model_dump(mode="json"))
     g = made.grant_code
-    assert (g.label, g.plan, g.days, g.max_redemptions, g.used, g.status) == ("Beta testers", "pro", 90, 25, 0, "works")
+    assert (g.label, g.plan, g.days, g.max_redemptions, g.used, g.status) == ("Beta testers", "pro", 30, 25, 0, "works")
     assert g.expires_at == NOW + 60 * DAY and g.created_by == f"admin:{op}"
 
 
 def test_making_a_plan_code_is_recorded_without_the_code(service, owner, op):
     code = make_grant(service, op, max_redemptions=5).code
     [event] = admin_events(owner, "admin_grant_code_created")
-    assert event["meta"] == {"grant": 1, "label": "Beta testers", "plan": "pro", "days": 90, "max_redemptions": 5}
+    assert event["meta"] == {"grant": 1, "label": "Beta testers", "plan": "pro", "days": 30, "max_redemptions": 5}
     assert (event["user_id"], event["actor_user_id"]) == (None, op) and code not in str(audit_rows(owner))
 
 

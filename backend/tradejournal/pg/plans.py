@@ -4,7 +4,7 @@ A code is stored hashed. Anyone redeeming one gets the same answer for every kin
 used up, already used by this person), so a guess teaches nothing. Creating, listing and revoking codes needs the schema
 owner (the CLI below, until the admin back end in M10); reading a person's plan and redeeming happen as the `login` role.
 
-    TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --label "Beta testers" --days 90
+    TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --label "Beta testers" --days 30
 """
 
 from __future__ import annotations
@@ -20,11 +20,12 @@ from uuid import UUID
 
 import psycopg
 
-from ..entitlements import EffectivePlan, Grant, Override, effective_plan
+from ..entitlements import Access, EffectivePlan, EndedGrant, Grant, Override, access_of, effective_plan
 from .invites import ALPHABET, hash_code, normalize
 
 _SHAPE = re.compile(r"^[A-Z0-9]{2,}(?:-[A-Z0-9]{2,})+$")
 LOCK_CLASS = 7_283_003  # advisory lock: one redemption of one code at a time (invites use 7_283_002)
+MAX_GRANT_DAYS = 30  # a code that gives full access gives at most this long (migration 0014 holds the same line)
 
 
 def generate_code() -> str:
@@ -46,11 +47,30 @@ def effective(conn: psycopg.Connection, user_id: UUID, now: datetime | None = No
     grants = [
         Grant(r["plan"], r["starts_at"], r["ends_at"])
         for r in conn.execute(
-            "SELECT plan, starts_at, ends_at FROM grant_redemptions WHERE user_id = %s AND ends_at > %s",
+            "SELECT plan, starts_at, ends_at FROM grant_redemptions"
+            " WHERE user_id = %s AND ends_at > %s AND revoked_at IS NULL",
             (user_id, moment),
         ).fetchall()
     ]
     return effective_plan(moment, override=override, grants=grants)
+
+
+def access(conn: psycopg.Connection, user_id: UUID, now: datetime | None = None) -> Access:
+    """May this person change things now? Read-only only for someone whose time-limited access ran out or was ended (see
+    `entitlements.access_of`); nobody else is ever affected."""
+    moment = now or datetime.now(UTC)
+    plan = effective(conn, user_id, moment)
+    last = None
+    if plan.source == "free":  # only worth a second query when it could matter
+        row = conn.execute(
+            """SELECT least(ends_at, coalesce(revoked_at, ends_at)) AS ended_at, revoked_at IS NOT NULL AS revoked
+               FROM grant_redemptions WHERE user_id = %s AND (ends_at <= %s OR revoked_at IS NOT NULL)
+               ORDER BY least(ends_at, coalesce(revoked_at, ends_at)) DESC LIMIT 1""",
+            (user_id, moment),
+        ).fetchone()
+        if row is not None:
+            last = EndedGrant(row["ended_at"], bool(row["revoked"]))
+    return access_of(plan, last)
 
 
 # ---- redeeming ---------------------------------------------------------------------------------------------------
@@ -123,7 +143,8 @@ def redeem(
     if row is None:
         return Refused()
     active = conn.execute(
-        "SELECT max(ends_at) AS ends_at FROM grant_redemptions WHERE user_id = %s AND starts_at <= %s AND ends_at > %s",
+        "SELECT max(ends_at) AS ends_at FROM grant_redemptions"
+        " WHERE user_id = %s AND starts_at <= %s AND ends_at > %s AND revoked_at IS NULL",
         (user_id, moment, moment),
     ).fetchone()
     if active["ends_at"] is not None:
@@ -156,8 +177,8 @@ def create_grant(
     now: datetime | None = None,
 ) -> tuple[int, str]:
     """Make a code (as the schema owner). Returns its id and the code, which is shown once: only its hash is kept."""
-    if not 1 <= days <= 3650:
-        raise ValueError("a grant lasts from 1 to 3650 days")
+    if not 1 <= days <= MAX_GRANT_DAYS:
+        raise ValueError(f"a grant lasts from 1 to {MAX_GRANT_DAYS} days")
     if max_redemptions is not None and max_redemptions < 1:
         raise ValueError("a code must allow at least one use")
     code = generate_code()

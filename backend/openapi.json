@@ -1575,8 +1575,8 @@
         "additionalProperties": false,
         "properties": {
           "days": {
-            "description": "How long the plan lasts once it is redeemed",
-            "maximum": 3650.0,
+            "description": "How long the plan lasts once it is redeemed (30 at most)",
+            "maximum": 30.0,
             "minimum": 1.0,
             "title": "Days",
             "type": "integer"

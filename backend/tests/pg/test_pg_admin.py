@@ -423,7 +423,7 @@ def test_an_override_puts_the_person_on_that_plan_and_the_account_reports_it(ser
 
 
 def test_an_override_can_lower_the_plan_even_for_someone_with_a_code(service, db, system, owner, alice, op):
-    _, code = plans.create_grant(owner, days=90, now=NOW)
+    _, code = plans.create_grant(owner, days=30, now=NOW)
     with system.system_session("login") as conn:
         plans.redeem(conn, alice, code, now=NOW)
     assert plan_of(db, system, alice).source == "grant"

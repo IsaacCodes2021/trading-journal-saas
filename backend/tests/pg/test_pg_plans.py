@@ -24,7 +24,7 @@ def login(system):
 
 def code_for(owner, **kwargs):
     """A plan code made as the owner: (its id, the code as it would be sent)."""
-    kwargs.setdefault("days", 90)
+    kwargs.setdefault("days", 30)
     kwargs.setdefault("now", NOW)  # a code that expires does so relative to the test's clock, not the wall clock
     return plans.create_grant(owner, **kwargs)
 
@@ -52,13 +52,13 @@ def test_a_person_with_nothing_is_on_the_free_plan(system, alice):
 
 
 def test_redeeming_a_code_gives_its_plan_from_now_for_its_days(system, owner, alice):
-    _, code = code_for(owner, days=90)
+    _, code = code_for(owner, days=30)
     result = redeem(system, alice, code)
-    assert result == plans.Redeemed("pro", 90, NOW + 90 * DAY)
+    assert result == plans.Redeemed("pro", 30, NOW + 30 * DAY)
     plan = effective(system, alice)
-    assert (plan.plan, plan.source, plan.expires_at) == ("pro", "grant", NOW + 90 * DAY)
+    assert (plan.plan, plan.source, plan.expires_at) == ("pro", "grant", NOW + 30 * DAY)
     row = owner.execute("SELECT starts_at, ends_at, plan, user_id FROM grant_redemptions").fetchone()
-    assert (row["starts_at"], row["ends_at"], row["plan"], row["user_id"]) == (NOW, NOW + 90 * DAY, "pro", alice)
+    assert (row["starts_at"], row["ends_at"], row["plan"], row["user_id"]) == (NOW, NOW + 30 * DAY, "pro", alice)
 
 
 def test_the_plan_ends_when_the_days_are_up_and_not_a_moment_later(system, owner, alice):
@@ -189,12 +189,12 @@ def test_a_code_with_no_limit_may_be_used_by_everyone(system, owner, alice, bob)
 
 def test_a_person_with_a_plan_from_a_code_cannot_take_another_until_it_ends(system, owner, alice):
     _, first = code_for(owner, days=30)
-    _, second = code_for(owner, days=60)
+    _, second = code_for(owner, days=20)
     redeem(system, alice, first)
     assert redeem(system, alice, second, NOW + 5 * DAY) == plans.AlreadyHave(NOW + 30 * DAY)
     assert count(owner, "grant_redemptions") == 1
     assert redeem(system, alice, second, NOW + 30 * DAY) == plans.Redeemed(
-        "pro", 60, NOW + 90 * DAY
+        "pro", 20, NOW + 50 * DAY
     )  # once it has ended
 
 
@@ -254,10 +254,10 @@ def test_two_sign_ups_cannot_both_take_the_last_use_of_a_grant_an_invite_carries
 
 
 def test_a_grant_carried_by_an_invite_is_given_inside_the_sign_up(system, owner, alice):
-    grant_id, _ = code_for(owner, days=90)
+    grant_id, _ = code_for(owner, days=30)
     with login(system) as conn:
         given = plans.give_bundled(conn, grant_id, alice, now=NOW)
-    assert given == plans.Redeemed("pro", 90, NOW + 90 * DAY)
+    assert given == plans.Redeemed("pro", 30, NOW + 30 * DAY)
     assert effective(system, alice).source == "grant"
 
 
@@ -385,17 +385,17 @@ def test_the_command_makes_lists_and_revokes_codes_and_needs_the_owners_connecti
     capsys.readouterr()
     assert (
         plans.main(
-            ["create-grant", "--label", "Testers", "--days", "90", "--max-redemptions", "5", "--expires-days", "30"]
+            ["create-grant", "--label", "Testers", "--days", "30", "--max-redemptions", "5", "--expires-days", "30"]
         )
         == 0
     )
     printed = capsys.readouterr().out
     code = next(word for word in printed.replace(":", " ").split() if word.startswith("GR-"))
-    assert "#1" in printed and "90 days of pro" in printed and "shown once" in printed
+    assert "#1" in printed and "30 days of pro" in printed and "shown once" in printed
     assert plans.main(["list-grants"]) == 0
     listing = capsys.readouterr().out
     assert (
-        "#1 Testers: 90 days of pro, used 0 (up to 5), works" in listing and code not in listing
+        "#1 Testers: 30 days of pro, used 0 (up to 5), works" in listing and code not in listing
     )  # the code is never listed
     assert plans.main(["revoke-grant", "--id", "1"]) == 0 and "revoked" in capsys.readouterr().out
     assert plans.main(["revoke-grant", "--id", "1"]) == 0 and "already" in capsys.readouterr().out
@@ -419,10 +419,10 @@ def service(db, system):
 
 def test_the_account_reports_the_effective_plan_and_its_limits(service, system, owner, alice):
     assert (service.load(alice).plan.effective, service.load(alice).plan.source) == ("free", "free")
-    _, code = code_for(owner, days=90)
+    _, code = code_for(owner, days=30)
     redeem(system, alice, code)
     account = service.load(alice)
-    assert (account.plan.effective, account.plan.source, account.plan.expires_at) == ("pro", "grant", NOW + 90 * DAY)
+    assert (account.plan.effective, account.plan.source, account.plan.expires_at) == ("pro", "grant", NOW + 30 * DAY)
     assert account.entitlements == {}  # what a plan includes is not decided yet: nothing is limited
 
 
@@ -438,7 +438,7 @@ def test_what_a_plan_includes_reaches_the_account_with_the_plan(service, system,
 
 
 def test_redeeming_through_the_service_records_what_happened_and_never_the_code(service, owner, alice):
-    _, code = code_for(owner, days=45)
+    _, code = code_for(owner, days=25)
     result = service.redeem_grant(alice, code, ip_hash="hash-1")
     assert result.status == "ok" and (result.plan.effective, result.plan.source) == ("pro", "grant")
     assert service.redeem_grant(alice, "GR-NOPE-NOPE", ip_hash="hash-2").status == "refused"
@@ -446,7 +446,7 @@ def test_redeeming_through_the_service_records_what_happened_and_never_the_code(
     assert service.redeem_grant(alice, other).status == "active"
     log = audit_rows(owner)
     assert [(r["action"], r["meta"]) for r in log] == [
-        ("grant_redeemed", {"plan": "pro", "days": 45, "via": "code"}),
+        ("grant_redeemed", {"plan": "pro", "days": 25, "via": "code"}),
         ("grant_refused", {"reason": "refused"}),
         ("grant_refused", {"reason": "active"}),
     ]
@@ -462,7 +462,7 @@ def test_a_refused_redemption_changes_nothing(service, owner, alice):
 def test_redeeming_on_the_real_app_changes_the_session_and_needs_the_csrf_token(world, owner, alice):
     from auth_world import ALICE
 
-    _, code = code_for(owner, days=90)
+    _, code = code_for(owner, days=30)
     browser = world()
     assert browser.sign_in(ALICE).status_code == 303
     assert browser.session().json()["plan"]["source"] == "free"
@@ -483,7 +483,7 @@ def test_redeeming_on_the_real_app_changes_the_session_and_needs_the_csrf_token(
 def test_a_second_code_while_one_is_running_says_so_on_the_real_app(world, owner, alice):
     from auth_world import ALICE
 
-    _, first = code_for(owner, days=90)
+    _, first = code_for(owner, days=30)
     _, second = code_for(owner, days=30)
     browser = world()
     browser.sign_in(ALICE)
@@ -506,7 +506,7 @@ def test_a_stranger_cannot_redeem_anything_on_the_real_app(world, owner):
 
 
 def test_signing_up_with_an_invite_that_carries_a_plan_starts_on_that_plan(world, owner):
-    grant_id, _ = code_for(owner, days=90)
+    grant_id, _ = code_for(owner, days=30)
     invite = invites.create_invite(owner, grant_code_id=grant_id)
     browser = world()
     assert browser.sign_in(NEWCOMER, invite=invite).status_code == 303
@@ -525,11 +525,16 @@ def test_an_invite_without_a_plan_gives_the_free_plan(world, owner):
     assert count(owner, "grant_redemptions") == 0
 
 
-def test_an_invite_whose_plan_has_run_out_still_signs_the_person_up_without_it(world, owner):
+def test_an_invite_whose_plan_has_run_out_does_not_sign_the_person_up_at_all(world, owner):
+    # An invite that carries time-limited access (a beta code) is the only way such an account is made. If the access cannot
+    # be given, signing up without it would be an account with no end date, so nothing is made and the code is not used up.
     grant_id, _ = code_for(owner)
     owner.execute("UPDATE grant_codes SET revoked_at = now() WHERE id = %s", (grant_id,))
     invite = invites.create_invite(owner, grant_code_id=grant_id)
     browser = world()
-    assert browser.sign_in(NEWCOMER, invite=invite).status_code == 303
-    assert browser.session().json()["plan"]["source"] == "free"
+    response = browser.sign_in(NEWCOMER, invite=invite)
+    assert response.status_code == 303 and response.headers["location"] == "/invite?error=invite_invalid"
+    assert browser.session().status_code == 401
+    assert owner.execute("SELECT count(*) AS n FROM users WHERE email = %s", (NEWCOMER.email,)).fetchone()["n"] == 0
+    assert count(owner, "invite_redemptions") == 0
     assert not [r for r in audit_rows(owner) if r["action"] == "grant_redeemed"]

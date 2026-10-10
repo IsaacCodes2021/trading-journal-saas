@@ -68,8 +68,10 @@ def safe_next(value: str | None) -> str:
 
 @dataclass(frozen=True)
 class LoginStart:
-    redirect_url: str  # the identity provider's page
-    state_cookie: str  # the signed value to set as the login-state cookie
+    redirect_url: str  # the identity provider's page, or (no cookie) our own page when the code was refused up front
+    state_cookie: (
+        str | None
+    )  # the signed value to set as the login-state cookie; None when nobody is sent to the provider
 
 
 @dataclass(frozen=True)
@@ -116,9 +118,20 @@ class AuthFlow:
     def begin(
         self, *, next_url: str | None, invite: str | None, step_up: bool = False, reauth: bool = False
     ) -> LoginStart:
+        code = invites.normalize(invite) if invite and len(invite) <= 60 else None
+        hint: str | None = None
+        if invite and self._invite_only:
+            # A sign-up code is checked before the browser leaves for the identity provider, so a wrong, used or expired one
+            # never causes an identity to be made there. (The callback checks again, against the verified address.)
+            with self._system.system_session("login") as conn:
+                usable = invites.lookup(conn, code, now=self._clock())
+                if usable is None:
+                    audit.record(conn, "login_failed", actor=audit.ACTOR_SYSTEM, meta={"reason": "invite_precheck"})
+            if usable is None:
+                return LoginStart(f"/invite?error={ERR_INVITE}", None)
+            hint = usable.email
         state, nonce, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
-        code = invites.normalize(invite) if invite and len(invite) <= 60 else None
         cookie = sign(
             self._secret,
             LOGIN_PURPOSE,
@@ -140,6 +153,7 @@ class AuthFlow:
             redirect_uri=self.redirect_uri,
             step_up=step_up,
             reauth=reauth,
+            login_hint=hint,
         )
         return LoginStart(url, cookie)
 
@@ -285,14 +299,18 @@ class AuthFlow:
                     raise psycopg.Rollback
                 if invite is not None and invite.grant_code_id is not None:
                     given = plans.give_bundled(conn, invite.grant_code_id, user.id, now=now)
-                    if given is not None:  # a code that ran out meanwhile gives nothing; sign-up goes ahead without it
-                        audit.record(
-                            conn,
-                            "grant_redeemed",
-                            user_id=user.id,
-                            ip_hash=ip_hash,
-                            meta={"plan": given.plan, "days": given.days, "via": "invite"},
-                        )
+                    if given is None:
+                        # The invite carries time-limited access (a beta code) and it cannot be given: the code ran out or
+                        # was withdrawn meanwhile. Signing up without it would be an account with no end date, so the whole
+                        # sign-up is undone, and the person is told what they are told for any code that does not work.
+                        raise psycopg.Rollback
+                    audit.record(
+                        conn,
+                        "grant_redeemed",
+                        user_id=user.id,
+                        ip_hash=ip_hash,
+                        meta={"plan": given.plan, "days": given.days, "via": "invite"},
+                    )
         except users.EmailTaken:
             audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "email_taken"})
             return ERR_EMAIL_TAKEN

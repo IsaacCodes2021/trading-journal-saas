@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from auth_world import ALICE, NEWCOMER, ORIGIN, SECRET, Browser, audit_rows, users_with_subject
@@ -76,10 +77,10 @@ def test_a_new_person_with_an_invite_gets_an_account_with_the_defaults_and_uses_
     assert owner.execute("SELECT count(*) AS n FROM invite_redemptions").fetchone()["n"] == 1
     assert [r["action"] for r in audit_rows(owner)] == ["signup"]  # a first sign-in is recorded as the sign-up, once
     assert browser.session().json()["user"]["email"] == "newcomer@example.test"
-    second = world()  # a second person with the same single-use code
-    refused = second.sign_in(person(subject="kp_second", email="second@example.test"), invite=code)
+    second = world()  # a second person with the same single-use code: turned away before the provider is involved
+    refused = second.client.get("/auth/login", params={"invite": code})
     assert refused.headers["location"] == "/invite?error=invite_invalid" and second.token is None
-    assert users_with_subject(owner, "kp_second") == []
+    assert not second.idp.attempts and users_with_subject(owner, "kp_second") == []
 
 
 def test_a_new_person_without_a_valid_invite_gets_nothing_and_every_reason_looks_alike(world, owner):
@@ -94,11 +95,17 @@ def test_a_new_person_without_a_valid_invite_gets_nothing_and_every_reason_looks
         "a revoked invite": {"invite": revoked},
     }.items():
         browser = world()
-        response = browser.sign_in(NEWCOMER, **params)
+        start = browser.client.get("/auth/login", params=params)
+        response = start
+        if "idp.test" in start.headers["location"]:  # not turned away up front: the whole round trip, then the callback
+            url = start.headers["location"]
+            code = browser.idp.sign_in(url, NEWCOMER)
+            response = browser.come_back(code=code, state=parse_qs(urlsplit(url).query)["state"][0])
         assert response.headers["location"] == "/invite?error=invite_invalid", label
         assert browser.token is None and users_with_subject(owner, "kp_newcomer") == [], label
     reasons = [r["meta"].get("reason") for r in audit_rows(owner) if r["action"] == "login_failed"]
-    assert reasons == ["invite"] * 5  # the log says why; the page never does
+    # the log says why (the page never does): a code turned away before the provider, or after it
+    assert reasons == ["invite", "invite_precheck", "invite_precheck", "invite", "invite_precheck"]
 
 
 def test_while_sign_up_is_open_a_new_person_needs_no_invite(world, owner):

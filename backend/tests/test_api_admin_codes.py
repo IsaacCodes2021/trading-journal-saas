@@ -16,7 +16,7 @@ READS = [f"{BASE}/invites", f"{BASE}/grant-codes", f"{BASE}/audit", f"{BASE}/met
 WRITES = [
     ("POST", f"{BASE}/invites", {"label": "Sam"}),
     ("POST", f"{BASE}/invites/7/revoke", {"reason": "sent to the wrong person"}),
-    ("POST", f"{BASE}/grant-codes", {"label": "Beta testers", "days": 90}),
+    ("POST", f"{BASE}/grant-codes", {"label": "Beta testers", "days": 30}),
     ("POST", f"{BASE}/grant-codes/3/revoke", {"reason": "leaked"}),
 ]
 
@@ -158,7 +158,7 @@ def test_an_invite_is_named_by_a_number_and_nothing_else(world, bad_id):
 
 def test_making_a_plan_code_passes_it_on_and_shows_the_code_once(world):
     operator, headers = world.person()
-    body = {"label": " Beta testers ", "days": 90, "max_redemptions": 25, "expires_in_days": 60}
+    body = {"label": " Beta testers ", "days": 30, "max_redemptions": 25, "expires_in_days": 60}
     response = call(world, "POST", f"{BASE}/grant-codes", headers, body)
     assert response.status_code == 200 and response.json()["code"] == "GR-ABCD-EFGH"
     [(name, actor, label, plan, days, max_redemptions, ends, _)] = world.admin.calls
@@ -167,7 +167,7 @@ def test_making_a_plan_code_passes_it_on_and_shows_the_code_once(world):
         operator.user.id,
         "Beta testers",
         "pro",
-        90,
+        30,
         25,
         60,
     )
@@ -183,7 +183,7 @@ def test_making_a_plan_code_passes_it_on_and_shows_the_code_once(world):
         {"label": "  ", "days": 30},
         {"label": "x" * 101, "days": 30},
         {"label": "x", "days": 0},
-        {"label": "x", "days": 3651},
+        {"label": "x", "days": 31},
         {"label": "x", "days": 30, "plan": "free"},
         {"label": "x", "days": 30, "plan": "gold"},
         {"label": "x", "days": 30, "max_redemptions": 0},

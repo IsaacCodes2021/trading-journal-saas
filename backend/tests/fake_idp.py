@@ -25,6 +25,7 @@ class Attempt:
     redirect_uri: str
     step_up: bool
     reauth: bool = False
+    login_hint: str | None = None
 
 
 @dataclass
@@ -50,8 +51,9 @@ class FakeIdp:
         redirect_uri: str,
         step_up: bool = False,
         reauth: bool = False,
+        login_hint: str | None = None,
     ) -> str:
-        self.attempts[state] = Attempt(state, nonce, code_challenge, redirect_uri, step_up, reauth)
+        self.attempts[state] = Attempt(state, nonce, code_challenge, redirect_uri, step_up, reauth, login_hint)
         return f"https://idp.test/authorize?state={state}&nonce={nonce}&step_up={int(step_up)}&reauth={int(reauth)}"
 
     def attempt_from(self, authorize_url: str) -> Attempt:

@@ -59,7 +59,8 @@ def login(
         take_place(request, request.app.state.config.rate_limits.invite_attempts, client_key(request))
     start = flow_of(request).begin(next_url=next, invite=invite, step_up=stepup, reauth=reauth)
     response = RedirectResponse(start.redirect_url, status_code=302)
-    _cookie(response, LOGIN_COOKIE, start.state_cookie, LOGIN_COOKIE_SECONDS)
+    if start.state_cookie is not None:  # none when the code was refused and the person is sent to our own page
+        _cookie(response, LOGIN_COOKIE, start.state_cookie, LOGIN_COOKIE_SECONDS)
     return response
 
 

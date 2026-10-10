@@ -174,7 +174,7 @@ class GrantCodeIn(ApiModel):
 
     label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
     plan: Literal["pro"] = "pro"
-    days: int = Field(ge=1, le=3650, description="How long the plan lasts once it is redeemed")
+    days: int = Field(ge=1, le=30, description="How long the plan lasts once it is redeemed (30 at most)")
     max_redemptions: int | None = Field(
         default=None, ge=1, le=1_000_000, description="How many people may use it; none means any number"
     )
