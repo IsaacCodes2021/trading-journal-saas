@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import type { AdminUser, AdminUserDetail } from '../../lib/admin'
+import type { BetaPerson } from '../../lib/adminBeta'
 import type { AuditEvent, GrantCode, Invite, Overview } from '../../lib/adminCodes'
 import { json, stubApi, type ApiOptions } from '../../test-utils'
 
@@ -71,6 +72,22 @@ export const event = (id: number, action: string, over: Partial<AuditEvent> = {}
   ...over,
 })
 
+export const person = (id: number, firstName: string, over: Partial<BetaPerson> = {}): BetaPerson => ({
+  id,
+  first_name: firstName,
+  email: `${firstName.toLowerCase()}@example.test`,
+  prop_firm: 'Topstep',
+  joined_at: '2026-10-09T09:00:00Z',
+  state: 'active',
+  code: 'used',
+  access_ends_at: '2026-11-08T09:00:00Z',
+  revoked_at: null,
+  code_email_sent_at: '2026-10-09T09:00:05Z',
+  code_email_failures: 0,
+  notice_sent_at: null,
+  ...over,
+})
+
 export const OVERVIEW: Overview = {
   accounts: 64,
   signups_7d: 18,
@@ -108,12 +125,26 @@ export interface AdminStubOptions extends ApiOptions {
   overview?: Overview
   /** Answer the overview, the invites, the plan codes or the log with a problem. */
   codesFail?: { status: number; detail: string }
+  /** The people who joined the beta, newest first, as the server gives them. */
+  beta?: BetaPerson[]
+  /** Revoking works, but the "access ended" email does not leave. */
+  betaNoticeFails?: boolean
 }
 
 /** Replaces `fetch`: the app's usual calls (as an operator who just verified, unless told otherwise) plus the operator API. */
 export function stubAdmin(options: AdminStubOptions = {}) {
   const { users = [], details = {}, changeFails, listFails, detailFails, ...rest } = options
-  const { invites = [], grantCodes = [], auditEvents = [], overview = OVERVIEW, codesFail, ...api } = rest
+  const {
+    invites = [],
+    grantCodes = [],
+    auditEvents = [],
+    overview = OVERVIEW,
+    codesFail,
+    beta: given = [],
+    ...more
+  } = rest
+  const beta = [...given] // a removal takes the person out of the list the next read sees
+  const { betaNoticeFails = false, ...api } = more
   let nextId = 100
   stubApi({ operator: true, mfaFresh: true, ...api })
   const inner = globalThis.fetch
@@ -146,6 +177,45 @@ export function stubAdmin(options: AdminStubOptions = {}) {
       }
       const [, , , , section, rawId, verb] = url.pathname.split('/')
       if (codesFail && ['invites', 'grant-codes', 'audit', 'metrics'].includes(section ?? '')) return problem(codesFail)
+      if (section === 'beta') {
+        if (request.method === 'GET') {
+          if (listFails) return problem(listFails)
+          const q = (url.searchParams.get('q') ?? '').toLowerCase()
+          const state = url.searchParams.get('state')
+          const limit = Number(url.searchParams.get('limit') ?? 50)
+          const offset = Number(url.searchParams.get('offset') ?? 0)
+          const matching = beta.filter(
+            (p) =>
+              (!state || p.state === state) &&
+              (!q || [p.first_name, p.email, p.prop_firm].some((text) => text.toLowerCase().includes(q))),
+          )
+          const counts: Record<string, number> = { waiting: 0, active: 0, ended: 0, revoked: 0, all: beta.length }
+          for (const p of beta) counts[p.state] = (counts[p.state] ?? 0) + 1
+          return json({ people: matching.slice(offset, offset + limit), total: matching.length, limit, offset, counts })
+        }
+        if (changeFails) return problem(changeFails)
+        const found = beta.find((p) => String(p.id) === rawId)
+        if (!found) return problem({ status: 404, detail: 'There is no such person.' })
+        if (verb === 'remove') {
+          if (found.state !== 'waiting') {
+            return problem({
+              status: 409,
+              detail:
+                'They have an account. Delete the account instead: that removes the sign-up and its codes with it.',
+            })
+          }
+          beta.splice(beta.indexOf(found), 1)
+          return json({ removed: found.id })
+        }
+        if (found.state === 'active') {
+          const changed = { ...found, state: 'revoked' as const, revoked_at: '2026-10-10T12:00:00Z' }
+          return json({ person: changed, notice: betaNoticeFails ? 'pending' : 'sent' })
+        }
+        if (found.state === 'waiting' && found.code === 'unused') {
+          return json({ person: { ...found, code: 'withdrawn' as const }, notice: 'not_needed' })
+        }
+        return problem({ status: 409, detail: 'There is nothing left to end for this person.' })
+      }
       if (url.pathname === '/api/admin/v1/metrics/overview') return json(overview)
       if (url.pathname === '/api/admin/v1/audit') {
         const q = (url.searchParams.get('q') ?? '').toLowerCase()

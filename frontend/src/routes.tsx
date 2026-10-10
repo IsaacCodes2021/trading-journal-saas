@@ -23,9 +23,11 @@ import { parseBy } from './lib/reports'
 import { parseFilters, pickFilters, type Filters } from './lib/filters'
 import { parseStep, type StepNumber } from './features/onboarding/steps'
 import { deletionDay, signInErrorOf, type SignInErrorCode } from './lib/auth'
+import { safeNext } from './lib/nextPath'
 import { useSession } from './lib/session'
 import { pickAdminSearch, queryOf, searchOf } from './features/admin/search'
 import { pickCodesSearch } from './features/admin/codesSearch'
+import { betaQueryOf, betaSearchOf, pickBetaSearch } from './features/admin/betaSearch'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
 const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends keyof T>(
@@ -33,10 +35,12 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
   name: K,
 ) => lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType })))
 
-const InvitePage = lazy(() => import('./features/invite/InvitePage').then((m) => ({ default: m.InvitePage })))
+const AuthPage = lazy(() => import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })))
+const JoinPage = lazy(() => import('./features/auth/JoinPage').then((m) => ({ default: m.JoinPage })))
 const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => ({ default: m.AdminShell })))
 const CodesPage = lazy(() => import('./features/admin/CodesPage').then((m) => ({ default: m.CodesPage })))
 const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
+const BetaPage = lazy(() => import('./features/admin/BetaPage').then((m) => ({ default: m.BetaPage })))
 const OnboardingPage = lazy(() =>
   import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
 )
@@ -56,7 +60,7 @@ const ReportsPage = lazy(() => import('./features/reports/ReportsPage').then((m)
  */
 
 /** Pages that work before sign-in: no session is asked for, and the app's header and menu are not shown. */
-const PUBLIC_PAGES = /^\/invite(?:\/|$)/
+const PUBLIC_PAGES = /^\/(?:signin|signup|invite|join)(?:\/|$)/
 
 /** The first-run setup keeps the person's attention: a small header with one way out, and no navigation. */
 const FOCUSED_PAGES = /^\/welcome(?:\/|$)/
@@ -298,26 +302,89 @@ const welcomeRoute = createRoute({
   },
 })
 
-// ---- invite (before sign-in) -------------------------------------------------------------------------------------
+// ---- the way in (before sign-in) ---------------------------------------------------------------------------------
 
+/** What the way-in pages keep from the address. Only values that pass their own checks are kept, so an edited address
+ * shows nothing it should not: a code is a short string, an error is one of the server's own codes, a date is a plain ISO
+ * time, and `next` is a path on this site. */
+type EntrySearch = {
+  code?: string
+  error?: SignInErrorCode
+  deleted?: string
+  next?: string
+}
+
+function pickEntry(search: Record<string, unknown>): EntrySearch {
+  const code = typeof search['code'] === 'string' && search['code'] !== '' ? search['code'].slice(0, 64) : null
+  const error = signInErrorOf(search['error'])
+  const deleted = typeof search['deleted'] === 'string' && deletionDay(search['deleted']) ? search['deleted'] : null
+  const next = safeNext(search['next'])
+  return {
+    ...(code ? { code } : {}),
+    ...(error ? { error } : {}),
+    ...(deleted ? { deleted } : {}),
+    ...(next ? { next } : {}),
+  }
+}
+
+function EntryRoute({ mode, search }: { mode: 'signin' | 'signup'; search: EntrySearch }) {
+  const { code, error, deleted, next } = pickEntry(search) // the router keeps what it could not validate too
+  return (
+    <Suspense fallback={<Spinner label="Loading" />}>
+      <AuthPage
+        mode={mode}
+        {...(code ? { code } : {})}
+        {...(error ? { error } : {})}
+        {...(deleted ? { deleted } : {})}
+        {...(next ? { next } : {})}
+      />
+    </Suspense>
+  )
+}
+
+const signinRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/signin',
+  validateSearch: pickEntry,
+  component: function SigninRoute() {
+    return <EntryRoute mode="signin" search={signinRoute.useSearch()} />
+  },
+})
+
+const signupRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/signup',
+  validateSearch: pickEntry,
+  component: function SignupRoute() {
+    return <EntryRoute mode="signup" search={signupRoute.useSearch()} />
+  },
+})
+
+const joinRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/join',
+  component: function JoinRoute() {
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <JoinPage />
+      </Suspense>
+    )
+  },
+})
+
+// The address the server and the emails already use: an email links here with the code (/invite?code=TJ-7KQ2-M9XA), a
+// sign-in that did not complete comes back as /invite?error=<code>, a deleted account lands on /invite?deleted=<time>,
+// and signing out ends here. It opens on the sign-up form when there is a code to put in or the code was refused, and
+// on the sign-in form otherwise.
 const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/invite',
-  // An invite email links here with the code in the address: /invite?code=TJ-7KQ2-M9XA. A sign-in that did not complete
-  // comes back as /invite?error=<code>; only the server's own codes are kept, so an edited address shows nothing.
-  validateSearch: (search: Record<string, unknown>): { code?: string; error?: SignInErrorCode; deleted?: string } => {
-    const code = typeof search['code'] === 'string' && search['code'] !== '' ? search['code'].slice(0, 64) : null
-    const error = signInErrorOf(search['error'])
-    const deleted = typeof search['deleted'] === 'string' && deletionDay(search['deleted']) ? search['deleted'] : null
-    return { ...(code ? { code } : {}), ...(error ? { error } : {}), ...(deleted ? { deleted } : {}) }
-  },
+  validateSearch: pickEntry,
   component: function InviteRoute() {
-    const { code, error, deleted } = inviteRoute.useSearch()
-    return (
-      <Suspense fallback={<Spinner label="Loading" />}>
-        <InvitePage {...(code ? { code } : {})} {...(error ? { error } : {})} {...(deleted ? { deleted } : {})} />
-      </Suspense>
-    )
+    const search = inviteRoute.useSearch()
+    const picked = pickEntry(search)
+    const signingUp = picked.code !== undefined || picked.error === 'invite_invalid'
+    return <EntryRoute mode={signingUp ? 'signup' : 'signin'} search={search} />
   },
 })
 
@@ -338,6 +405,27 @@ const adminRoute = createRoute({
           selected={search.user ?? null}
           onQuery={(next) => void navigate({ search: searchOf(next, search.user ?? null), replace: true })}
           onSelect={(id) => void navigate({ search: searchOf(query, id) })}
+        />
+      </Suspense>
+    )
+  },
+})
+
+const adminBetaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/beta',
+  validateSearch: pickBetaSearch,
+  component: function AdminBetaRoute() {
+    const search = pickBetaSearch(adminBetaRoute.useSearch()) // the router keeps what it could not validate too
+    const navigate = useNavigate({ from: '/admin/beta' })
+    const query = betaQueryOf(search)
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <BetaPage
+          query={query}
+          selected={search.person ?? null}
+          onQuery={(next) => void navigate({ search: betaSearchOf(next, null), replace: true })}
+          onSelect={(id) => void navigate({ search: betaSearchOf(query, id) })}
         />
       </Suspense>
     )
@@ -482,8 +570,12 @@ const routeTree = rootRoute.addChildren([
   dayRoute,
   importRoute,
   welcomeRoute,
+  signinRoute,
+  signupRoute,
+  joinRoute,
   inviteRoute,
   adminRoute,
+  adminBetaRoute,
   adminCodesRoute,
   settingsRoute.addChildren([
     settingsIndexRoute,

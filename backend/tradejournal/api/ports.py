@@ -8,17 +8,20 @@ later without touching a route. Tests use the in-memory versions in `tests/api_f
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 from uuid import UUID
 
-from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
+from .schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 from .schemas.admin import (
     AdminUserDetailOut,
     AdminUserListOut,
     AdminUserOut,
     AuditPageOut,
+    BetaListOut,
+    BetaPersonOut,
+    BetaRemovedOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
     GrantCodeListOut,
@@ -60,6 +63,8 @@ class Account:
     plan: PlanOut
     entitlements: dict[str, int | bool]
     is_admin: bool
+    # Read-only once time-limited access has ended. Default: full access (an account with no end date).
+    access: AccessOut = field(default_factory=lambda: AccessOut(state="active", ends_at=None, reason=None))
 
 
 @dataclass(frozen=True)
@@ -97,6 +102,10 @@ class SessionStore(Protocol):
 class AccountService(Protocol):
     def load(self, user_id: UUID) -> Account | None:
         """The signed-in user's account, or None if it no longer exists."""
+        ...
+
+    def access(self, user_id: UUID) -> AccessOut:
+        """May this person change things now? Asked on every write, so it is one cheap query."""
         ...
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
@@ -207,6 +216,16 @@ class AdminService(Protocol):
 
     def list_grant_codes(self, *, limit: int, offset: int) -> GrantCodeListOut: ...
 
+    def list_beta(self, *, state: str | None, q: str | None, limit: int, offset: int) -> BetaListOut: ...
+
+    def revoke_beta(self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None) -> BetaRevoked: ...
+
+    def remove_beta(
+        self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None
+    ) -> BetaRemovedOut: ...
+
+    def beta_notice_sent(self, redemption_id: int) -> None: ...
+
     def create_grant_code(
         self,
         actor: UUID,
@@ -238,8 +257,39 @@ class AdminService(Protocol):
 
 
 @dataclass(frozen=True)
+class BetaRevoked:
+    """What revoking someone's beta access did, and the email still to send (never in an API answer)."""
+
+    person: BetaPersonOut
+    notice_to: str | None = None  # the address to tell that access has ended; none: nobody to tell
+    notice_name: str = ""
+    redemption_id: int | None = None  # which grant the notice is about, to record that it left
+
+
+@dataclass(frozen=True)
+class BetaCode:
+    """A personal sign-up code that was just made, to be emailed (and shown to nobody)."""
+
+    signup_id: int
+    code: str
+
+
+class BetaService(Protocol):
+    def join(self, *, first_name: str, email: str, prop_firm: str) -> BetaCode | None:
+        """Record the request and make the personal code, under the rules in the database. None when nothing was made:
+        the same answer for an address that already has an account, one asked about a moment ago, and one that is not an
+        address. The caller says the same thing to all of them."""
+        ...
+
+    def email_result(self, signup_id: int, *, ok: bool) -> None:
+        """Whether the email carrying the code left. A failure lets the person ask again at once."""
+        ...
+
+
+@dataclass(frozen=True)
 class Services:
     sessions: SessionStore
     accounts: AccountService
     audit: AuditLog
     admin: AdminService | None = None  # the operator's tools; routes answer 503 where there are none
+    beta: BetaService | None = None  # joining the beta; the route answers 503 where there is none

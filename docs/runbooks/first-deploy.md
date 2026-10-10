@@ -81,7 +81,7 @@ Close the window afterwards, or clear the variables, so the owner's address is n
 
 ## What the first real run showed (2026-10-09)
 
-- **It worked end to end**: database, the setup command (roles, owner, 13 migrations), the Blueprint, the pasted settings, `/healthz` 200, `/readyz` 200 with the database "ok", an invitation, sign-up at Kinde, an empty journal, data kept across a sign-out and sign-in. The sign-in route sent the browser to Kinde with the callback `https://roundturn.onrender.com/auth/callback`, and the response carried the strict security headers (HSTS, a content policy with no inline script, no framing, `nosniff`).
+- **It worked end to end**: database, the setup command (roles, owner, the migrations: 13 then, 14 now), the Blueprint, the pasted settings, `/healthz` 200, `/readyz` 200 with the database "ok", an invitation, sign-up at Kinde, an empty journal, data kept across a sign-out and sign-in. The sign-in route sent the browser to Kinde with the callback `https://roundturn.onrender.com/auth/callback`, and the response carried the strict security headers (HSTS, a content policy with no inline script, no framing, `nosniff`).
 - **The service's address was the one in the guide** (`https://roundturn.onrender.com`).
 - **Render's screens.** The Blueprint form asks for a *Blueprint Name* (any label; leave the path empty) and accepted the plan name `0.5c-512mb` as written. The environment variables are edited through the **Edit** button on the Environment page; The first deploy ended **Failed** after about a minute, as predicted (no settings), and the deploy with the settings went **Live**.
 - **Kinde's screens.** The right application is the one of type "Back-end web" (not the machine-to-machine one). The environment is labelled "Production, Not live"; that label does not stop sign-in.
@@ -131,6 +131,8 @@ Get-Content .env.sweep-paste | ForEach-Object { ($_ -split '=')[0] }
 4. On the cron job's page, **Trigger Run**. The log should end with `applied; due 0, deleted 0, ...` (nothing is due). That is the one run that must be seen; after it the schedule takes over.
 
 The Kinde machine-to-machine credentials were checked read-only on 2026-10-09 (a token is issued, and a lookup of an id that cannot exist answers 400, which the code reads as "gone"); the delete permission was proven on a live tenant in spike S1b and has not been exercised since.
+
+**Later, once email is set up** (the beta, [beta.md](beta.md)): the same job also sends the "your access has ended" email. That is two more settings on the cron job and a different command (`all --apply`), done in the order in [deploy.md](deploy.md) section 6, "The 'your access has ended' email". Until then the job keeps running `deletions --apply` and nothing changes.
 
 ## What is deliberately not here yet
 

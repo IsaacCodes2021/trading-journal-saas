@@ -11,6 +11,11 @@ operator decided. In this order:
 Anything over a plan's limits when a grant or override ends stays and is read-only; data is never deleted (the rule that
 enforces that lives with the limits, when there are any). This module knows nothing about the database or the web: it
 takes plain values, so every rule is a plain test.
+
+**Access** is a separate, simpler question: may this person change anything? A person whose full access came from a code or
+an invite (a beta account, a promo code) and has run out, or was ended by an operator, keeps their data and can look at all
+of it and download it, but cannot create, change or delete (`access_of`). A person who never had such access (the owner,
+accounts made without one) is never affected, so this rule can be switched on without touching anyone who has no end date.
 """
 
 from __future__ import annotations
@@ -65,6 +70,31 @@ class EffectivePlan:
 
 
 FREE = EffectivePlan("free", "free", None)
+
+
+@dataclass(frozen=True)
+class Access:
+    """May the person change things? `ends_at` is when their time-limited access ends (state "active") or ended ("ended")."""
+
+    state: Literal["active", "ended"]
+    ends_at: datetime | None = None
+    reason: Literal["expired", "revoked"] | None = None
+
+
+@dataclass(frozen=True)
+class EndedGrant:
+    """The most recent time-limited grant that is no longer working: it ran out at `ends_at`, or was ended early."""
+
+    ended_at: datetime
+    revoked: bool
+
+
+def access_of(plan: EffectivePlan, last_ended: EndedGrant | None) -> Access:
+    """Read-only exactly when the person is on the free plan *because* time-limited access ended. An active grant, an override
+    (the operator decided) and a subscription all keep full access; so does an account that never had a grant."""
+    if plan.source == "free" and last_ended is not None:
+        return Access("ended", last_ended.ended_at, "revoked" if last_ended.revoked else "expired")
+    return Access("active", plan.expires_at if plan.source == "grant" else None)
 
 
 def limits_for(plan: str) -> dict[str, int | bool]:

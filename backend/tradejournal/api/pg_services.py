@@ -17,7 +17,7 @@ from ..pg import store as pg_store
 from ..pg.session import HEAVY_STATEMENT_TIMEOUT_MS, Database
 from ..pg.system import SystemDatabase
 from .ports import Account, GrantResult
-from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
+from .schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 
 _DAY_SETTINGS = ("trading_day_timezone", "trading_day_start")
 
@@ -38,8 +38,10 @@ class PgAccountService:
     def load(self, user_id: UUID) -> Account | None:
         with self._system.system_session("login") as conn:
             row = conn.execute("SELECT id, email, status, is_admin FROM users WHERE id = %s", (user_id,)).fetchone()
-            plan = pg_plans.effective(conn, user_id, self._clock()) if row is not None else None
-        if row is None or plan is None or row["status"] != "active":
+            now = self._clock()
+            plan = pg_plans.effective(conn, user_id, now) if row is not None else None
+            access = pg_plans.access(conn, user_id, now, plan=plan) if plan is not None else None
+        if row is None or plan is None or access is None or row["status"] != "active":
             return None  # gone, suspended or being deleted: not signed in
         with self._database.tenant_session(user_id) as conn:
             settings = _settings(conn)
@@ -49,7 +51,13 @@ class PgAccountService:
             plan=PlanOut(effective=plan.plan, source=plan.source, expires_at=plan.expires_at),
             entitlements=limits_for(plan.plan),
             is_admin=row["is_admin"],
+            access=AccessOut(state=access.state, ends_at=access.ends_at, reason=access.reason),
         )
+
+    def access(self, user_id: UUID) -> AccessOut:
+        with self._system.system_session("login") as conn:
+            state = pg_plans.access(conn, user_id, self._clock())
+        return AccessOut(state=state.state, ends_at=state.ends_at, reason=state.reason)
 
     def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:
         with self._system.system_session("login") as conn:

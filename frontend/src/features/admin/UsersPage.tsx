@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
 import { CONTROL } from '../../components/ui/Field'
 import { Button, Card, Spinner } from '../../components/ui/primitives'
 import { PAGE_SIZE, useAdminUsers, utcDay, type UserQuery, type UserStatus } from '../../lib/admin'
 import { messageOf } from '../tags/messages'
 import { PlanCell, StatusBadge } from './parts'
+import { SearchBox } from './SearchBox'
 import { UserPanel } from './UserPanel'
 
 const STATUSES: { value: UserStatus | ''; label: string }[] = [
@@ -12,48 +12,6 @@ const STATUSES: { value: UserStatus | ''; label: string }[] = [
   { value: 'suspended', label: 'Suspended' },
   { value: 'pending_deletion', label: 'Pending deletion' },
 ]
-
-/** How long to wait after the last keystroke before searching. */
-export const SEARCH_DELAY_MS = 350
-
-function Search({ value, onSearch }: { value: string; onSearch: (text: string) => void }) {
-  const [text, setText] = useState(value)
-  const [seen, setSeen] = useState(value) // the address's search as of the last render
-  const [sent, setSent] = useState(value) // what this box last asked for itself
-  const send = (next: string) => {
-    setSent(next)
-    onSearch(next)
-  }
-  // The address changed by itself (Back, a shared link): follow it. A change this box asked for is not followed, so
-  // keystrokes made while the page was answering are not overwritten.
-  if (value !== seen) {
-    setSeen(value)
-    if (value !== sent) setText(value)
-  }
-
-  useEffect(() => {
-    if (text.trim() === sent) return
-    const timer = setTimeout(() => send(text.trim()), SEARCH_DELAY_MS)
-    return () => clearTimeout(timer)
-    // `send` only sets state and calls the page's handler; it changes every render and must not restart the wait.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, sent])
-
-  return (
-    <input
-      type="search"
-      aria-label="Search accounts by email or id"
-      placeholder="Search by email or id"
-      value={text}
-      maxLength={100}
-      onChange={(e) => setText(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') send(text.trim())
-      }}
-      className={`${CONTROL} h-9! w-[260px]! max-w-full`}
-    />
-  )
-}
 
 /** The operator's account list, with one account open beside it. State is in the address, so a view can be shared. */
 export function UsersPage({
@@ -81,7 +39,12 @@ export function UsersPage({
       <div className="flex flex-wrap items-start gap-4">
         <Card className="min-w-0 flex-[3_1_560px] p-0" role="region" aria-label="Accounts">
           <div className="flex flex-wrap items-center gap-2.5 border-b border-line px-4 py-3.5">
-            <Search value={query.q} onSearch={(q) => onQuery({ ...query, q, page: 1 })} />
+            <SearchBox
+              value={query.q}
+              onSearch={(q) => onQuery({ ...query, q, page: 1 })}
+              label="Search accounts by email or id"
+              placeholder="Search by email or id"
+            />
             <select
               aria-label="Filter by status"
               value={query.status}

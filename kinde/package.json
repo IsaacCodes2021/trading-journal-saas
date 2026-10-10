@@ -1,0 +1,9 @@
+{
+  "name": "roundturn-kinde-pages",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Roundturn's look for Kinde's hosted sign-in screens. Copy this folder's contents to the root of its own repository and connect that repository in Kinde (docs/runbooks/kinde-branding.md in the main repository).",
+  "dependencies": {
+    "@kinde/infrastructure": "0.12.0"
+  }
+}

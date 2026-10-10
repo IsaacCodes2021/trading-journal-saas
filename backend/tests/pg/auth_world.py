@@ -35,8 +35,14 @@ class Browser:
         return self.client.get("/auth/callback", params=params)
 
     def sign_in(self, identity, *, reported_nonce=None, **login_params):
-        """The whole round trip: returns the callback's response."""
-        url, state = self.start(**login_params)
+        """The whole round trip: returns the callback's response. A sign-up code that cannot work is turned away before the
+        provider is involved; then there is no round trip, and the answer is that redirect (to the page, with its error)."""
+        first = self.client.get("/auth/login", params=login_params)
+        assert first.status_code == 302, first.text
+        url = first.headers["location"]
+        if url.startswith("/"):
+            return first
+        state = parse_qs(urlsplit(url).query)["state"][0]
         code = self.idp.sign_in(url, identity, reported_nonce=reported_nonce)
         return self.come_back(code=code, state=state)
 

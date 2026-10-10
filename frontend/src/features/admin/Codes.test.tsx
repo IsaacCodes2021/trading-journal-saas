@@ -387,7 +387,7 @@ describe('plan codes', () => {
     const card = screen.getByRole('region', { name: 'Make a plan code' })
     await u.type(within(card).getByLabelText('Label'), '  Beta testers ')
     await u.clear(within(card).getByLabelText('Days of Pro'))
-    await u.type(within(card).getByLabelText('Days of Pro'), '60')
+    await u.type(within(card).getByLabelText('Days of Pro'), '25')
     await u.type(within(card).getByLabelText('How many people (optional)'), '25')
     await u.type(within(card).getByLabelText('The code ends after (days, optional)'), '30')
     await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
@@ -398,32 +398,32 @@ describe('plan codes', () => {
         method: 'POST',
         path: '/api/admin/v1/grant-codes',
         query: {},
-        body: { label: 'Beta testers', days: 60, max_redemptions: 25, expires_in_days: 30 },
+        body: { label: 'Beta testers', days: 25, max_redemptions: 25, expires_in_days: 30 },
         csrf: 'tok',
       },
     ])
   })
 
-  it('defaults to 90 days, any number of people and no end', async () => {
+  it('defaults to 30 days, any number of people and no end', async () => {
     const { calls, user: u } = await tab()
     const card = screen.getByRole('region', { name: 'Make a plan code' })
-    expect(within(card).getByLabelText('Days of Pro')).toHaveValue('90')
+    expect(within(card).getByLabelText('Days of Pro')).toHaveValue('30')
     await u.type(within(card).getByLabelText('Label'), 'x')
     await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
     await screen.findByRole('region', { name: 'New code' })
-    expect(changes(calls)[0]?.body).toEqual({ label: 'x', days: 90, max_redemptions: null, expires_in_days: null })
+    expect(changes(calls)[0]?.body).toEqual({ label: 'x', days: 30, max_redemptions: null, expires_in_days: null })
   })
 
   it.each([
-    ['', '90', '', '', 'Give it a label, so you can tell it apart later.'],
-    ['x', '0', '', '', 'Days of Pro must be a whole number from 1 to 3650.'],
-    ['x', '3651', '', '', 'Days of Pro must be a whole number from 1 to 3650.'],
-    ['x', '', '', '', 'Days of Pro must be a whole number from 1 to 3650.'],
-    ['x', '90', '0', '', 'People must be a whole number of at least 1, or empty for any number.'],
-    ['x', '90', 'many', '', 'People must be a whole number of at least 1, or empty for any number.'],
-    ['x', '90', '1000001', '', 'People must be a whole number of at least 1, or empty for any number.'],
-    ['x', '90', '', '0', 'The code can end after 1 to 3650 days, or never if empty.'],
-    ['x', '90', '', '3651', 'The code can end after 1 to 3650 days, or never if empty.'],
+    ['', '30', '', '', 'Give it a label, so you can tell it apart later.'],
+    ['x', '0', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
+    ['x', '31', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
+    ['x', '', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
+    ['x', '30', '0', '', 'People must be a whole number of at least 1, or empty for any number.'],
+    ['x', '30', 'many', '', 'People must be a whole number of at least 1, or empty for any number.'],
+    ['x', '30', '1000001', '', 'People must be a whole number of at least 1, or empty for any number.'],
+    ['x', '30', '', '0', 'The code can end after 1 to 3650 days, or never if empty.'],
+    ['x', '30', '', '3651', 'The code can end after 1 to 3650 days, or never if empty.'],
   ])(
     'refuses label %j, days %j, people %j, ends %j before sending anything',
     async (label, days, people, ends, message) => {
@@ -445,14 +445,14 @@ describe('plan codes', () => {
     const card = screen.getByRole('region', { name: 'Make a plan code' })
     await u.type(within(card).getByLabelText('Label'), 'Most')
     await u.clear(within(card).getByLabelText('Days of Pro'))
-    await u.type(within(card).getByLabelText('Days of Pro'), '3650')
+    await u.type(within(card).getByLabelText('Days of Pro'), '30')
     await u.type(within(card).getByLabelText('How many people (optional)'), '1000000')
     await u.type(within(card).getByLabelText('The code ends after (days, optional)'), '3650')
     await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
     await screen.findByRole('region', { name: 'New code' })
     expect(changes(calls)[0]?.body).toEqual({
       label: 'Most',
-      days: 3650,
+      days: 30,
       max_redemptions: 1_000_000,
       expires_in_days: 3650,
     })

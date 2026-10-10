@@ -24,6 +24,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/v1/beta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Beta
+         * @description Everyone who joined the beta, newest first: their code, their 30 days, and whether the ending email has left.
+         */
+        get: operations["list_beta"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/beta/{signup_id}/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Beta
+         * @description Remove a sign-up that has no account, and every code tied to its address: for a removal request by email. Someone
+         *     with an account is refused (409): deleting the account removes the sign-up with it. The reason is kept in the audit
+         *     log with the sign-up's number, never the address.
+         */
+        post: operations["remove_beta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/beta/{signup_id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke Beta
+         * @description End a person's beta access now, and email them that they need to sign up to continue. For someone who has not made an
+         *     account yet, withdraw their code instead (nothing to email). The reason is kept in the audit log and never sent.
+         */
+        post: operations["revoke_beta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/v1/grant-codes": {
         parameters: {
             query?: never;
@@ -1180,6 +1243,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccessOut
+         * @description May the person change things? "ended" means their time-limited full access (a beta code, a promo code) ran out or was
+         *     ended by an operator: they can still look at everything and download it, and cannot create, change or delete.
+         */
+        AccessOut: {
+            /** Ends At */
+            ends_at: string | null;
+            /** Reason */
+            reason: ("expired" | "revoked") | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "active" | "ended";
+        };
         /** AccountDetailsIn */
         AccountDetailsIn: {
             /** Account Size */
@@ -1521,6 +1600,92 @@ export interface components {
              */
             next_before: number | null;
         };
+        /** BetaListOut */
+        BetaListOut: {
+            /**
+             * Counts
+             * @description How many people are in each state, and `all`
+             */
+            counts: {
+                [key: string]: number;
+            };
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** People */
+            people: components["schemas"]["BetaPersonOut"][];
+            /**
+             * Total
+             * @description How many match the filters
+             */
+            total: number;
+        };
+        /** BetaPersonOut */
+        BetaPersonOut: {
+            /**
+             * Access Ends At
+             * @description When the 30 days end (or ended); none until they sign up
+             */
+            access_ends_at: string | null;
+            /**
+             * Code
+             * @description What became of their personal code
+             * @enum {string}
+             */
+            code: "unused" | "used" | "expired" | "withdrawn";
+            /** Code Email Failures */
+            code_email_failures: number;
+            /**
+             * Code Email Sent At
+             * @description When the email with their code left, if it has
+             */
+            code_email_sent_at: string | null;
+            /** Email */
+            email: string;
+            /** First Name */
+            first_name: string;
+            /** Id */
+            id: number;
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            /**
+             * Notice Sent At
+             * @description When the 'your access has ended' email left, if it has
+             */
+            notice_sent_at: string | null;
+            /** Prop Firm */
+            prop_firm: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * State
+             * @description waiting: joined, no account yet; active: the 30 days are running; ended: they ran out; revoked: an operator ended it
+             * @enum {string}
+             */
+            state: "waiting" | "active" | "ended" | "revoked";
+        };
+        /** BetaRemovedOut */
+        BetaRemovedOut: {
+            /**
+             * Removed
+             * @description The sign-up that was removed, with every code tied to its address
+             */
+            removed: number;
+        };
+        /** BetaRevokeOut */
+        BetaRevokeOut: {
+            /**
+             * Notice
+             * @description sent: the 'access ended' email left; pending: it did not (it is tried again); not_needed: they had no account, so only their code was withdrawn
+             * @enum {string}
+             */
+            notice: "sent" | "pending" | "not_needed";
+            person: components["schemas"]["BetaPersonOut"];
+        };
         /** Body_add_screenshot */
         Body_add_screenshot: {
             /** File */
@@ -1800,7 +1965,7 @@ export interface components {
         GrantCodeIn: {
             /**
              * Days
-             * @description How long the plan lasts once it is redeemed
+             * @description How long the plan lasts once it is redeemed (30 at most)
              */
             days: number;
             /**
@@ -2302,6 +2467,7 @@ export interface components {
         };
         /** SessionOut */
         SessionOut: {
+            access: components["schemas"]["AccessOut"];
             /** App Version */
             app_version: string;
             /** Csrf Token */
@@ -2700,6 +2866,247 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditPageOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_beta: {
+        parameters: {
+            query?: {
+                /** @description Only people in this state */
+                state?: ("waiting" | "active" | "ended" | "revoked") | null;
+                /** @description Part of a name, address or prop firm */
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BetaListOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    remove_beta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signup_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BetaRemovedOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    revoke_beta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                signup_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReasonIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BetaRevokeOut"];
                 };
             };
             /** @description Unauthorized */

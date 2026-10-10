@@ -14,7 +14,7 @@ export const go = {
 /**
  * What the server puts after `/invite?error=` when a sign-in did not complete (`ERR_*` in `auth/flow.py`; a backend test
  * checks the two lists match). The server gives one short code and never the reason, so the words are chosen here:
- * a bad invite is always one answer, whether it was wrong, used up, expired or meant for someone else.
+ * a bad sign-up code is always one answer, whether it was wrong, used up, expired or meant for someone else.
  */
 export const SIGN_IN_ERRORS = {
   expired: 'That sign-in took too long, or was started in a different browser. Please try again.',
@@ -22,7 +22,7 @@ export const SIGN_IN_ERRORS = {
   email_unverified:
     'Your email address is not verified yet. Look for the message from the sign-in service, confirm it, and try again.',
   invite_invalid:
-    'That invite code did not work. It may be wrong, already used, expired, or meant for a different email address.',
+    'That sign-up code did not work. It may be wrong, already used, expired, or meant for a different email address.',
   account_unavailable:
     'This account is not available right now. If you think that is a mistake, email hello@roundturn.app.',
   reauth_failed: 'We could not confirm it is you. Please try again, and sign in with the same account.',
@@ -76,6 +76,7 @@ export function looksLikeInviteCode(code: string): boolean {
 
 export const EXAMPLE_INVITE = 'TJ-7KQ2-M9XA'
 
+/** Where the sign-up code is sent to the server, which checks it before anyone is sent to the identity provider. */
 export function signUpUrl(code: string): string {
   return `/auth/login?invite=${encodeURIComponent(code)}`
 }

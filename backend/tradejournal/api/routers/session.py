@@ -13,7 +13,7 @@ from ..deps import (
     ConfigDep,
     ServicesDep,
     SessionDep,
-    WriteSessionDep,
+    WritableSessionDep,
     recently_authenticated,
 )
 from ..schemas import FlagsOut, SessionOut, SettingsOut, SettingsPatch
@@ -34,6 +34,7 @@ def get_session(session: SessionDep, services: ServicesDep, config: ConfigDep, c
         user=account.user,
         settings=account.settings,
         plan=account.plan,
+        access=account.access,
         entitlements=account.entitlements,
         flags=FlagsOut(
             is_admin=account.is_admin, mfa_fresh=mfa_fresh, recently_authenticated=recently_authenticated(session, now)
@@ -44,5 +45,5 @@ def get_session(session: SessionDep, services: ServicesDep, config: ConfigDep, c
 
 
 @router.patch("/settings", response_model=SettingsOut)
-def patch_settings(changes: SettingsPatch, session: WriteSessionDep, services: ServicesDep) -> SettingsOut:
+def patch_settings(changes: SettingsPatch, session: WritableSessionDep, services: ServicesDep) -> SettingsOut:
     return services.accounts.update_settings(session.user_id, changes)

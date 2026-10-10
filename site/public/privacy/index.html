@@ -3,31 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Privacy: how Roundturn handles your email address</title>
-<meta name="description" content="What the Roundturn waitlist collects, why, where it is stored, and how to have it removed.">
+<title>Privacy: how Roundturn handles your details</title>
+<meta name="description" content="What the Roundturn beta sign-up form collects, why, where it is stored, and how to have it removed.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="wrap">
-  <a class="brand" href="/">Roundturn</a>
-  <nav aria-label="Main">
-    <a href="/about/">About</a>
-    <a href="/privacy/">Privacy</a>
-  </nav>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/privacy/" aria-current="page">Privacy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
+    </nav>
+  </div>
 </header>
 
 <main>
 <article class="wrap">
   <h1>Privacy</h1>
-  <p class="draft">This page covers the waitlist only, and it is a draft. A full privacy policy will be written, and reviewed by a professional, before the app opens to users. Last updated 2026-10-03.</p>
+  <p class="draft">This page covers the beta sign-up form only, and it is a draft. A full privacy policy will be written, and reviewed by a professional, before the app opens to users. Last updated 2026-10-10.</p>
 
   <h2>What is collected</h2>
-  <p>If you join the waitlist, Roundturn stores two things: your email address and the date you joined. Nothing else. It does not store your IP address, your browser details or where you came from.</p>
+  <p>If you join the beta, Roundturn stores your first name, your email address, the prop firm you named, and when you joined. It also keeps a record of the sign-up code it made for you (as a one-way hash, so the code itself cannot be read back) and whether the email with the code was sent. It does not store your IP address, your browser details or where you came from.</p>
 
   <h2>Why</h2>
-  <p>To send you one email when your invitation to the beta is ready. The list is not sold, rented or shared, and it is not used for anything else.</p>
+  <p>To email you your sign-up code, and to run the beta: to know who has a code and whose 30 days are running. You may get one more email when your access ends. The list is not sold, rented or shared, and it is not used for anything else.</p>
 
   <h2>What this site does not do</h2>
   <ul>
@@ -36,10 +40,10 @@
   </ul>
 
   <h2>Where it is stored</h2>
-  <p>This site and its waitlist run on Cloudflare. Your address is kept in a database there, and Cloudflare, like any web host, can see technical request data such as IP addresses while it serves the site. See <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare's privacy policy</a>.</p>
+  <p>This site runs on Cloudflare. The sign-up form and its records are on Roundturn's application servers, which run on Render in the United States, with the database there. The email with your code is sent through Resend, an email delivery service, so Resend handles your address and first name to deliver it. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a> and <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>.</p>
 
   <h2>How long</h2>
-  <p>Until your invitation has been sent or you ask for the address to be removed, whichever comes first.</p>
+  <p>Until you ask for it to be removed. Nothing is deleted automatically yet; a fixed period will be set, and written here, before the beta opens widely.</p>
 
   <h2>Your choices</h2>
   <p>To see what is stored about you, or to have it deleted, email <a href="mailto:hello@roundturn.app">hello@roundturn.app</a> from the address in question. It will be deleted and you will get a short confirmation.</p>
@@ -49,8 +53,17 @@
 </article>
 </main>
 
-<footer class="wrap">
-  <p><a href="/">Home</a> · <a href="/about/">About</a></p>
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/about/">About</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+  </div>
 </footer>
 </body>
 </html>

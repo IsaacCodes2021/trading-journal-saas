@@ -19,6 +19,7 @@ from uuid import UUID
 import psycopg
 
 from ..pg import admin as pg_admin
+from ..pg import admin_beta as pg_beta
 from ..pg import admin_codes as pg_codes
 from ..pg import admin_log as pg_log
 from ..pg import audit as pg_audit
@@ -26,7 +27,7 @@ from ..pg import deletion as pg_deletion
 from ..pg import invites as pg_invites
 from ..pg import plans as pg_plans
 from ..pg.system import SystemDatabase
-from .ports import AdminRefusal, SessionStore
+from .ports import AdminRefusal, BetaRevoked, SessionStore
 from .schemas import PlanOut
 from .schemas.admin import (
     AdminUserDetailOut,
@@ -34,6 +35,9 @@ from .schemas.admin import (
     AdminUserOut,
     AuditEventOut,
     AuditPageOut,
+    BetaListOut,
+    BetaPersonOut,
+    BetaRemovedOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
     EventOut,
@@ -53,6 +57,11 @@ OPERATOR_REFUSED = "That account is an operator. Operators are changed with the 
 NOT_FOUND = "There is no such account."
 NO_INVITE = "There is no such invite."
 NO_GRANT = "There is no such plan code."
+NO_PERSON = "There is no such person in the beta."
+HAS_ACCOUNT = "They have an account. Delete the account instead: that removes the sign-up and its codes with it."
+NOTHING_TO_REVOKE = (
+    "There is nothing to revoke: their access has already ended, or their code is used up, expired or withdrawn."
+)
 
 
 def user_out(row: pg_admin.UserRow) -> AdminUserOut:
@@ -88,6 +97,23 @@ def invite_out(row: pg_codes.InviteRow, now: datetime) -> InviteOut:
         grant_code_id=row.grant_code_id,
         grant_label=row.grant_label,
         status=row.status(now),  # type: ignore[arg-type]
+    )
+
+
+def beta_person_out(row: pg_beta.BetaRow) -> BetaPersonOut:
+    return BetaPersonOut(
+        id=row.id,
+        first_name=row.first_name,
+        email=row.email,
+        prop_firm=row.prop_firm,
+        joined_at=row.joined_at,
+        state=row.state,
+        code=row.code,  # type: ignore[arg-type]  # one of the four the query produces
+        access_ends_at=row.access_ends_at,
+        revoked_at=row.access_revoked_at,
+        notice_sent_at=row.ended_notice_sent_at,
+        code_email_sent_at=row.email_sent_at,
+        code_email_failures=row.email_failures,
     )
 
 
@@ -360,6 +386,67 @@ class PgAdminService:
         if row is None:
             raise AdminRefusal(404, NO_GRANT)
         return grant_out(row, now)
+
+    # ---- the beta ----------------------------------------------------------------------------------------------------
+
+    def list_beta(self, *, state: str | None, q: str | None, limit: int, offset: int) -> BetaListOut:
+        now = self._clock()
+        with self._system.system_session(ADMIN) as conn:
+            rows, total = pg_beta.list_people(
+                conn,
+                now=now,
+                state=state if state in pg_beta.STATES else None,
+                q=q,
+                limit=limit,
+                offset=offset,  # type: ignore[arg-type]
+            )
+            counted = pg_beta.counts(conn, now=now)
+        return BetaListOut(
+            people=[beta_person_out(r) for r in rows],
+            total=total,
+            limit=max(1, min(limit, pg_beta.PAGE_MAX)),
+            offset=max(0, offset),
+            counts=counted,
+        )
+
+    def revoke_beta(self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None) -> BetaRevoked:
+        """End a person's beta access (or withdraw a code nobody used). The email that tells them is the caller's to send,
+        so it is returned here and recorded as sent by `beta_notice_sent` once it has left; it never appears in an answer."""
+        now = self._clock()
+        with self._system.system_session(ADMIN) as conn:
+            person = pg_beta.get_person(conn, signup_id, now=now)
+            if person is None:
+                raise AdminRefusal(404, NO_PERSON)
+            done = pg_beta.revoke(conn, person, now=now)
+            if done is None:
+                raise AdminRefusal(409, NOTHING_TO_REVOKE)
+            self._record(
+                conn, "admin_beta_revoked", actor, None, ip_hash, signup=signup_id, outcome=done.outcome, reason=reason
+            )
+            after = pg_beta.get_person(conn, signup_id, now=now)
+        if after is None:
+            raise AdminRefusal(404, NO_PERSON)
+        out = beta_person_out(after)
+        if done.outcome == "access_ended":
+            return BetaRevoked(
+                out, notice_to=person.email, notice_name=person.first_name, redemption_id=done.redemption_id
+            )
+        return BetaRevoked(out)
+
+    def remove_beta(self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None) -> BetaRemovedOut:
+        """Remove a sign-up that has no account, and every code tied to its address (a removal request by email)."""
+        with self._system.system_session(ADMIN) as conn:
+            outcome = pg_beta.remove(conn, signup_id)
+            if outcome == "not_found":
+                raise AdminRefusal(404, NO_PERSON)
+            if outcome == "has_account":
+                raise AdminRefusal(409, HAS_ACCOUNT)
+            self._record(conn, "admin_beta_removed", actor, None, ip_hash, signup=signup_id, reason=reason)
+        return BetaRemovedOut(removed=signup_id)
+
+    def beta_notice_sent(self, redemption_id: int) -> None:
+        with self._system.system_session(ADMIN) as conn:
+            pg_beta.mark_notice_sent(conn, redemption_id, now=self._clock())
 
     # ---- the log and the overview ------------------------------------------------------------------------------------
 

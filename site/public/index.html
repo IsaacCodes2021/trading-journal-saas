@@ -3,94 +3,207 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Roundturn: a trading journal for futures traders</title>
-<meta name="description" content="Roundturn is a journal and analytics tool for futures traders. Upload your own trade history, review every round turn, and keep notes and screenshots. Free invite-only beta: join the waitlist.">
+<title>Roundturn: a trading journal for prop-firm futures traders</title>
+<meta name="description" content="Roundturn is a journal and analytics tool for prop-firm futures traders. Upload your Tradovate trade history, review every round turn, and keep notes and screenshots. Free during the invite-only beta.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-<header class="wrap">
-  <a class="brand" href="/">Roundturn</a>
-  <nav aria-label="Main">
-    <a href="/about/">About</a>
-    <a href="/privacy/">Privacy</a>
-  </nav>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="#what">What it does</a>
+      <a href="#limits">Limitations</a>
+      <a href="#goals">Goals</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
+    </nav>
+  </div>
 </header>
 
 <main>
   <section class="wrap hero">
-    <h1>Review every round turn.</h1>
-    <p class="lead">Roundturn is a journal and analytics tool for futures traders. Upload the trade history you export from your own platform and see what it says: profit and loss, win rate, drawdown, and results by day and by instrument. Add notes and screenshots to any trade.</p>
-
-    <form id="join" class="join" action="/api/waitlist" method="post">
-      <label for="email">Email address</label>
-      <div class="row">
-        <input id="email" name="email" type="email" required autocomplete="email" maxlength="254" placeholder="you@example.com">
-        <button type="submit">Join the waitlist</button>
-      </div>
-      <div class="trap" aria-hidden="true">
-        <label for="website">Leave this field empty</label>
-        <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
-      </div>
-      <p class="fine" id="join-status" role="status" aria-live="polite">Free during the invite-only beta. You get one email when your invite is ready, and nothing else. <a href="/privacy/">How your address is handled</a>.</p>
-    </form>
+    <span class="chip">INVITE-ONLY BETA · 30 DAYS OF FULL ACCESS</span>
+    <h1>Review every round&nbsp;turn.</h1>
+    <p class="lead">A journal and analytics tool for prop-firm futures traders. Upload your Tradovate trade history, see what it says, and keep notes and screenshots on every trade.</p>
+    <div class="actions">
+      <a class="btn btn-big" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
+      <span class="aside">Have a sign-up code? <a href="https://app.roundturn.app/signup" rel="noopener noreferrer">Sign up here</a></span>
+    </div>
+    <p class="already">Already have an account? <a href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a></p>
   </section>
 
-  <section class="wrap">
-    <div class="status">
-      <strong>Status: in development.</strong> The hosted version is not open yet. The first invitations will go to people on the waitlist.
+  <section class="wrap shot" aria-label="A look at the dashboard">
+    <div class="window">
+      <div class="bar" aria-hidden="true">
+        <span class="mark"></span>
+        <span class="on">Dashboard</span>
+        <span>Trades</span>
+        <span>Calendar</span>
+        <span>Reports</span>
+        <span>Import</span>
+      </div>
+      <div class="body">
+        <div class="tiles">
+          <div class="tile"><div class="k">Net P&amp;L</div><div class="v pos">+$4,812.50</div></div>
+          <div class="tile"><div class="k">Win rate</div><div class="v">58.3%</div></div>
+          <div class="tile"><div class="k">Profit factor</div><div class="v">1.62</div></div>
+          <div class="tile"><div class="k">Max drawdown</div><div class="v neg">-$1,240.00</div></div>
+        </div>
+        <div class="chart">
+          <div class="cap"><span>Equity curve</span><span class="mono">Sample data</span></div>
+          <svg role="img" aria-label="A rising equity curve with two shallow pullbacks" viewBox="0 0 1100 200" preserveAspectRatio="none">
+            <line class="grid-line" x1="0" y1="50" x2="1100" y2="50"/>
+            <line class="grid-line" x1="0" y1="100" x2="1100" y2="100"/>
+            <line class="grid-line" x1="0" y1="150" x2="1100" y2="150"/>
+            <polygon class="area" points="0,200 0,168 70,160 140,164 210,138 280,146 350,118 420,126 490,98 560,108 630,84 700,92 770,64 840,74 910,48 980,56 1050,34 1100,40 1100,200"/>
+            <polyline class="curve" points="0,168 70,160 140,164 210,138 280,146 350,118 420,126 490,98 560,108 630,84 700,92 770,64 840,74 910,48 980,56 1050,34 1100,40"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <p class="note">Sample data. Your own numbers come from your Tradovate export.</p>
+  </section>
+
+  <section class="band" aria-labelledby="for">
+    <div class="wrap split">
+      <div>
+        <h2 id="for">Who it is for</h2>
+      </div>
+      <div class="audience">
+        <div>
+          <h3>Prop-firm futures traders</h3>
+          <p>Several accounts across several firms: evaluations, funded accounts, their fees and their payouts, in one place.</p>
+        </div>
+        <div>
+          <h3>Tradovate users</h3>
+          <p>You export the Performance report from Tradovate. Roundturn builds your trades from it.</p>
+        </div>
+        <div>
+          <h3>Traders who review</h3>
+          <p>Ten minutes after the session: what happened, why, and what to change.</p>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="wrap" aria-labelledby="does">
-    <h2 id="does">What it does</h2>
-    <div class="grid">
-      <div class="card">
-        <h3>Import your own history</h3>
-        <p>Upload the Performance export from your Tradovate account. Re-importing the same rows never duplicates them, and any import can be undone.</p>
-      </div>
-      <div class="card">
-        <h3>One trade, one round turn</h3>
-        <p>A round turn is one complete trade, from the entry to the exit. Roundturn combines the scale-ins and scale-outs in your export into single trades, so the numbers match how you actually traded.</p>
-      </div>
-      <div class="card">
-        <h3>Statistics you can check</h3>
-        <p>Net profit and loss after your fees, win rate, drawdown, and results by day and by instrument. Money is computed exactly, not rounded along the way.</p>
-      </div>
-      <div class="card">
-        <h3>Notes, tags and screenshots</h3>
-        <p>Write down what you saw and why you took the trade, tag your setups and mistakes, and attach a chart image to any trade.</p>
-      </div>
-      <div class="card">
-        <h3>Prop account tracking</h3>
-        <p>If you trade accounts from a prop firm, record their rules and fees to follow your own progress. It is for your tracking only and may differ from the firm's official numbers.</p>
-      </div>
-      <div class="card">
-        <h3>Your data stays yours</h3>
-        <p>Roundturn never asks for broker passwords or keys, and each user's data is separated from everyone else's at the database level.</p>
+  <section class="band" id="what" aria-labelledby="does">
+    <div class="wrap">
+      <h2 id="does">What it does</h2>
+      <div class="cards">
+        <div class="card">
+          <h3>Import with a preview</h3>
+          <p>Upload the Tradovate Performance CSV and see what will be added before anything is saved. Import the same file twice and nothing doubles. Undo any import.</p>
+        </div>
+        <div class="card">
+          <h3>A dashboard that adds up</h3>
+          <p>Net P&amp;L after fees, win rate, profit factor, expectancy, maximum drawdown, an equity curve and daily results.</p>
+        </div>
+        <div class="card">
+          <h3>Every trade, with your notes</h3>
+          <p>Filter and search the trade log. Add notes, tags for setup, mistake and emotion, and screenshots to any trade.</p>
+        </div>
+        <div class="card">
+          <h3>Calendar and reports</h3>
+          <p>A day-by-day calendar with a note for each day. Results by contract, weekday, hour, hold time, tag and account.</p>
+        </div>
+        <div class="card">
+          <h3>Prop accounts</h3>
+          <p>Track evaluations and funded accounts with their fees, their rules and a ledger of costs and payouts.</p>
+        </div>
+        <div class="card">
+          <h3>Your data stays yours</h3>
+          <p>Export everything as a ZIP at any time. Delete your account and its data when you choose.</p>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="wrap" aria-labelledby="not">
-    <h2 id="not">What it is not</h2>
-    <ul class="not">
-      <li>It does not place or route trades, and it does not connect to your broker or exchange account.</li>
-      <li>It gives no investment advice, trade signals, recommendations or price predictions.</li>
-      <li>It does not hold, move or manage anyone's money.</li>
-      <li>It is not a proprietary trading firm and does not sell funded accounts or evaluations.</li>
-    </ul>
-    <p class="fine">More on the <a href="/about/">about page</a>, including the risk disclosure.</p>
+  <section class="band" id="limits" aria-labelledby="short">
+    <div class="wrap split">
+      <div>
+        <h2 id="short">Where it falls short today</h2>
+        <p class="intro">Status: in development. We would rather tell you now.</p>
+      </div>
+      <div class="limits">
+        <div>
+          <div class="tag">Tradovate only</div>
+          <p>Trades arrive from the Performance CSV you export and upload. There is no automatic sync yet.</p>
+        </div>
+        <div>
+          <div class="tag">Firm rules are informational</div>
+          <p>Rule progress may differ from your firm's official numbers. The firm's numbers are the ones that count.</p>
+        </div>
+        <div>
+          <div class="tag">No live rule tracking</div>
+          <p>Roundturn does not watch your accounts as you trade or warn you before a rule is hit.</p>
+        </div>
+        <div>
+          <div class="tag">Desktop first</div>
+          <p>It works on a phone, but it is designed for a larger screen.</p>
+        </div>
+        <div>
+          <div class="tag">Rough edges</div>
+          <p>Expect some while the beta runs. Support is by email, on a best-effort basis.</p>
+        </div>
+        <div>
+          <div class="tag">Not a trading tool</div>
+          <p>It does not place or route trades, and it is not investment advice.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="goals" aria-labelledby="going">
+    <div class="wrap">
+      <h2 id="going">Where it is going</h2>
+      <div class="goal">
+        <div>
+          <span class="badge">MAIN GOAL</span>
+          <h3>Tradovate auto-sync</h3>
+        </div>
+        <p>Connect your Tradovate account and have your trades arrive on their own, with no file to export and upload. This is what the work is aimed at right now. It is not built yet, and there is no date.</p>
+      </div>
+      <div class="planned">
+        <div>
+          <div class="k">ALSO PLANNED</div>
+          <h3>Firm rules tracked from your real history</h3>
+        </div>
+        <div>
+          <div class="k">ALSO PLANNED</div>
+          <h3>More ways to bring trades in</h3>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band join" id="join" aria-labelledby="beta">
+    <div class="wrap">
+      <h2 id="beta">Join the beta.</h2>
+      <p>Tell us who you are and we will email you a sign-up code. It gives you 30 days of full access from the day you create your account. Free during the invite-only beta.</p>
+      <div class="actions">
+        <a class="btn btn-big" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
+        <span class="aside">Have a sign-up code? <a href="https://app.roundturn.app/signup" rel="noopener noreferrer">Sign up here</a></span>
+      </div>
+    </div>
   </section>
 </main>
 
-<footer class="wrap">
-  <p>Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
-  <p>Roundturn is not affiliated with Tradovate or any broker, exchange or prop firm.</p>
-  <p>Contact: <a href="mailto:hello@roundturn.app">hello@roundturn.app</a> · <a href="/about/">About</a> · <a href="/privacy/">Privacy</a></p>
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><span class="mark" aria-hidden="true"></span>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/about/">About</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn analyzes the data you upload. It does not place, route or execute trades, and it is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate or any broker, exchange or prop firm.</p>
+  </div>
 </footer>
-
-<script src="/waitlist.js" defer></script>
 </body>
 </html>

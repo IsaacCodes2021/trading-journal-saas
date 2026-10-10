@@ -51,6 +51,7 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] The company's exact legal wording (pinned): for the Terms "operated by" line, the Privacy Policy controller line and the payment emails **(you)**
 - [ ] Privacy Policy, Terms and the financial disclaimer reviewed by a professional, then published **(you)**: the drafts are in `docs/legal/` and are **not** on the site
 - [ ] The privacy wording says backups hold a deleted picture for up to 30 days (the second copy's keep time) **(you)**
+- [ ] The beta works as described in [beta.md](beta.md): personal codes, 30 days, read-only afterwards (rules built and tested; the form, the emails and the pages are not) **(me)**
 - [ ] The invite email says: invite-only beta, best-effort support, what is and is not promised **(you)**
 
 ## B. Before it opens to everyone (public launch)

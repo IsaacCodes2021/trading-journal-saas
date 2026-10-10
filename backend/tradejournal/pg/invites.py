@@ -68,6 +68,36 @@ def check(conn: psycopg.Connection, code: str | None, email: str, *, now: dateti
     return Invite(row["id"], row["grant_code_id"]) if used < row["max_uses"] else None
 
 
+@dataclass(frozen=True)
+class UsableInvite:
+    """What can be said about a code before anyone has signed in: that it works, and which address it is for."""
+
+    id: int
+    email: str | None  # the address it is tied to, if any (used to pre-fill the provider's page)
+
+
+def lookup(conn: psycopg.Connection, code: str | None, *, now: datetime | None = None) -> UsableInvite | None:
+    """The invite this code is, if it could still be used by *somebody*: it exists, is not revoked or expired, and has a use
+    left. Nothing is said about whom it is for beyond the stored address. One answer (None) for every way it cannot. This is
+    the check made before the browser is sent to the identity provider; `check` still runs after, against the verified
+    address, and decides."""
+    if not code:
+        return None
+    normalized = normalize(code)
+    if len(normalized) > 40 or not _SHAPE.fullmatch(normalized):
+        return None
+    moment = now or datetime.now(UTC)
+    row = conn.execute(
+        """SELECT i.id, i.email, i.max_uses, i.expires_at, i.revoked_at,
+                  (SELECT count(*) FROM invite_redemptions r WHERE r.invite_id = i.id) AS used
+           FROM invites i WHERE i.code_hash = %s""",
+        (hash_code(normalized),),
+    ).fetchone()
+    if row is None or row["revoked_at"] is not None or (row["expires_at"] and row["expires_at"] <= moment):
+        return None
+    return UsableInvite(row["id"], row["email"]) if row["used"] < row["max_uses"] else None
+
+
 def redeem(conn: psycopg.Connection, invite: Invite, user_id, *, now: datetime | None = None) -> bool:
     """Use the invite for this user, inside the sign-up transaction. False (and nothing recorded) if it was used up in
     the meantime: two people redeeming the last use at once cannot both get it."""

@@ -101,6 +101,7 @@ class KindeProvider:
         redirect_uri: str,
         step_up: bool = False,
         reauth: bool = False,
+        login_hint: str | None = None,
     ) -> str:
         params = {
             "response_type": "code",
@@ -116,6 +117,8 @@ class KindeProvider:
             params.update({"acr_values": "mfa", "max_age": "0"})
         if reauth:
             params.update({"prompt": "login", "max_age": "0"})
+        if login_hint:
+            params["login_hint"] = login_hint
         return f"{self._metadata()['authorization_endpoint']}?{urlencode(params)}"
 
     def complete(self, *, code: str, code_verifier: str, redirect_uri: str, nonce: str) -> Identity:

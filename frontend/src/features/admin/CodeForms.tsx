@@ -184,7 +184,7 @@ export function CreateInvite({ working, onCreated }: { working: GrantCode[]; onC
 export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => void }) {
   const create = useCreateGrantCode()
   const [label, setLabel] = useState('')
-  const [days, setDays] = useState('90')
+  const [days, setDays] = useState('30')
   const [uses, setUses] = useState('')
   const [ends, setEnds] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
@@ -196,8 +196,8 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
     const people = wholeNumber(uses)
     const ending = wholeNumber(ends)
     if (!label.trim()) return setProblem('Give it a label, so you can tell it apart later.')
-    if (given === null || Number.isNaN(given) || given < 1 || given > 3650) {
-      return setProblem('Days of Pro must be a whole number from 1 to 3650.')
+    if (given === null || Number.isNaN(given) || given < 1 || given > 30) {
+      return setProblem('Days of Pro must be a whole number from 1 to 30.')
     }
     if (people !== null && (Number.isNaN(people) || people < 1 || people > 1_000_000)) {
       return setProblem('People must be a whole number of at least 1, or empty for any number.')
@@ -212,7 +212,7 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
         onSuccess: (made) => {
           onCreated(made.code)
           setLabel('')
-          setDays('90')
+          setDays('30')
           setUses('')
           setEnds('')
         },

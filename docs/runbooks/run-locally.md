@@ -71,7 +71,7 @@ A plan code gives a person a plan for some days when they type it on Settings > 
 
 ```powershell
 cd backend
-.venv\Scripts\python.exe -m tradejournal.pg.plans create-grant --label "Beta testers" --days 90 --max-redemptions 25 --expires-days 60
+.venv\Scripts\python.exe -m tradejournal.pg.plans create-grant --label "Beta testers" --days 30 --max-redemptions 25 --expires-days 60
 .venv\Scripts\python.exe -m tradejournal.pg.plans list-grants
 .venv\Scripts\python.exe -m tradejournal.pg.plans revoke-grant --id 1
 .venv\Scripts\python.exe -m tradejournal.pg.invites create --label "Sam" --grant-id 1

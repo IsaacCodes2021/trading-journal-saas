@@ -26,7 +26,7 @@ describe('api client', () => {
     expect(seen[1]?.headers.get('x-csrf-token')).toBe('tok-123')
   })
 
-  it('redirects to sign-in on a 401, keeping where the user was going', async () => {
+  it('redirects to our sign-in page on a 401, keeping where the user was going', async () => {
     const assign = vi.fn()
     vi.stubGlobal('location', { ...window.location, pathname: '/trades', search: '?preset=7d', assign })
     vi.stubGlobal(
@@ -34,7 +34,18 @@ describe('api client', () => {
       vi.fn(async () => new Response('{}', { status: 401 })),
     )
     await api.GET('/api/v1/session')
-    expect(assign).toHaveBeenCalledWith('/auth/login?next=%2Ftrades%3Fpreset%3D7d')
+    expect(assign).toHaveBeenCalledWith('/signin?next=%2Ftrades%3Fpreset%3D7d')
+  })
+
+  it('goes to the plain sign-in page from the home page, with nothing to come back to', async () => {
+    const assign = vi.fn()
+    vi.stubGlobal('location', { ...window.location, pathname: '/', search: '', assign })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('{}', { status: 401 })),
+    )
+    await api.GET('/api/v1/session')
+    expect(assign).toHaveBeenCalledWith('/signin')
   })
 
   it('turns an error answer into an ApiError with the server’s words and its field messages', async () => {

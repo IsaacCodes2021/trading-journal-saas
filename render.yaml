@@ -14,6 +14,7 @@
 #   TJ_LOGIN_DATABASE_URL             the app_login role's address
 #   TJ_KINDE_DOMAIN, TJ_KINDE_CLIENT_ID, TJ_KINDE_CLIENT_SECRET     the Kinde web application (all three, or none)
 #   TJ_S3_ENDPOINT, TJ_S3_BUCKET, TJ_S3_ACCESS_KEY_ID, TJ_S3_SECRET_ACCESS_KEY    the private screenshot bucket (all four, or none)
+#   TJ_EMAIL_API_KEY, TJ_EMAIL_FROM        the email service (Resend) and the sender address (both, or none: with none the beta form answers 503)
 #
 # Plan names and fields were taken from Render's Blueprint reference (render.com/docs/blueprint-spec); if the form
 # rejects one, change it in the dashboard and fix it here.

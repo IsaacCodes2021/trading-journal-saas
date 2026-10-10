@@ -423,7 +423,7 @@ def test_an_override_puts_the_person_on_that_plan_and_the_account_reports_it(ser
 
 
 def test_an_override_can_lower_the_plan_even_for_someone_with_a_code(service, db, system, owner, alice, op):
-    _, code = plans.create_grant(owner, days=90, now=NOW)
+    _, code = plans.create_grant(owner, days=30, now=NOW)
     with system.system_session("login") as conn:
         plans.redeem(conn, alice, code, now=NOW)
     assert plan_of(db, system, alice).source == "grant"
@@ -683,7 +683,9 @@ def test_an_override_changes_what_the_person_sees_on_their_own_account_on_the_re
         == 200
     )
     assert (mine.session().json()["plan"]["effective"], mine.session().json()["plan"]["source"]) == ("pro", "override")
-    assert "reason" not in json.dumps(mine.session().json())  # the operator's reason is never shown to the person
+    shown = mine.session().json()
+    assert "press" not in json.dumps(shown)  # the operator's reason is never shown to the person
+    assert shown["access"]["reason"] is None  # the session's own "reason" is the state's word, not their text
     revoked = browser.client.post(
         f"/api/admin/v1/users/{alice}/plan-override/revoke", json={"reason": "over"}, headers=writes(browser)
     )
