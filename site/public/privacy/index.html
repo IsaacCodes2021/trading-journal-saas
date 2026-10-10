@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy: how Roundturn handles your details</title>
-<meta name="description" content="What the Roundturn beta sign-up form collects, why, where it is stored, and how to have it removed.">
+<meta name="description" content="What Roundturn collects when you join the beta and when you make an account, why, where it is stored, how long it is kept, and how to have it removed.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
@@ -25,28 +25,57 @@
 <main>
 <article class="wrap">
   <h1>Privacy</h1>
-  <p class="draft">This page covers the beta sign-up form only, and it is a draft. A full privacy policy will be written, and reviewed by a professional, before the app opens to users. Last updated 2026-10-10.</p>
+  <p class="draft">This page covers the beta sign-up form and Roundturn accounts. It is a draft and not legal advice: a full privacy policy will be written, and reviewed by a professional, before the app opens widely. Last updated 2026-10-10.</p>
 
-  <h2>What is collected</h2>
-  <p>If you join the beta, Roundturn stores your first name, your email address, the prop firm you named, and when you joined. It also keeps a record of the sign-up code it made for you (as a one-way hash, so the code itself cannot be read back) and whether the email with the code was sent. It does not store your IP address, your browser details or where you came from.</p>
+  <h2>Who is responsible</h2>
+  <p>Roundturn is run by Northfield Labs, LLC, a California limited liability company. For anything on this page, email <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>.</p>
+
+  <h2>If you join the beta</h2>
+  <p>Roundturn stores your first name, your email address, the prop firm you named, and when you joined. It also keeps a record of the sign-up code it made for you (as a one-way hash, so the code itself cannot be read back) and whether the email with the code was sent. The sign-up form does not store your IP address, your browser details or where you came from.</p>
+
+  <h2>If you make an account</h2>
+  <p>More is kept once you use the app:</p>
+  <ul>
+    <li><strong>Your sign-in.</strong> Roundturn uses Kinde as its sign-in provider. Kinde holds the details you sign in with, such as your email address, your name, how you sign in and whether you use a second step. Roundturn never sees or stores your password.</li>
+    <li><strong>Your journal.</strong> What you import and write: the trades in the files you upload (contracts, quantities, prices, times and results), a record of each import so it can be undone, your notes, tags and screenshots, the accounts and fees you enter, and your settings (time zone, start of the trading day, theme).</li>
+    <li><strong>Your plan.</strong> Which plan or code gives you access, and until when.</li>
+    <li><strong>Sign-in records.</strong> For each sign-in, when it started, the description of your browser that your browser sends (cut to 300 characters), and a keyed hash of your IP address. This is so that you can see where you are signed in (in Settings, Security) and so that security problems can be investigated. The hash is made with a secret key held by Roundturn, so the address cannot be recovered from it without that key.</li>
+    <li><strong>A security log.</strong> Sign-ins, sign-outs, imports, exports and anything the operator does to your account, with the reason, are recorded in a log that is only ever added to. It holds the same keyed IP hash, and never the content of your trades, notes or screenshots.</li>
+  </ul>
+  <p>Roundturn does not collect your broker or prop-firm passwords or keys, and it does not connect to your trading accounts.</p>
 
   <h2>Why</h2>
-  <p>To email you your sign-up code, and to run the beta: to know who has a code and whose 30 days are running. You may get one more email when your access ends. The list is not sold, rented or shared, and it is not used for anything else.</p>
+  <p>To email you your sign-up code, to run the beta (who has a code and whose 30 days are running), to give you the journal you asked for, and to keep the service secure. You may get one more email when your access ends. Your data is not sold, not rented and not used for advertising. It is shared only with the providers named below, to run the service.</p>
+
+  <h2>Who can see it</h2>
+  <p>The operator's tools in the app show account details, plan, status and usage counts, not your trades, notes or screenshots, and opening a person's page there is recorded in the log. Northfield Labs also administers the hosting accounts and the database, and uses that access only to run, secure and repair the service.</p>
 
   <h2>What this site does not do</h2>
   <ul>
     <li>It sets no cookies.</li>
     <li>It runs no analytics, advertising or tracking scripts, and loads nothing from other websites.</li>
   </ul>
+  <p>The same holds for the sign-up and sign-in pages before you sign in. Signing in sets a session cookie, which keeps you signed in (scripts cannot read it, and it is sent only to Roundturn), and a short-lived cookie that is used only during the sign-in. The app keeps a few preferences, such as your theme, in your browser. There are no advertising or analytics cookies.</p>
 
   <h2>Where it is stored</h2>
-  <p>This site runs on Cloudflare. The sign-up form and its records are on Roundturn's application servers, which run on Render in the United States, with the database there. The email with your code is sent through Resend, an email delivery service, so Resend handles your address and first name to deliver it. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a> and <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>.</p>
+  <p>This website runs on Cloudflare, which also forwards email sent to Roundturn and holds screenshots in a private bucket. The app and its database run on Render in the United States. Sign-in is handled by Kinde, which stores that data in Oregon, in the United States. The emails (your sign-up code, and the notice that your access has ended) are sent through Resend, so Resend handles your address and first name to deliver them. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a>, <a href="https://www.kinde.com/privacy-policy/" rel="noopener noreferrer">Kinde</a> and <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>.</p>
 
   <h2>How long</h2>
-  <p>If you do not make an account, your first name, email address, prop firm and sign-up code are deleted automatically 24 hours after the code was made, and the code stops working at the same moment. If you do make an account, they are kept while the account exists and are deleted when you delete the account. You can also ask for them to be removed at any time. Copies in the hosting provider's backups can remain until those age out, and the email provider keeps its own record of messages it delivers under its own policy.</p>
+  <ul>
+    <li><strong>No account made.</strong> Your first name, email address, prop firm and sign-up code are deleted automatically 24 hours after the code was made (the cleanup runs every hour, so it can take up to an hour longer), and the code stops working at the 24-hour mark.</li>
+    <li><strong>An account.</strong> Your data is kept until you delete the account. Deleting takes effect 7 days after you ask, which gives you time to change your mind: signing in again cancels it. Your journal, screenshots, settings, beta sign-up and codes are then deleted, and Roundturn asks Kinde to remove your sign-in record.</li>
+    <li><strong>Sign-in sessions</strong> end after 14 days without use, or after 90 days in all.</li>
+    <li><strong>The security log</strong> is kept after an account is deleted. Its entries are then no longer linked to your account, but they still show the kind of event, its date and the keyed IP hash. No period for deleting them has been set yet.</li>
+    <li><strong>Backups.</strong> The database host keeps recovery copies for up to 7 days, so deleted data can remain in them until they age out. Screenshots are not backed up at present; if a copy is added, it will be listed here.</li>
+    <li><strong>Email provider.</strong> Resend keeps its own record of messages it delivers, under its own policy.</li>
+    <li><strong>Unfinished sign-ups.</strong> If someone starts to create an account at Kinde and never finishes, a sign-in record can remain there. Ask and it will be removed.</li>
+  </ul>
 
   <h2>Your choices</h2>
-  <p>To see what is stored about you, or to have it deleted, email <a href="mailto:hello@roundturn.app">hello@roundturn.app</a> from the address in question. It will be deleted and you will get a short confirmation.</p>
+  <p>In the app you can download your journal as CSV files with your screenshots, and delete your account, under Settings, Data and privacy. To see what is stored about you, to correct it, or to have it deleted, you can also email <a href="mailto:hello@roundturn.app">hello@roundturn.app</a> from the address in question. It will be deleted and you will get a short confirmation. Requests are answered within 30 days. You may also complain to your data-protection authority.</p>
+
+  <h2>Age</h2>
+  <p>Roundturn is for people 18 and over.</p>
 
   <h2>Contact</h2>
   <p><a href="mailto:hello@roundturn.app">hello@roundturn.app</a></p>

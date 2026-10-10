@@ -142,7 +142,14 @@ test("the privacy page matches what the code does", () => {
     "render",
     "resend",
     "deleted automatically 24 hours after the code was made",
-    "deleted when you delete the account",
+    "northfield labs, llc, a california limited liability company",
+    "kinde, which stores that data in oregon, in the united states",
+    "keyed hash of your ip address",
+    "deleting takes effect 7 days after you ask",
+    "recovery copies for up to 7 days",
+    "no period for deleting them has been set yet",
+    "within 30 days",
+    "18 and over",
   ]) {
     assert.ok(privacy.includes(text), `the privacy page is missing: ${text}`);
   }
