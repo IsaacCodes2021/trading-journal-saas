@@ -43,9 +43,4 @@ Done once, 2026-10-03; kept here for the next time.
 
 ## The old waitlist
 
-Until 2026-10 the site collected addresses in a Cloudflare D1 database (`roundturn-waitlist`, a form on the home page, `POST /api/waitlist`). That form and its code are gone: the beta form replaced it, and the privacy page now describes the beta form. **The database itself is untouched** and still holds whoever joined; decide what to do with it:
-
-- To invite those people, read the addresses in the dashboard (D1, `roundturn-waitlist`, Console: `SELECT email, created_at FROM waitlist`) and send them the link to `https://app.roundturn.app/join`, or make them invites by hand. Nothing has been imported.
-- To remove them, delete the database in the dashboard.
-
-The old privacy page promised those people one email when their invite was ready. Keep that in mind when deciding.
+Until 2026-10 the site collected addresses in a Cloudflare D1 database (`roundturn-waitlist`, a form on the home page, `POST /api/waitlist`). That form and its code are gone: the beta form replaced it, and the privacy page describes the beta form. **The database was deleted on 2026-10-10.** It held one entry, made by a person the owner had asked to try the form; nobody was invited from it and nothing was imported anywhere, so the site holds no waitlist data. Nothing in this folder binds a database (a test checks that).

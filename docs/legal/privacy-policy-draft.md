@@ -30,7 +30,7 @@
 
 **Security and operations.** Records that keep the Service safe and working: sign-in and security events, import and export events, actions taken by an administrator on your account (with their reason), error reports, and server logs. We keep IP addresses only in a shortened or hashed form [CONFIRM WHEN BUILT]. We **do not** put your trades, notes or screenshot names in logs or error reports.
 
-**Support and the beta sign-up.** If you email us, we keep the email and our replies. If you asked to join the beta on the sign-up form, we keep your email address, your first name, your favourite prop firm, when each personal code was made and whether the email carrying it was sent, and a one-way fingerprint of the code (never the code itself). [If you joined the earlier waitlist: your email address and the date you joined; see section 7 for what happens to that list.]
+**Support and the beta sign-up.** If you email us, we keep the email and our replies. If you asked to join the beta on the sign-up form, we keep your email address, your first name, your favourite prop firm, when each personal code was made and whether the email carrying it was sent, and a one-way fingerprint of the code (never the code itself).
 
 **What we do not collect.** We do not collect your broker or prop-firm passwords or API keys, and we do not connect to your brokerage accounts.
 
@@ -43,7 +43,6 @@
 | Take payment and keep tax records [when paid plans open] | plan and billing | Contract; legal obligation |
 | Answer you | support emails | Legitimate interests; contract |
 | Send you your beta code at your request, and tell you when your beta access has ended | beta sign-up (address, first name, favourite prop firm) | Steps at your request before a contract; legitimate interests [CONFIRM WITH COUNSEL] |
-| Tell people on the earlier waitlist when their invitation is ready [only if that list is kept] | waitlist email | Consent |
 | Meet legal duties | what the law requires | Legal obligation |
 
 We do not make decisions about you by automated means that have legal or similarly significant effects, and we do not use your data to train AI models.
@@ -58,7 +57,7 @@ We use these providers to run Roundturn. Each handles data only on our instructi
 
 | Provider | What for | Status |
 |---|---|---|
-| Cloudflare | the marketing site, DNS, email forwarding, [the earlier waitlist database, until it is deleted or used], and [object storage for screenshots and backups] | in use for the site and DNS; storage built, in use once the first deploy settings are set |
+| Cloudflare | the marketing site, DNS, email forwarding, and [object storage for screenshots and backups] | in use for the site and DNS; storage built, in use once the first deploy settings are set |
 | [Application host, for example Render] | runs the application | *planned* |
 | [Database provider] | stores your journal | *undecided* |
 | [Sign-in provider, for example Kinde] | sign-in, second step, account identity | *planned (being tested)* |
@@ -88,7 +87,7 @@ There are no advertising or analytics cookies, and no session recording. [Confir
 - **Billing records:** as long as tax law requires. [When paid plans open.]
 - **Support email:** [N months] after the conversation ends.
 - **Beta sign-up:** if you made an account, until you delete the account (the sign-up and any codes made for your address are removed at the same moment; migration 0017). If you never made one, **24 hours** after your code was made (the owner's decision of 2026-10-10; a code works for 24 hours; removed by the hourly sweep, migrations 0017 and 0018). You can also ask us to remove it by email. Not reached by this: the host's database backups until they age out [period: from the plan, to be confirmed], the email provider's own record of messages it delivered [to be confirmed with the provider], and an identity started at the sign-in provider and never finished.
-- **Earlier waitlist:** [owner decision: invited and then deleted, or deleted unused].
+- **Earlier waitlist:** the database was deleted on 2026-10-10. It held one entry, nobody was invited from it, and nothing was copied elsewhere.
 
 ## 8. Your choices and rights
 
@@ -121,7 +120,7 @@ If we change this policy in a way that matters to you, we will tell you (for exa
 ## Notes for the reviewing professional
 
 1. **Controller and region.** The beta is operated personally by [OWNER/BUSINESS NAME]. US storage with GDPR-ready deletion and export is the stated design. Is a representative in the EU or UK needed at beta scale?
-2. **Lawful bases** in section 3: confirm the table, in particular consent for the waitlist and legitimate interests for security records.
+2. **Lawful bases** in section 3: confirm the table, in particular the "steps at your request before a contract" basis for the beta sign-up and legitimate interests for security records.
 3. **Subprocessors and transfers** in section 5: confirm what contracts (data-processing agreements, standard contractual clauses) are needed per provider once chosen, and whether the list must be published as its own page.
 4. **Retention periods** are placeholders; they depend on the backup and deletion design (point-in-time recovery window, soft-delete grace period) still to be set.
 5. **Screenshots** can hold third-party or sensitive information. Is the warning in section 2 enough?
