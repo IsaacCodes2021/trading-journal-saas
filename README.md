@@ -206,6 +206,13 @@ The fixtures in `backend/tests/fixtures/` are copies of real exports. The main o
 
 One container serves the JSON API and the built React app on a single origin ([design](docs/design/README.md)).
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/img/architecture-dark.png">
+  <img alt="Roundturn's architecture: the trader reaches the marketing site and the React app; the React app and FastAPI API share one container; the API uses Postgres 18 with forced row-level security, Kinde for sign-in, a private R2 bucket for screenshots and Resend for email; a daily sweep job reaches the database, the bucket and Kinde's management API." src="docs/design/img/architecture-light.png">
+</picture>
+
+*How the hosted journal fits together (the code at commit `09744e5`; each box was checked against the source). The diagram is generated from a typed description, so it is a picture, not a source file: change the code, then redraw it.*
+
 | Folder | What it is |
 |---|---|
 | `backend/tradejournal/api/` | The FastAPI app: the tenant API (`/api/v1`), the operator API (`/api/admin/v1`), sign-in routes (`/auth`), sessions, CSRF, rate limits, import limits, structured logs |
