@@ -1180,6 +1180,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AccessOut
+         * @description May the person change things? "ended" means their time-limited full access (a beta code, a promo code) ran out or was
+         *     ended by an operator: they can still look at everything and download it, and cannot create, change or delete.
+         */
+        AccessOut: {
+            /** Ends At */
+            ends_at: string | null;
+            /** Reason */
+            reason: ("expired" | "revoked") | null;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "active" | "ended";
+        };
         /** AccountDetailsIn */
         AccountDetailsIn: {
             /** Account Size */
@@ -2302,6 +2318,7 @@ export interface components {
         };
         /** SessionOut */
         SessionOut: {
+            access: components["schemas"]["AccessOut"];
             /** App Version */
             app_version: string;
             /** Csrf Token */

@@ -612,3 +612,12 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 - **A test that lists the routes with no session** (`test_the_routes_that_answer_without_a_session_are_exactly_the_known_ones`): a route left out of the API description is outside the generated "everything needs a session" test, so each one is named by hand.
 - **Tested.** 16 route tests, 15 sender and email tests, 11 setting cases, and 5 against Postgres that go from the form to a signed-in account with 30 days, including the failed-email retry; mutation-checked (23 mutants, none survive).
 - **Not here:** the page that posts to it, the "ended" email and its daily job, and the Resend account itself (the owner's).
+
+**Slice 7 (2026-10-09): read-only after the access ends** (`api/deps.py` `require_writable`, `api/pg_services.py`, `api/routers/session.py`, `api/schemas/session.py`; builds on slice 5).
+
+- **The rule, in one place.** `get_write_tenant` (every write to the journal) and `PATCH /settings` go through `require_writable`, which asks the account service whether the person's time-limited access has ended and answers 403 "Your beta access has ended, so your journal is read-only. You can still look at everything and download it." One cheap query per write.
+- **What stays open** (a short, named list): deleting the account, signing out and ending other sessions, redeeming a code (the way back), every read and the export. Operator routes are the operator's own and are not the person's journal.
+- **The session says why.** `GET /api/v1/session` gains `access` (`active` or `ended`, when, and `expired` or `revoked`), so the page can show the right screen without trying a write first. OpenAPI and the generated types are updated.
+- **Generated coverage.** A test walks the API description: every write except the named exemptions must be refused for an ended account (and not for an active one), the exemptions must still exist, and reading is never refused for this reason. A route added tomorrow is covered, or the test says which one is not.
+- **Tested.** 7 generated tests with no database and 6 against Postgres on the real app (a beta account writes; the 30 days end; an operator ends it early; the account can still sign out; a new code gives writing back; the owner's own account is never affected); mutation-checked (7 mutants, none survive).
+- **Not here:** the "access ended" screen and a countdown in the app, and the email.

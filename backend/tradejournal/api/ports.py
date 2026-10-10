@@ -8,12 +8,12 @@ later without touching a route. Tests use the in-memory versions in `tests/api_f
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal, Protocol
 from uuid import UUID
 
-from .schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
+from .schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 from .schemas.admin import (
     AdminUserDetailOut,
     AdminUserListOut,
@@ -60,6 +60,8 @@ class Account:
     plan: PlanOut
     entitlements: dict[str, int | bool]
     is_admin: bool
+    # Read-only once time-limited access has ended. Default: full access (an account with no end date).
+    access: AccessOut = field(default_factory=lambda: AccessOut(state="active", ends_at=None, reason=None))
 
 
 @dataclass(frozen=True)
@@ -97,6 +99,10 @@ class SessionStore(Protocol):
 class AccountService(Protocol):
     def load(self, user_id: UUID) -> Account | None:
         """The signed-in user's account, or None if it no longer exists."""
+        ...
+
+    def access(self, user_id: UUID) -> AccessOut:
+        """May this person change things now? Asked on every write, so it is one cheap query."""
         ...
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:

@@ -506,3 +506,83 @@ def test_the_form_answers_503_when_no_email_provider_is_configured(world, owner)
     browser.client.app.state.mailer = None
     response = fill_in_the_form(browser)
     assert response.status_code == 503 and count(owner, "beta_signups") == 0
+
+
+# ---- read-only after the access ends, on the real app ---------------------------------------------------------------
+
+
+def writes_of(browser):
+    token = browser.session().json()["csrf_token"]
+    return {"sec-fetch-site": "same-origin", "x-csrf-token": token}
+
+
+def beta_member(world, system):
+    """A person who signed up with a personal code: (the browser, the headers a page would send)."""
+    _, code = join(system, email=NEWCOMER.email)
+    browser = world()
+    assert browser.sign_in(NEWCOMER, invite=code).status_code == 303
+    return browser, writes_of(browser)
+
+
+def test_while_the_access_runs_the_person_can_write(world, system):
+    browser, headers = beta_member(world, system)
+    assert browser.session().json()["access"]["state"] == "active"
+    made = browser.client.post("/api/v1/tag-groups", json={"name": "While it runs"}, headers=headers)
+    assert made.status_code == 200 or made.status_code == 201, made.text
+
+
+def test_when_the_thirty_days_end_the_journal_is_read_only_and_says_why(world, system, owner):
+    browser, headers = beta_member(world, system)
+    owner.execute(
+        "UPDATE grant_redemptions SET ends_at = now() - interval '1 day', starts_at = now() - interval '31 days'"
+    )
+    access = browser.session().json()["access"]
+    assert (access["state"], access["reason"]) == ("ended", "expired")
+    before = browser.client.get("/api/v1/tags")
+    assert before.status_code == 200  # looking is still allowed
+    refused = browser.client.post("/api/v1/tag-groups", json={"name": "Too late"}, headers=headers)
+    assert refused.status_code == 403 and "read-only" in refused.text
+    assert browser.client.get("/api/v1/tags").json() == before.json()  # nothing was added
+    assert browser.client.get("/api/v1/trades").status_code == 200
+
+
+def test_an_operator_ending_it_early_has_the_same_effect_at_once(world, system, owner):
+    browser, headers = beta_member(world, system)
+    owner.execute("UPDATE grant_redemptions SET revoked_at = now()")
+    assert browser.session().json()["access"] == {
+        "state": "ended",
+        "ends_at": browser.session().json()["access"]["ends_at"],
+        "reason": "revoked",
+    }
+    assert browser.client.post("/api/v1/tag-groups", json={"name": "No"}, headers=headers).status_code == 403
+
+
+def test_an_ended_account_can_still_delete_itself_and_sign_out(world, system, owner):
+    browser, headers = beta_member(world, system)
+    owner.execute(
+        "UPDATE grant_redemptions SET ends_at = now() - interval '1 day', starts_at = now() - interval '31 days'"
+    )
+    assert browser.client.post("/auth/logout", headers=headers).status_code == 200
+
+
+def test_a_new_code_gives_the_writing_back(world, system, owner):
+    browser, headers = beta_member(world, system)
+    owner.execute(
+        "UPDATE grant_redemptions SET ends_at = now() - interval '1 day', starts_at = now() - interval '31 days'"
+    )
+    assert browser.client.post("/api/v1/tag-groups", json={"name": "No"}, headers=headers).status_code == 403
+    _, promo = plans.create_grant(owner, days=10)
+    redeemed = browser.client.post("/api/v1/grants/redeem", json={"code": promo}, headers=headers)
+    assert redeemed.status_code == 200, redeemed.text
+    assert browser.session().json()["access"]["state"] == "active"
+    assert browser.client.post("/api/v1/tag-groups", json={"name": "Back"}, headers=headers).status_code in (200, 201)
+
+
+def test_the_owners_own_account_is_never_read_only(world, owner, alice):
+    from auth_world import ALICE
+
+    browser = world()
+    assert browser.sign_in(ALICE).status_code == 303
+    assert browser.session().json()["access"] == {"state": "active", "ends_at": None, "reason": None}
+    headers = writes_of(browser)
+    assert browser.client.post("/api/v1/tag-groups", json={"name": "Always"}, headers=headers).status_code in (200, 201)

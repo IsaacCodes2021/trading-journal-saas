@@ -95,6 +95,21 @@ def require_csrf(request: Request, session: SessionDep, config: ConfigDep) -> Au
 
 WriteSessionDep = Annotated[AuthSession, Depends(require_csrf)]
 
+
+def require_writable(session: WriteSessionDep, services: ServicesDep) -> AuthSession:
+    """`require_csrf` for a route that creates, changes or deletes the person's data. Once their time-limited access has ended
+    (a beta code, a promo code) the journal is read-only: they can look at all of it and download it, and this refuses the rest.
+    The routes a person needs to leave, to come back or to sign out use `WriteSessionDep` and are never refused for this."""
+    if services.accounts.access(session.user_id).state == "ended":
+        raise HTTPException(
+            403,
+            "Your beta access has ended, so your journal is read-only. You can still look at everything and download it.",
+        )
+    return session
+
+
+WritableSessionDep = Annotated[AuthSession, Depends(require_writable)]
+
 ADMIN_MFA_FOR = timedelta(
     minutes=15
 )  # how fresh two-step verification must be for an operator to do anything (ADR-012)
@@ -217,8 +232,9 @@ def get_tenant(request: Request, session: SessionDep) -> Tenant:
 TenantDep = Annotated[Tenant, Depends(get_tenant)]
 
 
-def get_write_tenant(request: Request, session: WriteSessionDep) -> Tenant:
-    """`get_tenant` for a route that changes something: the CSRF and origin checks run first (after sign-in)."""
+def get_write_tenant(request: Request, session: WritableSessionDep) -> Tenant:
+    """`get_tenant` for a route that changes something: the CSRF and origin checks run first (after sign-in), then whether
+    the person's access has ended."""
     return get_tenant(request, session)
 
 

@@ -80,10 +80,20 @@ class FlagsOut(ApiModel):
     )
 
 
+class AccessOut(ApiModel):
+    """May the person change things? "ended" means their time-limited full access (a beta code, a promo code) ran out or was
+    ended by an operator: they can still look at everything and download it, and cannot create, change or delete."""
+
+    state: Literal["active", "ended"]
+    ends_at: datetime | None  # when time-limited access ends (active) or ended (ended); none: it has no end date
+    reason: Literal["expired", "revoked"] | None  # why, once ended
+
+
 class SessionOut(ApiModel):
     user: UserOut
     settings: SettingsOut
     plan: PlanOut
+    access: AccessOut
     entitlements: dict[str, int | bool]
     flags: FlagsOut
     csrf_token: str  # sent back as X-CSRF-Token on every unsafe request

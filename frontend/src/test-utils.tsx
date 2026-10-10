@@ -52,6 +52,7 @@ export function sessionBody(opts: ApiOptions = {}) {
     user: { id: '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11', email: 'alice@example.test' },
     settings: { ...SETTINGS, ...opts.settings, theme: opts.theme ?? 'dark' },
     plan: opts.plan ?? { effective: 'free', source: 'free', expires_at: null },
+    access: { state: 'active', ends_at: null, reason: null },
     entitlements: opts.entitlements ?? {},
     flags: {
       is_admin: opts.operator ?? false,

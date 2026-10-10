@@ -55,11 +55,13 @@ def effective(conn: psycopg.Connection, user_id: UUID, now: datetime | None = No
     return effective_plan(moment, override=override, grants=grants)
 
 
-def access(conn: psycopg.Connection, user_id: UUID, now: datetime | None = None) -> Access:
+def access(
+    conn: psycopg.Connection, user_id: UUID, now: datetime | None = None, *, plan: EffectivePlan | None = None
+) -> Access:
     """May this person change things now? Read-only only for someone whose time-limited access ran out or was ended (see
-    `entitlements.access_of`); nobody else is ever affected."""
+    `entitlements.access_of`); nobody else is ever affected. Pass `plan` when it has just been worked out."""
     moment = now or datetime.now(UTC)
-    plan = effective(conn, user_id, moment)
+    plan = plan or effective(conn, user_id, moment)
     last = None
     if plan.source == "free":  # only worth a second query when it could matter
         row = conn.execute(

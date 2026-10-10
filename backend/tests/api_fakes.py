@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from tradejournal.api.ports import Account, ActivityEvent, AuthSession, GrantResult, Services, SessionInfo
-from tradejournal.api.schemas import PlanOut, SettingsOut, SettingsPatch, UserOut
+from tradejournal.api.schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 
 
 class FakeSessions:
@@ -93,6 +93,7 @@ class FakeAccounts:
         self.refuse_deletion: set[UUID] = set()  # users whose account is not active
         self.codes: dict[str, GrantResult] = {}  # what redeeming each plan code answers; any other code is refused
         self.redeemed: list[tuple[UUID, str, str | None]] = []  # every attempt: (person, code as sent, address hash)
+        self.ended: dict[UUID, AccessOut] = {}  # people whose time-limited access has ended (see `end_access`)
 
     def add(self, email: str, *, is_admin: bool = False) -> Account:
         account = Account(
@@ -111,8 +112,15 @@ class FakeAccounts:
         self._accounts[account.user.id] = account
         return account
 
+    def end_access(self, user_id: UUID, *, reason: str = "expired") -> None:
+        self.ended[user_id] = AccessOut(state="ended", ends_at=datetime(2026, 11, 8, tzinfo=UTC), reason=reason)  # type: ignore[arg-type]
+
+    def access(self, user_id: UUID) -> AccessOut:
+        return self.ended.get(user_id, AccessOut(state="active", ends_at=None, reason=None))
+
     def load(self, user_id: UUID) -> Account | None:
-        return self._accounts.get(user_id)
+        account = self._accounts.get(user_id)
+        return None if account is None else replace(account, access=self.access(user_id))
 
     def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:
         self.redeemed.append((user_id, code, ip_hash))

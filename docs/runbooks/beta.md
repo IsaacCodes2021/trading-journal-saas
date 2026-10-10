@@ -21,7 +21,10 @@ this page says what they are and how to work with them.
    ran out or was withdrawn meanwhile), the whole sign-up is undone and the code is not used up. Before this rule, such a
    person got an account with no end date.
 5. **When the access ends (it ran out, or an operator ended it) the account is read-only.** The person keeps their data and
-   can look at everything and download it; they cannot create, change or delete. This applies only to someone whose full
+   can look at everything and download it; they cannot create, change or delete. Every write to the journal answers 403 "Your
+   beta access has ended, so your journal is read-only"; what stays open is deleting the account, signing out and ending
+   other sessions, redeeming a code, and every read and the export. A test generated from the API description fails for any
+   new write route that is neither refused nor on that short list. This applies only to someone whose full
    access came from a code or an invite and has ended. An account that never had one (yours, accounts made with a plain
    invite) is never affected, and neither is anyone with an operator override or, later, a subscription. A new code gives
    access back.
@@ -34,7 +37,7 @@ this page says what they are and how to work with them.
 | The code is checked before Kinde; a grant that cannot be given refuses the sign-up | Built and tested |
 | The public form's endpoint (`POST /api/v1/beta/join`), the email sender (Resend behind `api/mailer.py`) and the email with the code | Built and tested; needs a Resend account, a verified `roundturn.app` and the two settings before it answers anything but 503 |
 | The "ended" email and the daily job that sends it | Not built |
-| The read-only rule enforced on write routes, and `access` in the session | Not built |
+| The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
 | The operator's Beta testers list and the revoke action | Not built |
 | Landing page, sign-in and sign-up pages | Designed (the canvas), not built |
 

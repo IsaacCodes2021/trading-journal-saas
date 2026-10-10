@@ -52,6 +52,11 @@ export function devSessionStub(enabled: boolean): Plugin {
               source: 'grant',
               expires_at: new Date(Date.now() + 9 * 86_400_000).toISOString(),
             },
+            access: {
+              state: 'active',
+              ends_at: new Date(Date.now() + 9 * 86_400_000).toISOString(),
+              reason: null,
+            },
             entitlements: {},
             flags: { is_admin: true, mfa_fresh: true, recently_authenticated: true },
             csrf_token: 'dev-token',

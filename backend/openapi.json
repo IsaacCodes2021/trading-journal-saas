@@ -1,6 +1,53 @@
 {
   "components": {
     "schemas": {
+      "AccessOut": {
+        "description": "May the person change things? \"ended\" means their time-limited full access (a beta code, a promo code) ran out or was\nended by an operator: they can still look at everything and download it, and cannot create, change or delete.",
+        "properties": {
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ends At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "expired",
+                  "revoked"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "state": {
+            "enum": [
+              "active",
+              "ended"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "ends_at",
+          "reason"
+        ],
+        "title": "AccessOut",
+        "type": "object"
+      },
       "AccountDetailsIn": {
         "additionalProperties": false,
         "properties": {
@@ -2886,6 +2933,9 @@
       },
       "SessionOut": {
         "properties": {
+          "access": {
+            "$ref": "#/components/schemas/AccessOut"
+          },
           "app_version": {
             "title": "App Version",
             "type": "string"
@@ -2925,6 +2975,7 @@
           "user",
           "settings",
           "plan",
+          "access",
           "entitlements",
           "flags",
           "csrf_token",
