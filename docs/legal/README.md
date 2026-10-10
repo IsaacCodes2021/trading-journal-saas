@@ -11,12 +11,12 @@ Both end with a list of questions for the reviewing professional.
 
 ## What only the owner can fill in
 
-1. **Operator's legal name and address** (the "operated by" line). The owner said (2026-10-04) that "Northfield Labs" is a business name; the exact legal wording, whether it is registered, and in which state or country, are still needed.
+1. **Operator's legal name and address** (the "operated by" line). Done 2026-10-10: Northfield Labs, LLC, a California limited liability company.
 2. **Governing law and venue** for the Terms.
 3. **Plans and payment wording** (Terms section 8) once a payment provider is chosen and has answered the pre-clearance emails.
 4. **Retention periods**: deletion grace period, backup retention, security-record retention (set by the backup and deletion design).
 5. **Subprocessor choices**: host, database, email-sending provider, payment provider, error tracking (the Privacy Policy table marks each *in use*, *planned* or *undecided*).
-6. **Postal address**, if the reviewing professional says one is required.
+6. **Postal address**: none is published, by the owner's choice (email contact only); the reviewing professional says whether that suffices.
 
 ## Keep in step with the product
 

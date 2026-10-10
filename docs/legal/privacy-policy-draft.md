@@ -3,7 +3,7 @@
 > **DRAFT. Not legal advice, not reviewed by a lawyer, not published.** An interim notice for the beta form and for accounts has been live at roundturn.app/privacy/ since 2026-10-10; this full policy replaces it once the app opens widely. It describes what the product does as of 2026-10-10. Everything in `[square brackets]` is a decision or a fact only the owner can supply. Rows marked *planned* or *undecided* in the lists below must be settled before this is published. See `README.md` in this folder.
 
 **Last updated:** [date of publication]
-**Responsible for your data (the "controller"):** Northfield Labs, LLC, [STATE OF FORMATION AND POSTAL ADDRESS: owner to supply]
+**Responsible for your data (the "controller"):** Northfield Labs, LLC, a California limited liability company. No postal address is published, by the owner's choice; contact is by email.
 **Contact for privacy questions and requests:** hello@roundturn.app
 
 ## 1. The short version
@@ -110,13 +110,13 @@ If we change this policy in a way that matters to you, we will tell you (for exa
 
 ## 12. Contact
 
-**hello@roundturn.app**, [POSTAL ADDRESS IF REQUIRED]. [If you have an EU or UK representative or a data-protection officer, name them here.]
+**hello@roundturn.app**. [If you have an EU or UK representative or a data-protection officer, name them here.]
 
 ---
 
 ## Notes for the reviewing professional
 
-1. **Controller and region.** The beta is operated by Northfield Labs, LLC (owner, 2026-10-10). US storage with GDPR-ready deletion and export is the stated design. Is a representative in the EU or UK needed at beta scale?
+1. **Controller and region.** The beta is operated by Northfield Labs, LLC, a California limited liability company (owner, 2026-10-10). No postal address is published, by the owner's choice: does an email contact suffice for the regions we expect, or is a mailbox address needed? US storage with GDPR-ready deletion and export is the stated design. Is a representative in the EU or UK needed at beta scale?
 2. **Lawful bases** in section 3: confirm the table, in particular the "steps at your request before a contract" basis for the beta sign-up and legitimate interests for security records.
 3. **Subprocessors and transfers** in section 5: confirm what contracts (data-processing agreements, standard contractual clauses) are needed per provider once chosen, and whether the list must be published as its own page.
 4. **Retention periods** are placeholders; they depend on the backup and deletion design (point-in-time recovery window, soft-delete grace period) still to be set.

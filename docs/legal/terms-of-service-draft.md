@@ -3,7 +3,7 @@
 > **DRAFT. Not legal advice, not reviewed by a lawyer, not published.** Written 2026-10-04 from the product's design documents so that a professional has something concrete to correct. Everything in `[square brackets]` is a decision or a fact only the owner can supply. See `README.md` in this folder for the list, and the review questions at the end of this file.
 
 **Last updated:** [date of publication]
-**Operated by:** [LEGAL NAME OF THE OPERATING ENTITY OR PERSON], [ADDRESS OR COUNTRY]. In these terms, "Roundturn", "we", "us" and "our" mean that operator.
+**Operated by:** Northfield Labs, LLC, a California limited liability company. In these terms, "Roundturn", "we", "us" and "our" mean that operator.
 **Contact:** hello@roundturn.app
 
 ## 1. What these terms are
@@ -93,7 +93,7 @@ These terms, with the Privacy Policy, are the whole agreement between you and us
 
 ## 15. Contact
 
-Questions, notices and requests: **hello@roundturn.app**, [POSTAL ADDRESS IF REQUIRED].
+Questions, notices and requests: **hello@roundturn.app**.
 
 ---
 
@@ -101,7 +101,7 @@ Questions, notices and requests: **hello@roundturn.app**, [POSTAL ADDRESS IF REQ
 
 Questions the owner would like answered (not part of the published terms):
 
-1. **Entity and liability.** The beta runs as a personal venture, with the business name [BUSINESS NAME, if any] to be settled. What entity or wording should "operated by" use, and does the limitation of liability need to change with it?
+1. **Entity and liability.** The service is operated by Northfield Labs, LLC, a California limited liability company (owner, 2026-10-10). Do the limitation of liability, the governing-law clause and the venue fit that entity?
 2. **Governing law, venue, arbitration.** Which law and forum fit a US-based operator with possible users in the EU, UK and elsewhere? Is a class-action waiver advisable?
 3. **Consumer carve-outs.** Which exclusions (section 10 and 11) will not hold for consumers in the EU, UK, Canada, Australia, and how should the text reflect that?
 4. **Financial disclaimer.** Is section 2 enough for a tool that shows trading statistics and prop-firm rule estimates? Anything to add to avoid being treated as investment advice or a "financial product" anywhere we expect users?
