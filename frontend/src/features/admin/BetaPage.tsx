@@ -34,7 +34,7 @@ const TH = 'border-b border-line px-3.5 py-2.5 font-medium'
 const TD = 'border-b border-line-soft px-3.5 py-2.5'
 
 const NOTICE: Record<BetaRevoked['notice'], string> = {
-  sent: 'They were emailed that they need to sign up to continue.',
+  sent: 'They were emailed that their access has ended.',
   pending: 'The email did not go out. Their access has ended all the same.',
   not_needed: 'They had no account, so only their code was withdrawn. Nothing was emailed.',
 }
@@ -113,7 +113,7 @@ function RevokeDialog({
         {kind === 'access' ? (
           <p className="m-0 text-muted">
             <strong className="text-ink">{person.first_name}</strong> ({person.email}) will lose access to Roundturn
-            now. They will be emailed that they need to sign up to continue. Their journal is kept, read-only.
+            now. They will be emailed that their access has ended. Their journal is kept, read-only.
           </p>
         ) : (
           <p className="m-0 text-muted">
@@ -279,9 +279,9 @@ function Panel({
         ) : null}
       </div>
       <p className="mt-3.5 mb-0 text-xs text-muted">
-        Revoking ends their access now and emails them that they need to sign up to continue. The same email goes out
-        when the 30 days end. Removing is for a request to delete what we hold: it works only for someone who has not
-        made an account (for anyone else, delete the account).
+        Revoking ends their access now and emails them that their access has ended. The same email goes out when the 30
+        days end. Removing is for a request to delete what we hold: it works only for someone who has not made an
+        account (for anyone else, delete the account).
       </p>
     </Card>
   )

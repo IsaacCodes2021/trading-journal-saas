@@ -140,6 +140,14 @@ def test_the_access_ended_email_says_what_happened_what_is_kept_and_how_to_get_t
         assert "not investment advice" in body
 
 
+def test_the_access_ended_email_has_no_unfinished_placeholder_and_promises_no_sign_up():
+    email = access_ended_email(to="alex@example.test", first_name="Alex")
+    for body in (email.text, email.html):
+        assert "[" not in body and "]" not in body, "a square-bracketed placeholder is left in the email"
+        assert "Paid plans are not open yet, so there is nothing to sign up for today." in body
+        assert "until you sign up" not in body
+
+
 def test_the_access_ended_email_escapes_the_name_and_has_no_remote_resources():
     email = access_ended_email(to="a@b.cc", first_name="<b>Al</b>")
     assert "<b>Al</b>" not in email.html and "&lt;b&gt;Al&lt;/b&gt;" in email.html

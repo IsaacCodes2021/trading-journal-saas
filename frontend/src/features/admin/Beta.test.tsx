@@ -313,7 +313,7 @@ describe('ending someone’s access', () => {
     const { dialog } = await ask('Alex', 'Revoke beta access')
     expect(within(dialog).getByRole('heading', { name: 'Revoke beta access?' })).toBeInTheDocument()
     expect(dialog).toHaveTextContent('Alex (alex@example.test) will lose access to Roundturn now.')
-    expect(dialog).toHaveTextContent('They will be emailed that they need to sign up to continue.')
+    expect(dialog).toHaveTextContent('They will be emailed that their access has ended.')
     expect(dialog).toHaveTextContent('Their journal is kept, read-only.')
   })
 
@@ -341,9 +341,7 @@ describe('ending someone’s access', () => {
         csrf: 'tok',
       },
     ])
-    expect(await screen.findByRole('status')).toHaveTextContent(
-      'Alex: They were emailed that they need to sign up to continue.',
-    )
+    expect(await screen.findByRole('status')).toHaveTextContent('Alex: They were emailed that their access has ended.')
     await waitFor(() => expect(requests(calls).length).toBeGreaterThan(before))
   })
 

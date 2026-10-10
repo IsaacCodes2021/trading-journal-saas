@@ -147,7 +147,7 @@ def revoke_beta(
     admin: AdminServiceDep,
     config: ConfigDep,
 ) -> BetaRevokeOut:
-    """End a person's beta access now, and email them that they need to sign up to continue. For someone who has not made an
+    """End a person's beta access now, and email them that their access has ended. For someone who has not made an
     account yet, withdraw their code instead (nothing to email). The reason is kept in the audit log and never sent."""
     done = admin.revoke_beta(operator.user_id, signup_id, body.reason, ip_hash=_ip(request, config))
     if done.notice_to is None or done.redemption_id is None:
