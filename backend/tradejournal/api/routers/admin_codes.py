@@ -7,15 +7,20 @@ answer that makes it, and never again: only its hash is stored, and the operator
 
 from __future__ import annotations
 
-from typing import Annotated
+import logging
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Path, Query, Request
 
 from ...auth.iphash import hash_ip
 from ..deps import ERROR_RESPONSES, AdminDep, AdminServiceDep, ConfigDep, WriteAdminDep
+from ..emails import access_ended_email
+from ..mailer import MailError
 from ..schemas import Problem
 from ..schemas.admin import (
     AuditPageOut,
+    BetaListOut,
+    BetaRevokeOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
     GrantCodeIn,
@@ -27,6 +32,8 @@ from ..schemas.admin import (
     OverviewOut,
     ReasonIn,
 )
+
+logger = logging.getLogger("tj.admin")
 
 router = APIRouter(
     prefix="/api/admin/v1",
@@ -113,6 +120,48 @@ def revoke_grant_code(
 ) -> GrantCodeOut:
     """Stop a plan code being used. People who already used it keep their plan."""
     return admin.revoke_grant_code(operator.user_id, grant_id, body.reason, ip_hash=_ip(request, config))
+
+
+@router.get("/beta", response_model=BetaListOut)
+def list_beta(
+    _: AdminDep,
+    admin: AdminServiceDep,
+    state: Annotated[
+        Literal["waiting", "active", "ended", "revoked"] | None, Query(description="Only people in this state")
+    ] = None,
+    q: Annotated[str | None, Query(max_length=100, description="Part of a name, address or prop firm")] = None,
+    limit: Limit = 50,
+    offset: Offset = 0,
+) -> BetaListOut:
+    """Everyone who joined the beta, newest first: their code, their 30 days, and whether the ending email has left."""
+    return admin.list_beta(state=state, q=q, limit=limit, offset=offset)
+
+
+@router.post("/beta/{signup_id}/revoke", response_model=BetaRevokeOut)
+def revoke_beta(
+    signup_id: RowId,
+    body: ReasonIn,
+    request: Request,
+    operator: WriteAdminDep,
+    admin: AdminServiceDep,
+    config: ConfigDep,
+) -> BetaRevokeOut:
+    """End a person's beta access now, and email them that they need to sign up to continue. For someone who has not made an
+    account yet, withdraw their code instead (nothing to email). The reason is kept in the audit log and never sent."""
+    done = admin.revoke_beta(operator.user_id, signup_id, body.reason, ip_hash=_ip(request, config))
+    if done.notice_to is None or done.redemption_id is None:
+        return BetaRevokeOut(person=done.person, notice="not_needed")
+    mailer = request.app.state.mailer
+    sent = False
+    if mailer is not None:
+        try:
+            mailer.send(access_ended_email(to=done.notice_to, first_name=done.notice_name))
+            sent = True
+        except MailError as problem:
+            logger.warning("access-ended email not sent: %s", problem.reason)  # the reason code only
+    if sent:
+        admin.beta_notice_sent(done.redemption_id)
+    return BetaRevokeOut(person=done.person, notice="sent" if sent else "pending")
 
 
 @router.get("/audit", response_model=AuditPageOut)

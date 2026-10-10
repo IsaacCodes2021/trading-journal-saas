@@ -220,3 +220,43 @@ class OverviewOut(ApiModel):
     free: int
     open_invites: int = Field(description="Invites that still work")
     open_grant_codes: int = Field(description="Plan codes that still work")
+
+
+# ---- the beta: who joined and where each person stands -----------------------------------------------------------------
+
+
+BetaState = Literal["waiting", "active", "ended", "revoked"]
+
+
+class BetaPersonOut(ApiModel):
+    id: int
+    first_name: str
+    email: str
+    prop_firm: str
+    joined_at: datetime
+    state: BetaState = Field(
+        description="waiting: joined, no account yet; active: the 30 days are running; ended: they ran out; revoked: an "
+        "operator ended it"
+    )
+    code: Literal["unused", "used", "expired", "withdrawn"] = Field(description="What became of their personal code")
+    access_ends_at: datetime | None = Field(description="When the 30 days end (or ended); none until they sign up")
+    revoked_at: datetime | None
+    notice_sent_at: datetime | None = Field(description="When the 'your access has ended' email left, if it has")
+    code_email_sent_at: datetime | None = Field(description="When the email with their code left, if it has")
+    code_email_failures: int
+
+
+class BetaListOut(ApiModel):
+    people: list[BetaPersonOut]
+    total: int = Field(description="How many match the filters")
+    limit: int
+    offset: int
+    counts: dict[str, int] = Field(description="How many people are in each state, and `all`")
+
+
+class BetaRevokeOut(ApiModel):
+    person: BetaPersonOut
+    notice: Literal["sent", "pending", "not_needed"] = Field(
+        description="sent: the 'access ended' email left; pending: it did not (it is tried again); not_needed: they had no "
+        "account, so only their code was withdrawn"
+    )

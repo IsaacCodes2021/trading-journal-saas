@@ -36,9 +36,10 @@ this page says what they are and how to work with them.
 | Table, personal code, the rules above, the 30-day cap, ending a grant early (`grant_redemptions.revoked_at`), the access rule (`plans.access`) | Built and tested (migration 0014) |
 | The code is checked before Kinde; a grant that cannot be given refuses the sign-up | Built and tested |
 | The public form's endpoint (`POST /api/v1/beta/join`), the email sender (Resend behind `api/mailer.py`) and the email with the code | Built and tested; needs a Resend account, a verified `roundturn.app` and the two settings before it answers anything but 503 |
-| The "ended" email and the daily job that sends it | Not built |
+| The operator's list of beta sign-ups (`GET /api/admin/v1/beta`, with states, filters, search and counts) and **revoke** (`POST /api/admin/v1/beta/{id}/revoke`: ends the access at once and sends the "access ended" email; for someone with no account yet it withdraws their code) | Built and tested (migration 0015); the screen in the operator tools is not built |
+| The "access ended" email, sent once, after a revoke (and recorded as sent) | Built and tested |
+| The daily job that sends the same email when the 30 days run out | Not built |
 | The read-only rule on every write route (`require_writable`), `access` in the session, and a generated test that every write is covered | Built and tested |
-| The operator's Beta testers list and the revoke action | Not built |
 | Landing page, sign-in and sign-up pages | Designed (the canvas), not built |
 
 ## Releasing the migration

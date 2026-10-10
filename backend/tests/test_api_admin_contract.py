@@ -155,7 +155,12 @@ def person(app, *, admin, mfa_ago: timedelta | None):
 
 def request(app, method, path, headers, operation):
     client = TestClient(app, base_url=ORIGIN)
-    filled = path.replace("{user_id}", str(SOMEONE)).replace("{invite_id}", "1").replace("{grant_id}", "1")
+    filled = (
+        path.replace("{user_id}", str(SOMEONE))
+        .replace("{invite_id}", "1")
+        .replace("{grant_id}", "1")
+        .replace("{signup_id}", "1")
+    )
     body = None
     if "requestBody" in operation:
         body = {"reason": "x", "plan": "pro"}

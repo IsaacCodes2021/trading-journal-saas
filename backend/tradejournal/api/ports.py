@@ -19,6 +19,8 @@ from .schemas.admin import (
     AdminUserListOut,
     AdminUserOut,
     AuditPageOut,
+    BetaListOut,
+    BetaPersonOut,
     CreatedGrantCodeOut,
     CreatedInviteOut,
     GrantCodeListOut,
@@ -213,6 +215,12 @@ class AdminService(Protocol):
 
     def list_grant_codes(self, *, limit: int, offset: int) -> GrantCodeListOut: ...
 
+    def list_beta(self, *, state: str | None, q: str | None, limit: int, offset: int) -> BetaListOut: ...
+
+    def revoke_beta(self, actor: UUID, signup_id: int, reason: str, *, ip_hash: str | None = None) -> BetaRevoked: ...
+
+    def beta_notice_sent(self, redemption_id: int) -> None: ...
+
     def create_grant_code(
         self,
         actor: UUID,
@@ -241,6 +249,16 @@ class AdminService(Protocol):
     ) -> AuditPageOut: ...
 
     def overview(self) -> OverviewOut: ...
+
+
+@dataclass(frozen=True)
+class BetaRevoked:
+    """What revoking someone's beta access did, and the email still to send (never in an API answer)."""
+
+    person: BetaPersonOut
+    notice_to: str | None = None  # the address to tell that access has ended; none: nobody to tell
+    notice_name: str = ""
+    redemption_id: int | None = None  # which grant the notice is about, to record that it left
 
 
 @dataclass(frozen=True)

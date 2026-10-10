@@ -977,6 +977,188 @@
         "title": "AuditPageOut",
         "type": "object"
       },
+      "BetaListOut": {
+        "properties": {
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "How many people are in each state, and `all`",
+            "title": "Counts",
+            "type": "object"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/BetaPersonOut"
+            },
+            "title": "People",
+            "type": "array"
+          },
+          "total": {
+            "description": "How many match the filters",
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "people",
+          "total",
+          "limit",
+          "offset",
+          "counts"
+        ],
+        "title": "BetaListOut",
+        "type": "object"
+      },
+      "BetaPersonOut": {
+        "properties": {
+          "access_ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the 30 days end (or ended); none until they sign up",
+            "title": "Access Ends At"
+          },
+          "code": {
+            "description": "What became of their personal code",
+            "enum": [
+              "unused",
+              "used",
+              "expired",
+              "withdrawn"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "code_email_failures": {
+            "title": "Code Email Failures",
+            "type": "integer"
+          },
+          "code_email_sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the email with their code left, if it has",
+            "title": "Code Email Sent At"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "notice_sent_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the 'your access has ended' email left, if it has",
+            "title": "Notice Sent At"
+          },
+          "prop_firm": {
+            "title": "Prop Firm",
+            "type": "string"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "state": {
+            "description": "waiting: joined, no account yet; active: the 30 days are running; ended: they ran out; revoked: an operator ended it",
+            "enum": [
+              "waiting",
+              "active",
+              "ended",
+              "revoked"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "first_name",
+          "email",
+          "prop_firm",
+          "joined_at",
+          "state",
+          "code",
+          "access_ends_at",
+          "revoked_at",
+          "notice_sent_at",
+          "code_email_sent_at",
+          "code_email_failures"
+        ],
+        "title": "BetaPersonOut",
+        "type": "object"
+      },
+      "BetaRevokeOut": {
+        "properties": {
+          "notice": {
+            "description": "sent: the 'access ended' email left; pending: it did not (it is tried again); not_needed: they had no account, so only their code was withdrawn",
+            "enum": [
+              "sent",
+              "pending",
+              "not_needed"
+            ],
+            "title": "Notice",
+            "type": "string"
+          },
+          "person": {
+            "$ref": "#/components/schemas/BetaPersonOut"
+          }
+        },
+        "required": [
+          "person",
+          "notice"
+        ],
+        "title": "BetaRevokeOut",
+        "type": "object"
+      },
       "Body_add_screenshot": {
         "properties": {
           "file": {
@@ -4075,6 +4257,262 @@
           }
         },
         "summary": "Audit",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/beta": {
+      "get": {
+        "description": "Everyone who joined the beta, newest first: their code, their 30 days, and whether the ending email has left.",
+        "operationId": "list_beta",
+        "parameters": [
+          {
+            "description": "Only people in this state",
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "waiting",
+                    "active",
+                    "ended",
+                    "revoked"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only people in this state",
+              "title": "State"
+            }
+          },
+          {
+            "description": "Part of a name, address or prop firm",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Part of a name, address or prop firm",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BetaListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "List Beta",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/beta/{signup_id}/revoke": {
+      "post": {
+        "description": "End a person's beta access now, and email them that they need to sign up to continue. For someone who has not made an\naccount yet, withdraw their code instead (nothing to email). The reason is kept in the audit log and never sent.",
+        "operationId": "revoke_beta",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "signup_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Signup Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BetaRevokeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Revoke Beta",
         "tags": [
           "admin"
         ]

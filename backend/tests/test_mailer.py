@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from tradejournal.api.emails import beta_code_email
+from tradejournal.api.emails import access_ended_email, beta_code_email
 from tradejournal.api.mailer import Email, LogMailer, MailError, ResendMailer
 
 KEY = "re_" + "test" + "key0123456789"  # made up
@@ -129,3 +129,18 @@ def test_there_is_no_tracking_pixel_or_foreign_resource_in_the_html():
     html = make_email().html
     assert "<img" not in html and "http://" not in html
     assert html.count("https://") == 1  # the one link, which is ours
+
+
+def test_the_access_ended_email_says_what_happened_what_is_kept_and_how_to_get_the_data_out():
+    email = access_ended_email(to="alex@example.test", first_name="Alex")
+    assert email.subject == "Your Roundturn beta access has ended" and email.to == "alex@example.test"
+    for body in (email.text, email.html):
+        assert "Hi Alex" in body and "has ended" in body and "still there" in body
+        assert "download everything as a ZIP" in body and "hello@roundturn.app" in body
+        assert "not investment advice" in body
+
+
+def test_the_access_ended_email_escapes_the_name_and_has_no_remote_resources():
+    email = access_ended_email(to="a@b.cc", first_name="<b>Al</b>")
+    assert "<b>Al</b>" not in email.html and "&lt;b&gt;Al&lt;/b&gt;" in email.html
+    assert "<img" not in email.html and "http" not in email.html
