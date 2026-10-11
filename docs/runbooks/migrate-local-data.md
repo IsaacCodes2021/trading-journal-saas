@@ -51,6 +51,6 @@ Run it against your **local** Postgres, as a throwaway user, until the report is
 
 ## If something goes wrong
 
-- `refused: this user already has journal data`: the target is not empty. Use a fresh user, or delete the earlier copy (as the owner) and run again.
+- `refused: this user already has journal data`: the target is not empty (the app can archive a prop account but not delete one). Use a fresh user, or empty this one with `python -m tradejournal.pg.clear_journal --user-id <id>` (a dry run that counts), then again with `--apply --expect-accounts N --expect-trades N` using the numbers the dry run showed. It refuses while any screenshot exists (delete those in the app first), keeps the sign-in and settings, and prints counts only. Then run the migration again.
 - `no journal at ...`: the path is wrong.
 - A traceback: nothing was written (one transaction). Keep the message; it does not contain your data.
