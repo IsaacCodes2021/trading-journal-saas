@@ -732,3 +732,9 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 - **The token.** The daily job's token for the original is read only, so a restore from the job is refused with a message that names the reason. The runbook has the temporary change to read and write and the change back.
 - **Tests.** 24 new (50 in the file), 11 deliberate breaks all caught.
 - **Not done.** The drill itself (the owner's, in the runbook), and the orphan job that would find pictures resurrected by an `--all` restore.
+
+**Slice 22 (2026-10-10): the old NiceGUI screens are removed** (`backend/tradejournal/ui/`, `run.bat`, `run.sh`, the `nicegui` dependency; the owner said yes after seeing what it covered).
+
+- **What went.** The `ui/` package (17 files), the two launchers at the repository root, the `nicegui` dependency and the packages only it needed (the lock was regenerated), the `.nicegui/` ignore rule, `tests/test_ui_state.py`, and the two tests in `test_archive.py` and `test_tag_editing.py` that imported the old screens' state and theme code.
+- **What stays.** The domain modules the API and the command line share (`parser.py`, `grouping.py`, `finance.py`, ...). The hosted app imported nothing from `ui/`. The original local project folder is a separate copy and was not touched; the old screens are frozen at the git tag `v0.1.0-local`.
+- **README.** Rewritten for the hosted product: the local-app instructions (start, options, privacy) and the screen-by-screen description of the old UI are gone; the domain rules (how trades are built, imports and undo, the performance score) stay.

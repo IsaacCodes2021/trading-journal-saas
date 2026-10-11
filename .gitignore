@@ -17,8 +17,6 @@ data/
 *.csv
 !backend/tests/fixtures/*.csv
 
-# NiceGUI local storage
-.nicegui/
 
 # Python
 .venv/

@@ -6,7 +6,6 @@ import pytest
 from helpers import SAMPLE, fixture_bytes
 
 from tradejournal import db, importer, journal
-from tradejournal.ui import theme
 
 PRESETS = list(journal.TAG_COLOR_PRESETS)
 
@@ -149,28 +148,3 @@ def test_upgrade_keeps_each_tags_old_color(tmp_path):
     colors = {t.id: t.color for t in journal.tags(conn)}
     assert colors == {tag_id: PRESETS[(tag_id - 1) % 8] for tag_id in range(1, 11)}
     conn.close()
-
-
-# -- pill colors --------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "color", PRESETS + ["#000000", "#ffffff", "#ffff00", "#00ffff", "#7f7f7f", "#123456", "#ff00aa"]
-)
-def test_tag_text_is_readable_in_both_schemes(color):
-    light, dark = theme.tag_text_colors(color)
-    for scheme, text in (("light", light), ("dark", dark)):
-        for background in theme.pill_backgrounds(color, scheme):
-            assert theme.contrast(theme._rgb(text), background) >= theme.MIN_TEXT_CONTRAST, (color, scheme)
-
-
-def test_tag_style_sets_both_schemes():
-    style = theme.tag_style("#2a78d6")
-    assert "--tj-tag-fg: #1c5cab" in style and "--tj-tag-fg-dark: #86b6ef" in style
-    assert "--tj-tag-bg: rgba(42, 120, 214, 0.14)" in style
-    assert "--tj-tag-bg-dark: rgba(42, 120, 214, 0.24)" in style
-
-
-def test_check_marks_contrast_with_their_swatch():
-    assert theme.on_color("#ffff00") == "#000000"
-    assert theme.on_color("#2a2a2a") == "#ffffff"

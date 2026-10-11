@@ -1,6 +1,6 @@
 """Date-range presets ("last 30 days") and what they mean on a given day.
 
-Shared by the API and the NiceGUI user interface (which goes away in M4). A preset is resolved against "today" *in the
+Used by the API. A preset is resolved against "today" *in the
 person's trading-day timezone*, which the caller works out: this module never reads the server's clock.
 """
 

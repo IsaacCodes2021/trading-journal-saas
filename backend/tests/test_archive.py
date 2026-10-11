@@ -9,7 +9,6 @@ from helpers import SAMPLE, fixture_bytes
 from tradejournal import accounts, db, importer
 from tradejournal.accounts import archive_account, archive_summary, restore_account
 from tradejournal.queries import TradeFilter, load_trades
-from tradejournal.ui.state import FilterState
 
 
 @pytest.fixture
@@ -105,8 +104,3 @@ def test_archive_summary(conn):
     # Pass rate counts decided evaluations only: 2 passed of 4 (the closed one doesn't count).
     assert summary == "Evaluations: 2 passed, 2 failed, 1 closed (50% pass rate) · Funded: 1 failed"
     assert archive_summary([]) == ""
-
-
-def test_the_screens_hide_archived_accounts_by_default():
-    assert FilterState().to_filter().include_archived is False
-    assert FilterState(show_archived=True).to_filter().include_archived is True
