@@ -716,3 +716,11 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 - **Now.** The email says importing and editing are paused and that paid plans are not open yet, so there is nothing to sign up for today (the owner approved the wording). The dialog, the result line and the API's description say the person is emailed that their access has ended.
 - **Tests.** The mailer test now fails on any square-bracketed placeholder in either body and requires the "not open yet" sentence; the Beta testers tests pin the new dialog and result wording.
 - **When plans exist,** the email gets its sign-up line back in the same place, as a real link.
+
+**Slice 20 (2026-10-10): the screenshot backup is on** (`render.yaml`, the privacy page, `restore.md`, `deploy.md`; no app code).
+
+- **What exists.** A second private R2 bucket (`roundturn-screenshots-backup`) and two tokens made by the owner: read and write limited to the backup bucket, and read only limited to the original, so the job can look at the originals and never change them. The Blueprint job `roundturn-backup` runs `python -m tradejournal.filebackup --apply` daily at 03:30 UTC.
+- **Proof so far.** A dry run on 2026-10-10 reached both buckets with both token pairs: one picture in the original, one to copy, nothing waiting to be forgotten.
+- **What it covers.** A bad deletion, a bug, or a leaked token. A deleted picture stays in the copy for 30 days and is then removed (so a deleted account's pictures do not stay in it forever). It does not cover losing the Cloudflare account, because both buckets are in it.
+- **What is not proven.** A restore. `restore.md` says so, and the board task stays open until one has worked.
+- **The privacy page** now says screenshots are copied once a day to a second private bucket and a deleted one stays in the copy for up to 30 days; a backend test pins the 30 to the tool's constant.
