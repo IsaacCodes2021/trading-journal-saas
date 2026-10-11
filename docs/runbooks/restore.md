@@ -66,7 +66,37 @@ There is no tool for restoring a single account from a backup, and the operator 
 
 ## Screenshots
 
-The files are in a versioned bucket, so a deleted or overwritten file can be restored by version in Cloudflare (the object's key is `u/<person's id>/<random>.<ext>`, and the database row names it); the database holds the references. **Not rehearsed**: no bucket exists yet. Restoring the database to an earlier moment and the bucket to a later one leaves files with no row; the orphan job (design doc 03 section 6; **not built**: it needs its own decision, see doc 05 section 14, slice 7) would **report** them first, deletes an object only after it has been unreferenced across two runs at least 7 days apart, and is designed to refuse to run when the database looks older than the bucket (the sign of a restore). **Do not run an orphan clean-up right after a restore.**
+The originals are in a private R2 bucket (`roundturn-screenshots`). A picture's key is `u/<person's id>/<random>.<ext>`, and the database row names it. R2 keeps no old versions, so the only way back is the copy: a second private bucket, `roundturn-screenshots-backup`, filled daily at 03:30 UTC by the Render job `roundturn-backup` (`python -m tradejournal.filebackup --apply`). A picture gone from the original stays in the copy for 30 days and is then forgotten.
+
+**What it covers:** a deletion by mistake, a bug, a leaked token. **What it does not:** losing the Cloudflare account, because both buckets are in it.
+
+### Putting pictures back
+
+`python -m tradejournal.filebackup restore` copies, from the copy into the original, the pictures the original lacks. It is a dry run unless you add `--apply`, it never overwrites a picture the original has, and it prints counts only. It needs a scope:
+
+- `--prefix u/<person's id>/` for one person. Use this for one person's lost pictures.
+- `--all` for everything the original lacks. **This also brings back pictures people deleted in the last 30 days**, which the copy holds on purpose and which were meant to be gone (a deleted account's too). Use it only for a real loss of the whole original bucket, and then deal with the pictures that should not be there (the orphan job that would find them is not built).
+
+**Where to run it.** The job `roundturn-backup` has both buckets' settings, but its token for the original is **read only** on purpose, so a restore there is refused (the message says so). To restore:
+
+1. Cloudflare, R2, Manage API tokens: edit `roundturn-backup-read-source` to **Object Read & Write**. (If Cloudflare asks you to roll the key, put the new pair into the job's settings.)
+2. Render, on `roundturn-backup`, **One-Off Jobs**: run `python -m tradejournal.filebackup restore --prefix u/<id>/` (no `--apply`) and check that `to put back` is what you expect.
+3. Run the same command again with `--apply`.
+4. Set the token back to **Object Read only**.
+5. Open the picture in the app and see it.
+
+Restoring the database to an earlier moment and the bucket to a later one leaves files with no row; the orphan job (design doc 03 section 6; **not built**: it needs its own decision, see doc 05 section 14, slice 7) would **report** them first, deletes an object only after it has been unreferenced across two runs at least 7 days apart, and is designed to refuse to run when the database looks older than the bucket (the sign of a restore). **Do not run an orphan clean-up right after a restore.**
+
+### The screenshot drill (not yet done)
+
+The copy is only a backup once a restore has worked. With the one picture there is today:
+
+1. Trigger Run on `roundturn-backup` and check it says `to copy 0` (the picture is in the copy).
+2. Open that picture in the app, so you know what it looks like.
+3. In Cloudflare, delete that one object from the **original** bucket. This is the loss; the copy still has it.
+4. In the app the picture no longer shows. Run the restore as above, first without `--apply` (expect `to put back 1`), then with it.
+5. Set the token back to read only, and open the picture again: it shows.
+6. Write the date, who did it and how long it took in the table under "The drill", with anything this file got wrong.
 
 ## The drill
 
