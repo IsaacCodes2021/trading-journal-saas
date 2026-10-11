@@ -1,151 +1,34 @@
-# Trading Journal (Roundturn)
+# Roundturn (trading-journal-saas)
 
-> **This repository is the hosted product, Roundturn**: a multi-user trading journal for prop-firm futures traders
-> (a FastAPI JSON API over Postgres, and a React single-page app). Start with the [design](docs/design/README.md),
-> the [runbooks](docs/runbooks/) and [The hosted product](#the-hosted-product-roundturn) below. The rest of this file
-> describes the original local NiceGUI app, whose screens the React app reproduces; it is kept as the behavioural
-> reference until the new one reaches parity, and its domain code (parsing, grouping, finance) is shared by both.
-> The original, untouched app lives in a separate folder.
+A hosted, multi-user trading journal for prop-firm futures traders. It imports Tradovate **Performance** CSV exports,
+rebuilds round-trip trades from the fill pairs, and shows statistics, notes, tags and screenshots. It is live at
+<https://app.roundturn.app> as an invite-only, free beta; the marketing site is <https://roundturn.app>.
 
-A local trading journal and analytics app for futures traders, in the spirit of
-Tradezella. It imports Tradovate **Performance** CSV exports, rebuilds round-trip
-trades from the fill pairs, and stores everything in a SQLite file on your machine.
-No cloud services, accounts, or telemetry.
+It is a FastAPI JSON API over Postgres and a React single-page app, served from one container. Start with the
+[design](docs/design/README.md), the [runbooks](docs/runbooks/) and [The hosted product](#the-hosted-product-roundturn)
+below. The domain code that parses exports, groups fills into trades and does the money math (`parser.py`,
+`grouping.py`, `trades.py`, `finance.py`, `timeutil.py`) is shared by the API and the command line.
+
+> The earlier local-only NiceGUI app was removed from this repository on 2026-10-10. It is frozen at the git tag
+> `v0.1.0-local`. The original local project folder is a separate copy that this repository never modifies.
 
 ## Status
 
-| Phase | Scope | State |
-|---|---|---|
-| 1 | CSV parser, trade grouping, SQLite schema, tests, CLI | **done** |
-| 2 | Import screen, trade log, dashboard, settings | **done** |
-| 3 | Calendar, day view, reports | next |
-| 4 | Insights, prop account tracking, journaling | |
+Live as an invite-only beta. What is built, what is switched on and what comes next are in the running log of the
+[roadmap](docs/design/05-features-and-roadmap.md); the operational state (deploys, the cleanup and backup jobs, how to
+restore) is in the [runbooks](docs/runbooks/).
 
-## Requirements
+## What it does
 
-- Python 3.12 (the version the project is tested and locked on). On Windows, tick
-  "Add python.exe to PATH" when installing from python.org. If you have several
-  Pythons installed, `run.bat` / `run.sh` pick 3.12.
+- **Import** Tradovate Performance exports with a preview, duplicate handling and undo.
+- **Trades:** round trips rebuilt from fill pairs, with net P&L after fees, a filterable log and a trade page.
+- **Statistics:** a dashboard with charts and a performance score, a calendar and day view, and reports by symbol,
+  weekday, hour, hold time, tag and account.
+- **Journal:** notes, tags and screenshots on each trade.
+- **Prop accounts:** evaluation and funded accounts, fees, costs and payouts, archiving.
+- **Your data is yours:** export everything, and delete your account (with a 7-day grace period).
 
-That's it. The interface is written in Python with [NiceGUI](https://nicegui.io),
-so there's no Node.js or separate frontend build.
-
-## Start the app
-
-**Windows:** double-click `run.bat`, or run it from a terminal.
-
-**macOS / Linux:** run `./run.sh` (the first time, `chmod +x run.sh`).
-
-Your browser opens at <http://127.0.0.1:8765>. The first start creates a Python
-environment and installs packages, which needs an internet connection. After that
-the app runs fully offline. Close the terminal window (or press Ctrl+C) to stop it.
-
-Options, passed after `run.bat` / `./run.sh`:
-
-| Option | Effect |
-|---|---|
-| `--port 9000` | use another port |
-| `--no-browser` | don't open a browser tab |
-| `--data-dir D:\journal` | keep the database in another folder |
-
-### Privacy
-
-- The server listens on `127.0.0.1` only, so other devices on your network can't reach it.
-- Every script, style, font and chart library ships inside the Python packages. The
-  page makes no requests to the internet.
-- There are no accounts and no telemetry. Your data is the `data/` folder.
-
-## Screens
-
-- **Evaluation vs funded.** Every account is marked as an evaluation or a funded
-  account, chosen when you create it and changeable in Settings. The switch at the
-  start of the filter row (`All accounts | Funded | Evaluation`) shows only that kind
-  of account's trades, and the accounts dropdown then lists only those accounts, so
-  you can narrow further. Trades take their type from their account, so
-  re-marking an account moves all its history at once.
-- **Archiving.** When an account passes, fails or closes, open it in Settings and
-  click **Archive…**. Pick how it ended (evaluations: Passed, Failed or Closed;
-  funded: Failed or Closed), the end date (defaults to its last trading day) and an
-  optional note. Archived accounts and their trades drop out of the dashboard, the
-  trade log and the import list. Nothing is deleted: turn on **Show archived** in
-  the filter row to include them, or **Restore** the account in Settings. Archiving
-  a passed evaluation offers to set up the funded account next, pre-filled with the
-  same firm, size and fees. Settings shows your evaluation pass rate (passed vs.
-  failed; closed ones don't count). In the Archived list, passed accounts are
-  marked green with a check, failed ones red with a ✕, and closed ones stay
-  neutral.
-- **Costs and payouts.** Record what each account cost and what it paid out, kept
-  separate from trading P&L. Enter the purchase cost when creating an account (the
-  New account dialog on the Import page or in Settings): it's saved as an
-  evaluation fee, or an activation fee for a funded account. In Settings, every
-  account (active or archived) has a **Costs and payouts** section to add
-  evaluation fees, resets, activation fees, monthly fees, other costs and payouts,
-  each with a date and note, or delete them. Each account's row shows its cost and
-  payouts. The top of Settings → Accounts totals everything (spent on accounts,
-  payouts received, prop business net) and lists accounts with no cost recorded.
-- **Firms.** Apex, Bulenox, Lucid, My Funded Futures, Take Profit, Tradeify, or
-  Other. The Firms filter lists the firms you have accounts with, and narrows the
-  accounts dropdown to match. To add a firm, add it to `FIRMS` in
-  `backend/tradejournal/accounts.py`.
-- **Dashboard.** Filter by account type, firm, accounts, date range (presets or
-  custom), symbol and long/short. Shows net P&L, win rate, profit factor, expectancy, trade count, day
-  win rate, average win and loss, win/loss ratio, largest win and loss, and max
-  drawdown. Below that are the cumulative net P&L curve (hover for each trade), the
-  drawdown underneath it, the performance score radar, and a daily net P&L chart
-  with a table view.
-- **Trade log.** Every trade, sortable, with a filter under each column and a search
-  box. The same filter row as the dashboard applies, and your filter choices carry
-  over between the two pages. The trade count and net at the top follow every
-  filter, including the column filters. The Journal column marks trades that have
-  notes and how many screenshots they have.
-- **Trade detail.** Click a trade to open it. The header shows the account, date,
-  times, hold and net P&L, with ‹ › to step through trades in the log's current
-  order. Stats are on the left; on the right are:
-  - **Tags** (see below).
-  - **Notes**: a rich-text editor (bold, lists, quotes, links, full screen) that
-    saves itself a moment after you stop typing. **Insert template** adds Setup /
-    Entry / Management and exit / Lesson headings.
-  - **Screenshots**: drop image files, click + to browse, or paste with Ctrl+V
-    (e.g. right after Win+Shift+S). Click a thumbnail to view it full size, step
-    through, open it in a tab, or delete it. PNG, JPEG, GIF and WebP up to 25 MB;
-    files are checked by content, not name.
-  - **Fill pairs**, folded away at the bottom.
-- **Tags.** Tags are shared by all trades and shown as colored pills; each tag
-  keeps its color everywhere. In a trade's detail panel:
-  - **On this trade**: its tags; × takes one off this trade only.
-  - **Add**: every other tag you've made; click one to add it. The
-    **All categories** dropdown narrows this to one category (Setup, Mistake,
-    Emotion, or your own).
-  - **New tag**: type a name, pick its category, press Enter. It's added to this
-    trade and offered on every other trade from then on.
-
-  Changes save immediately. The trade log's Tags column shows the pills, and typing
-  in that column's filter (e.g. `scalp`) finds tagged trades.
-
-  **Settings → Tags** (or **Manage tags** in the trade panel) lists every tag by
-  category, with how many trades carry it. Type in a category's **Add a tag** box to
-  create one ahead of time. Click a tag to edit it:
-  - **Name** and **Category**: rename it or move it to another category; its trades
-    keep it. Renaming it to a tag that already exists in that category offers to
-    merge the two: the trades move to the existing tag, which keeps its color.
-  - **Color**: nine presets, **Your colors** (custom colors already on your tags,
-    ready to reuse), and **+** to pick any color. Text on a pill is darkened or
-    lightened automatically so it stays readable in both themes. New tags get the
-    preset fewest tags use.
-  - **Delete tag** removes it from every trade, after asking if it's in use.
-
-  Click a category's name to rename or delete it (deleting removes its tags), and add
-  categories at the bottom.
-- **Import.** Pick or create an account, drop one or more CSVs, and check the
-  preview: rows parsed, new rows, duplicates, rows that belong to another account,
-  errors and warnings, and trades created or extended. Nothing is saved until you
-  click Import. Below is the import history, where every import can be undone after
-  a preview of what will be removed.
-- **Settings.** Your timezone, when a trading day starts, each account's details,
-  fee schedule, costs and payouts, and the tag editor. Saving an account's fees
-  recomputes its trades.
-
-The sun/moon button in the header switches between the dark and light themes.
+## Metrics
 
 ### Performance score
 
@@ -166,7 +49,7 @@ dashboard's "How it's scored" panel shows your value and score for each measure.
 
 ## Manual setup (optional)
 
-`run.bat` / `run.sh` set up what the app needs to run. For development (tests, linting)
+For development (tests, linting; Python 3.12 is the tested version)
 use [uv](https://docs.astral.sh/uv/getting-started/installation/), which installs exactly
 the versions recorded in `backend/uv.lock`:
 
@@ -193,7 +76,7 @@ CI runs the same three on every pull request.
 ## Dependencies
 
 Versions are declared in `backend/pyproject.toml` and locked, with hashes, in
-`backend/uv.lock`. `run.bat`, `run.sh`, the container image and CI all install from the lock
+`backend/uv.lock`. The container image and CI install from the lock
 with `uv sync --frozen`, so they get exactly the locked versions. There is no committed
 `requirements.txt`: it used to be generated from the lock, and Dependabot edited it instead
 of `uv.lock`. After changing dependencies, run `uv lock` in `backend/` and commit both files.
@@ -359,7 +242,7 @@ Details that go beyond the raw rules:
   history, are rejected with an explanation. Bad rows are reported by line number and
   skipped. The rest of the file still imports.
 
-## Storage
+## Storage (the command-line journal)
 
 - Everything lives in `data/`: `journal.db` and the `screenshots/` folder. Back up
   that folder to back up your journal. Screenshot files get random names; the
@@ -375,31 +258,29 @@ Details that go beyond the raw rules:
 ## Project layout
 
 ```
-trading-journal/
-  run.bat, run.sh            start the app
+trading-journal-saas/
   README.md
-  data/                      your database (created on first run)
+  render.yaml                the Render Blueprint: the web service, the cleanup job, the backup job
+  kinde.json, package.json   Kinde's custom-code entry points (the code itself is in kinde/)
+  kinde/                     the look of the sign-in screens, deployed through Kinde
+  site/                      the marketing site (a Cloudflare Worker serving static pages)
+  frontend/                  the React app (Vite, React, TypeScript)
+  docs/                      design, runbooks, legal drafts, research
   backend/
     pyproject.toml, uv.lock  dependencies, locked with hashes
+    openapi.json             the API contract the front end's types come from
     tradejournal/
+      api/                   the FastAPI app: routes, schemas, sessions, rate limits, logs
+      auth/                  sign-in through Kinde, signed state, CSRF
+      pg/                    Postgres: migrations, queries, system roles, command-line tools (sweep, migrate, ...)
       finance.py             all money math and statistics (Decimal)
       parser.py              Tradovate Performance CSV -> fill pairs
       grouping.py            fill pairs -> trades
-      trades.py              per-trade metrics
-      timeutil.py            timezones, trading day, hold time
-      symbols.py             NQH4 -> NQ, 2024-03
-      db.py                  schema + migrations
-      store.py               saving trades, regrouping after imports/undo
-      importer.py            import, preview, undo
-      queries.py             trade queries and filters for the screens
-      accounts.py, settings.py, config.py
-      ledger.py              account costs and payouts
-      journal.py             tags, notes, screenshots
-      cli.py                 command line
-      ui/
-        app.py               starts the local server
-        layout.py, filters.py, widgets.py, charts.py, theme.py, fmt.py
-        pages/               dashboard, trade log, import, settings
+      trades.py, timeutil.py, symbols.py, models.py
+      filestore.py, bucketstore.py, filebackup.py    screenshot files, the private bucket, the daily copy
+      db.py, store.py, importer.py, queries.py, accounts.py, journal.py, ledger.py, settings.py, config.py
+                             the original SQLite journal modules (the command line and the local-data migration)
+      cli.py                 command line over the local SQLite journal
     tests/
       fixtures/              real export samples
 ```

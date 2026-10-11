@@ -7,12 +7,10 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "pandas>=2.2",
     "tzdata>=2024.1",
-    "nicegui>=3.17,<4",
-    # The hosted API (tradejournal/api). nicegui already brings FastAPI in; this makes the dependency explicit,
-    # because the API outlives the NiceGUI user interface (ADR-010).
+    # The hosted API (tradejournal/api).
     "fastapi>=0.142,<1",
     "python-multipart>=0.0.20",  # FastAPI needs it to read multipart uploads (screenshots, CSV imports)
-    "uvicorn>=0.30",  # the server the container runs (also pulled in by nicegui)
+    "uvicorn[standard]>=0.30",  # the server the container runs; [standard] keeps the fast event loop and parser (uvloop, httptools)
     "psycopg[binary,pool]>=3.2",  # Postgres driver and connection pool (tradejournal/pg)
     "nh3>=0.3.7",
     "pyjwt[crypto]>=2.15.1",
