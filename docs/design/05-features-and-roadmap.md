@@ -724,3 +724,11 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 - **What it covers.** A bad deletion, a bug, or a leaked token. A deleted picture stays in the copy for 30 days and is then removed (so a deleted account's pictures do not stay in it forever). It does not cover losing the Cloudflare account, because both buckets are in it.
 - **What is not proven.** A restore. `restore.md` says so, and the board task stays open until one has worked.
 - **The privacy page** now says screenshots are copied once a day to a second private bucket and a deleted one stays in the copy for up to 30 days; a backend test pins the 30 to the tool's constant.
+
+**Slice 21 (2026-10-10): putting screenshots back from the copy** (`filebackup.py`, `tests/test_filebackup.py`, `restore.md`).
+
+- **Why.** A backup nobody has restored from is a hope. The copy existed and had no way back except copying by hand through the dashboard, where a picture's name includes folders.
+- **The command.** `python -m tradejournal.filebackup restore (--prefix u/<id>/ | --all) [--apply] [--limit N]`. A dry run unless `--apply`; it never overwrites a picture the original has (a different size is only counted); it needs a scope because `--all` also brings back pictures people deleted within the 30 days, and says so; `--all` against an empty copy exits 1 (the sign of the wrong bucket); it prints counts only; the daily job's command is unchanged.
+- **The token.** The daily job's token for the original is read only, so a restore from the job is refused with a message that names the reason. The runbook has the temporary change to read and write and the change back.
+- **Tests.** 24 new (50 in the file), 11 deliberate breaks all caught.
+- **Not done.** The drill itself (the owner's, in the runbook), and the orphan job that would find pictures resurrected by an `--all` restore.

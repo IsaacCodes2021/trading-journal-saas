@@ -2,6 +2,8 @@
 
     python -m tradejournal.filebackup              # a dry run: counts only, nothing is touched
     python -m tradejournal.filebackup --apply      # copy what the second bucket lacks, and forget what has been gone long enough
+    python -m tradejournal.filebackup restore --prefix u/<user id>/ [--apply]   # put one person's pictures back
+    python -m tradejournal.filebackup restore --all [--apply]                   # put back all the original lacks
 
 Run it as a scheduled job (daily is plenty). The source is the bucket the web service uses (``TJ_S3_*``, or ``TJ_FILES_DIR``
 in development); the copy is any other S3-compatible bucket, preferably at another provider, set by the same four
@@ -21,6 +23,12 @@ never forgets would keep a deleted account's pictures forever:
   or a failed listing looks like, and it never forgets more than ``--max-purge`` keys in one run;
 - it refuses to run when the source and the copy are the same bucket.
 
+Restoring is the other direction. ``restore`` copies, from the copy back into the original, the pictures the original
+lacks. It is a dry run unless ``--apply``; it never overwrites a picture the original has; it needs a scope, ``--prefix``
+for one person or ``--all``, because ``--all`` also brings back pictures people deleted within the keep time (the copy
+holds them for that long on purpose, not to be shown again); and it needs a token that can WRITE to the original, which
+the daily job's read-only token cannot (docs/runbooks/restore.md).
+
 It prints counts, never a key, a name or a credential.
 """
 
@@ -29,6 +37,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -125,6 +134,50 @@ def run(
     return report
 
 
+@dataclass
+class RestoreReport:
+    in_copy: int = 0  # pictures the copy holds in the chosen scope
+    present: int = 0  # already in the original, same size: left alone
+    differing: int = 0  # in the original with another size: left alone, never overwritten
+    to_restore: int = 0
+    restored: int = 0
+    vanished: int = 0  # listed in the copy, gone when read: nothing to put back
+    dry_run: bool = True
+
+
+def restore(
+    source: FileStore,
+    copy: FileStore,
+    *,
+    scope: str | None = None,
+    apply: bool = False,
+    limit: int = DEFAULT_LIMIT,
+) -> RestoreReport:
+    """Put back into the original (`source`) the pictures the copy holds and the original lacks.
+
+    It never overwrites a picture the original has, whatever its size. `scope` is `u/<user id>/` for one person, or None
+    for every picture. Only keys under `u/` count, so the copy's own state file is never put anywhere."""
+    report = RestoreReport(dry_run=not apply)
+    where = scope or PREFIX
+    in_copy = {f.key: f for f in copy.list(where) if f.key.startswith(PREFIX + "/")}
+    in_source = {f.key: f for f in source.list(where) if f.key.startswith(PREFIX + "/")}
+    report.in_copy = len(in_copy)
+    report.present = sum(1 for k, f in in_copy.items() if k in in_source and in_source[k].size == f.size)
+    report.differing = sum(1 for k, f in in_copy.items() if k in in_source and in_source[k].size != f.size)
+    wanted = sorted(k for k in in_copy if k not in in_source)
+    report.to_restore = len(wanted)
+    if apply:
+        for key in wanted[:limit]:
+            try:
+                data = copy.get(key)
+            except FileMissing:
+                report.vanished += 1
+                continue
+            source.put(key, data)
+            report.restored += 1
+    return report
+
+
 def _copy_settings(env: Mapping[str, str]) -> BucketSettings | None:
     renamed = {
         name.replace("TJ_BACKUP_S3_", "TJ_S3_", 1): value
@@ -137,18 +190,8 @@ def _copy_settings(env: Mapping[str, str]) -> BucketSettings | None:
         raise ValueError(str(problem).replace("TJ_S3_", "TJ_BACKUP_S3_")) from None
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Keep a second copy of the screenshot bucket.")
-    parser.add_argument("--apply", action="store_true", help="actually copy and forget (the default only counts)")
-    parser.add_argument(
-        "--keep-days", type=int, default=DEFAULT_KEEP_DAYS, help="days a deleted picture stays in the copy"
-    )
-    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="at most this many pictures copied per run")
-    parser.add_argument("--max-purge", type=int, default=DEFAULT_MAX_PURGE, help="at most this many forgotten per run")
-    args = parser.parse_args(argv)
-    if args.keep_days < 1 or args.limit < 1 or args.max_purge < 0:
-        print("--keep-days and --limit must be at least 1, and --max-purge cannot be negative", file=sys.stderr)
-        return 2
+def _open_stores() -> tuple[FileStore, BucketFileStore] | int:
+    """The original and the copy from the environment, or the exit code to give (and the reason, already printed)."""
     try:
         source = _files_from_env()
         destination = _copy_settings(os.environ)
@@ -166,10 +209,81 @@ def main(argv: list[str] | None = None) -> int:
         if origin is not None and (origin.endpoint, origin.bucket) == (destination.endpoint, destination.bucket):
             print("the copy is the same bucket as the source: refusing to run", file=sys.stderr)
             return 2
+    return source, BucketFileStore(destination)
+
+
+_PERSON_FOLDER = re.compile(r"u/[a-z0-9][a-z0-9-]*/")
+
+
+def _main_restore(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(
+        prog="python -m tradejournal.filebackup restore",
+        description="Put pictures back into the original from the copy. A dry run unless --apply.",
+    )
+    scope = parser.add_mutually_exclusive_group(required=True)
+    scope.add_argument("--prefix", help="one person's folder, u/<user id>/")
+    scope.add_argument(
+        "--all",
+        action="store_true",
+        help="everything the copy holds that the original lacks, including pictures deleted within the keep time",
+    )
+    parser.add_argument("--apply", action="store_true", help="actually put them back (the default only counts)")
+    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="at most this many put back per run")
+    args = parser.parse_args(argv)
+    if args.limit < 1:
+        print("--limit must be at least 1", file=sys.stderr)
+        return 2
+    if args.prefix is not None and not _PERSON_FOLDER.fullmatch(args.prefix):
+        print("--prefix must be one person's folder: u/<user id>/ (with the slash at the end)", file=sys.stderr)
+        return 2
+    opened = _open_stores()
+    if isinstance(opened, int):
+        return opened
+    original, copy = opened
+    try:
+        report = restore(original, copy, scope=args.prefix, apply=args.apply, limit=args.limit)
+    except StoreUnavailable:
+        print(
+            "a bucket did not answer or refused the request. A token that can only read the original refuses a "
+            "restore (docs/runbooks/restore.md). Pictures already put back stay; run it again.",
+            file=sys.stderr,
+        )
+        return 1
+    mode = "dry run: nothing changed" if report.dry_run else "applied"
+    print(
+        f"{mode}; in the copy {report.in_copy}, already in the original {report.present}, "
+        f"in the original with another size {report.differing}, to put back {report.to_restore}, "
+        f"put back {report.restored}, gone before it was read {report.vanished}"
+    )
+    if args.all and report.in_copy == 0:
+        print("the copy lists no pictures: this looks like the wrong bucket, nothing was put back", file=sys.stderr)
+        return 1
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    given = sys.argv[1:] if argv is None else argv
+    if given and given[0] == "restore":
+        return _main_restore(given[1:])
+    parser = argparse.ArgumentParser(description="Keep a second copy of the screenshot bucket.")
+    parser.add_argument("--apply", action="store_true", help="actually copy and forget (the default only counts)")
+    parser.add_argument(
+        "--keep-days", type=int, default=DEFAULT_KEEP_DAYS, help="days a deleted picture stays in the copy"
+    )
+    parser.add_argument("--limit", type=int, default=DEFAULT_LIMIT, help="at most this many pictures copied per run")
+    parser.add_argument("--max-purge", type=int, default=DEFAULT_MAX_PURGE, help="at most this many forgotten per run")
+    args = parser.parse_args(argv)
+    if args.keep_days < 1 or args.limit < 1 or args.max_purge < 0:
+        print("--keep-days and --limit must be at least 1, and --max-purge cannot be negative", file=sys.stderr)
+        return 2
+    opened = _open_stores()
+    if isinstance(opened, int):
+        return opened
+    source, copy = opened
     try:
         report = run(
             source,
-            BucketFileStore(destination),
+            copy,
             apply=args.apply,
             keep_days=args.keep_days,
             limit=args.limit,

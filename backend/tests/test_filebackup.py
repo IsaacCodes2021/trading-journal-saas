@@ -302,3 +302,173 @@ def test_a_dry_run_on_a_picture_newly_gone_writes_no_clock(source, copy):
     copy.put(ONE, b"1")
     go(source, copy, apply=False)
     assert not list(copy.list("state"))
+
+
+# ---- restoring: the other direction -------------------------------------------------------------------------------------
+# (`source` is the original and `copy` is the backup in these tests, as above)
+
+
+def test_a_restore_dry_run_counts_what_would_come_back_and_changes_nothing(source, copy):
+    copy.put(ONE, b"1")
+    copy.put(TWO, b"2")
+    source.put(TWO, b"2")
+    report = filebackup.restore(source, copy)
+    assert (report.in_copy, report.present, report.to_restore, report.restored, report.dry_run) == (2, 1, 1, 0, True)
+    assert keys(source) == [TWO]
+
+
+def test_what_the_original_lacks_comes_back_byte_for_byte_and_what_it_has_is_left_alone(source, copy):
+    copy.put(ONE, b"first")
+    copy.put(THREE, b"third")
+    source.put(THREE, b"third")
+    report = filebackup.restore(source, copy, apply=True)
+    assert (report.to_restore, report.restored, report.present) == (1, 1, 1)
+    assert source.get(ONE) == b"first" and source.get(THREE) == b"third"
+    assert filebackup.restore(source, copy, apply=True).restored == 0  # a second run has nothing to do
+
+
+def test_a_picture_the_original_has_is_never_overwritten_even_with_another_size(source, copy):
+    copy.put(ONE, b"from the copy, and longer")
+    source.put(ONE, b"newer")
+    report = filebackup.restore(source, copy, apply=True)
+    assert (report.differing, report.present, report.restored) == (1, 0, 0)
+    assert source.get(ONE) == b"newer"
+
+
+def test_a_restore_can_be_limited_to_one_person(source, copy):
+    for key in (ONE, TWO, THREE):
+        copy.put(key, b"x")
+    report = filebackup.restore(source, copy, scope="u/aaa/", apply=True)
+    assert (report.in_copy, report.restored) == (2, 2)
+    assert keys(source) == sorted([ONE, TWO])  # u/bbb/ stays where it is
+
+
+def test_only_as_many_as_the_limit_come_back_in_one_run_and_the_rest_next_time(source, copy):
+    for key in (ONE, TWO, THREE):
+        copy.put(key, b"x")
+    assert filebackup.restore(source, copy, apply=True, limit=2).restored == 2
+    assert filebackup.restore(source, copy, apply=True, limit=2).restored == 1
+    assert keys(source) == sorted([ONE, TWO, THREE])
+
+
+def test_a_picture_gone_from_the_copy_between_the_listing_and_the_read_is_counted_not_fatal(source, copy):
+    copy.put(ONE, b"1")
+    copy.put(TWO, b"2")
+
+    class Racy:
+        def list(self, prefix=""):
+            return copy.list(prefix)
+
+        def get(self, key):
+            if key == ONE:
+                raise FileMissing(key)
+            return copy.get(key)
+
+    report = filebackup.restore(source, Racy(), apply=True)
+    assert (report.restored, report.vanished) == (1, 1)
+    assert keys(source) == [TWO]
+
+
+def test_the_copys_state_file_is_never_put_into_the_original(source, copy):
+    copy.put(ONE, b"1")
+    copy.put(STATE_KEY, b"{}")
+    assert filebackup.restore(source, copy, apply=True).restored == 1
+    assert not list(source.list("state"))
+
+
+# ---- restoring: the command ---------------------------------------------------------------------------------------------
+
+
+def test_the_restore_command_puts_one_persons_pictures_back_through_real_http_and_prints_only_counts(
+    monkeypatch, two_buckets, capsys
+):
+    one, two = two_buckets
+    two.objects[ONE] = (b"hello", T0)
+    two.objects[THREE] = (b"world", T0)
+    env(monkeypatch, one, two)
+    assert filebackup.main(["restore", "--prefix", "u/aaa/", "--apply"]) == 0
+    assert {k: v[0] for k, v in one.objects.items()} == {ONE: b"hello"}
+    shown = capsys.readouterr()
+    assert "put back 1" in shown.out
+    assert (
+        "aaa" not in shown.out + shown.err
+        and ACCESS not in shown.out + shown.err
+        and SECRET not in shown.out + shown.err
+    )
+
+
+def test_the_restore_command_without_apply_touches_nothing(monkeypatch, two_buckets, capsys):
+    one, two = two_buckets
+    two.objects[ONE] = (b"hello", T0)
+    env(monkeypatch, one, two)
+    assert filebackup.main(["restore", "--all"]) == 0
+    assert one.objects == {}
+    assert "dry run" in capsys.readouterr().out
+
+
+def test_the_restore_command_needs_a_scope_and_does_not_start_without_one(monkeypatch, two_buckets):
+    one, two = two_buckets
+    env(monkeypatch, one, two)
+    with pytest.raises(SystemExit) as stopped:
+        filebackup.main(["restore", "--apply"])
+    assert stopped.value.code == 2
+    assert one.requests == [] and two.requests == []
+
+
+def test_the_restore_command_refuses_a_person_and_everything_at_once(monkeypatch, two_buckets):
+    env(monkeypatch, *two_buckets)
+    with pytest.raises(SystemExit) as stopped:
+        filebackup.main(["restore", "--all", "--prefix", "u/aaa/"])
+    assert stopped.value.code == 2
+
+
+@pytest.mark.parametrize("prefix", ["", "u", "u/", "u/aaa", "x/aaa/", "u/../bbb/", "u/aaa/bbb/", "U/AAA/"])
+def test_a_prefix_that_is_not_one_persons_folder_is_refused_before_anything_is_touched(
+    monkeypatch, two_buckets, prefix
+):
+    one, two = two_buckets
+    env(monkeypatch, one, two)
+    assert filebackup.main(["restore", "--prefix", prefix, "--apply"]) == 2
+    assert one.requests == [] and two.requests == []
+
+
+def test_nonsense_restore_numbers_are_refused(monkeypatch, two_buckets):
+    env(monkeypatch, *two_buckets)
+    assert filebackup.main(["restore", "--all", "--limit", "0"]) == 2
+
+
+def test_the_restore_command_refuses_the_same_bucket_for_both(monkeypatch, two_buckets, capsys):
+    one, _ = two_buckets
+    env(monkeypatch, one, one)
+    assert filebackup.main(["restore", "--all", "--apply"]) == 2
+    assert "same bucket" in capsys.readouterr().err
+    assert one.requests == []
+
+
+def test_restoring_everything_from_a_copy_that_lists_nothing_exits_1(monkeypatch, two_buckets, capsys):
+    env(monkeypatch, *two_buckets)
+    assert filebackup.main(["restore", "--all", "--apply"]) == 1
+    assert "wrong bucket" in capsys.readouterr().err
+
+
+def test_restoring_one_person_who_has_no_pictures_is_not_an_error(monkeypatch, two_buckets, capsys):
+    env(monkeypatch, *two_buckets)
+    assert filebackup.main(["restore", "--prefix", "u/ccc/", "--apply"]) == 0
+    assert "in the copy 0" in capsys.readouterr().out
+
+
+def test_a_refused_write_to_the_original_is_a_plain_message_that_names_the_read_only_token(
+    monkeypatch, two_buckets, capsys
+):
+    one, two = two_buckets
+    two.objects[ONE] = (b"hello", T0)
+    env(monkeypatch, one, two)
+
+    def refused(self, key, data):  # what a token that can only read the original does
+        raise StoreUnavailable("403 details that must not be shown")
+
+    monkeypatch.setattr(filebackup.BucketFileStore, "put", refused)
+    assert filebackup.main(["restore", "--all", "--apply"]) == 1
+    err = capsys.readouterr().err
+    assert "only read" in err and "403 details" not in err
+    assert one.objects == {}
