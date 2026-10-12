@@ -22,6 +22,8 @@ from ..accounts import (
     Account,
     _check_details,
     archive_summary,  # noqa: F401  (pure; re-exported)
+    check_phase,
+    check_purchase_date,
 )
 from ..finance import DEFAULT_FEE_KEY, ZERO, to_money
 from . import usage
@@ -41,15 +43,18 @@ def create_account(
     trail_lock_level: Decimal | None = None,
     daily_loss_limit: Decimal | None = None,
     profit_target: Decimal | None = None,
+    purchase_date: date | None = None,
+    phase: str | None = None,
 ) -> Account:
     name = _check_details(name, firm, account_type)
     if trailing_type is not None and trailing_type not in TRAILING_TYPES:
         raise ValueError(f"trailing type must be one of {', '.join(TRAILING_TYPES)}")
+    stored_phase = check_phase(account_type, phase)
     row = conn.execute(
         """INSERT INTO accounts (name, firm, account_type, account_size, starting_balance,
                max_drawdown, trailing_type, trail_lock_enabled, trail_lock_level,
-               daily_loss_limit, profit_target)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+               daily_loss_limit, profit_target, purchase_date, phase)
+           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
            RETURNING *""",
         (
             name,
@@ -63,6 +68,8 @@ def create_account(
             _money_or_none(trail_lock_level),
             _money_or_none(daily_loss_limit),
             _money_or_none(profit_target),
+            check_purchase_date(purchase_date),
+            stored_phase,
         ),
     ).fetchone()
     usage.refresh(conn)
@@ -78,13 +85,18 @@ def update_account(
     account_type: str,
     account_size: Decimal | None,
     starting_balance: Decimal,
+    purchase_date: date | None = None,
+    phase: str | None = None,
 ) -> Account:
     """Change an account's basic details. (Prop firm rules are edited separately.)
 
     Changing the account type reclassifies all of the account's trades at once,
-    since trades take their type from their account.
+    since trades take their type from their account. The purchase date and phase are set as given (None clears the date,
+    and a None phase means the same as the type).
     """
     name = _check_details(name, firm, account_type)
+    stored_phase = check_phase(account_type, phase)
+    purchased = check_purchase_date(purchase_date)
     current = get_account(conn, account_id)
     if current.archived and current.outcome not in OUTCOMES_BY_TYPE[account_type]:
         raise ValueError(
@@ -92,9 +104,29 @@ def update_account(
             f"'{OUTCOMES[current.outcome]}'; restore it first"
         )
     conn.execute(
-        "UPDATE accounts SET name = %s, firm = %s, account_type = %s, account_size = %s, starting_balance = %s "
-        "WHERE id = %s",
-        (name, firm, account_type, _money_or_none(account_size), to_money(starting_balance), account_id),
+        "UPDATE accounts SET name = %s, firm = %s, account_type = %s, account_size = %s, starting_balance = %s, "
+        "purchase_date = %s, phase = %s WHERE id = %s",
+        (
+            name,
+            firm,
+            account_type,
+            _money_or_none(account_size),
+            to_money(starting_balance),
+            purchased,
+            stored_phase,
+            account_id,
+        ),
+    )
+    return get_account(conn, account_id)
+
+
+def dismiss_pass_prompt(conn: psycopg.Connection, account_id: int) -> Account:
+    """Stop offering "evaluation passed: set up your funded account" for this account (it can still be opened from the
+    account's settings)."""
+    get_account(conn, account_id)
+    conn.execute(
+        "UPDATE accounts SET pass_prompt_dismissed_at = now() WHERE id = %s AND pass_prompt_dismissed_at IS NULL",
+        (account_id,),
     )
     return get_account(conn, account_id)
 
@@ -233,6 +265,11 @@ def _account_from_row(row: dict) -> Account:
         outcome=row["outcome"],
         ended_on=row["ended_on"],
         archive_note=row["archive_note"],
+        purchase_date=row["purchase_date"],
+        phase_stored=row["phase"],
+        pass_prompt_dismissed_at=row["pass_prompt_dismissed_at"].isoformat()
+        if row["pass_prompt_dismissed_at"]
+        else None,
     )
 
 

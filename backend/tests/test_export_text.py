@@ -69,6 +69,9 @@ def test_an_empty_note_is_just_a_newline():
         (datetime(2024, 1, 5, 14, 30, tzinfo=UTC), "2024-01-05T14:30:00Z"),
         (datetime(2024, 1, 5, 14, 30, 7, 250000, tzinfo=UTC), "2024-01-05T14:30:07.250000Z"),
         (datetime(2024, 1, 5, 9, 30, tzinfo=timezone(timedelta(hours=-5))), "2024-01-05T14:30:00Z"),  # to UTC
+        (["max_loss_usd", "flat_by_time"], "max_loss_usd|flat_by_time"),  # a rule set's flagged fields
+        ([], ""),
+        ({"price_usd": "from 79", "b": "Zoë"}, '{"b": "Zoë", "price_usd": "from 79"}'),  # its source notes, as JSON
     ],
 )
 def test_a_value_becomes_the_exact_text_of_a_cell(value, text):

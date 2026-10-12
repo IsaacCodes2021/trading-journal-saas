@@ -364,7 +364,7 @@ def performance_score(summary: Summary, days: Sequence[DailyResult]) -> Performa
 
 
 class LedgerItem(Protocol):
-    amount: Decimal  # positive
+    amount: Decimal  # positive; for a payout, what the trader received before any payout fee
 
     @property
     def is_payout(self) -> bool: ...
@@ -385,6 +385,7 @@ def business_totals(items: Iterable[LedgerItem]) -> BusinessTotals:
     for item in items:
         if item.is_payout:
             payouts += item.amount
+            costs += getattr(item, "payout_fee", None) or ZERO  # a fee the firm or the bank kept from a payout
         else:
             costs += item.amount
     return BusinessTotals(costs=costs, payouts=payouts)
