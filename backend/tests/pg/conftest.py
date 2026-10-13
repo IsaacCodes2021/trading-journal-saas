@@ -105,10 +105,11 @@ def admin_url(owner_url) -> str:
 def owner(owner_url):
     """An owner connection (it can create users and read everything), on an emptied database."""
     with psycopg.connect(owner_url, autocommit=True, row_factory=dict_row) as conn:
-        # Cascades through every tenant table; the system tables that hang off no user (invites) are named, so that
-        # no test sees another's leftovers.
+        # Cascades through every tenant table; the system tables that hang off no user (invites, the firms' rule
+        # templates) are named, so that no test sees another's leftovers.
         conn.execute(
-            "TRUNCATE users, invites, audit_log, identity_removals, file_removals, grant_codes RESTART IDENTITY CASCADE"
+            "TRUNCATE users, invites, audit_log, identity_removals, file_removals, grant_codes, rule_templates "
+            "RESTART IDENTITY CASCADE"
         )
         yield conn
 

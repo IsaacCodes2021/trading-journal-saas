@@ -29,7 +29,8 @@ def check_phase(account_type: str, phase: str | None) -> str | None:
         return None
     if phase not in PHASES_BY_TYPE.get(account_type, ()):
         allowed = " or ".join(PHASES[p].lower() for p in PHASES_BY_TYPE.get(account_type, ()))
-        raise ValueError(f"a {ACCOUNT_TYPES.get(account_type, account_type).lower()} account's phase is {allowed}")
+        kind = ACCOUNT_TYPES.get(account_type, account_type).lower()
+        raise ValueError(f"the phase must be {allowed} for {kind} accounts")
     return phase
 
 
