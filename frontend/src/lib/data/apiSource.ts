@@ -214,7 +214,13 @@ export const apiSource: DataSource = {
   businessTotals: (signal) => unwrap(api.GET('/api/v1/business-totals', { signal })),
 
   // The firm is a closed list on the server; the form offers the same list, and anything else comes back as a refusal.
-  createAccount: (input) => unwrap(api.POST('/api/v1/accounts', { body: { ...input, firm: input.firm as FirmName } })),
+  // A new account needs its purchase date: the form asks for it, and the server refuses one without it.
+  createAccount: (input) =>
+    unwrap(
+      api.POST('/api/v1/accounts', {
+        body: { ...input, firm: input.firm as FirmName, purchase_date: input.purchase_date as string },
+      }),
+    ),
   updateAccount: (id, input) =>
     unwrap(
       api.PUT('/api/v1/accounts/{account_id}', {
@@ -258,4 +264,23 @@ export const apiSource: DataSource = {
       }),
     )
   },
+
+  accountsOverview: (signal) => unwrap(api.GET('/api/v1/accounts/overview', { signal })),
+  dismissPassPrompt: (id) =>
+    unwrap(api.POST('/api/v1/accounts/{account_id}/pass-prompt/dismiss', { params: { path: { account_id: id } } })),
+  ruleFields: (signal) => unwrap(api.GET('/api/v1/rule-fields', { signal })),
+  async ruleTemplates(purchasedOn, signal) {
+    const query = purchasedOn ? { purchased_on: purchasedOn } : {}
+    return (await unwrap(api.GET('/api/v1/rule-templates', { params: { query }, signal }))).templates
+  },
+  ruleTemplate: (templateId, signal) =>
+    unwrap(api.GET('/api/v1/rule-templates/{template_id}', { params: { path: { template_id: templateId } }, signal })),
+  ruleSet: (id, signal) =>
+    unwrap(api.GET('/api/v1/accounts/{account_id}/rule-set', { params: { path: { account_id: id } }, signal })),
+  saveRuleSet: (id, input) =>
+    unwrap(api.PUT('/api/v1/accounts/{account_id}/rule-set', { params: { path: { account_id: id } }, body: input })),
+  payouts: (id, signal) =>
+    unwrap(api.GET('/api/v1/accounts/{account_id}/payouts', { params: { path: { account_id: id } }, signal })),
+  addPayout: (id, input) =>
+    unwrap(api.POST('/api/v1/accounts/{account_id}/payouts', { params: { path: { account_id: id } }, body: input })),
 }

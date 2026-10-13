@@ -27,7 +27,7 @@ describe('the app shell', () => {
     expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
   })
 
-  it('names the product, lists the six screens, and carries the filters from one to the next', async () => {
+  it('names the product, lists the seven screens, and carries the filters from one to the next', async () => {
     stubApi()
     open('/', { preset: '90d', direction: 'long' })
 
@@ -38,7 +38,7 @@ describe('the app shell', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.textContent),
-    ).toEqual(['Dashboard', 'Trades', 'Calendar', 'Reports', 'Import', 'Settings'])
+    ).toEqual(['Dashboard', 'Trades', 'Calendar', 'Reports', 'Accounts', 'Import', 'Settings'])
     for (const name of ['Trades', 'Calendar', 'Reports']) {
       const link = within(nav).getByRole('link', { name })
       expect(link.getAttribute('href')).toContain('preset=90d')

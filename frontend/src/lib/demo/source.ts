@@ -19,6 +19,7 @@ import { SAMPLE_ACCOUNTS, SAMPLE_TRADES, fillPairsFor, pointsFor } from './gener
 import * as accounts from './accounts'
 import * as imports from './imports'
 import * as journal from './journal'
+import * as rules from './rules'
 import { report as reportOf } from './reports'
 import {
   accountSummaries,
@@ -200,6 +201,15 @@ export const demoSource: DataSource = {
   ledger: (id) => run(() => accounts.ledgerOf(id)),
   addLedgerEntry: (id, input) => run(() => accounts.addEntry(id, input)),
   deleteLedgerEntry: (id, entryId) => run(() => accounts.deleteEntry(id, entryId)),
+  accountsOverview: () => run(() => rules.accountsOverview()),
+  dismissPassPrompt: (id) => run(() => accounts.dismissPassPrompt(id)),
+  ruleFields: () => Promise.resolve(rules.ruleFields()),
+  ruleTemplates: (purchasedOn) => Promise.resolve(rules.ruleTemplates(purchasedOn)),
+  ruleTemplate: (templateId) => run(() => rules.ruleTemplate(templateId)),
+  ruleSet: (id) => run(() => rules.ruleSetOf(id)),
+  saveRuleSet: (id, input) => run(() => rules.saveRuleSet(id, input)),
+  payouts: (id) => run(() => rules.payoutsOf(id)),
+  addPayout: (id, input) => run(() => rules.addPayout(id, input)),
 }
 
 /** Runs a write and answers as a promise, so a refusal arrives as a rejection, as it will from the server. */

@@ -6,7 +6,9 @@ import type {
   ArchiveInput,
   DataSource,
   NewLedgerEntry,
+  PayoutInput,
   ReportBy,
+  RuleSetInput,
   TagCatalog,
   TagEdit,
   TradeDetail,
@@ -262,8 +264,8 @@ export function useCommitImport() {
     mutationFn: ({ accountId, file }: { accountId: number; file: File }) => source.commitImport(accountId, file),
     onSuccess: () =>
       Promise.all(
-        ['imports', 'trades', 'trade', 'dashboard', 'filter-options'].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
+        ['imports', 'trades', 'trade', 'dashboard', 'filter-options', 'account-overviews', 'accounts-overview'].map(
+          (key) => queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),
   })
@@ -286,8 +288,8 @@ export function useUndoImport() {
     mutationFn: (importId: number) => source.undoImport(importId),
     onSuccess: () =>
       Promise.all(
-        ['imports', 'trades', 'trade', 'dashboard', 'filter-options'].map((key) =>
-          queryClient.invalidateQueries({ queryKey: [key] }),
+        ['imports', 'trades', 'trade', 'dashboard', 'filter-options', 'account-overviews', 'accounts-overview'].map(
+          (key) => queryClient.invalidateQueries({ queryKey: [key] }),
         ),
       ),
   })
@@ -334,6 +336,7 @@ export function useLedger(accountId: number) {
  */
 const ACCOUNT_KEYS = [
   'account-overviews',
+  'accounts-overview',
   'business-totals',
   'accounts',
   'trades',
@@ -391,10 +394,83 @@ export function useRemoveFee(id: number) {
 
 export function useAddLedgerEntry(id: number) {
   const source = useDataSource()
-  return useAccountWrite((entry: NewLedgerEntry) => source.addLedgerEntry(id, entry), ['ledger'])
+  return useAccountWrite((entry: NewLedgerEntry) => source.addLedgerEntry(id, entry), ['ledger', 'payouts'])
 }
 
 export function useDeleteLedgerEntry(id: number) {
   const source = useDataSource()
-  return useAccountWrite((entryId: number) => source.deleteLedgerEntry(id, entryId), ['ledger'])
+  return useAccountWrite((entryId: number) => source.deleteLedgerEntry(id, entryId), ['ledger', 'payouts'])
+}
+
+// ---- prop-firm rules, payouts and the Accounts tab ----------------------------------------------------------------------
+
+export function useAccountsOverview() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['accounts-overview', source.label],
+    queryFn: ({ signal }) => source.accountsOverview(signal),
+  })
+}
+
+export function useDismissPassPrompt() {
+  const source = useDataSource()
+  return useAccountWrite((id: number) => source.dismissPassPrompt(id))
+}
+
+/** The rule fields never change while the app runs. */
+export function useRuleFields() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['rule-fields', source.label],
+    queryFn: ({ signal }) => source.ruleFields(signal),
+    staleTime: Infinity,
+  })
+}
+
+export function useRuleTemplates(purchasedOn: string | null) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['rule-templates', source.label, purchasedOn],
+    queryFn: ({ signal }) => source.ruleTemplates(purchasedOn, signal),
+    staleTime: 5 * 60_000,
+  })
+}
+
+/** Fetches one template in full when it is picked (cached, so picking it again is instant). */
+export function useFetchRuleTemplate() {
+  const source = useDataSource()
+  const queryClient = useQueryClient()
+  return (templateId: number) =>
+    queryClient.fetchQuery({
+      queryKey: ['rule-template', source.label, templateId],
+      queryFn: ({ signal }) => source.ruleTemplate(templateId, signal),
+      staleTime: 5 * 60_000,
+    })
+}
+
+export function useRuleSet(accountId: number, enabled = true) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['rule-set', source.label, accountId],
+    queryFn: ({ signal }) => source.ruleSet(accountId, signal),
+    enabled,
+  })
+}
+
+export function useSaveRuleSet(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((input: RuleSetInput) => source.saveRuleSet(id, input), ['rule-set', 'payouts'])
+}
+
+export function usePayouts(accountId: number) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['payouts', source.label, accountId],
+    queryFn: ({ signal }) => source.payouts(accountId, signal),
+  })
+}
+
+export function useAddPayout(id: number) {
+  const source = useDataSource()
+  return useAccountWrite((input: PayoutInput) => source.addPayout(id, input), ['payouts', 'ledger'])
 }

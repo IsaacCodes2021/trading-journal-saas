@@ -280,6 +280,8 @@ describe('the account writes', () => {
     account_type: 'evaluation' as const,
     account_size: '50000.00',
     starting_balance: '50000.00',
+    purchase_date: '2026-09-01',
+    phase: null,
   }
 
   it('adds, changes, rules, archives and restores an account', async () => {
@@ -350,6 +352,63 @@ describe('the account writes', () => {
     await apiSource.accountOverviews()
     await apiSource.businessTotals()
     expect(seen.map((s) => s.path)).toEqual(['/api/v1/account-overviews', '/api/v1/business-totals'])
+  })
+})
+
+describe('firm rules, payouts and the Accounts tab', () => {
+  beforeEach(() => setCsrfToken('tok'))
+
+  it('reads the tab, the fields and the templates, the picker by purchase date', async () => {
+    const asked = serve((url) => json(url.pathname === '/api/v1/rule-templates' ? { templates: [{ id: 1 }] } : {}))
+    await apiSource.accountsOverview()
+    await apiSource.ruleFields()
+    expect(await apiSource.ruleTemplates('2026-09-01')).toEqual([{ id: 1 }])
+    await apiSource.ruleTemplates(null)
+    await apiSource.ruleTemplate(7)
+    expect(asked.map((url) => url.pathname + url.search)).toEqual([
+      '/api/v1/accounts/overview',
+      '/api/v1/rule-fields',
+      '/api/v1/rule-templates?purchased_on=2026-09-01',
+      '/api/v1/rule-templates', // no date: every version, none suggested
+      '/api/v1/rule-templates/7',
+    ])
+  })
+
+  it('reads and verifies a rule set, and a refusal carries its fields', async () => {
+    const input = { values: { firm: 'Apex' }, flags: [], source_notes: {}, source_template_id: 3 }
+    const seen = record(() => json(null))
+    expect(await apiSource.ruleSet(4)).toBeNull() // no rules yet
+    record(() => json({ id: 1 }))
+    await apiSource.saveRuleSet(4, input)
+    expect(seen[0]).toMatchObject({ method: 'GET', path: '/api/v1/accounts/4/rule-set' })
+    record(() =>
+      json(
+        {
+          title: 'Unprocessable Content',
+          status: 422,
+          detail: 'The request is not valid.',
+          errors: [{ field: 'values.max_loss_usd', message: 'Max loss cannot be negative.' }],
+        },
+        422,
+      ),
+    )
+    const refused = await apiSource.saveRuleSet(4, input).catch((error: unknown) => error)
+    expect(refused).toBeInstanceOf(ApiError)
+    expect((refused as ApiError).fields).toEqual({ 'values.max_loss_usd': 'Max loss cannot be negative.' })
+  })
+
+  it('logs a payout, reads the payouts, and dismisses the passed prompt, each with the CSRF token', async () => {
+    const payout = { entry_date: '2026-10-01', gross: '1000.00', split_pct: null, fee: null, note: '' }
+    const seen = record(() => json({}))
+    await apiSource.addPayout(4, payout)
+    await apiSource.payouts(4)
+    await apiSource.dismissPassPrompt(4)
+    expect(seen.map((s) => [s.method, s.path, s.csrf])).toEqual([
+      ['POST', '/api/v1/accounts/4/payouts', 'tok'],
+      ['GET', '/api/v1/accounts/4/payouts', null], // a read carries no token
+      ['POST', '/api/v1/accounts/4/pass-prompt/dismiss', 'tok'],
+    ])
+    expect(seen[0]?.body).toEqual(payout)
   })
 })
 

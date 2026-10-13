@@ -19,6 +19,7 @@ const NAV = [
   { to: '/trades', label: 'Trades', exact: false },
   { to: '/calendar', label: 'Calendar', exact: false },
   { to: '/reports', label: 'Reports', exact: false },
+  { to: '/accounts', label: 'Accounts', exact: false },
   { to: '/import', label: 'Import', exact: false },
   { to: '/settings', label: 'Settings', exact: false },
 ] as const

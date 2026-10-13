@@ -145,6 +145,6 @@ describe('getting to it', () => {
   it('needs no filters in its address and keeps the main navigation', async () => {
     await openHelp()
     const nav = screen.getByRole('navigation', { name: 'Main' })
-    expect(within(nav).getAllByRole('link')).toHaveLength(6)
+    expect(within(nav).getAllByRole('link')).toHaveLength(7)
   })
 })

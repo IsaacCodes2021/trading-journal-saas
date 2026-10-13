@@ -29,6 +29,10 @@
   --short-bg: #33191c;
   --chip-selected-bg: #16283f;
   --chip-selected-line: #3b6eb5;
+  --gold: #e9c46a; /* payout ready */
+  --gold-bg: #2a2412;
+  --gold-line: #b58b2a;
+  --flag-bg: #2d1719; /* a rule the research could not confirm, or a value that is wrong */
 }
 
 :root[data-theme='light'] {
@@ -53,6 +57,10 @@
   --short-bg: #fbe3e1;
   --chip-selected-bg: #e3edff;
   --chip-selected-line: #7fa4e6;
+  --gold: #7a5800;
+  --gold-bg: #fdf3d6;
+  --gold-line: #d4a72c;
+  --flag-bg: #fdecea;
 }
 
 @theme inline {
@@ -76,6 +84,10 @@
   --color-short-bg: var(--short-bg);
   --color-chip-selected-bg: var(--chip-selected-bg);
   --color-chip-selected-line: var(--chip-selected-line);
+  --color-gold: var(--gold);
+  --color-gold-bg: var(--gold-bg);
+  --color-gold-line: var(--gold-line);
+  --color-flag-bg: var(--flag-bg);
 
   /* IBM Plex is the design's typeface. It is used when installed; the fallbacks are the system stacks. Self-hosting
      the font files (so the CSP's font-src 'self' holds) is a follow-up that needs a package. */
