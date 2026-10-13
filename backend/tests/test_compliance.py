@@ -131,6 +131,20 @@ def test_apex_eod_50k_pa_report_example_is_payout_ready_for_the_first_cap():
     assert result(e, "contracts").status == "not_verifiable"  # within 4 minis, but a scaling plan applies
 
 
+def test_the_bar_is_full_once_the_balance_is_past_the_payout_balance_and_the_loss_limit_sits_above_it():
+    # Today's daily loss limit (54,000 - 1,000 = 53,000) is the closer breach, and it is above the balance at which a
+    # payout can be asked for (52,600): the bar has no inside, and the account is past its goal.
+    e = run(APEX_EOD_50K_PA, day_trades=APEX_DAYS, purchase=date(2026, 9, 25))
+    s = e.spectrum
+    assert (s.breach_kind, s.breach_level, s.target_kind, s.target_level) == (
+        "daily_loss",
+        D("53000"),
+        "payout",
+        D("52600"),
+    )
+    assert s.position == 1.0 and s.to_target == 0
+
+
 def test_apex_payout_cap_follows_the_payout_number_and_the_cadence_waits_a_week():
     first = c.PayoutRecord(date(2026, 10, 6), D("1500"), D("1500"))
     more = list(zip(weekdays(date(2026, 10, 7), 5), ["400", "450", "500", "400", "350"]))

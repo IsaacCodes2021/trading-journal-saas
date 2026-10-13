@@ -421,6 +421,14 @@ def test_the_net_is_rounded_half_up_to_the_cent_as_the_database_checks_it(conn, 
     assert payout.amount == D(net) == ledger.net_of(D(gross), D(split))
 
 
+def test_a_split_with_more_than_two_decimals_is_kept_to_two_and_the_net_follows_it(conn):
+    account = make_account(conn, account_type="funded")
+    payout = ledger.add_payout(conn, account.id, entry_date=date(2026, 3, 2), gross=D("1000"), split_pct=D("33.333"))
+    assert (payout.profit_split_pct, payout.amount) == (D("33.33"), D("333.30"))  # the database's check agrees
+    with pytest.raises(ValueError, match="more than 0%"):
+        ledger.add_payout(conn, account.id, entry_date=date(2026, 3, 2), gross=D("1000"), split_pct=D("0.004"))
+
+
 @pytest.mark.parametrize(
     ("gross", "split", "fee", "message"),
     [

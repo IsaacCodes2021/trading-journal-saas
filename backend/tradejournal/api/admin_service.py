@@ -26,8 +26,11 @@ from ..pg import audit as pg_audit
 from ..pg import deletion as pg_deletion
 from ..pg import invites as pg_invites
 from ..pg import plans as pg_plans
+from ..pg import rule_templates as pg_templates
 from ..pg.system import SystemDatabase
+from ..prop_rules import RuleValues
 from .ports import AdminRefusal, BetaRevoked, SessionStore
+from .rules_view import admin_template_out, template_key
 from .schemas import PlanOut
 from .schemas.admin import (
     AdminUserDetailOut,
@@ -50,6 +53,7 @@ from .schemas.admin import (
     RedemptionOut,
     UsageOut,
 )
+from .schemas.rules import AdminRuleTemplateListOut, AdminRuleTemplateOut, RuleTemplateImportOut
 
 ADMIN = "admin"
 SELF_REFUSED = "You cannot do that to your own account."
@@ -59,6 +63,8 @@ NO_INVITE = "There is no such invite."
 NO_GRANT = "There is no such plan code."
 NO_PERSON = "There is no such person in the beta."
 HAS_ACCOUNT = "They have an account. Delete the account instead: that removes the sign-up and its codes with it."
+NO_TEMPLATE = "There is no such rule template."
+TEMPLATE_CLASH = "Another rule template already has that firm, program, size, phase and version."
 NOTHING_TO_REVOKE = (
     "There is nothing to revoke: their access has already ended, or their code is used up, expired or withdrawn."
 )
@@ -488,6 +494,57 @@ class PgAdminService:
         with self._system.system_session(ADMIN) as conn:
             o = pg_log.overview(conn, now=self._clock())
         return OverviewOut(**vars(o))
+
+    # ---- the firms' rule templates --------------------------------------------------------------------------------------
+    # Everyone reads them to pick an account's rules; they hold no one's journal. An edit never reaches a person's verified
+    # rule set: that is a copy (`pg/rules.py`).
+
+    def list_rule_templates(self, *, q: str | None, limit: int, offset: int) -> AdminRuleTemplateListOut:
+        with self._system.system_session(ADMIN) as conn:
+            rows, total = pg_templates.search(conn, q, limit=limit, offset=offset)
+        return AdminRuleTemplateListOut(
+            templates=[template_key(t) for t in rows], total=total, limit=limit, offset=offset
+        )
+
+    def rule_template(self, template_id: int) -> AdminRuleTemplateOut:
+        with self._system.system_session(ADMIN) as conn:
+            template = pg_templates.get(conn, template_id)
+        if template is None:
+            raise AdminRefusal(404, NO_TEMPLATE)
+        return admin_template_out(template)
+
+    def edit_rule_template(
+        self, actor: UUID, template_id: int, rules: RuleValues, *, ip_hash: str | None = None
+    ) -> AdminRuleTemplateOut:
+        try:
+            with self._system.system_session(ADMIN) as conn:
+                template = pg_templates.update(conn, template_id, rules, by=_by(actor))
+                if template is None:
+                    raise AdminRefusal(404, NO_TEMPLATE)
+                self._record(conn, "admin_rule_template_edited", actor, None, ip_hash, template=template_id)
+        except psycopg.errors.UniqueViolation:
+            raise AdminRefusal(409, TEMPLATE_CLASH) from None
+        return admin_template_out(template)
+
+    def import_rule_templates(self, actor: UUID, text: str, *, ip_hash: str | None = None) -> RuleTemplateImportOut:
+        """Upsert every row the CSV holds that can be read; the rows that cannot are listed and nothing else is lost."""
+        with self._system.system_session(ADMIN) as conn:
+            counts, problems = pg_templates.import_csv(conn, text, by=_by(actor))
+            if counts.inserted or counts.updated:
+                self._record(
+                    conn,
+                    "admin_rule_templates_imported",
+                    actor,
+                    None,
+                    ip_hash,
+                    inserted=counts.inserted,
+                    updated=counts.updated,
+                    unchanged=counts.unchanged,
+                    refused=len(problems),
+                )
+        return RuleTemplateImportOut(
+            inserted=counts.inserted, updated=counts.updated, unchanged=counts.unchanged, problems=problems
+        )
 
     # ---- the rules and the record ------------------------------------------------------------------------------------
 

@@ -62,6 +62,7 @@ def add_payout(
     gross = to_money(gross)
     if gross <= 0:
         raise ValueError("the gross amount must be more than zero")
+    split_pct = split_pct.quantize(CENT, rounding=ROUND_HALF_UP)  # as the column keeps it, so the net agrees with it
     if not 0 < split_pct <= 100:
         raise ValueError("the split must be more than 0% and at most 100%")
     fee = to_money(fee)

@@ -1369,8 +1369,11 @@ class _Engine:
         elif self.effective_target is not None:
             right, right_kind = self.start + self.effective_target, "profit_target"
         position = None
-        if left is not None and right is not None and right > left:
-            position = float(min(Decimal(1), max(ZERO, (self.balance - left) / (right - left))))
+        if left is not None and right is not None:
+            if right > left:
+                position = float(min(Decimal(1), max(ZERO, (self.balance - left) / (right - left))))
+            elif self.balance >= right:
+                position = 1.0  # past the goal, with today's loss limit above it: the bar is full, not missing
         return Spectrum(
             breach_level=left,
             breach_kind=left_kind,

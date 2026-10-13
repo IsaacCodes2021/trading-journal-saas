@@ -60,6 +60,16 @@ def test_the_routes_are_in_the_schema():
     assert set(paths["/api/v1/accounts/{account_id}/ledger/{entry_id}"]) == {"delete"}
     assert set(paths["/api/v1/account-overviews"]) == {"get"}
     assert set(paths["/api/v1/business-totals"]) == {"get"}
+    assert set(paths["/api/v1/accounts/overview"]) == {"get"}
+    assert set(paths["/api/v1/accounts/{account_id}/rule-set"]) == {"get", "put"}
+    assert set(paths["/api/v1/accounts/{account_id}/payouts"]) == {"get", "post"}
+    assert set(paths["/api/v1/accounts/{account_id}/pass-prompt/dismiss"]) == {"post"}
+    assert set(paths["/api/v1/rule-fields"]) == {"get"}
+    assert set(paths["/api/v1/rule-templates"]) == {"get"}
+    assert set(paths["/api/v1/rule-templates/{template_id}"]) == {"get"}
+    assert set(paths["/api/admin/v1/rule-templates"]) == {"get"}
+    assert set(paths["/api/admin/v1/rule-templates/{template_id}"]) == {"get", "put"}
+    assert set(paths["/api/admin/v1/rule-templates/import"]) == {"post"}
     assert set(paths["/api/v1/tag-groups"]) == {"post"}
     assert set(paths["/api/v1/tag-groups/{group_id}"]) == {"put", "delete"}
     assert set(paths["/api/v1/tags/{tag_id}"]) == {"put", "delete"}

@@ -42,6 +42,7 @@ from .routers import (
     accounts,
     activity,
     admin_codes,
+    admin_rules,
     admin_users,
     auth,
     beta,
@@ -50,6 +51,7 @@ from .routers import (
     grants,
     imports,
     journal,
+    rules,
     screenshots,
     session,
     sessions,
@@ -216,9 +218,11 @@ def create_app(
     app.include_router(account.router)
     app.include_router(admin_users.router)
     app.include_router(admin_codes.router)
+    app.include_router(admin_rules.router)
     app.include_router(activity.router)
     app.include_router(grants.router)
     app.include_router(export.router)
+    app.include_router(rules.router)  # before accounts: /accounts/overview is not an account id
     app.include_router(accounts.router)
     app.include_router(stats.router)
     app.include_router(trades.router)

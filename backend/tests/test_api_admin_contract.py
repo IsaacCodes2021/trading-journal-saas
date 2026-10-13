@@ -25,6 +25,11 @@ NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 ALLOWED_INPUT = {
     "reason", "plan", "expires_at", "label", "email", "max_uses", "days", "grant_code_id", "max_redemptions", "expires_in_days",
 }  # fmt: skip
+# The firms' rule templates are the one thing an operator edits in full: a rule set's values and flags, and the research
+# CSV as a file. They hold the firms' published rules, which every person reads to pick their account's rules, and never
+# anything a person wrote in their journal; a person's verified rules are a copy the operator cannot reach.
+TEMPLATE_ROUTES = f"{PREFIX}/rule-templates"
+TEMPLATE_INPUT = {"values", "flags", "field", "reason", "file"}
 
 # Words that mean something a person wrote or traded. A counter may be named after what it counts ("trades": 40), but
 # no property of an operator response may be one of these, and nothing may carry a list or an object of them.
@@ -128,9 +133,10 @@ def test_every_operator_request_body_is_small_and_has_no_free_form_object(spec):
         body = operation.get("requestBody")
         if body is None:
             continue
-        schema = body["content"]["application/json"]["schema"]
+        [schema] = [media["schema"] for media in body["content"].values()]
         names = resolve(spec, schema)
-        assert names <= ALLOWED_INPUT, f"{method} {path} accepts {sorted(names - ALLOWED_INPUT)}"
+        allowed = ALLOWED_INPUT | TEMPLATE_INPUT if path.startswith(TEMPLATE_ROUTES) else ALLOWED_INPUT
+        assert names <= allowed, f"{method} {path} accepts {sorted(names - allowed)}"
 
 
 def test_every_operator_response_says_it_can_be_refused_for_the_three_reasons(spec):
@@ -160,6 +166,7 @@ def request(app, method, path, headers, operation):
         .replace("{invite_id}", "1")
         .replace("{grant_id}", "1")
         .replace("{signup_id}", "1")
+        .replace("{template_id}", "1")
     )
     body = None
     if "requestBody" in operation:

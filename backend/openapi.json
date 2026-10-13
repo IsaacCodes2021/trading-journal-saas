@@ -93,6 +93,34 @@
             "title": "Name",
             "type": "string"
           },
+          "phase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "evaluation",
+                  "funded",
+                  "live"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "purchase_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Date"
+          },
           "starting_balance": {
             "examples": [
               "-475.00"
@@ -107,7 +135,9 @@
           "firm",
           "account_type",
           "account_size",
-          "starting_balance"
+          "starting_balance",
+          "purchase_date",
+          "phase"
         ],
         "title": "AccountDetailsIn",
         "type": "object"
@@ -217,6 +247,27 @@
             ],
             "title": "Outcome"
           },
+          "pass_prompt_dismissed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Prompt Dismissed At"
+          },
+          "phase": {
+            "enum": [
+              "evaluation",
+              "funded",
+              "live"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
           "profit_target": {
             "anyOf": [
               {
@@ -231,6 +282,18 @@
               }
             ],
             "title": "Profit Target"
+          },
+          "purchase_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchase Date"
           },
           "starting_balance": {
             "examples": [
@@ -291,7 +354,10 @@
           "created_at",
           "outcome",
           "ended_on",
-          "archive_note"
+          "archive_note",
+          "purchase_date",
+          "phase",
+          "pass_prompt_dismissed_at"
         ],
         "title": "AccountOut",
         "type": "object"
@@ -406,6 +472,184 @@
           "account_type"
         ],
         "title": "AccountRefOut",
+        "type": "object"
+      },
+      "AccountRowOut": {
+        "description": "One active account on the Accounts tab. Without verified rules only the money is known: `rules_set` is false and\nthe rule fields are empty.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountOut"
+          },
+          "balance": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Balance",
+            "type": "string"
+          },
+          "consistency_headroom": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Consistency Headroom"
+          },
+          "floor": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Floor"
+          },
+          "inactivity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InactivityOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "pass_prompt": {
+            "title": "Pass Prompt",
+            "type": "boolean"
+          },
+          "payout": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PayoutReadinessOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "phase": {
+            "enum": [
+              "evaluation",
+              "funded",
+              "live"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "program": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Program"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "string"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleResultOut"
+            },
+            "title": "Rules",
+            "type": "array"
+          },
+          "rules_set": {
+            "title": "Rules Set",
+            "type": "boolean"
+          },
+          "spectrum": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpectrumOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ok",
+                  "at_risk",
+                  "breached",
+                  "passed",
+                  "payout_ready"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "withdrawn_gross": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Withdrawn Gross",
+            "type": "string"
+          },
+          "withdrawn_net": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Withdrawn Net",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account",
+          "program",
+          "phase",
+          "rules_set",
+          "balance",
+          "net_pnl",
+          "status",
+          "rules",
+          "spectrum",
+          "payout",
+          "consistency_headroom",
+          "inactivity",
+          "floor",
+          "progress",
+          "withdrawn_gross",
+          "withdrawn_net",
+          "pass_prompt"
+        ],
+        "title": "AccountRowOut",
         "type": "object"
       },
       "AccountRulesIn": {
@@ -527,6 +771,88 @@
           "net_pnl"
         ],
         "title": "AccountSummaryOut",
+        "type": "object"
+      },
+      "AccountsOverviewOut": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/AccountRowOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "totals": {
+            "$ref": "#/components/schemas/AccountsTotalsOut"
+          }
+        },
+        "required": [
+          "accounts",
+          "totals"
+        ],
+        "title": "AccountsOverviewOut",
+        "type": "object"
+      },
+      "AccountsTotalsOut": {
+        "properties": {
+          "balance": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Balance",
+            "type": "string"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "withdrawable_gross": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Withdrawable Gross",
+            "type": "string"
+          },
+          "withdrawable_net": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Withdrawable Net",
+            "type": "string"
+          },
+          "withdrawn_gross": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Withdrawn Gross",
+            "type": "string"
+          },
+          "withdrawn_net": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Withdrawn Net",
+            "type": "string"
+          }
+        },
+        "required": [
+          "balance",
+          "net_pnl",
+          "withdrawable_gross",
+          "withdrawable_net",
+          "withdrawn_gross",
+          "withdrawn_net"
+        ],
+        "title": "AccountsTotalsOut",
         "type": "object"
       },
       "ActiveSessionOut": {
@@ -675,6 +1001,97 @@
           "mfa"
         ],
         "title": "ActivityOut",
+        "type": "object"
+      },
+      "AdminRuleTemplateListOut": {
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/RuleTemplateKeyOut"
+            },
+            "title": "Templates",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "templates",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "AdminRuleTemplateListOut",
+        "type": "object"
+      },
+      "AdminRuleTemplateOut": {
+        "properties": {
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagOut"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "source_notes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Source Notes",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by": {
+            "title": "Updated By",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "values",
+          "flags",
+          "source_notes",
+          "updated_at",
+          "updated_by"
+        ],
+        "title": "AdminRuleTemplateOut",
         "type": "object"
       },
       "AdminUserDetailOut": {
@@ -1185,6 +1602,20 @@
           "file"
         ],
         "title": "Body_add_screenshot",
+        "type": "object"
+      },
+      "Body_admin_import_rule_templates": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_admin_import_rule_templates",
         "type": "object"
       },
       "Body_import_file": {
@@ -1791,6 +2222,58 @@
         "title": "FilterOptionsOut",
         "type": "object"
       },
+      "FlagIn": {
+        "additionalProperties": false,
+        "properties": {
+          "field": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "reason"
+        ],
+        "title": "FlagIn",
+        "type": "object"
+      },
+      "FlagOut": {
+        "description": "A field the research could not confirm. `unknown` and `conflict` fields were left empty on purpose; a `third-party\nonly` field keeps its value. The reason is the research's own words (a conflict names both values).",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "unknown",
+              "conflict",
+              "third-party only"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "reason",
+          "kind"
+        ],
+        "title": "FlagOut",
+        "type": "object"
+      },
       "FlagsOut": {
         "properties": {
           "is_admin": {
@@ -2162,6 +2645,44 @@
         "title": "ImportRecordOut",
         "type": "object"
       },
+      "InactivityOut": {
+        "properties": {
+          "days_left": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Left"
+          },
+          "deadline": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "days_left",
+          "deadline",
+          "message"
+        ],
+        "title": "InactivityOut",
+        "type": "object"
+      },
       "InviteIn": {
         "additionalProperties": false,
         "properties": {
@@ -2384,6 +2905,21 @@
             "title": "Entry Date",
             "type": "string"
           },
+          "gross_amount": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross Amount"
+          },
           "id": {
             "maximum": 9.223372036854776e+18,
             "minimum": 1.0,
@@ -2405,6 +2941,47 @@
           "note": {
             "title": "Note",
             "type": "string"
+          },
+          "payout_fee": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Fee"
+          },
+          "payout_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payout Number"
+          },
+          "profit_split_pct": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profit Split Pct"
           }
         },
         "required": [
@@ -2413,7 +2990,11 @@
           "kind",
           "amount",
           "entry_date",
-          "note"
+          "note",
+          "payout_number",
+          "gross_amount",
+          "profit_split_pct",
+          "payout_fee"
         ],
         "title": "LedgerEntryOut",
         "type": "object"
@@ -2463,6 +3044,94 @@
           "next"
         ],
         "title": "NeighborsOut",
+        "type": "object"
+      },
+      "NewAccountIn": {
+        "additionalProperties": false,
+        "description": "A new account needs the day it was bought: it decides which version of the firm's rules applies.",
+        "properties": {
+          "account_size": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Size"
+          },
+          "account_type": {
+            "enum": [
+              "evaluation",
+              "funded"
+            ],
+            "title": "Account Type",
+            "type": "string"
+          },
+          "firm": {
+            "enum": [
+              "Apex",
+              "Bulenox",
+              "Lucid",
+              "My Funded Futures",
+              "Take Profit",
+              "Tradeify",
+              "Other"
+            ],
+            "title": "Firm",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "enum": [
+                  "evaluation",
+                  "funded",
+                  "live"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phase"
+          },
+          "purchase_date": {
+            "format": "date",
+            "title": "Purchase Date",
+            "type": "string"
+          },
+          "starting_balance": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Starting Balance",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "firm",
+          "account_type",
+          "account_size",
+          "starting_balance",
+          "purchase_date",
+          "phase"
+        ],
+        "title": "NewAccountIn",
         "type": "object"
       },
       "NewLedgerEntryIn": {
@@ -2744,6 +3413,211 @@
           "open_grant_codes"
         ],
         "title": "OverviewOut",
+        "type": "object"
+      },
+      "PayoutIn": {
+        "additionalProperties": false,
+        "properties": {
+          "entry_date": {
+            "format": "date",
+            "title": "Entry Date",
+            "type": "string"
+          },
+          "fee": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fee"
+          },
+          "gross": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Gross",
+            "type": "string"
+          },
+          "note": {
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          },
+          "split_pct": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Pct"
+          }
+        },
+        "required": [
+          "entry_date",
+          "gross",
+          "split_pct",
+          "fee",
+          "note"
+        ],
+        "title": "PayoutIn",
+        "type": "object"
+      },
+      "PayoutReadinessOut": {
+        "properties": {
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blockers",
+            "type": "array"
+          },
+          "gross": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gross"
+          },
+          "net": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net"
+          },
+          "next_number": {
+            "title": "Next Number",
+            "type": "integer"
+          },
+          "progress": {
+            "title": "Progress",
+            "type": "string"
+          },
+          "ready": {
+            "title": "Ready",
+            "type": "boolean"
+          },
+          "split_pct": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Pct"
+          }
+        },
+        "required": [
+          "ready",
+          "gross",
+          "net",
+          "split_pct",
+          "next_number",
+          "progress",
+          "blockers"
+        ],
+        "title": "PayoutReadinessOut",
+        "type": "object"
+      },
+      "PayoutsOut": {
+        "properties": {
+          "lifetime_fees": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Lifetime Fees",
+            "type": "string"
+          },
+          "lifetime_gross": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Lifetime Gross",
+            "type": "string"
+          },
+          "lifetime_net": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Lifetime Net",
+            "type": "string"
+          },
+          "next_number": {
+            "title": "Next Number",
+            "type": "integer"
+          },
+          "payouts": {
+            "items": {
+              "$ref": "#/components/schemas/LedgerEntryOut"
+            },
+            "title": "Payouts",
+            "type": "array"
+          },
+          "split_pct": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Split Pct"
+          }
+        },
+        "required": [
+          "payouts",
+          "split_pct",
+          "next_number",
+          "lifetime_gross",
+          "lifetime_net",
+          "lifetime_fees"
+        ],
+        "title": "PayoutsOut",
         "type": "object"
       },
       "PerformanceScoreOut": {
@@ -3068,6 +3942,614 @@
         "title": "ReportOut",
         "type": "object"
       },
+      "RuleFieldOut": {
+        "properties": {
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "hint": {
+            "title": "Hint",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "money",
+              "int",
+              "pct",
+              "date",
+              "choice"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "kind",
+          "group",
+          "label",
+          "choices",
+          "hint"
+        ],
+        "title": "RuleFieldOut",
+        "type": "object"
+      },
+      "RuleFieldsOut": {
+        "description": "Every rule field, in the form's order, and the form's groups in order.",
+        "properties": {
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/RuleFieldOut"
+            },
+            "title": "Fields",
+            "type": "array"
+          },
+          "groups": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups",
+          "fields"
+        ],
+        "title": "RuleFieldsOut",
+        "type": "object"
+      },
+      "RuleResultOut": {
+        "properties": {
+          "current": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current"
+          },
+          "group": {
+            "title": "Group",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limit"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "n/a",
+              "not_verifiable"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "group",
+          "label",
+          "status",
+          "current",
+          "limit",
+          "message"
+        ],
+        "title": "RuleResultOut",
+        "type": "object"
+      },
+      "RuleSetIn": {
+        "additionalProperties": false,
+        "description": "What the rules form submits. Every field of `GET /rule-fields` may be given (a missing one is empty). The flags and\nsource notes of the template it started from are sent back with it, so the account keeps showing what the research\ncould not confirm.",
+        "properties": {
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagIn"
+            },
+            "maxItems": 46,
+            "title": "Flags",
+            "type": "array"
+          },
+          "source_notes": {
+            "additionalProperties": {
+              "maxLength": 4000,
+              "type": "string"
+            },
+            "maxProperties": 46,
+            "propertyNames": {
+              "maxLength": 64,
+              "minLength": 1
+            },
+            "title": "Source Notes",
+            "type": "object"
+          },
+          "source_template_id": {
+            "anyOf": [
+              {
+                "maximum": 9.223372036854776e+18,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Template Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 46,
+            "propertyNames": {
+              "maxLength": 64,
+              "minLength": 1
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values",
+          "flags",
+          "source_notes",
+          "source_template_id"
+        ],
+        "title": "RuleSetIn",
+        "type": "object"
+      },
+      "RuleSetOut": {
+        "properties": {
+          "account_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Account Id",
+            "type": "integer"
+          },
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagOut"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "source_notes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Source Notes",
+            "type": "object"
+          },
+          "source_template_id": {
+            "anyOf": [
+              {
+                "maximum": 9.223372036854776e+18,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Template Id"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "object"
+          },
+          "verified_at": {
+            "format": "date-time",
+            "title": "Verified At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "source_template_id",
+          "verified_at",
+          "values",
+          "flags",
+          "source_notes"
+        ],
+        "title": "RuleSetOut",
+        "type": "object"
+      },
+      "RuleTemplateEditIn": {
+        "additionalProperties": false,
+        "description": "An operator's edit of one template: every value and flag. Its source notes are the research's and stay, except for\na field that now has a value.",
+        "properties": {
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagIn"
+            },
+            "maxItems": 46,
+            "title": "Flags",
+            "type": "array"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "maxProperties": 46,
+            "propertyNames": {
+              "maxLength": 64,
+              "minLength": 1
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values",
+          "flags"
+        ],
+        "title": "RuleTemplateEditIn",
+        "type": "object"
+      },
+      "RuleTemplateImportOut": {
+        "properties": {
+          "inserted": {
+            "title": "Inserted",
+            "type": "integer"
+          },
+          "problems": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Problems",
+            "type": "array"
+          },
+          "unchanged": {
+            "title": "Unchanged",
+            "type": "integer"
+          },
+          "updated": {
+            "title": "Updated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "inserted",
+          "updated",
+          "unchanged",
+          "problems"
+        ],
+        "title": "RuleTemplateImportOut",
+        "type": "object"
+      },
+      "RuleTemplateKeyOut": {
+        "description": "What names a template, and how sure the research is about it.",
+        "properties": {
+          "account_size": {
+            "title": "Account Size",
+            "type": "string"
+          },
+          "data_confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Confidence"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_from_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From Note"
+          },
+          "firm": {
+            "title": "Firm",
+            "type": "string"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "integer"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "evaluation",
+              "funded",
+              "live"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "program": {
+            "title": "Program",
+            "type": "string"
+          },
+          "rule_version": {
+            "title": "Rule Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firm",
+          "program",
+          "account_size",
+          "phase",
+          "rule_version",
+          "effective_from",
+          "effective_from_note",
+          "data_confidence",
+          "flagged"
+        ],
+        "title": "RuleTemplateKeyOut",
+        "type": "object"
+      },
+      "RuleTemplateOut": {
+        "properties": {
+          "flags": {
+            "items": {
+              "$ref": "#/components/schemas/FlagOut"
+            },
+            "title": "Flags",
+            "type": "array"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "source_notes": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Source Notes",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "values",
+          "flags",
+          "source_notes",
+          "updated_at"
+        ],
+        "title": "RuleTemplateOut",
+        "type": "object"
+      },
+      "RuleTemplateSummaryOut": {
+        "description": "One line of the picker.",
+        "properties": {
+          "account_size": {
+            "title": "Account Size",
+            "type": "string"
+          },
+          "data_confidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Confidence"
+          },
+          "effective_from": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From"
+          },
+          "effective_from_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective From Note"
+          },
+          "firm": {
+            "title": "Firm",
+            "type": "string"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "integer"
+          },
+          "id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Id",
+            "type": "integer"
+          },
+          "phase": {
+            "enum": [
+              "evaluation",
+              "funded",
+              "live"
+            ],
+            "title": "Phase",
+            "type": "string"
+          },
+          "preselect": {
+            "title": "Preselect",
+            "type": "boolean"
+          },
+          "program": {
+            "title": "Program",
+            "type": "string"
+          },
+          "rule_version": {
+            "title": "Rule Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "firm",
+          "program",
+          "account_size",
+          "phase",
+          "rule_version",
+          "effective_from",
+          "effective_from_note",
+          "data_confidence",
+          "flagged",
+          "preselect"
+        ],
+        "title": "RuleTemplateSummaryOut",
+        "type": "object"
+      },
+      "RuleTemplatesOut": {
+        "properties": {
+          "templates": {
+            "items": {
+              "$ref": "#/components/schemas/RuleTemplateSummaryOut"
+            },
+            "title": "Templates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "templates"
+        ],
+        "title": "RuleTemplatesOut",
+        "type": "object"
+      },
       "ScoreAxisOut": {
         "properties": {
           "name": {
@@ -3289,6 +4771,132 @@
           }
         },
         "title": "SettingsPatch",
+        "type": "object"
+      },
+      "SpectrumOut": {
+        "description": "One bar from breach (left) to goal (right).",
+        "properties": {
+          "balance": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Balance",
+            "type": "string"
+          },
+          "breach_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "drawdown",
+                  "daily_loss"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breach Kind"
+          },
+          "breach_level": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Breach Level"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "target_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "profit_target",
+                  "payout"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Kind"
+          },
+          "target_level": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Level"
+          },
+          "to_breach": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Breach"
+          },
+          "to_target": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "To Target"
+          }
+        },
+        "required": [
+          "breach_level",
+          "breach_kind",
+          "target_level",
+          "target_kind",
+          "balance",
+          "to_breach",
+          "to_target",
+          "position"
+        ],
+        "title": "SpectrumOut",
         "type": "object"
       },
       "SummaryOut": {
@@ -5325,6 +6933,422 @@
         ]
       }
     },
+    "/api/admin/v1/rule-templates": {
+      "get": {
+        "description": "The firms' rule templates by firm, program, size and phase, the newest version first.",
+        "operationId": "admin_list_rule_templates",
+        "parameters": [
+          {
+            "description": "Words of a firm, program, size, phase or version",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Words of a firm, program, size, phase or version",
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 1000000,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRuleTemplateListOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Admin List Rule Templates",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/rule-templates/import": {
+      "post": {
+        "description": "Load the research CSV (the 48 columns, one row per rule set): new rule sets are added, changed ones updated and\nthe rest left alone. Rows that cannot be read are listed by line; the others are still loaded.",
+        "operationId": "admin_import_rule_templates",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_admin_import_rule_templates"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleTemplateImportOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Admin Import Rule Templates",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/rule-templates/{template_id}": {
+      "get": {
+        "operationId": "admin_get_rule_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Template Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRuleTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Admin Get Rule Template",
+        "tags": [
+          "admin"
+        ]
+      },
+      "put": {
+        "description": "Replace one template's values and flags. Only the kinds of the values are checked (the research leaves cells\nempty on purpose); people's verified rule sets are copies and do not change.",
+        "operationId": "admin_edit_rule_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Template Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleTemplateEditIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminRuleTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Admin Edit Rule Template",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/api/admin/v1/users": {
       "get": {
         "description": "Accounts, newest first. Counters and plans, never anything a person wrote.",
@@ -6559,13 +8583,13 @@
         ]
       },
       "post": {
-        "description": "A new account with no rules and no fees yet (set those next).",
+        "description": "A new account with no rules and no fees yet (set those next). The purchase date is required: it decides which\nversion of the firm's rules applies.",
         "operationId": "create_account",
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AccountDetailsIn"
+                "$ref": "#/components/schemas/NewAccountIn"
               }
             }
           },
@@ -6649,9 +8673,81 @@
         ]
       }
     },
+    "/api/v1/accounts/overview": {
+      "get": {
+        "description": "Every active account against its verified rules (status, breach-to-payout bar, payout readiness, consistency,\ninactivity, each rule's result) and the totals. Closed trades only: see `compliance.py` for what that means.",
+        "operationId": "get_accounts_overview",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountsOverviewOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Accounts Overview",
+        "tags": [
+          "rules"
+        ]
+      }
+    },
     "/api/v1/accounts/{account_id}": {
       "put": {
-        "description": "Change an account's name, firm, type, size and starting balance. Changing the type reclassifies its trades.",
+        "description": "Change an account's name, firm, type, size, starting balance, purchase date and phase. Changing the type\nreclassifies its trades.",
         "operationId": "update_account",
         "parameters": [
           {
@@ -7500,6 +9596,269 @@
         ]
       }
     },
+    "/api/v1/accounts/{account_id}/pass-prompt/dismiss": {
+      "post": {
+        "description": "Stop offering \"Evaluation passed: set up your funded account\" on the Accounts tab. The account's settings still\noffer it.",
+        "operationId": "dismiss_pass_prompt",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Dismiss Pass Prompt",
+        "tags": [
+          "rules"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/payouts": {
+      "get": {
+        "description": "The account's payouts, oldest first, with their numbers and the lifetime totals, and the split its rules promise\n(the default for the next one).",
+        "operationId": "get_payouts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Payouts",
+        "tags": [
+          "rules"
+        ]
+      },
+      "post": {
+        "description": "Log a payout: the gross the firm paid out and the trader's split (net = gross x split, to the cent). Without a\nsplit, the one in the account's rules is used; a fee is counted as a cost of the business.",
+        "operationId": "add_payout",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PayoutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LedgerEntryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Add Payout",
+        "tags": [
+          "rules"
+        ]
+      }
+    },
     "/api/v1/accounts/{account_id}/restore": {
       "post": {
         "operationId": "restore_account",
@@ -7591,6 +9950,192 @@
         "summary": "Restore Account",
         "tags": [
           "accounts"
+        ]
+      }
+    },
+    "/api/v1/accounts/{account_id}/rule-set": {
+      "get": {
+        "description": "The rules the person verified for this account; null when there are none yet.",
+        "operationId": "get_rule_set",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RuleSetOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Rule Set"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Rule Set",
+        "tags": [
+          "rules"
+        ]
+      },
+      "put": {
+        "description": "Verify the account's rules: every value is copied in, so a later change to the template never changes them. The\nprevious rule set is kept as history. Each field that is wrong is named in the 422's `errors` (`values.<field>`).",
+        "operationId": "put_rule_set",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Account Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleSetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleSetOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Put Rule Set",
+        "tags": [
+          "rules"
         ]
       }
     },
@@ -9244,6 +11789,256 @@
         "summary": "Get Report",
         "tags": [
           "stats"
+        ]
+      }
+    },
+    "/api/v1/rule-fields": {
+      "get": {
+        "description": "Every rule field (name, kind, group, label, choices, hint) in the form's order, and the groups in order.",
+        "operationId": "get_rule_fields",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleFieldsOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Rule Fields",
+        "tags": [
+          "rules"
+        ]
+      }
+    },
+    "/api/v1/rule-templates": {
+      "get": {
+        "description": "The firms' rule sets that can apply to an account bought on `purchased_on`: the versions in force by then, and\nthose the research could not date. The latest version of each firm + program + size + phase is preselected. Without\na date every version is listed and none is preselected.",
+        "operationId": "list_rule_templates",
+        "parameters": [
+          {
+            "description": "The account's purchase date",
+            "in": "query",
+            "name": "purchased_on",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The account's purchase date",
+              "title": "Purchased On"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleTemplatesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "List Rule Templates",
+        "tags": [
+          "rules"
+        ]
+      }
+    },
+    "/api/v1/rule-templates/{template_id}": {
+      "get": {
+        "description": "One firm's rule set in full, with what the research could not confirm (`flags`) and the source's own words for\ncells that were not a clean value (`source_notes`).",
+        "operationId": "get_rule_template",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Template Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleTemplateOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Rule Template",
+        "tags": [
+          "rules"
         ]
       }
     },
