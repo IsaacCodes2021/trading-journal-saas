@@ -267,7 +267,9 @@ class AdminService(Protocol):
         self, actor: UUID, template_id: int, rules: RuleValues, *, ip_hash: str | None = None
     ) -> AdminRuleTemplateOut: ...
 
-    def import_rule_templates(self, actor: UUID, text: str, *, ip_hash: str | None = None) -> RuleTemplateImportOut: ...
+    def import_rule_templates(
+        self, actor: UUID, text: str, *, dry_run: bool = False, ip_hash: str | None = None
+    ) -> RuleTemplateImportOut: ...
 
 
 @dataclass(frozen=True)

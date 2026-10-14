@@ -4268,7 +4268,19 @@
         "type": "object"
       },
       "RuleTemplateImportOut": {
+        "description": "What an import did, or with `applied` false (a dry run) what it would do: the same counts, nothing kept.",
         "properties": {
+          "applied": {
+            "title": "Applied",
+            "type": "boolean"
+          },
+          "changed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Changed",
+            "type": "array"
+          },
           "inserted": {
             "title": "Inserted",
             "type": "integer"
@@ -4290,9 +4302,11 @@
           }
         },
         "required": [
+          "applied",
           "inserted",
           "updated",
           "unchanged",
+          "changed",
           "problems"
         ],
         "title": "RuleTemplateImportOut",
@@ -7062,8 +7076,22 @@
     },
     "/api/admin/v1/rule-templates/import": {
       "post": {
-        "description": "Load the research CSV (the 48 columns, one row per rule set): new rule sets are added, changed ones updated and\nthe rest left alone. Rows that cannot be read are listed by line; the others are still loaded.",
+        "description": "Load the research CSV (the 48 columns, one row per rule set): new rule sets are added, changed ones updated and\nthe rest left alone. Rows that cannot be read are listed by line; the others are still loaded. A changed row\nreplaces the template's values, an operator's edit included, so `changed` names them; a dry run shows them first.",
         "operationId": "admin_import_rule_templates",
+        "parameters": [
+          {
+            "description": "Work out the counts and keep nothing (no audit row)",
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Work out the counts and keep nothing (no audit row)",
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {

@@ -248,7 +248,11 @@ class RuleTemplateEditIn(_In):
 
 
 class RuleTemplateImportOut(ApiModel):
+    """What an import did, or with `applied` false (a dry run) what it would do: the same counts, nothing kept."""
+
+    applied: bool
     inserted: int
     updated: int
     unchanged: int
+    changed: list[str]  # the updated rule sets by name ("Apex · EOD 50K · 50K · funded · 4.0"): edits they replace
     problems: list[str]  # the rows that were refused, by line

@@ -79,9 +79,11 @@ def admin_import_rule_templates(
     operator: WriteAdminDep,
     admin: AdminServiceDep,
     config: ConfigDep,
+    dry_run: Annotated[bool, Query(description="Work out the counts and keep nothing (no audit row)")] = False,
 ) -> RuleTemplateImportOut:
     """Load the research CSV (the 48 columns, one row per rule set): new rule sets are added, changed ones updated and
-    the rest left alone. Rows that cannot be read are listed by line; the others are still loaded."""
+    the rest left alone. Rows that cannot be read are listed by line; the others are still loaded. A changed row
+    replaces the template's values, an operator's edit included, so `changed` names them; a dry run shows them first."""
     data = file.file.read(MAX_TEMPLATE_CSV_BYTES + 1)
     if len(data) > MAX_TEMPLATE_CSV_BYTES:
         raise HTTPException(413, "That file is too large (5 MB at most).")
@@ -89,4 +91,4 @@ def admin_import_rule_templates(
         text = data.decode("utf-8")
     except UnicodeDecodeError:
         raise HTTPException(422, "That file is not UTF-8 text.") from None
-    return admin.import_rule_templates(operator.user_id, text, ip_hash=_ip(request, config))
+    return admin.import_rule_templates(operator.user_id, text, dry_run=dry_run, ip_hash=_ip(request, config))

@@ -302,15 +302,55 @@ def test_the_operator_imports_the_csv_and_only_an_import_that_changes_something_
     assert {t.updated_by for t in rule_templates.list_all(owner)} == {f"admin:{op}"}
 
 
+def test_a_dry_run_import_keeps_nothing_and_names_the_edits_an_import_would_replace(service, owner, op):
+    text = csv_text(ROW, {**ROW, "account_size": "100K", "max_loss_usd": "3000"})
+    trial = service.import_rule_templates(op, text, dry_run=True)
+    assert (trial.applied, trial.inserted, trial.updated, trial.unchanged) == (False, 2, 0, 0)
+    assert (rule_templates.list_all(owner), admin_events(owner, "admin_rule_templates_imported")) == ([], [])
+
+    service.import_rule_templates(op, text)
+    [fifty] = [t for t in rule_templates.list_all(owner) if t.rules.values["account_size"] == "50K"]
+    edited = RuleValues({**fifty.rules.values, "max_loss_usd": D("2500")})
+    service.edit_rule_template(op, fifty.id, edited)
+
+    name = "Apex Trader Funding · EOD Trailing (Apex 4.0) · 50K · funded · Apex 4.0 (new accounts)"
+    trial = service.import_rule_templates(op, text, dry_run=True)
+    assert (trial.applied, trial.inserted, trial.updated, trial.unchanged, trial.changed) == (False, 0, 1, 1, [name])
+    assert rule_templates.get(owner, fifty.id).rules.values["max_loss_usd"] == D("2500")  # the edit is still there
+    assert len(admin_events(owner, "admin_rule_templates_imported")) == 1  # only the real import
+
+    applied = service.import_rule_templates(op, text)
+    assert (applied.applied, applied.updated, applied.changed) == (True, 1, [name])
+    assert rule_templates.get(owner, fifty.id).rules.values["max_loss_usd"] == D("2000")  # the CSV's value is back
+    assert len(admin_events(owner, "admin_rule_templates_imported")) == 2
+
+
 def test_an_operator_imports_and_edits_templates_over_the_api(world, admin_url, owner, op):
     browser = operator_browser(world, admin_url)
-    imported = browser.client.post(
-        "/api/admin/v1/rule-templates/import",
-        files={"file": ("rules.csv", csv_text(ROW).encode(), "text/csv")},
-        headers=writes(browser),
+    upload = {"file": ("rules.csv", csv_text(ROW).encode(), "text/csv")}
+    trial = browser.client.post(
+        "/api/admin/v1/rule-templates/import", params={"dry_run": "true"}, files=upload, headers=writes(browser)
     )
+    assert trial.status_code == 200, trial.text
+    assert trial.json() == {
+        "applied": False,
+        "inserted": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "changed": [],
+        "problems": [],
+    }
+    assert browser.client.get("/api/admin/v1/rule-templates").json()["total"] == 0
+    imported = browser.client.post("/api/admin/v1/rule-templates/import", files=upload, headers=writes(browser))
     assert imported.status_code == 200, imported.text
-    assert imported.json() == {"inserted": 1, "updated": 0, "unchanged": 0, "problems": []}
+    assert imported.json() == {
+        "applied": True,
+        "inserted": 1,
+        "updated": 0,
+        "unchanged": 0,
+        "changed": [],
+        "problems": [],
+    }
     [summary] = browser.client.get("/api/admin/v1/rule-templates").json()["templates"]
     url = f"/api/admin/v1/rule-templates/{summary['id']}"
     full = browser.client.get(url).json()

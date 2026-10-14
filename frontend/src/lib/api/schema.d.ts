@@ -227,7 +227,8 @@ export interface paths {
         /**
          * Admin Import Rule Templates
          * @description Load the research CSV (the 48 columns, one row per rule set): new rule sets are added, changed ones updated and
-         *     the rest left alone. Rows that cannot be read are listed by line; the others are still loaded.
+         *     the rest left alone. Rows that cannot be read are listed by line; the others are still loaded. A changed row
+         *     replaces the template's values, an operator's edit included, so `changed` names them; a dry run shows them first.
          */
         post: operations["admin_import_rule_templates"];
         delete?: never;
@@ -3042,8 +3043,15 @@ export interface components {
                 [key: string]: string | number | null;
             };
         };
-        /** RuleTemplateImportOut */
+        /**
+         * RuleTemplateImportOut
+         * @description What an import did, or with `applied` false (a dry run) what it would do: the same counts, nothing kept.
+         */
         RuleTemplateImportOut: {
+            /** Applied */
+            applied: boolean;
+            /** Changed */
+            changed: string[];
             /** Inserted */
             inserted: number;
             /** Problems */
@@ -4511,7 +4519,10 @@ export interface operations {
     };
     admin_import_rule_templates: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Work out the counts and keep nothing (no audit row) */
+                dry_run?: boolean;
+            };
             header?: never;
             path?: never;
             cookie?: never;
