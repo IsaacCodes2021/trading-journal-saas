@@ -1,8 +1,8 @@
 # Roundturn handoff: where the project stands
 
-**As of 2026-10-12.** `origin/main` is at `3db1ab8` (merge of PR 139); its CI is green. Written for a new Claude Code session
-(or a person) picking this up cold. Facts come from the code at that commit and from what the owner said in chat through
-2026-10-11. Anything marked *owner-reported* was not checked independently.
+**As of 2026-10-14.** `origin/main` is at `b730eba` (merge of PR 142); PR 142's checks were green when it merged. Written
+for a new Claude Code session (or a person) picking this up cold. Facts come from the code at that commit and from what the
+owner said in chat through 2026-10-14. Anything marked *owner-reported* was not checked independently.
 
 Read this file first, then `CLAUDE.md` (the rules, short), then the runbook or design doc for the task at hand (index at the end).
 
@@ -24,7 +24,7 @@ home or postal address published anywhere.
 | Piece | Where | Notes |
 |---|---|---|
 | App (API and React front end, one container) | https://app.roundturn.app, Render web service `roundturn` | Oregon, plan `0.5c-512mb`, deploys every commit to `main`, health check `/readyz` |
-| Database | Render Postgres 18 `roundturn-db`, Oregon | forced row-level security, six roles, migrations 0001 to 0018 applied |
+| Database | Render Postgres 18 `roundturn-db`, Oregon | forced row-level security, six roles, migrations 0001 to 0019 applied (0019 on 2026-10-14) |
 | Sign-in | Kinde, custom domain `auth.roundturn.app` | OIDC with PKCE; custom screens come from `kinde/` in this repo |
 | Screenshots | Cloudflare R2 bucket `roundturn-screenshots` (private) | read back through the server; no versioning |
 | Screenshot copy | R2 bucket `roundturn-screenshots-backup` | daily job, keeps a deleted picture 30 days |
@@ -39,6 +39,12 @@ folder's `candidate.json` regenerates its diagram with the Archify skill).
 **The owner started journaling in the hosted app on 2026-10-12.** Their real local journal (9 accounts, 45 trades, 13 tags,
 7 ledger entries, 35 screenshots) was migrated on 2026-10-10 with `pg/migrate_local.py`, all 29 golden checks passing, and the
 owner confirmed tags, photos and notes appear.
+
+**The Accounts tab went live on 2026-10-14** (PR 141): each active prop account checked against its firm's rules from the
+closed trades (status, a breach-to-goal bar, payout readiness, consistency, inactivity), firm rules picked and verified per
+account in settings, payouts with gross, split and net, and the evaluation-passed flow. Migration 0019 was applied and the
+**371 firm rule templates** were imported from the research CSV the same day (dry run first). The operator's **Firm rules**
+screen (`/admin/rules`, PR 142) edits those templates and re-imports the CSV (a check first, naming what it would replace).
 
 ## 3. Rules for any session (the owner's standing instructions)
 
@@ -78,8 +84,9 @@ diff becomes the whole file. Write commit messages to a file and use `git commit
 
 **Local Postgres** (needed for `tests/pg`): portable Postgres 18 in `C:\Users\Isaac\Tools\postgresql`, port **54318**. Start it
 as a background task: `C:/Users/Isaac/Tools/postgresql/extract/pgsql/bin/postgres.exe -D C:/Users/Isaac/Tools/postgresql/data`.
-If an earlier one died, kill leftover `postgres.exe` processes first; crash recovery takes 15 to 55 seconds. It is **stopped**
-right now. The tests read the git-ignored `backend/.env.test`; the superuser password sits in
+If an earlier one died, kill leftover `postgres.exe` processes first; crash recovery takes 15 to 55 seconds. It stops when the PC
+restarts or the session that started it ends, so check port 54318 first. The tests read the git-ignored `backend/.env.test`; the
+superuser password sits in
 `C:\Users\Isaac\Tools\postgresql\dev-superuser.pw` (outside the repo; load it into `PGPASSWORD`, never print it).
 
 **Front end** (from `frontend/`, use PowerShell and put `%APPDATA%\npm` and Node on PATH): `pnpm lint`, `pnpm format:check`,
@@ -101,7 +108,10 @@ reading source (you would be reading the mutant).
 **Deploy path:** a merge to `main` deploys the web service on its own. The new image stays **out of traffic until the database
 has its migrations** (the health check is `/readyz`, which compares the schema version). Migrations are never run by the app:
 the owner or a session runs `python -m tradejournal.pg.migrate` as the schema owner (`TJ_OWNER_URL`, from the git-ignored
-`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0019**.
+`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0020**. In
+`.env.hosted` the owner, admin, sweep and webhook addresses are **commented-out lines** (`# TJ_OWNER_URL=...`), so a search for
+`^TJ_` misses them: load the value in a small script that sets the environment and runs the module, never on a command line
+or printed.
 
 **Which settings live where** (names only; values are in Render's Environment pages and the owner's `.env.hosted`):
 
@@ -134,7 +144,9 @@ read-only with export; a deleted screenshot stays in the copy bucket for 30 days
 
 **Owner tools (run by hand, never scheduled):** `python -m tradejournal.pg.migrate`, `pg.provision_hosted`, `pg.migrate_local`
 (dry run first), `pg.clear_journal` (empties one person's journal; refuses while screenshots exist), `pg.users make-operator`,
-`pg.plans`, `pg.invites`, `filebackup restore (--prefix u/<id>/ | --all) [--apply]`.
+`pg.plans`, `pg.invites`, `pg.rule_templates import --csv <file> [--apply]` (the research CSV; a dry run without `--apply`;
+an import replaces any template the file also has, an operator's edit included), `filebackup restore (--prefix u/<id>/ |
+--all) [--apply]`.
 
 ## 6. Open items
 
@@ -149,6 +161,8 @@ read-only with export; a deleted screenshot stays in the copy bucket for 30 days
 | Real account-deletion proof | A throwaway plus-address was scheduled for deletion on **2026-10-18**. Afterwards: the address must be gone from Kinde's Users list and unable to sign in. Board card "Kinde: machine-to-machine app" stays In progress until then. |
 | Professional review, and a Terms page | A lawyer's read of the privacy page and the Terms. The Terms are drafts in `docs/legal/`, not published, yet the sign-in and sign-up frame (`frontend/src/features/auth/AuthFrame.tsx`) says "By continuing you agree to the Terms" and links to `roundturn.app/terms/`, which returns 404 today. Either publish Terms or change that sentence. |
 | Decide Free versus Pro | `LIMITS` in `backend/tradejournal/entitlements.py` is empty on purpose. |
+| Set up your accounts' rules | Each active prop account needs a purchase date (Details tab) and its firm's rules (Firm rules tab, then Verify); until then the Accounts tab shows "No rules set" for it. |
+| Three Accounts-tab questions | Defaults in use until answered: (1) the old simple "Rules" tab is kept, the new rules are the separate "Firm rules" tab; (2) the research CSV stays out of git (the import takes a file); (3) the nine sample templates in `frontend/src/lib/demo/ruleData.ts` (rows of the research, trimmed) stay committed. |
 
 **Built or planned, not proven**
 
@@ -158,10 +172,15 @@ read-only with export; a deleted screenshot stays in the copy bucket for 30 days
 | Database restore drill | `docs/runbooks/restore.md`; not rehearsed. |
 | First scheduled sweep and backup runs | The manual sweep run succeeded (owner-reported) and the backup copied files on 2026-10-10. Look at Render's run history for the hourly and daily runs after that; nobody has checked them independently. |
 | Revoke "access ended" email | Owner-reported as tested (2026-10-10). |
+| Operator Firm rules screen | Checked on the sample data in the browser (PR 142); not yet opened in production. |
+
+**Follow-ups of the Accounts tab** (from `docs/prop-rules/PLAN.md`): a consistency operator column (consistency is strict,
+"<", for every firm for now); a rules step inside the add-account dialog (today the funded account's Firm rules tab opens
+right after it is created); the sample data's engine skips contracts, flat time and inactivity.
 
 **Product work not started**
 
-- **Accounts tab with prop-firm rules, compliance and payout readiness.** A ready brief exists (section 7).
+- **Promo codes and payments readiness.** An approved build spec, not built: `docs/design/promo-codes.md` (section 7).
 - **Tradovate sync** (the stated main goal). Research (`docs/research/tradovate-api-access.md`) recommends building nothing now:
   OAuth needs an NinjaTrader Ecosystem application and the personal-key route takes the trader's password, which breaks
   principle P1 (the app never holds a broker password). Send the six questions in that note; make CSV import faster.
@@ -169,16 +188,20 @@ read-only with export; a deleted screenshot stays in the copy bucket for 30 days
 - Terms acceptance (F-A8), orphan screenshot report, Sentry (needs an account and a dependency), staging environment, billing
   (M9; payment-provider pre-clearance drafts are in `docs/design/payments-preclearance-drafts.md`, unsent).
 
-**Housekeeping:** the Notion board has stale cards (S3, S4). The checkout on this PC sits on the merged branch
-`feat/clear-journal`: `git switch main && git pull` before starting new work, and branch from `origin/main`.
+**Housekeeping:** the Notion board has stale cards (S3, S4); PR 142 has no card. Always `git switch main && git pull` before
+starting new work, and branch from `origin/main`.
 
-## 7. Found in the working tree, not committed (not from the session that wrote this file)
+## 7. In the working tree, not committed (on purpose, until the owner says otherwise)
 
-- **`docs/prop-rules/`** (files dated 2026-10-12): `accounts-tab-prompt.md` is a complete feature brief for the Accounts tab
-  (rule templates and per-account rules tables, a rule picker, a pure compliance and payout engine, a plan file at
-  `docs/prop-rules/PLAN.md` before any code); `Futures prop firm account rules.md` is the research and the definition of every
-  rule field; `prop_firm_rules_v2.csv` is the seed data (371 rows, 48 columns, with `flagged_fields`/`flag_reasons`);
-  `prop_firm_rules.csv` is the earlier version. No branch or code exists for it yet. Treat the CSV as data, never fill blanks.
+- **`docs/prop-rules/`**: the Accounts tab's brief (`accounts-tab-prompt.md`), the research and the definition of every rule
+  field (`Futures prop firm account rules.md`), the seed data (`prop_firm_rules_v2.csv`: 371 rows, 48 columns, with
+  `flagged_fields`/`flag_reasons`; `prop_firm_rules.csv` is the earlier version), and **`PLAN.md`: the full plan, every
+  interpretation of an ambiguous rule, what was built and the follow-ups.** Built and merged (PRs 141 and 142); the folder
+  stays out of git. Treat the CSV as data, never fill blanks.
+- **`docs/design/promo-codes.md`** (2026-10-13): an approved build spec for promo codes and payments readiness, in three
+  phases with gates; not built. It sets its own ground rules (no push or pull request unless the owner says so, migrations
+  numbered after the newest on `main`).
+- **`.claude/handoff.md`**: a session-to-session note (excluded from git through `.git/info/exclude`).
 - **`marketing/motion-ads/`**: eight short clips and a 20-second reel (mp4, about 10 MB together), dated 2026-10-11 and 12.
   Decide whether they belong in git before committing (size, and whether the repo should hold marketing assets).
 
@@ -191,7 +214,8 @@ page that is live is `site/public/privacy/index.html`.
 
 **Code:** `backend/tradejournal/api/` (FastAPI app, routers, guards), `pg/` (Postgres code, migrations, sweep, owner tools),
 `auth/` (sign-in flow, Kinde adapters), root modules `parser.py`, `grouping.py`, `finance.py`, `timeutil.py`
-(pure domain code, shared with the old local app), `bucketstore.py`, `filebackup.py`; `frontend/src/` (React, TanStack Router,
+(pure domain code, shared with the old local app), `prop_rules.py` (the 46 rule fields, CSV reading, checks) and
+`compliance.py` (the pure compliance and payout engine), `bucketstore.py`, `filebackup.py`; `frontend/src/` (React, TanStack Router,
 generated API types in `lib/api/schema.d.ts`); `site/` (marketing Worker); `kinde/` (Kinde's sign-in page code).
 `db.py`, `cli.py` and the SQLite halves of `importer.py`, `store.py`, `settings.py` are the old local journal; the hosted app
 reuses only their report shapes and defaults.
