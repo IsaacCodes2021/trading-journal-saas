@@ -28,6 +28,7 @@ import { useSession } from './lib/session'
 import { pickAdminSearch, queryOf, searchOf } from './features/admin/search'
 import { pickCodesSearch } from './features/admin/codesSearch'
 import { betaQueryOf, betaSearchOf, pickBetaSearch } from './features/admin/betaSearch'
+import { pickRulesSearch, rulesQueryOf, rulesSearchOf } from './features/admin/rulesSearch'
 
 // Screens other than the landing ones load on demand, so the first page stays small (the budget is in check-bundle).
 const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends keyof T>(
@@ -41,6 +42,9 @@ const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => 
 const CodesPage = lazy(() => import('./features/admin/CodesPage').then((m) => ({ default: m.CodesPage })))
 const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
 const BetaPage = lazy(() => import('./features/admin/BetaPage').then((m) => ({ default: m.BetaPage })))
+const RuleTemplatesPage = lazy(() =>
+  import('./features/admin/RuleTemplatesPage').then((m) => ({ default: m.RuleTemplatesPage })),
+)
 const OnboardingPage = lazy(() =>
   import('./features/onboarding/OnboardingPage').then((m) => ({ default: m.OnboardingPage })),
 )
@@ -464,6 +468,27 @@ const adminCodesRoute = createRoute({
   },
 })
 
+const adminRulesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/admin/rules',
+  validateSearch: pickRulesSearch,
+  component: function AdminRulesRoute() {
+    const search = pickRulesSearch(adminRulesRoute.useSearch()) // the router keeps what it could not validate too
+    const navigate = useNavigate({ from: '/admin/rules' })
+    const query = rulesQueryOf(search)
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <RuleTemplatesPage
+          query={query}
+          selected={search.template ?? null}
+          onQuery={(next) => void navigate({ search: rulesSearchOf(next, search.template ?? null), replace: true })}
+          onSelect={(id) => void navigate({ search: rulesSearchOf(query, id) })}
+        />
+      </Suspense>
+    )
+  },
+})
+
 // ---- settings --------------------------------------------------------------------------------------------------
 
 const SettingsLayout = lazyNamed(() => import('./features/settings/SettingsLayout'), 'SettingsLayout')
@@ -604,6 +629,7 @@ const routeTree = rootRoute.addChildren([
   adminRoute,
   adminBetaRoute,
   adminCodesRoute,
+  adminRulesRoute,
   settingsRoute.addChildren([
     settingsIndexRoute,
     preferencesRoute,

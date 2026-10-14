@@ -71,7 +71,13 @@ describe('the way in', () => {
     await listed()
     const nav = screen.getByRole('navigation', { name: 'Operator' })
     const links = within(nav).getAllByRole('link')
-    expect(links.map((l) => l.textContent)).toEqual(['Users', 'Beta testers', 'Codes & audit', 'Back to the app'])
+    expect(links.map((l) => l.textContent)).toEqual([
+      'Users',
+      'Beta testers',
+      'Codes & audit',
+      'Firm rules',
+      'Back to the app',
+    ])
     expect(within(nav).getByRole('link', { name: 'Beta testers' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Users' })).not.toHaveAttribute('aria-current')
   })
