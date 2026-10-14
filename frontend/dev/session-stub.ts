@@ -1,4 +1,5 @@
 import type { Plugin } from 'vite'
+import { answerRuleTemplates } from './rule-templates'
 
 /*
  * DEV ONLY (`apply: 'serve'`): answers the session calls so `pnpm dev` shows the signed-in app with no backend running.
@@ -88,6 +89,7 @@ export function devSessionStub(enabled: boolean): Plugin {
           }
           return send(200, { sessions: places, ended: 0 })
         }
+        if (answerRuleTemplates(request, path, send)) return
         if (path.startsWith('/api/admin/v1/')) {
           // Sample accounts for the operator screens, so they can be tried with no backend. Changes are echoed, not kept.
           const day = (days: number) => new Date(now - days * 86_400_000).toISOString()

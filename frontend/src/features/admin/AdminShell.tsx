@@ -14,6 +14,7 @@ const NAV = [
   { to: '/admin', label: 'Users', exact: true },
   { to: '/admin/beta', label: 'Beta testers', exact: false },
   { to: '/admin/codes', label: 'Codes & audit', exact: false },
+  { to: '/admin/rules', label: 'Firm rules', exact: false },
 ] as const
 
 /**

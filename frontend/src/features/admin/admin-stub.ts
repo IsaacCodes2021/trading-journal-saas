@@ -2,6 +2,9 @@ import { vi } from 'vitest'
 import type { AdminUser, AdminUserDetail } from '../../lib/admin'
 import type { BetaPerson } from '../../lib/adminBeta'
 import type { AuditEvent, GrantCode, Invite, Overview } from '../../lib/adminCodes'
+import type { AdminTemplate, AdminTemplateKey, TemplateImport } from '../../lib/adminRules'
+import { FIELDS, GROUPS } from '../../lib/demo/ruleData'
+import { flagKind } from '../../lib/rules'
 import { json, stubApi, type ApiOptions } from '../../test-utils'
 
 /** Test helpers for the operator screens: an in-memory `/api/admin/v1` that behaves like the server's, and what it was asked. */
@@ -88,6 +91,34 @@ export const person = (id: number, firstName: string, over: Partial<BetaPerson> 
   ...over,
 })
 
+/** A firm's template as the operator API gives it: every field (empty unless given), its flags and source notes. */
+export const template = (
+  id: number,
+  values: Record<string, string | number | null>,
+  over: Partial<Omit<AdminTemplate, 'values'>> = {},
+): AdminTemplate => ({
+  id,
+  values: { ...Object.fromEntries(FIELDS.map((f) => [f.name, null])), ...values },
+  flags: [],
+  source_notes: {},
+  updated_at: '2026-10-14T14:08:00Z',
+  updated_by: 'cli:owner',
+  ...over,
+})
+
+const keyOf = (t: AdminTemplate): AdminTemplateKey => ({
+  id: t.id,
+  firm: String(t.values['firm']),
+  program: String(t.values['program']),
+  account_size: String(t.values['account_size']),
+  phase: t.values['phase'] as AdminTemplateKey['phase'],
+  rule_version: String(t.values['rule_version']),
+  effective_from: (t.values['effective_from'] as string | null) ?? null,
+  effective_from_note: t.source_notes['effective_from'] ?? null,
+  data_confidence: (t.values['data_confidence'] as string | null) ?? null,
+  flagged: t.flags.length,
+})
+
 export const OVERVIEW: Overview = {
   accounts: 64,
   signups_7d: 18,
@@ -129,6 +160,12 @@ export interface AdminStubOptions extends ApiOptions {
   beta?: BetaPerson[]
   /** Revoking works, but the "access ended" email does not leave. */
   betaNoticeFails?: boolean
+  /** The firms' rule templates, in the server's order. An edit replaces the template the next read sees. */
+  templates?: AdminTemplate[]
+  /** Answer a template edit with this problem (with field errors, as the server's 422). */
+  templateEditFails?: { status: number; detail: string; errors?: { field: string; message: string }[] }
+  /** What an import answers, by whether it was a dry run. */
+  importAnswer?: (dryRun: boolean) => TemplateImport
 }
 
 /** Replaces `fetch`: the app's usual calls (as an operator who just verified, unless told otherwise) plus the operator API. */
@@ -144,7 +181,9 @@ export function stubAdmin(options: AdminStubOptions = {}) {
     ...more
   } = rest
   const beta = [...given] // a removal takes the person out of the list the next read sees
-  const { betaNoticeFails = false, ...api } = more
+  const { betaNoticeFails = false, templates: givenTemplates = [], templateEditFails, importAnswer, ...api } = more
+  const templates = [...givenTemplates] // an edit replaces the template the next read sees
+  let edits = 0
   let nextId = 100
   stubApi({ operator: true, mfaFresh: true, ...api })
   const inner = globalThis.fetch
@@ -155,8 +194,15 @@ export function stubAdmin(options: AdminStubOptions = {}) {
     'fetch',
     vi.fn(async (request: Request) => {
       const url = new URL(request.url)
+      if (url.pathname === '/api/v1/rule-fields') return json({ groups: GROUPS, fields: FIELDS })
       if (!url.pathname.startsWith('/api/admin/v1')) return inner(request)
-      const body = request.method === 'GET' ? null : await request.clone().json()
+      const multipart = (request.headers.get('content-type') ?? '').startsWith('multipart/form-data')
+      const body =
+        request.method === 'GET'
+          ? null
+          : multipart
+            ? { multipart: await request.clone().text() }
+            : await request.clone().json()
       calls.push({
         method: request.method,
         path: url.pathname,
@@ -177,6 +223,57 @@ export function stubAdmin(options: AdminStubOptions = {}) {
       }
       const [, , , , section, rawId, verb] = url.pathname.split('/')
       if (codesFail && ['invites', 'grant-codes', 'audit', 'metrics'].includes(section ?? '')) return problem(codesFail)
+      if (section === 'rule-templates') {
+        if (request.method === 'GET' && !rawId) {
+          if (listFails) return problem(listFails)
+          const words = (url.searchParams.get('q') ?? '').toLowerCase().split(/\s+/).filter(Boolean)
+          const limit = Number(url.searchParams.get('limit') ?? 50)
+          const offset = Number(url.searchParams.get('offset') ?? 0)
+          const matching = templates.map(keyOf).filter((k) => {
+            const name = `${k.firm} ${k.program} ${k.account_size} ${k.phase} ${k.rule_version}`.toLowerCase()
+            return words.every((w) => name.includes(w))
+          })
+          return json({ templates: matching.slice(offset, offset + limit), total: matching.length, limit, offset })
+        }
+        if (rawId === 'import') {
+          if (changeFails) return problem(changeFails)
+          const dryRun = url.searchParams.get('dry_run') === 'true'
+          const answer = importAnswer?.(dryRun)
+          return json(
+            answer ?? {
+              applied: !dryRun,
+              inserted: 0,
+              updated: 0,
+              unchanged: templates.length,
+              changed: [],
+              problems: [],
+            },
+          )
+        }
+        const index = templates.findIndex((t) => String(t.id) === rawId)
+        const found = templates[index]
+        if (!found) return problem({ status: 404, detail: 'There is no such rule template.' })
+        if (request.method === 'GET') return detailFails ? problem(detailFails) : json(found)
+        if (templateEditFails) {
+          const { status, detail: text, errors = null } = templateEditFails
+          return json({ title: 'Problem', status, detail: text, errors }, status)
+        }
+        const sent = body as { values: AdminTemplate['values']; flags: { field: string; reason: string }[] }
+        edits += 1
+        const saved: AdminTemplate = {
+          ...found,
+          values: { ...Object.fromEntries(FIELDS.map((f) => [f.name, null])), ...sent.values },
+          flags: sent.flags.map((f) => ({ ...f, kind: flagKind(f.reason) })),
+          // A field that now has a value loses the source note that explained its empty cell (as the server).
+          source_notes: Object.fromEntries(
+            Object.entries(found.source_notes).filter(([name]) => (sent.values[name] ?? null) === null),
+          ),
+          updated_at: `2026-10-14T15:${String(edits).padStart(2, '0')}:00Z`,
+          updated_by: `admin:${SELF}`,
+        }
+        templates[index] = saved
+        return json(saved)
+      }
       if (section === 'beta') {
         if (request.method === 'GET') {
           if (listFails) return problem(listFails)

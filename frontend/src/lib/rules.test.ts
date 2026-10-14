@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RuleField } from './data/model'
-import { checkRules, coerceRule, netOf, readRuleForm, warningOf } from './rules'
+import { checkRules, coerceRule, flagKind, flagReason, netOf, readRuleForm, warningOf } from './rules'
 
 const field = (name: string, kind: RuleField['kind'], label: string, choices: string[] = []): RuleField => ({
   name,
@@ -71,6 +71,37 @@ describe('what blocks saving (as prop_rules.check)', () => {
     const { values, errors } = readRuleForm(fields, { firm: 'Apex', max_loss_usd: '-5', drawdown_type: 'static' })
     expect(values).toEqual({ firm: 'Apex', max_loss_usd: null, drawdown_type: 'static' })
     expect(errors['max_loss_usd']).toBe('Max loss cannot be negative.')
+  })
+
+  it('reads a firm template: its gaps are allowed, a wrong kind and a missing name are not', () => {
+    const fields = [
+      ...(['firm', 'program', 'account_size', 'rule_version'] as const).map((n) => field(n, 'text', n)),
+      PHASE,
+      MAX_LOSS,
+      field('drawdown_type', 'choice', 'Drawdown type', ['static']),
+      DAYS,
+    ]
+    const entered = { ...NAMED, firm: '', drawdown_type: 'static', min_trading_days: 'five' }
+    const template = readRuleForm(fields, entered, { whole: false })
+    expect(template.errors).toEqual({
+      firm: 'firm is required.',
+      min_trading_days: 'Minimum trading days must be a whole number, 0 or more.',
+    }) // a drawdown type with no max loss is the research's gap, not an error here
+    expect(Object.keys(readRuleForm(fields, entered).errors).sort()).toEqual([
+      'firm',
+      'max_loss_usd',
+      'min_trading_days',
+    ])
+  })
+
+  it.each([
+    ['unknown', 'not on the firm’s site', 'unknown: not on the firm’s site'],
+    ['conflict', 'FAQ says $99; checkout says $129', 'conflict: FAQ says $99; checkout says $129'],
+    ['third-party only', 'PropFirmMatch', 'third-party only (PropFirmMatch)'],
+    ['unknown', '  ', 'unknown'],
+  ] as const)('writes a %s flag in the research’s words', (kind, detail, reason) => {
+    expect(flagReason(kind, detail)).toBe(reason)
+    expect(flagKind(reason)).toBe(kind)
   })
 })
 

@@ -97,10 +97,15 @@ export function checkRules(values: RuleValues, labels: Record<string, string> = 
   return errors
 }
 
-/** The form's text for every field, typed, and the fields that cannot be read or do not make sense together. */
+/**
+ * The form's text for every field, typed, and the fields that cannot be read or do not make sense together. A person's
+ * rule set is checked `whole`; a firm's template (the operator's form) is only typed and needs its name, because the
+ * research leaves cells empty on purpose (as the server's `checked_rules`).
+ */
 export function readRuleForm(
   fields: readonly RuleField[],
   entered: Record<string, string>,
+  { whole = true }: { whole?: boolean } = {},
 ): { values: RuleValues; errors: Record<string, string> } {
   const values: RuleValues = {}
   const errors: Record<string, string> = {}
@@ -113,8 +118,18 @@ export function readRuleForm(
     }
   }
   const labels = Object.fromEntries(fields.map((f) => [f.name, f.label]))
-  for (const [name, message] of Object.entries(checkRules(values, labels))) errors[name] ??= message
+  const named = Object.fromEntries(KEY_FIELDS.map((name) => [name, values[name] ?? null]))
+  const problems = checkRules(whole ? values : named, labels)
+  for (const [name, message] of Object.entries(problems)) errors[name] ??= message
   return { values, errors }
+}
+
+/** A flag's reason in the research's words, so its kind reads back the same: "unknown: …", "conflict: …" or
+ * "third-party only (…)". */
+export function flagReason(kind: RuleFlag['kind'], detail: string): string {
+  const text = detail.trim()
+  if (kind === 'third-party only') return text ? `third-party only (${text})` : 'third-party only'
+  return text ? `${kind}: ${text}` : kind
 }
 
 /** A stored value as the form shows it. */

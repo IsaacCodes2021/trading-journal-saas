@@ -48,6 +48,7 @@ class ImportCounts:
     inserted: int
     updated: int
     unchanged: int
+    changed: tuple[str, ...] = ()  # the names of the updated rule sets (`key_text`): an operator's edit they replace
 
     @property
     def total(self) -> int:
@@ -83,7 +84,8 @@ def upsert(conn: psycopg.Connection, rows: list[RuleValues], *, by: str) -> Impo
         assignments=sql.SQL(", ").join(sql.SQL("{c} = EXCLUDED.{c}").format(c=sql.Identifier(name)) for name in every),
         changed=changed,
     )
-    inserted = updated = unchanged = 0
+    inserted = unchanged = 0
+    changed_names: list[str] = []
     for rules in rows:
         result = conn.execute(statement, [*_params(rules), by]).fetchone()
         if result is None:
@@ -91,8 +93,8 @@ def upsert(conn: psycopg.Connection, rows: list[RuleValues], *, by: str) -> Impo
         elif result["inserted"]:
             inserted += 1
         else:
-            updated += 1
-    return ImportCounts(inserted, updated, unchanged)
+            changed_names.append(key_text(rules))
+    return ImportCounts(inserted, len(changed_names), unchanged, tuple(changed_names))
 
 
 def import_csv(conn: psycopg.Connection, text: str, *, by: str) -> tuple[ImportCounts, list[str]]:

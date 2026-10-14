@@ -526,11 +526,16 @@ class PgAdminService:
             raise AdminRefusal(409, TEMPLATE_CLASH) from None
         return admin_template_out(template)
 
-    def import_rule_templates(self, actor: UUID, text: str, *, ip_hash: str | None = None) -> RuleTemplateImportOut:
-        """Upsert every row the CSV holds that can be read; the rows that cannot are listed and nothing else is lost."""
+    def import_rule_templates(
+        self, actor: UUID, text: str, *, dry_run: bool = False, ip_hash: str | None = None
+    ) -> RuleTemplateImportOut:
+        """Upsert every row the CSV holds that can be read; the rows that cannot are listed and nothing else is lost. A
+        dry run does the same work and rolls it back, so its counts are exactly what the import would do."""
         with self._system.system_session(ADMIN) as conn:
             counts, problems = pg_templates.import_csv(conn, text, by=_by(actor))
-            if counts.inserted or counts.updated:
+            if dry_run:
+                conn.rollback()
+            elif counts.inserted or counts.updated:
                 self._record(
                     conn,
                     "admin_rule_templates_imported",
@@ -543,7 +548,12 @@ class PgAdminService:
                     refused=len(problems),
                 )
         return RuleTemplateImportOut(
-            inserted=counts.inserted, updated=counts.updated, unchanged=counts.unchanged, problems=problems
+            applied=not dry_run,
+            inserted=counts.inserted,
+            updated=counts.updated,
+            unchanged=counts.unchanged,
+            changed=list(counts.changed),
+            problems=problems,
         )
 
     # ---- the rules and the record ------------------------------------------------------------------------------------
