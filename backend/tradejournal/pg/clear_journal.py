@@ -82,7 +82,7 @@ def clear(conn: psycopg.Connection, *, expect_accounts: int, expect_trades: int)
             f"the journal holds {before.accounts} accounts and {before.trades} trades, "
             f"not the {expect_accounts} and {expect_trades} that were expected"
         )
-    conn.execute("DELETE FROM accounts")  # cascades: fees, imports, fill pairs, trades (and their tag links), ledger
+    conn.execute("DELETE FROM accounts")  # cascades: fees, imports, fill pairs, trades (and tag links), ledger, rules
     conn.execute("DELETE FROM tags")
     conn.execute("DELETE FROM day_notes")
     usage.refresh(conn)  # the counters are kept by the domain functions; a direct delete has to recount them

@@ -103,6 +103,7 @@ export function stubApi(opts: ApiOptions = {}) {
 export type AppPath =
   | '/'
   | '/trades'
+  | '/accounts'
   | '/calendar'
   | '/reports'
   | '/help'

@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { Button, Spinner } from '../../components/ui/primitives'
 import { useAccounts, useCreateAccount } from '../../lib/data/queries'
 import { pluralize } from '../../lib/format'
-import { AccountForm } from '../accounts/AccountDialogs'
+import { AccountForm, BLANK_ACCOUNT } from '../accounts/AccountDialogs'
 import { messageOf } from '../tags/messages'
 import { StepFrame } from './StepFrame'
-
-const BLANK = { name: '', firm: 'Apex', type: 'evaluation', size: '', balance: '' } as const
 
 /**
  * Step 2: the account the first import goes into. With none yet, the form; with some (a person coming back to the
@@ -56,7 +54,8 @@ export function AccountStep({ onBack, onNext }: { onBack: () => void; onNext: ()
 
       {showForm ? (
         <AccountForm
-          initial={BLANK}
+          initial={BLANK_ACCOUNT}
+          requirePurchaseDate
           submitLabel="Add account"
           pending={create.isPending}
           error={create.isError ? messageOf(create.error) : null}

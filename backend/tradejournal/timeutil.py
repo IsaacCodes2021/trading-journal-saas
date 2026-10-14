@@ -67,6 +67,26 @@ def trading_date(moment: datetime, session: TradingSession) -> date:
     return (local + shift).date()
 
 
+# The day a prop firm counts a trade in, where it is not CME Globex's own (18:00 New York time). From the research report:
+# Apex closes the day at 4:59:59 PM ET and resets its daily loss limit at 6:00 PM ET; Lucid reopens at 6 PM ET; Alpha's
+# lockout runs until 6 PM ET; Tradeify reconciles from 6 PM ET; Topstep's day is 5:00 PM CT to 3:10 PM CT. Every one of
+# them starts the day at the moment the Globex day starts, so only Topstep is listed, in its own words (17:00 Chicago is
+# 18:00 New York all year). A Sunday-evening trade counts toward Monday, as on Globex.
+FIRM_SESSIONS: dict[str, TradingSession] = {
+    "topstep": TradingSession(timezone="America/Chicago", start=time(17, 0)),
+}
+
+
+def firm_session(firm: str | None) -> TradingSession:
+    """The trading day of a prop firm, by the firm's name as the rules write it ("Topstep", "Apex Trader Funding").
+    Any firm not listed in `FIRM_SESSIONS` uses the CME Globex day."""
+    name = (firm or "").strip().lower()
+    for key, session in FIRM_SESSIONS.items():
+        if name.startswith(key):
+            return session
+    return TradingSession()
+
+
 def hold_seconds(pairs: Sequence[FillPair]) -> int:
     """Seconds from a trade's first entry to its last exit.
 

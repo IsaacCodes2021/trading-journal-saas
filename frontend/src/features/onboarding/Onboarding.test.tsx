@@ -219,6 +219,7 @@ describe('step 2: the first account', () => {
     const region = await step('Add your first account')
     expect(within(region).getByRole('button', { name: 'Continue' })).toBeDisabled()
     await user.type(within(region).getByLabelText('Account name'), 'Apex 50K #1')
+    await user.type(within(region).getByLabelText('Purchase date'), '2026-09-01')
     await user.click(within(region).getByRole('button', { name: 'Add account' }))
 
     expect(await within(region).findByRole('status')).toHaveTextContent('You have one account:')
@@ -250,6 +251,7 @@ describe('step 2: the first account', () => {
     const { user } = await open(2)
     const region = await step('Add your first account')
     await user.type(within(region).getByLabelText('Account name'), 'Apex 50K #1')
+    await user.type(within(region).getByLabelText('Purchase date'), '2026-09-01')
     await user.click(within(region).getByRole('button', { name: 'Add account' }))
     expect(await within(region).findByText('There is already an account with that name.')).toBeInTheDocument()
     expect(within(region).getByLabelText('Account name')).toHaveValue('Apex 50K #1')

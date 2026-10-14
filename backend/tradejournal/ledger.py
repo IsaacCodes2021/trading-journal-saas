@@ -33,6 +33,12 @@ class LedgerEntry:
     amount: Decimal  # always positive; is_payout says which way the money went
     entry_date: date
     note: str
+    # A payout's own facts (None on other entries, and on payouts recorded before they were kept): its number in the
+    # account's sequence, the gross requested, the trader's split in percent (amount = gross x split), and a fee.
+    payout_number: int | None = None
+    gross_amount: Decimal | None = None
+    profit_split_pct: Decimal | None = None
+    payout_fee: Decimal | None = None
 
     @property
     def is_payout(self) -> bool:

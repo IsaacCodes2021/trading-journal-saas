@@ -7,23 +7,42 @@ import { formatDay } from '../../lib/format'
 import { OutcomePill, StagePill } from './AccountList'
 import { AccountForm } from './AccountDialogs'
 import { FeesTab } from './FeesTab'
+import { FirmRulesTab } from './FirmRulesTab'
 import { LedgerTab } from './LedgerTab'
+import { PayoutsTab } from './PayoutsTab'
 import { RulesTab } from './RulesTab'
 import { TABS, type Tab } from './tabs'
 
-const LABELS: Record<Tab, string> = { details: 'Details', fees: 'Fees', rules: 'Rules', ledger: 'Ledger' }
+const LABELS: Record<Tab, string> = {
+  details: 'Details',
+  fees: 'Fees',
+  rules: 'Rules',
+  'firm-rules': 'Firm rules',
+  payouts: 'Payouts',
+  ledger: 'Ledger',
+}
 
 function messageOf(error: unknown): string {
   return error instanceof Error && error.message ? error.message : 'That did not work. Nothing was changed.'
 }
 
-function DetailsTab({ overview }: { overview: AccountOverview }) {
+function DetailsTab({ overview, onSetUpFunded }: { overview: AccountOverview; onSetUpFunded: () => void }) {
   const { account } = overview
   const update = useUpdateAccount(account.id)
   const restore = useRestoreAccount(account.id)
   const [saved, setSaved] = useState(false)
   return (
     <div className="flex flex-col gap-3.5">
+      {account.pass_prompt_dismissed_at && account.account_type === 'evaluation' && account.outcome === null ? (
+        <div
+          className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-[13px]"
+          role="note"
+        >
+          <span className="text-muted">Passed this evaluation? Archive it and set up the funded account.</span>
+          <span className="grow" />
+          <Button onClick={onSetUpFunded}>Set up the funded account</Button>
+        </div>
+      ) : null}
       {account.outcome ? (
         <div
           className="flex flex-wrap items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-[13px]"
@@ -41,13 +60,15 @@ function DetailsTab({ overview }: { overview: AccountOverview }) {
         </div>
       ) : null}
       <AccountForm
-        key={`${account.id}:${account.name}:${account.firm}:${account.account_type}:${account.account_size}:${account.starting_balance}`}
+        key={`${account.id}:${account.name}:${account.firm}:${account.account_type}:${account.account_size}:${account.starting_balance}:${account.purchase_date}:${account.phase}`}
         initial={{
           name: account.name,
           firm: account.firm,
           type: account.account_type,
           size: account.account_size?.replace(/\.00$/, '') ?? '',
           balance: account.starting_balance.replace(/\.00$/, ''),
+          purchaseDate: account.purchase_date ?? '',
+          live: account.phase === 'live',
         }}
         submitLabel="Save details"
         pending={update.isPending}
@@ -68,17 +89,22 @@ function DetailsTab({ overview }: { overview: AccountOverview }) {
   )
 }
 
-/** The account you picked: its details, fees, rules and ledger, as tabs. */
+/** The account you picked: its details, fees, rules, firm rules, payouts and ledger, as tabs. `suggest` starts the firm
+ * rules search (the funded account that follows a passed evaluation). */
 export function AccountPanel({
   overview,
   tab,
   onTab,
   onArchive,
+  onSetUpFunded = () => undefined,
+  suggest = '',
 }: {
   overview: AccountOverview
   tab: Tab
   onTab: (next: Tab) => void
   onArchive: () => void
+  onSetUpFunded?: () => void
+  suggest?: string
 }) {
   const { account } = overview
   const id = useId()
@@ -139,9 +165,11 @@ export function AccountPanel({
         ))}
       </div>
       <div id={`${id}-panel-${tab}`} role="tabpanel" aria-labelledby={`${id}-tab-${tab}`} className="px-5 py-4">
-        {tab === 'details' ? <DetailsTab overview={overview} /> : null}
+        {tab === 'details' ? <DetailsTab overview={overview} onSetUpFunded={onSetUpFunded} /> : null}
         {tab === 'fees' ? <FeesTab accountId={account.id} /> : null}
         {tab === 'rules' ? <RulesTab key={account.id} overview={overview} /> : null}
+        {tab === 'firm-rules' ? <FirmRulesTab key={account.id} account={account} suggest={suggest} /> : null}
+        {tab === 'payouts' ? <PayoutsTab key={account.id} account={account} /> : null}
         {tab === 'ledger' ? <LedgerTab key={account.id} account={account} /> : null}
       </div>
     </Card>

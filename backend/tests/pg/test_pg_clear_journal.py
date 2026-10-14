@@ -16,7 +16,7 @@ SAMPLE_FILE = (SAMPLE, fixture_bytes(SAMPLE))
 DAY = date(2024, 1, 5)
 TABLES = (
     "accounts", "fee_schedules", "imports", "trades", "fill_pairs", "import_fill_pairs", "account_ledger",
-    "tags", "trade_tags", "day_notes", "screenshots",
+    "tags", "trade_tags", "day_notes", "screenshots", "account_rules",
 )  # fmt: skip
 
 
@@ -28,6 +28,11 @@ def seed(db, user_id, *, name="Apex 07") -> int:
         accounts.set_fee(conn, account.id, "*", Decimal("4.00"))
         importer.import_files(conn, account.id, [SAMPLE_FILE])
         ledger.add_entry(conn, account.id, sorted(ledger.KINDS)[0], Decimal("100"), DAY)
+        conn.execute(
+            "INSERT INTO account_rules (account_id, firm, program, account_size, phase, rule_version) "
+            "VALUES (%s, 'Apex', 'EOD', '50K', 'funded', 'v1')",
+            (account.id,),
+        )
         trade_id = conn.execute("SELECT id FROM trades ORDER BY id LIMIT 1").fetchone()["id"]
         setup = conn.execute("SELECT id FROM tag_groups WHERE name = 'Setup'").fetchone()["id"]
         journal.set_trade_tags(conn, trade_id, setup, ["scalp"])

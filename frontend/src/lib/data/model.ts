@@ -308,6 +308,14 @@ export const OUTCOMES_BY_TYPE: Record<AccountType, readonly Outcome[]> = {
 export const TRAILING_TYPES = ['eod', 'intraday'] as const
 export type TrailingType = (typeof TRAILING_TYPES)[number]
 export const TRAILING_LABELS: Record<TrailingType, string> = { eod: 'End of day', intraday: 'Intraday' }
+/** Where an account is in a firm's program. The type says evaluation or funded; a funded account can be live. */
+export const PHASES = ['evaluation', 'funded', 'live'] as const
+export type Phase = (typeof PHASES)[number]
+export const PHASE_LABELS: Record<Phase, string> = { evaluation: 'Evaluation', funded: 'Funded', live: 'Live' }
+export const PHASES_BY_TYPE: Record<AccountType, readonly Phase[]> = {
+  evaluation: ['evaluation'],
+  funded: ['funded', 'live'],
+}
 
 /** Everything stored about an account. Money is a decimal string or null (not set). Mirrors `accounts.Account`. */
 export interface AccountDetail extends AccountRef {
@@ -323,6 +331,9 @@ export interface AccountDetail extends AccountRef {
   outcome: Outcome | null // set when archived
   ended_on: string | null // "YYYY-MM-DD"
   archive_note: string
+  purchase_date: string | null // "YYYY-MM-DD": which version of the firm's rules applies; null on older accounts
+  phase: Phase
+  pass_prompt_dismissed_at: string | null // the "evaluation passed" prompt was dismissed
 }
 
 /** How an account is doing against its rules. The server works these out from closed trades. */
@@ -345,6 +356,8 @@ export interface AccountDetailsInput {
   account_type: AccountType
   account_size: string | null
   starting_balance: string
+  purchase_date: string | null // required for a new account
+  phase: Phase | null // null: the same as the type
 }
 
 export interface AccountRulesInput {
@@ -380,9 +393,14 @@ export interface LedgerEntry {
   id: number
   account_id: number
   kind: LedgerKind
-  amount: string
+  amount: string // a payout's net: what the trader received before any fee
   entry_date: string
   note: string
+  // A payout's own facts: null on costs, and on payouts logged before they were kept.
+  payout_number: number | null
+  gross_amount: string | null
+  profit_split_pct: string | null
+  payout_fee: string | null
 }
 
 export interface NewLedgerEntry {
@@ -401,6 +419,186 @@ export interface BusinessTotals {
   payouts: string
   net: string // payouts minus costs
   accounts_without_cost: string[] // names of accounts with no cost recorded
+}
+
+// ---- prop-firm rules, payouts and the Accounts tab (docs/prop-rules/PLAN.md) --------------------------------------------
+
+/*
+ * A rule value crosses the API as its field's kind says: money and percentages as decimal strings, whole numbers as
+ * numbers, dates as "YYYY-MM-DD", everything else as text; an empty field is null. A rule set is one object keyed by
+ * field name, the same shape for a firm's template and for an account's verified rules.
+ */
+export type RuleKind = 'text' | 'money' | 'int' | 'pct' | 'date' | 'choice'
+export type RuleValue = string | number | null
+export type RuleValues = Record<string, RuleValue>
+
+export interface RuleField {
+  name: string
+  kind: RuleKind
+  group: string
+  label: string
+  choices: string[] // the allowed values of a choice field
+  hint: string
+}
+
+export interface RuleFields {
+  groups: string[] // in the form's order
+  fields: RuleField[]
+}
+
+export type FlagKind = 'unknown' | 'conflict' | 'third-party only'
+
+/** A field the research could not confirm: `unknown` and `conflict` fields were left empty on purpose; a `third-party
+ * only` field keeps its value. The reason is the research's own words (a conflict names both values). */
+export interface RuleFlag {
+  field: string
+  reason: string
+  kind: FlagKind
+}
+
+/** One line of the rules picker. */
+export interface RuleTemplateSummary {
+  id: number
+  firm: string
+  program: string
+  account_size: string
+  phase: Phase
+  rule_version: string
+  effective_from: string | null
+  effective_from_note: string | null // what the source says when the start is not a clean date
+  data_confidence: string | null
+  flagged: number
+  preselect: boolean // the version to suggest for the purchase date asked about
+}
+
+export interface RuleTemplate {
+  id: number
+  values: RuleValues
+  flags: RuleFlag[]
+  source_notes: Record<string, string> // the original text of cells that were not a clean value ("up to 1500")
+  updated_at: string
+}
+
+/** The rules a person checked and submitted for one account: a copy, so a later template change never reaches it. */
+export interface RuleSet {
+  id: number
+  account_id: number
+  source_template_id: number | null
+  verified_at: string
+  values: RuleValues
+  flags: RuleFlag[]
+  source_notes: Record<string, string>
+}
+
+export interface RuleSetInput {
+  values: RuleValues
+  flags: { field: string; reason: string }[]
+  source_notes: Record<string, string>
+  source_template_id: number | null // null for rules typed in by hand
+}
+
+export interface PayoutInput {
+  entry_date: string
+  gross: string
+  split_pct: string | null // null: the split in the account's rules
+  fee: string | null
+  note: string
+}
+
+export interface Payouts {
+  payouts: LedgerEntry[] // oldest first
+  split_pct: string | null // the share the account's rules promise; null when they give none
+  next_number: number
+  lifetime_gross: string
+  lifetime_net: string
+  lifetime_fees: string
+}
+
+export type RuleStatus = 'pass' | 'fail' | 'n/a' | 'not_verifiable'
+export type AccountStatus = 'ok' | 'at_risk' | 'breached' | 'passed' | 'payout_ready'
+
+export interface RuleResult {
+  key: string
+  group: string
+  label: string
+  status: RuleStatus
+  current: string | null
+  limit: string | null
+  message: string
+}
+
+/** One bar from breach (left) to goal (right). */
+export interface Spectrum {
+  breach_level: string | null
+  breach_kind: 'drawdown' | 'daily_loss' | null
+  target_level: string | null
+  target_kind: 'profit_target' | 'payout' | null
+  balance: string
+  to_breach: string | null
+  to_target: string | null
+  position: number | null // 0 at the breach level, 1 at the target
+}
+
+export interface PayoutReadiness {
+  ready: boolean
+  gross: string | null
+  net: string | null
+  split_pct: string | null
+  next_number: number
+  progress: string // "3/5 qualifying days · best day 38% of 50% max · $640 to buffer"
+  blockers: string[]
+}
+
+export interface InactivityStatus {
+  days_left: number | null
+  deadline: string | null
+  message: string
+}
+
+/** One active account on the Accounts tab. Without verified rules only the money is known. */
+export interface AccountRow {
+  account: AccountDetail
+  program: string | null
+  phase: Phase
+  rules_set: boolean
+  balance: string
+  net_pnl: string
+  status: AccountStatus | null
+  rules: RuleResult[]
+  spectrum: Spectrum | null
+  payout: PayoutReadiness | null
+  consistency_headroom: string | null
+  inactivity: InactivityStatus | null
+  floor: string | null
+  progress: string
+  withdrawn_gross: string
+  withdrawn_net: string
+  pass_prompt: boolean // an evaluation passed: offer to set up the funded account
+}
+
+export interface AccountsTotals {
+  balance: string
+  net_pnl: string
+  withdrawable_gross: string // over the payout-ready rows
+  withdrawable_net: string
+  withdrawn_gross: string // lifetime, over the rows shown
+  withdrawn_net: string
+}
+
+export interface AccountsOverview {
+  accounts: AccountRow[]
+  totals: AccountsTotals
+}
+
+/** What the rules form says to a refused rule set: the sentence, and the fields that are wrong (`values.max_loss_usd`). */
+export class RulesRefused extends Error {
+  readonly fields: Record<string, string>
+
+  constructor(message: string, fields: Record<string, string> = {}) {
+    super(message)
+    this.name = 'RulesRefused'
+    this.fields = fields
+  }
 }
 
 /** A change an account's rules or details refused, in words for the person who made it. */
@@ -460,4 +658,16 @@ export interface DataSource {
   ledger(id: number, signal?: AbortSignal): Promise<LedgerEntry[]>
   addLedgerEntry(id: number, entry: NewLedgerEntry): Promise<LedgerEntry>
   deleteLedgerEntry(id: number, entryId: number): Promise<void>
+  /** The Accounts tab: every active account against its verified rules, and the totals. */
+  accountsOverview(signal?: AbortSignal): Promise<AccountsOverview>
+  dismissPassPrompt(id: number): Promise<AccountDetail>
+  ruleFields(signal?: AbortSignal): Promise<RuleFields>
+  /** The firms' rule sets for an account bought on `purchasedOn` ("YYYY-MM-DD"), the latest version preselected. */
+  ruleTemplates(purchasedOn: string | null, signal?: AbortSignal): Promise<RuleTemplateSummary[]>
+  ruleTemplate(templateId: number, signal?: AbortSignal): Promise<RuleTemplate>
+  /** The account's verified rules; null when there are none yet. */
+  ruleSet(id: number, signal?: AbortSignal): Promise<RuleSet | null>
+  saveRuleSet(id: number, input: RuleSetInput): Promise<RuleSet>
+  payouts(id: number, signal?: AbortSignal): Promise<Payouts>
+  addPayout(id: number, input: PayoutInput): Promise<LedgerEntry>
 }

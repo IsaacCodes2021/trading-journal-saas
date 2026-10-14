@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom/vitest'
-import { cleanup } from '@testing-library/react'
+import { cleanup, configure } from '@testing-library/react'
 import { afterEach, vi } from 'vitest'
+
+// The first test of a file waits for a page that loads on demand (a lazy chunk). With every file running in parallel
+// that can take longer than testing-library's one second, so `findBy…` waits up to three: a real failure still fails.
+configure({ asyncUtilTimeout: 3000 })
 
 // jsdom has no scrolling; the router asks for it on navigation.
 window.scrollTo = vi.fn() as typeof window.scrollTo

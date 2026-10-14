@@ -44,7 +44,30 @@ export function readAmounts(
   return Object.keys(problem).length > 0 ? { problem } : { size: sizeValue, balance: balanceValue }
 }
 
-/** The name, firm, type and money of an account, as one form. Used to add an account (and shaped to edit one). */
+/** An empty form for a new account. */
+export const BLANK_ACCOUNT = {
+  name: '',
+  firm: 'Apex',
+  type: 'evaluation',
+  size: '',
+  balance: '',
+  purchaseDate: '',
+  live: false,
+} as const satisfies AccountFormValues
+
+export interface AccountFormValues {
+  name: string
+  firm: string
+  type: AccountType
+  size: string
+  balance: string
+  purchaseDate: string // "YYYY-MM-DD", or "" when not known
+  live: boolean // a funded account that has moved to a live one
+}
+
+/** The name, firm, type, money, purchase date and phase of an account, as one form: to add an account or edit one.
+ * A new account needs its purchase date (it decides which version of the firm's rules applies); an older one may
+ * leave it empty until it is known. */
 export function AccountForm({
   initial,
   submitLabel,
@@ -52,30 +75,44 @@ export function AccountForm({
   error,
   onSubmit,
   onCancel,
+  requirePurchaseDate = false,
 }: {
-  initial: { name: string; firm: string; type: AccountType; size: string; balance: string }
+  initial: AccountFormValues
   submitLabel: string
   pending: boolean
   error: string | null
   onSubmit: (input: AccountDetailsInput) => void
   onCancel?: () => void
+  requirePurchaseDate?: boolean
 }) {
   const [name, setName] = useState(initial.name)
   const [firm, setFirm] = useState(initial.firm)
   const [type, setType] = useState<AccountType>(initial.type)
   const [size, setSize] = useState(initial.size)
   const [balance, setBalance] = useState(initial.balance)
+  const [purchaseDate, setPurchaseDate] = useState(initial.purchaseDate)
+  const [live, setLive] = useState(initial.live)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const amounts = readAmounts(size, balance)
-    if ('problem' in amounts) {
-      setFieldErrors(amounts.problem)
+    const problems = 'problem' in amounts ? { ...amounts.problem } : {}
+    if (requirePurchaseDate && !purchaseDate) problems['purchase'] = 'Choose the day you bought the account.'
+    if ('problem' in amounts || Object.keys(problems).length > 0) {
+      setFieldErrors(problems)
       return
     }
     setFieldErrors({})
-    onSubmit({ name, firm, account_type: type, account_size: amounts.size, starting_balance: amounts.balance })
+    onSubmit({
+      name,
+      firm,
+      account_type: type,
+      account_size: amounts.size,
+      starting_balance: amounts.balance,
+      purchase_date: purchaseDate || null,
+      phase: type === 'funded' && live ? 'live' : null,
+    })
   }
 
   return (
@@ -129,6 +166,30 @@ export function AccountForm({
           </Field>
         </div>
       </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="min-w-[180px] flex-1">
+          <Field
+            id="account-purchased"
+            label={requirePurchaseDate ? 'Purchase date' : 'Purchase date (optional)'}
+            hint="The day you bought it: it decides which version of the firm's rules applies."
+            error={fieldErrors['purchase']}
+          >
+            <input
+              id="account-purchased"
+              type="date"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+              className={CONTROL}
+            />
+          </Field>
+        </div>
+        {type === 'funded' ? (
+          <label className="flex h-10 items-center gap-2 text-[13px]">
+            <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} />
+            Live account (moved on from funded)
+          </label>
+        ) : null}
+      </div>
       {error ? (
         <p role="alert" className="m-0 text-[13px] text-neg">
           {error}
@@ -154,7 +215,7 @@ export function AddAccountDialog({
   onClose,
   onCreated,
 }: {
-  start?: Partial<{ name: string; firm: string; type: AccountType; size: string; balance: string }>
+  start?: Partial<AccountFormValues>
   onClose: () => void
   onCreated: (account: AccountDetail) => void
 }) {
@@ -163,7 +224,8 @@ export function AddAccountDialog({
     <Modal label="Add account" onClose={create.isPending ? () => undefined : onClose} className="max-w-[520px]">
       <h2 className="m-0 text-base font-semibold">Add account</h2>
       <AccountForm
-        initial={{ name: '', firm: 'Apex', type: 'evaluation', size: '', balance: '', ...start }}
+        initial={{ ...BLANK_ACCOUNT, ...start }}
+        requirePurchaseDate
         submitLabel="Add account"
         pending={create.isPending}
         error={create.isError ? messageOf(create.error) : null}
@@ -180,17 +242,19 @@ const today = () => new Date().toISOString().slice(0, 10)
 export function ArchiveDialog({
   account,
   lastTradingDay,
+  initialOutcome = null,
   onClose,
   onArchived,
 }: {
   account: AccountDetail
   lastTradingDay: string | null
+  initialOutcome?: Outcome | null // "passed" when the Accounts tab sent the person here to set up the funded account
   onClose: () => void
   onArchived: (setUpFunded: boolean) => void
 }) {
   const archive = useArchiveAccount(account.id)
   const choices = OUTCOMES_BY_TYPE[account.account_type]
-  const [outcome, setOutcome] = useState<Outcome | null>(null)
+  const [outcome, setOutcome] = useState<Outcome | null>(initialOutcome)
   const [endedOn, setEndedOn] = useState(lastTradingDay ?? today())
   const [note, setNote] = useState('')
   const [funded, setFunded] = useState(true)

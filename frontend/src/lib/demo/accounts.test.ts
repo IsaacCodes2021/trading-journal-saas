@@ -13,6 +13,8 @@ const details = (over: Partial<AccountDetailsInput> = {}): AccountDetailsInput =
   account_type: 'evaluation',
   account_size: '100000.00',
   starting_balance: '100000.00',
+  purchase_date: '2026-09-01',
+  phase: null,
   ...over,
 })
 
@@ -268,7 +270,7 @@ describe('the ledger', () => {
   it('lists an account’s entries newest first', async () => {
     const entries = await demoSource.ledger(2)
     expect(entries.map((e) => e.kind)).toEqual(['payout', 'activation_fee', 'evaluation_fee'])
-    expect(entries.map((e) => e.entry_date)).toEqual(['2026-09-25', '2026-08-12', '2026-07-30'])
+    expect(entries.map((e) => e.entry_date)).toEqual(['2026-09-22', '2026-08-12', '2026-07-30'])
   })
 
   it('adds an entry, trimming its note, putting it in order, and counting it in the business', async () => {

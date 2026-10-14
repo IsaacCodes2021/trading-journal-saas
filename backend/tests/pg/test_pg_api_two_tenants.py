@@ -66,6 +66,8 @@ OWNED = {
 # Names that look like ids but are not rows of the person's journal, and why they are not attacked here.
 NOT_JOURNAL_ROWS = {
     "session_id": "a sign-in session: the real store's isolation is tested in test_pg_sessions.py",
+    "template_id": "a firm's rule template: everyone reads the same ones (test_pg_rules.py)",
+    "source_template_id": "the rule template a rule set was copied from: everyone's, like template_id",
 }
 # Filters that take ids in the query string. They are named in Bob's reads and added to every attack on a route that has
 # them, so a filter cannot be a way in.
@@ -85,7 +87,13 @@ NAMES_NOTHING = {
 SESSION_ROUTES = {("DELETE", "/api/v1/sessions/{session_id}")}
 
 # Fixed values for fields where "x" is not a valid value.
-FIELD_VALUES = {"color": "#3b82f6", "html": "<p>changed</p>"}
+RULE_SET = {"firm": "Apex", "program": "EOD", "account_size": "50K", "phase": "evaluation", "rule_version": "v1"}
+FIELD_VALUES = {
+    "color": "#3b82f6",
+    "html": "<p>changed</p>",
+    "values": RULE_SET,  # the least a rule set needs: its name
+    "source_template_id": None,  # rules typed in by hand (a template is no one's row, see NOT_JOURNAL_ROWS)
+}
 
 
 @dataclass
@@ -209,6 +217,8 @@ def build_world(db, system, user_id, name: str, files_dir: Path) -> World:
                 "account_type": "evaluation",
                 "account_size": "50000.00",
                 "starting_balance": "50000.00",
+                "purchase_date": "2024-01-02",
+                "phase": None,
             },
         ),
         "account",
@@ -259,6 +269,31 @@ def build_world(db, system, user_id, name: str, files_dir: Path) -> World:
         ),
         "rules",
     )
+    _ok(
+        client.put(
+            f"/api/v1/accounts/{account}/rule-set",
+            json={
+                "values": {**RULE_SET, "program": f"{name}-PROGRAM", "max_loss_usd": "2000.00"},
+                "flags": [{"field": "price_usd", "reason": f"unknown: {name}-FLAG"}],
+                "source_notes": {"price_usd": f"{name}-SOURCE"},
+                "source_template_id": None,
+            },
+        ),
+        "rule set",
+    )
+    _ok(
+        client.post(
+            f"/api/v1/accounts/{account}/payouts",
+            json={
+                "entry_date": "2024-02-01",
+                "gross": "1000.00",
+                "split_pct": "90",
+                "fee": None,
+                "note": f"{name}-PAYOUT",
+            },
+        ),
+        "payout",
+    )
     ids = {
         "account": account,
         "import": imported,
@@ -285,6 +320,9 @@ def snapshot(world: World) -> dict:
         "imports": "/api/v1/imports",
         "fees": f"/api/v1/accounts/{ids['account']}/fees",
         "ledger": f"/api/v1/accounts/{ids['account']}/ledger",
+        "rule set": f"/api/v1/accounts/{ids['account']}/rule-set",
+        "payouts": f"/api/v1/accounts/{ids['account']}/payouts",
+        "accounts tab": "/api/v1/accounts/overview",
         "dashboard": "/api/v1/dashboard",
         "day note": f"/api/v1/day-notes/{DAY}",
         "days with notes": "/api/v1/day-notes?start=2024-01-01&end=2024-12-31",

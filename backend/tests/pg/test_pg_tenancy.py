@@ -25,7 +25,7 @@ SYSTEM_TABLES = ["sessions", "audit_log", "invite_redemptions", "grant_redemptio
 
 TENANT_TABLES = [
     "user_settings", "accounts", "fee_schedules", "imports", "trades", "fill_pairs", "import_fill_pairs",
-    "tag_groups", "tags", "trade_tags", "day_notes", "screenshots", "account_ledger", "user_usage",
+    "tag_groups", "tags", "trade_tags", "day_notes", "screenshots", "account_ledger", "user_usage", "account_rules",
 ]  # fmt: skip
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
@@ -62,6 +62,11 @@ def data(db, alice, tmp_path):
         conn.execute("INSERT INTO day_notes (trade_date, notes) VALUES ('2024-01-05', 'a note')")
         conn.execute(
             "INSERT INTO account_ledger (account_id, kind, amount, entry_date) VALUES (%s, 'other_cost', 99, '2024-01-01')",
+            (account.id,),
+        )
+        conn.execute(
+            "INSERT INTO account_rules (account_id, firm, program, account_size, phase, rule_version, max_loss_usd) "
+            "VALUES (%s, 'Apex', 'EOD', '50K', 'funded', 'v1', 2000)",
             (account.id,),
         )
     return {

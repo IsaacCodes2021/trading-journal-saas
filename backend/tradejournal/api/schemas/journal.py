@@ -21,6 +21,7 @@ RowId = Annotated[int, Field(ge=1, le=MAX_ID)]
 PathId = Annotated[int, Path(ge=1, le=MAX_ID)]
 
 AccountType = Literal["evaluation", "funded"]
+Phase = Literal["evaluation", "funded", "live"]  # where the account is in a firm's program; a funded one can be live
 Direction = Literal["long", "short"]
 Outcome = Literal["passed", "failed", "closed"]
 TrailingType = Literal["eod", "intraday"]
@@ -49,6 +50,9 @@ class AccountOut(AccountRefOut):
     outcome: Outcome | None  # set when the account is archived
     ended_on: date | None
     archive_note: str
+    purchase_date: date | None  # the day it was bought: which version of the firm's rules applies
+    phase: Phase
+    pass_prompt_dismissed_at: datetime | None  # the "evaluation passed" prompt was dismissed
 
 
 class TradeFilterQuery(ApiModel):

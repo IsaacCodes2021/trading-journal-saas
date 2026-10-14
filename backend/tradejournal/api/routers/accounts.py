@@ -24,6 +24,7 @@ from ..schemas.accounts import (
     BusinessTotalsOut,
     FeeIn,
     LedgerEntryOut,
+    NewAccountIn,
     NewLedgerEntryIn,
     SymbolRoot,
 )
@@ -72,8 +73,9 @@ def get_business_totals(tenant: TenantDep) -> BusinessTotalsOut:
 
 
 @router.post("/accounts", response_model=AccountOut, status_code=201)
-def create_account(body: AccountDetailsIn, tenant: WriteTenantDep) -> AccountOut:
-    """A new account with no rules and no fees yet (set those next)."""
+def create_account(body: NewAccountIn, tenant: WriteTenantDep) -> AccountOut:
+    """A new account with no rules and no fees yet (set those next). The purchase date is required: it decides which
+    version of the firm's rules applies."""
     with refusals(what="account", duplicate=_DUPLICATE), tenant.session() as conn:
         created = pg_accounts.create_account(
             conn,
@@ -82,13 +84,16 @@ def create_account(body: AccountDetailsIn, tenant: WriteTenantDep) -> AccountOut
             account_type=body.account_type,
             account_size=body.account_size,
             starting_balance=body.starting_balance,
+            purchase_date=body.purchase_date,
+            phase=body.phase,
         )
     return account_out(created)
 
 
 @router.put("/accounts/{account_id}", response_model=AccountOut)
 def update_account(account_id: PathId, body: AccountDetailsIn, tenant: WriteTenantDep) -> AccountOut:
-    """Change an account's name, firm, type, size and starting balance. Changing the type reclassifies its trades."""
+    """Change an account's name, firm, type, size, starting balance, purchase date and phase. Changing the type
+    reclassifies its trades."""
     with refusals(what="account", duplicate=_DUPLICATE), tenant.session() as conn:
         updated = pg_accounts.update_account(
             conn,
@@ -98,6 +103,8 @@ def update_account(account_id: PathId, body: AccountDetailsIn, tenant: WriteTena
             account_type=body.account_type,
             account_size=body.account_size,
             starting_balance=body.starting_balance,
+            purchase_date=body.purchase_date,
+            phase=body.phase,
         )
     return account_out(updated)
 

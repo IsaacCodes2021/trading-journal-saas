@@ -52,6 +52,9 @@ const CalendarPage = lazy(() => import('./features/calendar/CalendarPage').then(
 const DayPage = lazy(() => import('./features/calendar/DayPage').then((m) => ({ default: m.DayPage })))
 const HelpPage = lazy(() => import('./features/help/HelpPage').then((m) => ({ default: m.HelpPage })))
 const ReportsPage = lazy(() => import('./features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })))
+const AccountsOverviewPage = lazy(() =>
+  import('./features/overview/AccountsOverviewPage').then((m) => ({ default: m.AccountsOverviewPage })),
+)
 
 /*
  * The route tree. Each page's state lives in the URL (filters, search text, sort, page), so a view survives a reload and
@@ -246,6 +249,20 @@ const reportsRoute = createRoute({
 })
 
 // ---- help --------------------------------------------------------------------------------------------------------
+
+// ---- the Accounts tab (read-only: every change is made in settings) -------------------------------------------------
+
+const accountsOverviewRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/accounts',
+  component: function AccountsOverviewRoute() {
+    return (
+      <Suspense fallback={<Spinner label="Loading your accounts" />}>
+        <AccountsOverviewPage />
+      </Suspense>
+    )
+  },
+})
 
 const helpRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -492,18 +509,25 @@ const preferencesRoute = createRoute({
   component: inSettings(PreferencesPage),
 })
 function AccountsRoute() {
-  const { account, tab } = accountsRoute.useSearch()
+  const { account, tab, setup } = accountsRoute.useSearch()
   const navigate = useNavigate({ from: '/settings/accounts' })
   return (
     <Suspense fallback={<Spinner label="Loading" />}>
       <AccountsPage
         selected={account ?? null}
         tab={tab ?? 'details'}
+        setup={setup === 'funded'}
+        onSetupDone={() =>
+          void navigate({
+            search: (prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => key !== 'setup')),
+            replace: true,
+          })
+        }
         onSelect={(id, next) =>
           void navigate({
             search: (prev) => {
               const rest = Object.fromEntries(
-                Object.entries(prev).filter(([key]) => key !== 'account' && key !== 'tab'),
+                Object.entries(prev).filter(([key]) => key !== 'account' && key !== 'tab' && key !== 'setup'),
               )
               return id === null ? rest : { ...rest, account: id, tab: next ?? prev.tab ?? 'details' }
             },
@@ -517,12 +541,14 @@ function AccountsRoute() {
 const accountsRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: 'accounts',
-  // The picked account and its tab live in the address, so a view can be shared and survives a reload.
-  validateSearch: (search: Record<string, unknown>): { account?: number; tab?: Tab } => {
+  // The picked account and its tab live in the address, so a view can be shared and survives a reload. `setup=funded`
+  // comes from the Accounts tab: archive the passed evaluation and set up its funded account.
+  validateSearch: (search: Record<string, unknown>): { account?: number; tab?: Tab; setup?: 'funded' } => {
     const id = Number(search['account'])
     return {
       ...(Number.isInteger(id) && id > 0 ? { account: id } : {}),
       ...(isTab(search['tab']) ? { tab: search['tab'] } : {}),
+      ...(search['setup'] === 'funded' ? { setup: 'funded' as const } : {}),
     }
   },
   component: AccountsRoute,
@@ -566,6 +592,7 @@ const routeTree = rootRoute.addChildren([
   tradeDetailRoute,
   calendarRoute,
   reportsRoute,
+  accountsOverviewRoute,
   helpRoute,
   dayRoute,
   importRoute,

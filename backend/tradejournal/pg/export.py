@@ -3,7 +3,8 @@
 What is in the ZIP
     profile.json                 who the account is and its settings
     accounts.csv, fee_schedules.csv, imports.csv, trades.csv, fill_pairs.csv, import_fill_pairs.csv,
-    tag_groups.csv, tags.csv, trade_tags.csv, ledger.csv, screenshots.csv      one file per table, same column names
+    tag_groups.csv, tags.csv, trade_tags.csv, ledger.csv, account_rules.csv,
+    screenshots.csv              one file per table, same column names
     notes/trade-<id>.html and .txt, notes/day-<date>.html and .txt            the notes, as written and as plain text
     screenshots/<id>.<ext>       the image files, named by the id column of screenshots.csv (when the server can read them)
     manifest.json                every file with its size, row count and SHA-256, and how to read the values
@@ -13,7 +14,9 @@ Rules
   without anyone remembering to; and `COVERAGE` must name every table that holds a person's rows (a test compares it
   with the catalog), so a new table fails the build until someone decides where it goes.
 - **Exact.** Money and prices are decimal strings as stored ("12.50", never a float or 1.25E+1); times are UTC in ISO 8601
-  with a Z; dates are ISO dates. An empty cell is a null or an empty text (the two cannot be told apart in CSV).
+  with a Z; dates are ISO dates. A list (a rule set's flagged fields) is its items joined with "|", and a small JSON
+  object (a rule set's source notes) is written as JSON. An empty cell is a null or an empty text (the two cannot be told
+  apart in CSV).
 - **Only this person's rows.** The caller passes a connection from `tenant_session`, so row-level security decides what
   can be read; the export has no way to name another person. The caller should ask for `snapshot=True`, so that all the
   tables are read as of one moment.
@@ -76,6 +79,7 @@ TABLES = (
     Table("tags.csv", "tags", "id"),
     Table("trade_tags.csv", "trade_tags", "trade_id, tag_id"),
     Table("ledger.csv", "account_ledger", "id"),
+    Table("account_rules.csv", "account_rules", "id"),
     Table("screenshots.csv", "screenshots", "id", frozenset({"user_id", "stored_name"})),
 )
 
@@ -117,6 +121,10 @@ def cell(value: Any) -> str:
         return format(value, "f")
     if isinstance(value, bool):
         return "true" if value else "false"
+    if isinstance(value, list):
+        return "|".join(cell(item) for item in value)
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
     return str(value)
 
 

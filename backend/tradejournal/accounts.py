@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from .finance import DEFAULT_FEE_KEY, ZERO, money_str, parse_decimal
@@ -17,6 +17,32 @@ TRAILING_TYPES = ("intraday", "eod")
 # How an archived account ended. Only evaluations can pass.
 OUTCOMES = {"passed": "Passed", "failed": "Failed", "closed": "Closed"}
 OUTCOMES_BY_TYPE = {"evaluation": ("passed", "failed", "closed"), "funded": ("failed", "closed")}
+# Where the account is in a firm's program: an evaluation, a funded (simulated) account, or a live one. The type says
+# evaluation or funded; a funded account can be live.
+PHASES = {"evaluation": "Evaluation", "funded": "Funded", "live": "Live"}
+PHASES_BY_TYPE = {"evaluation": ("evaluation",), "funded": ("funded", "live")}
+
+
+def check_phase(account_type: str, phase: str | None) -> str | None:
+    """The phase to store: None means "the same as the type" (an evaluation, or a funded account that is not live)."""
+    if phase is None or phase == account_type:
+        return None
+    if phase not in PHASES_BY_TYPE.get(account_type, ()):
+        allowed = " or ".join(PHASES[p].lower() for p in PHASES_BY_TYPE.get(account_type, ()))
+        kind = ACCOUNT_TYPES.get(account_type, account_type).lower()
+        raise ValueError(f"the phase must be {allowed} for {kind} accounts")
+    return phase
+
+
+def check_purchase_date(purchased: date | None, today: date | None = None) -> date | None:
+    """A purchase date is a real day, not in the future (a day of slack for time zones)."""
+    if purchased is None:
+        return None
+    if purchased > (today or date.today()) + timedelta(days=1):
+        raise ValueError("the purchase date cannot be in the future")
+    if purchased.year < 2000:
+        raise ValueError("the purchase date is too long ago")
+    return purchased
 
 
 @dataclass(frozen=True)
@@ -37,10 +63,18 @@ class Account:
     outcome: str | None = None  # set when archived: "passed", "failed" or "closed"
     ended_on: date | None = None
     archive_note: str = ""
+    purchase_date: date | None = None  # the day it was bought: which version of the firm's rules applies
+    phase_stored: str | None = None  # None: the same as the type (see `phase`)
+    pass_prompt_dismissed_at: str | None = None  # the "evaluation passed" prompt was dismissed (ISO time)
 
     @property
     def archived(self) -> bool:
         return self.outcome is not None
+
+    @property
+    def phase(self) -> str:
+        """evaluation, funded or live."""
+        return self.phase_stored or self.account_type
 
 
 def create_account(

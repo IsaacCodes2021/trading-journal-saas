@@ -26,10 +26,22 @@ def account_out(a: Account) -> AccountOut:
         outcome=a.outcome,
         ended_on=a.ended_on,
         archive_note=a.archive_note,
+        purchase_date=a.purchase_date,
+        phase=a.phase,
+        pass_prompt_dismissed_at=a.pass_prompt_dismissed_at,
     )
 
 
 def entry_out(e: LedgerEntry) -> LedgerEntryOut:
     return LedgerEntryOut(
-        id=e.id, account_id=e.account_id, kind=e.kind, amount=e.amount, entry_date=e.entry_date, note=e.note
+        id=e.id,
+        account_id=e.account_id,
+        kind=e.kind,
+        amount=e.amount,
+        entry_date=e.entry_date,
+        note=e.note,
+        payout_number=e.payout_number,
+        gross_amount=e.gross_amount,
+        profit_split_pct=e.profit_split_pct,
+        payout_fee=e.payout_fee,
     )

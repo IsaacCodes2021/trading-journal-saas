@@ -125,7 +125,7 @@ describe('the picked account', () => {
     const { user, router } = await open({ account: 4 })
     const panel = await screen.findByRole('region', { name: 'Apex 50K #2 settings' })
     const tabs = within(panel).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Details', 'Fees', 'Rules', 'Ledger'])
+    expect(tabs.map((t) => t.textContent)).toEqual(['Details', 'Fees', 'Rules', 'Firm rules', 'Payouts', 'Ledger'])
     expect(tabs.filter((t) => t.getAttribute('tabindex') === '0')).toHaveLength(1)
 
     await user.click(within(panel).getByRole('tab', { name: 'Fees' }))
@@ -367,6 +367,8 @@ describe('ledger', () => {
       account_type: 'funded',
       account_size: null,
       starting_balance: '0.00',
+      purchase_date: '2026-09-01',
+      phase: null,
     })
     await open({ account: 10, tab: 'ledger' })
     await screen.findByText('Nothing recorded yet.')
@@ -400,11 +402,11 @@ describe('ledger', () => {
   it('asks before deleting an entry, and can be told to keep it', async () => {
     const { user } = await open({ account: 2, tab: 'ledger' })
     const table = await screen.findByRole('table', { name: 'Ledger entries' })
-    await user.click(within(table).getByRole('button', { name: 'Delete Payout 2026-09-25' }))
+    await user.click(within(table).getByRole('button', { name: 'Delete Payout 2026-09-22' }))
     await user.click(within(table).getByRole('button', { name: 'Keep' }))
     expect(within(table).getAllByRole('row')).toHaveLength(4)
-    await user.click(within(table).getByRole('button', { name: 'Delete Payout 2026-09-25' }))
-    await user.click(within(table).getByRole('button', { name: 'Confirm delete Payout 2026-09-25' }))
+    await user.click(within(table).getByRole('button', { name: 'Delete Payout 2026-09-22' }))
+    await user.click(within(table).getByRole('button', { name: 'Confirm delete Payout 2026-09-22' }))
     await waitFor(() =>
       expect(within(screen.getByRole('table', { name: 'Ledger entries' })).getAllByRole('row')).toHaveLength(3),
     )
@@ -421,6 +423,7 @@ describe('adding an account', () => {
     await user.selectOptions(within(dialog).getByLabelText('Firm'), 'Tradeify')
     await user.type(within(dialog).getByLabelText('Account size'), '100,000')
     await user.type(within(dialog).getByLabelText('Starting balance'), '100000')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
     await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
@@ -433,6 +436,9 @@ describe('adding an account', () => {
     const { user } = await open()
     await user.click(await screen.findByRole('button', { name: '+ Add account' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add account' })
+    await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Choose the day you bought the account.')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
     await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
     expect(await within(dialog).findByRole('alert')).toHaveTextContent('Give the account a name.')
     await user.type(within(dialog).getByLabelText('Account name'), 'Apex 150K')
@@ -461,6 +467,7 @@ describe('adding an account', () => {
     await user.click(await screen.findByRole('button', { name: '+ Add account' }))
     const dialog = await screen.findByRole('dialog', { name: 'Add account' })
     await user.type(within(dialog).getByLabelText('Account name'), 'Tradeify 100K')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
     await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
     await screen.findByRole('region', { name: 'Tradeify 100K settings' })
     await user.click(screen.getByRole('link', { name: 'Import' }))

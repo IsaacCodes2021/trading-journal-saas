@@ -157,6 +157,8 @@ const ACTIONS: Record<string, string> = {
   admin_plan_override_set: 'Plan override set',
   admin_plan_override_revoked: 'Plan override revoked',
   admin_beta_revoked: 'Beta access ended or code withdrawn',
+  admin_rule_template_edited: 'Firm rule template edited',
+  admin_rule_templates_imported: 'Firm rule templates imported',
   operator_granted: 'Made an operator',
   operator_removed: 'Operator removed',
   signup: 'Signed up',

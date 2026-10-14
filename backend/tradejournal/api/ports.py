@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Literal, Protocol
 from uuid import UUID
 
+from ..prop_rules import RuleValues
 from .schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 from .schemas.admin import (
     AdminUserDetailOut,
@@ -30,6 +31,7 @@ from .schemas.admin import (
     InviteOut,
     OverviewOut,
 )
+from .schemas.rules import AdminRuleTemplateListOut, AdminRuleTemplateOut, RuleTemplateImportOut
 
 # What /readyz asks: (ready, {check name: a short state such as "ok" or "unreachable"}). The states are public, so they
 # are words and never error text, hosts or addresses.
@@ -254,6 +256,18 @@ class AdminService(Protocol):
     ) -> AuditPageOut: ...
 
     def overview(self) -> OverviewOut: ...
+
+    # The firms' rule templates: everyone's to read, nobody's journal (migration 0019).
+
+    def list_rule_templates(self, *, q: str | None, limit: int, offset: int) -> AdminRuleTemplateListOut: ...
+
+    def rule_template(self, template_id: int) -> AdminRuleTemplateOut: ...
+
+    def edit_rule_template(
+        self, actor: UUID, template_id: int, rules: RuleValues, *, ip_hash: str | None = None
+    ) -> AdminRuleTemplateOut: ...
+
+    def import_rule_templates(self, actor: UUID, text: str, *, ip_hash: str | None = None) -> RuleTemplateImportOut: ...
 
 
 @dataclass(frozen=True)

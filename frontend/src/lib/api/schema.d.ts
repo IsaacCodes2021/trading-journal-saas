@@ -195,6 +195,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/v1/rule-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Admin List Rule Templates
+         * @description The firms' rule templates by firm, program, size and phase, the newest version first.
+         */
+        get: operations["admin_list_rule_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/rule-templates/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Admin Import Rule Templates
+         * @description Load the research CSV (the 48 columns, one row per rule set): new rule sets are added, changed ones updated and
+         *     the rest left alone. Rows that cannot be read are listed by line; the others are still loaded.
+         */
+        post: operations["admin_import_rule_templates"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/v1/rule-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Admin Get Rule Template */
+        get: operations["admin_get_rule_template"];
+        /**
+         * Admin Edit Rule Template
+         * @description Replace one template's values and flags. Only the kinds of the values are checked (the research leaves cells
+         *     empty on purpose); people's verified rule sets are copies and do not change.
+         */
+        put: operations["admin_edit_rule_template"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/v1/users": {
         parameters: {
             query?: never;
@@ -424,9 +487,31 @@ export interface paths {
         put?: never;
         /**
          * Create Account
-         * @description A new account with no rules and no fees yet (set those next).
+         * @description A new account with no rules and no fees yet (set those next). The purchase date is required: it decides which
+         *     version of the firm's rules applies.
          */
         post: operations["create_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounts/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Accounts Overview
+         * @description Every active account against its verified rules (status, breach-to-payout bar, payout readiness, consistency,
+         *     inactivity, each rule's result) and the totals. Closed trades only: see `compliance.py` for what that means.
+         */
+        get: operations["get_accounts_overview"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -443,7 +528,8 @@ export interface paths {
         get?: never;
         /**
          * Update Account
-         * @description Change an account's name, firm, type, size and starting balance. Changing the type reclassifies its trades.
+         * @description Change an account's name, firm, type, size, starting balance, purchase date and phase. Changing the type
+         *     reclassifies its trades.
          */
         put: operations["update_account"];
         post?: never;
@@ -562,6 +648,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounts/{account_id}/pass-prompt/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss Pass Prompt
+         * @description Stop offering "Evaluation passed: set up your funded account" on the Accounts tab. The account's settings still
+         *     offer it.
+         */
+        post: operations["dismiss_pass_prompt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounts/{account_id}/payouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Payouts
+         * @description The account's payouts, oldest first, with their numbers and the lifetime totals, and the split its rules promise
+         *     (the default for the next one).
+         */
+        get: operations["get_payouts"];
+        put?: never;
+        /**
+         * Add Payout
+         * @description Log a payout: the gross the firm paid out and the trader's split (net = gross x split, to the cent). Without a
+         *     split, the one in the account's rules is used; a fee is counted as a cost of the business.
+         */
+        post: operations["add_payout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounts/{account_id}/restore": {
         parameters: {
             query?: never;
@@ -573,6 +706,31 @@ export interface paths {
         put?: never;
         /** Restore Account */
         post: operations["restore_account"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/accounts/{account_id}/rule-set": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Rule Set
+         * @description The rules the person verified for this account; null when there are none yet.
+         */
+        get: operations["get_rule_set"];
+        /**
+         * Put Rule Set
+         * @description Verify the account's rules: every value is copied in, so a later change to the template never changes them. The
+         *     previous rule set is kept as history. Each field that is wrong is named in the 422's `errors` (`values.<field>`).
+         */
+        put: operations["put_rule_set"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -860,6 +1018,69 @@ export interface paths {
          *     statistics for each group. The date range and the other filters are the dashboard's.
          */
         get: operations["get_report"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Rule Fields
+         * @description Every rule field (name, kind, group, label, choices, hint) in the form's order, and the groups in order.
+         */
+        get: operations["get_rule_fields"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Rule Templates
+         * @description The firms' rule sets that can apply to an account bought on `purchased_on`: the versions in force by then, and
+         *     those the research could not date. The latest version of each firm + program + size + phase is preselected. Without
+         *     a date every version is listed and none is preselected.
+         */
+        get: operations["list_rule_templates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/rule-templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Rule Template
+         * @description One firm's rule set in full, with what the research could not confirm (`flags`) and the source's own words for
+         *     cells that were not a clean value (`source_notes`).
+         */
+        get: operations["get_rule_template"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1275,6 +1496,10 @@ export interface components {
             firm: "Apex" | "Bulenox" | "Lucid" | "My Funded Futures" | "Take Profit" | "Tradeify" | "Other";
             /** Name */
             name: string;
+            /** Phase */
+            phase: ("evaluation" | "funded" | "live") | null;
+            /** Purchase Date */
+            purchase_date: string | null;
             /**
              * Starting Balance
              * @example -475.00
@@ -1314,8 +1539,17 @@ export interface components {
             name: string;
             /** Outcome */
             outcome: ("passed" | "failed" | "closed") | null;
+            /** Pass Prompt Dismissed At */
+            pass_prompt_dismissed_at: string | null;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "evaluation" | "funded" | "live";
             /** Profit Target */
             profit_target: string | null;
+            /** Purchase Date */
+            purchase_date: string | null;
             /**
              * Starting Balance
              * @example -475.00
@@ -1367,6 +1601,58 @@ export interface components {
             name: string;
         };
         /**
+         * AccountRowOut
+         * @description One active account on the Accounts tab. Without verified rules only the money is known: `rules_set` is false and
+         *     the rule fields are empty.
+         */
+        AccountRowOut: {
+            account: components["schemas"]["AccountOut"];
+            /**
+             * Balance
+             * @example -475.00
+             */
+            balance: string;
+            /** Consistency Headroom */
+            consistency_headroom: string | null;
+            /** Floor */
+            floor: string | null;
+            inactivity: components["schemas"]["InactivityOut"] | null;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Pass Prompt */
+            pass_prompt: boolean;
+            payout: components["schemas"]["PayoutReadinessOut"] | null;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "evaluation" | "funded" | "live";
+            /** Program */
+            program: string | null;
+            /** Progress */
+            progress: string;
+            /** Rules */
+            rules: components["schemas"]["RuleResultOut"][];
+            /** Rules Set */
+            rules_set: boolean;
+            spectrum: components["schemas"]["SpectrumOut"] | null;
+            /** Status */
+            status: ("ok" | "at_risk" | "breached" | "passed" | "payout_ready") | null;
+            /**
+             * Withdrawn Gross
+             * @example -475.00
+             */
+            withdrawn_gross: string;
+            /**
+             * Withdrawn Net
+             * @example -475.00
+             */
+            withdrawn_net: string;
+        };
+        /**
          * AccountRulesIn
          * @description A rule left null is not tracked for the account.
          */
@@ -1394,6 +1680,45 @@ export interface components {
             net_pnl: string;
             /** Trade Count */
             trade_count: number;
+        };
+        /** AccountsOverviewOut */
+        AccountsOverviewOut: {
+            /** Accounts */
+            accounts: components["schemas"]["AccountRowOut"][];
+            totals: components["schemas"]["AccountsTotalsOut"];
+        };
+        /** AccountsTotalsOut */
+        AccountsTotalsOut: {
+            /**
+             * Balance
+             * @example -475.00
+             */
+            balance: string;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /**
+             * Withdrawable Gross
+             * @example -475.00
+             */
+            withdrawable_gross: string;
+            /**
+             * Withdrawable Net
+             * @example -475.00
+             */
+            withdrawable_net: string;
+            /**
+             * Withdrawn Gross
+             * @example -475.00
+             */
+            withdrawn_gross: string;
+            /**
+             * Withdrawn Net
+             * @example -475.00
+             */
+            withdrawn_net: string;
         };
         /** ActiveSessionOut */
         ActiveSessionOut: {
@@ -1478,6 +1803,39 @@ export interface components {
              * @description For "sign_in" and "sign_up": whether two-step verification was used
              */
             mfa: boolean | null;
+        };
+        /** AdminRuleTemplateListOut */
+        AdminRuleTemplateListOut: {
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Templates */
+            templates: components["schemas"]["RuleTemplateKeyOut"][];
+            /** Total */
+            total: number;
+        };
+        /** AdminRuleTemplateOut */
+        AdminRuleTemplateOut: {
+            /** Flags */
+            flags: components["schemas"]["FlagOut"][];
+            /** Id */
+            id: number;
+            /** Source Notes */
+            source_notes: {
+                [key: string]: string;
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Updated By */
+            updated_by: string;
+            /** Values */
+            values: {
+                [key: string]: string | number | null;
+            };
         };
         /** AdminUserDetailOut */
         AdminUserDetailOut: {
@@ -1688,6 +2046,11 @@ export interface components {
         };
         /** Body_add_screenshot */
         Body_add_screenshot: {
+            /** File */
+            file: string;
+        };
+        /** Body_admin_import_rule_templates */
+        Body_admin_import_rule_templates: {
             /** File */
             file: string;
         };
@@ -1952,6 +2315,29 @@ export interface components {
             /** Symbol Roots */
             symbol_roots: string[];
         };
+        /** FlagIn */
+        FlagIn: {
+            /** Field */
+            field: string;
+            /** Reason */
+            reason: string;
+        };
+        /**
+         * FlagOut
+         * @description A field the research could not confirm. `unknown` and `conflict` fields were left empty on purpose; a `third-party
+         *     only` field keeps its value. The reason is the research's own words (a conflict names both values).
+         */
+        FlagOut: {
+            /** Field */
+            field: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "unknown" | "conflict" | "third-party only";
+            /** Reason */
+            reason: string;
+        };
         /** FlagsOut */
         FlagsOut: {
             /** Is Admin */
@@ -2095,6 +2481,15 @@ export interface components {
             /** Undone At */
             undone_at: string | null;
         };
+        /** InactivityOut */
+        InactivityOut: {
+            /** Days Left */
+            days_left: number | null;
+            /** Deadline */
+            deadline: string | null;
+            /** Message */
+            message: string;
+        };
         /** InviteIn */
         InviteIn: {
             /**
@@ -2179,6 +2574,8 @@ export interface components {
              * Format: date
              */
             entry_date: string;
+            /** Gross Amount */
+            gross_amount: string | null;
             /** Id */
             id: number;
             /**
@@ -2188,6 +2585,12 @@ export interface components {
             kind: "evaluation_fee" | "reset_fee" | "activation_fee" | "monthly_fee" | "other_cost" | "payout";
             /** Note */
             note: string;
+            /** Payout Fee */
+            payout_fee: string | null;
+            /** Payout Number */
+            payout_number: number | null;
+            /** Profit Split Pct */
+            profit_split_pct: string | null;
         };
         /** LogoutOut */
         LogoutOut: {
@@ -2206,6 +2609,38 @@ export interface components {
             next: number | null;
             /** Previous */
             previous: number | null;
+        };
+        /**
+         * NewAccountIn
+         * @description A new account needs the day it was bought: it decides which version of the firm's rules applies.
+         */
+        NewAccountIn: {
+            /** Account Size */
+            account_size: string | null;
+            /**
+             * Account Type
+             * @enum {string}
+             */
+            account_type: "evaluation" | "funded";
+            /**
+             * Firm
+             * @enum {string}
+             */
+            firm: "Apex" | "Bulenox" | "Lucid" | "My Funded Futures" | "Take Profit" | "Tradeify" | "Other";
+            /** Name */
+            name: string;
+            /** Phase */
+            phase: ("evaluation" | "funded" | "live") | null;
+            /**
+             * Purchase Date
+             * Format: date
+             */
+            purchase_date: string;
+            /**
+             * Starting Balance
+             * @example -475.00
+             */
+            starting_balance: string;
         };
         /** NewLedgerEntryIn */
         NewLedgerEntryIn: {
@@ -2317,6 +2752,66 @@ export interface components {
             signups_7d: number;
             /** Suspended */
             suspended: number;
+        };
+        /** PayoutIn */
+        PayoutIn: {
+            /**
+             * Entry Date
+             * Format: date
+             */
+            entry_date: string;
+            /** Fee */
+            fee: string | null;
+            /**
+             * Gross
+             * @example -475.00
+             */
+            gross: string;
+            /** Note */
+            note: string;
+            /** Split Pct */
+            split_pct: string | null;
+        };
+        /** PayoutReadinessOut */
+        PayoutReadinessOut: {
+            /** Blockers */
+            blockers: string[];
+            /** Gross */
+            gross: string | null;
+            /** Net */
+            net: string | null;
+            /** Next Number */
+            next_number: number;
+            /** Progress */
+            progress: string;
+            /** Ready */
+            ready: boolean;
+            /** Split Pct */
+            split_pct: string | null;
+        };
+        /** PayoutsOut */
+        PayoutsOut: {
+            /**
+             * Lifetime Fees
+             * @example -475.00
+             */
+            lifetime_fees: string;
+            /**
+             * Lifetime Gross
+             * @example -475.00
+             */
+            lifetime_gross: string;
+            /**
+             * Lifetime Net
+             * @example -475.00
+             */
+            lifetime_net: string;
+            /** Next Number */
+            next_number: number;
+            /** Payouts */
+            payouts: components["schemas"]["LedgerEntryOut"][];
+            /** Split Pct */
+            split_pct: string | null;
         };
         /** PerformanceScoreOut */
         PerformanceScoreOut: {
@@ -2442,6 +2937,207 @@ export interface components {
             groups: components["schemas"]["ReportGroupOut"][];
             summary: components["schemas"]["SummaryOut"];
         };
+        /** RuleFieldOut */
+        RuleFieldOut: {
+            /** Choices */
+            choices: string[];
+            /** Group */
+            group: string;
+            /** Hint */
+            hint: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "money" | "int" | "pct" | "date" | "choice";
+            /** Label */
+            label: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * RuleFieldsOut
+         * @description Every rule field, in the form's order, and the form's groups in order.
+         */
+        RuleFieldsOut: {
+            /** Fields */
+            fields: components["schemas"]["RuleFieldOut"][];
+            /** Groups */
+            groups: string[];
+        };
+        /** RuleResultOut */
+        RuleResultOut: {
+            /** Current */
+            current: string | null;
+            /** Group */
+            group: string;
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Limit */
+            limit: string | null;
+            /** Message */
+            message: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pass" | "fail" | "n/a" | "not_verifiable";
+        };
+        /**
+         * RuleSetIn
+         * @description What the rules form submits. Every field of `GET /rule-fields` may be given (a missing one is empty). The flags and
+         *     source notes of the template it started from are sent back with it, so the account keeps showing what the research
+         *     could not confirm.
+         */
+        RuleSetIn: {
+            /** Flags */
+            flags: components["schemas"]["FlagIn"][];
+            /** Source Notes */
+            source_notes: {
+                [key: string]: string;
+            };
+            /** Source Template Id */
+            source_template_id: number | null;
+            /** Values */
+            values: {
+                [key: string]: string | number | null;
+            };
+        };
+        /** RuleSetOut */
+        RuleSetOut: {
+            /** Account Id */
+            account_id: number;
+            /** Flags */
+            flags: components["schemas"]["FlagOut"][];
+            /** Id */
+            id: number;
+            /** Source Notes */
+            source_notes: {
+                [key: string]: string;
+            };
+            /** Source Template Id */
+            source_template_id: number | null;
+            /** Values */
+            values: {
+                [key: string]: string | number | null;
+            };
+            /**
+             * Verified At
+             * Format: date-time
+             */
+            verified_at: string;
+        };
+        /**
+         * RuleTemplateEditIn
+         * @description An operator's edit of one template: every value and flag. Its source notes are the research's and stay, except for
+         *     a field that now has a value.
+         */
+        RuleTemplateEditIn: {
+            /** Flags */
+            flags: components["schemas"]["FlagIn"][];
+            /** Values */
+            values: {
+                [key: string]: string | number | null;
+            };
+        };
+        /** RuleTemplateImportOut */
+        RuleTemplateImportOut: {
+            /** Inserted */
+            inserted: number;
+            /** Problems */
+            problems: string[];
+            /** Unchanged */
+            unchanged: number;
+            /** Updated */
+            updated: number;
+        };
+        /**
+         * RuleTemplateKeyOut
+         * @description What names a template, and how sure the research is about it.
+         */
+        RuleTemplateKeyOut: {
+            /** Account Size */
+            account_size: string;
+            /** Data Confidence */
+            data_confidence: string | null;
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective From Note */
+            effective_from_note: string | null;
+            /** Firm */
+            firm: string;
+            /** Flagged */
+            flagged: number;
+            /** Id */
+            id: number;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "evaluation" | "funded" | "live";
+            /** Program */
+            program: string;
+            /** Rule Version */
+            rule_version: string;
+        };
+        /** RuleTemplateOut */
+        RuleTemplateOut: {
+            /** Flags */
+            flags: components["schemas"]["FlagOut"][];
+            /** Id */
+            id: number;
+            /** Source Notes */
+            source_notes: {
+                [key: string]: string;
+            };
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Values */
+            values: {
+                [key: string]: string | number | null;
+            };
+        };
+        /**
+         * RuleTemplateSummaryOut
+         * @description One line of the picker.
+         */
+        RuleTemplateSummaryOut: {
+            /** Account Size */
+            account_size: string;
+            /** Data Confidence */
+            data_confidence: string | null;
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective From Note */
+            effective_from_note: string | null;
+            /** Firm */
+            firm: string;
+            /** Flagged */
+            flagged: number;
+            /** Id */
+            id: number;
+            /**
+             * Phase
+             * @enum {string}
+             */
+            phase: "evaluation" | "funded" | "live";
+            /** Preselect */
+            preselect: boolean;
+            /** Program */
+            program: string;
+            /** Rule Version */
+            rule_version: string;
+        };
+        /** RuleTemplatesOut */
+        RuleTemplatesOut: {
+            /** Templates */
+            templates: components["schemas"]["RuleTemplateSummaryOut"][];
+        };
         /** ScoreAxisOut */
         ScoreAxisOut: {
             /** Name */
@@ -2512,6 +3208,31 @@ export interface components {
             trading_day_start?: string | null;
             /** Trading Day Timezone */
             trading_day_timezone?: string | null;
+        };
+        /**
+         * SpectrumOut
+         * @description One bar from breach (left) to goal (right).
+         */
+        SpectrumOut: {
+            /**
+             * Balance
+             * @example -475.00
+             */
+            balance: string;
+            /** Breach Kind */
+            breach_kind: ("drawdown" | "daily_loss") | null;
+            /** Breach Level */
+            breach_level: string | null;
+            /** Position */
+            position: number | null;
+            /** Target Kind */
+            target_kind: ("profit_target" | "payout") | null;
+            /** Target Level */
+            target_level: string | null;
+            /** To Breach */
+            to_breach: string | null;
+            /** To Target */
+            to_target: string | null;
         };
         /**
          * SummaryOut
@@ -3709,6 +4430,319 @@ export interface operations {
             };
         };
     };
+    admin_list_rule_templates: {
+        parameters: {
+            query?: {
+                /** @description Words of a firm, program, size, phase or version */
+                q?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRuleTemplateListOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    admin_import_rule_templates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_admin_import_rule_templates"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleTemplateImportOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    admin_get_rule_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRuleTemplateOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    admin_edit_rule_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleTemplateEditIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminRuleTemplateOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     list_users: {
         parameters: {
             query?: {
@@ -4653,7 +5687,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AccountDetailsIn"];
+                "application/json": components["schemas"]["NewAccountIn"];
             };
         };
         responses: {
@@ -4695,6 +5729,71 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_accounts_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountsOverviewOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5355,6 +6454,211 @@ export interface operations {
             };
         };
     };
+    dismiss_pass_prompt: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_payouts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    add_payout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PayoutIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerEntryOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     restore_account: {
         parameters: {
             query?: never;
@@ -5404,6 +6708,144 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_rule_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSetOut"] | null;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    put_rule_set: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                account_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleSetIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleSetOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -6537,6 +7979,206 @@ export interface operations {
             };
             /** @description Forbidden */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_rule_fields: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleFieldsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    list_rule_templates: {
+        parameters: {
+            query?: {
+                /** @description The account's purchase date */
+                purchased_on?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleTemplatesOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_rule_template: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleTemplateOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

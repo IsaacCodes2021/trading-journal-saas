@@ -5,6 +5,7 @@ import {
   LEDGER_KINDS,
   OUTCOMES_BY_TYPE,
   OUTCOME_LABELS,
+  PHASES_BY_TYPE,
   TRAILING_TYPES,
   type AccountDetail,
   type AccountRef,
@@ -16,6 +17,7 @@ import {
   type FeeSchedule,
   type LedgerEntry,
   type NewLedgerEntry,
+  type Phase,
 } from '../data/model'
 import { ACCOUNT_TYPES } from '../filters'
 import { SAMPLE_TRADES } from './generate'
@@ -44,7 +46,10 @@ const base = (
   outcome: null,
   ended_on: null,
   archive_note: '',
+  purchase_date: null,
+  pass_prompt_dismissed_at: null,
   ...over,
+  phase: over.phase ?? over.account_type,
 })
 
 const INITIAL_ACCOUNTS: AccountDetail[] = [
@@ -57,6 +62,7 @@ const INITIAL_ACCOUNTS: AccountDetail[] = [
     starting_balance: '50000.00',
     max_drawdown: '2500.00',
     trailing_type: 'eod',
+    purchase_date: '2026-08-18',
   }),
   base({
     id: 2,
@@ -67,6 +73,7 @@ const INITIAL_ACCOUNTS: AccountDetail[] = [
     starting_balance: '150000.00',
     max_drawdown: '5000.00',
     trailing_type: 'eod',
+    purchase_date: '2026-07-28',
   }),
   base({
     id: 3,
@@ -78,6 +85,7 @@ const INITIAL_ACCOUNTS: AccountDetail[] = [
     max_drawdown: '3000.00',
     trailing_type: 'intraday',
     profit_target: '6000.00',
+    purchase_date: '2026-09-01',
   }),
   base({
     id: 4,
@@ -89,6 +97,7 @@ const INITIAL_ACCOUNTS: AccountDetail[] = [
     max_drawdown: '2500.00',
     trailing_type: 'eod',
     profit_target: '3000.00',
+    purchase_date: '2026-08-24',
   }),
   base({
     id: 5,
@@ -155,6 +164,7 @@ const entry = (
   amount: string,
   entry_date: string,
   note = '',
+  payout: Pick<LedgerEntry, 'payout_number' | 'gross_amount' | 'profit_split_pct' | 'payout_fee'> | null = null,
 ): LedgerEntry => ({
   id,
   account_id,
@@ -162,14 +172,26 @@ const entry = (
   amount,
   entry_date,
   note,
+  payout_number: payout?.payout_number ?? null,
+  gross_amount: payout?.gross_amount ?? null,
+  profit_split_pct: payout?.profit_split_pct ?? null,
+  payout_fee: payout?.payout_fee ?? null,
+})
+
+/** Apex pays 100% of the profit, so these payouts' net is their gross. */
+const FULL_SPLIT = (gross: string) => ({
+  payout_number: 1,
+  gross_amount: gross,
+  profit_split_pct: '100.00',
+  payout_fee: '0.00',
 })
 
 const INITIAL_LEDGER: LedgerEntry[] = [
   entry(1, 1, 'activation_fee', '130.00', '2026-08-20'),
-  entry(2, 1, 'payout', '1500.00', '2026-09-18', 'First payout'),
+  entry(2, 1, 'payout', '1500.00', '2026-09-18', 'First payout', FULL_SPLIT('1500.00')),
   entry(3, 2, 'evaluation_fee', '167.00', '2026-07-30'),
   entry(4, 2, 'activation_fee', '130.00', '2026-08-12'),
-  entry(5, 2, 'payout', '1650.00', '2026-09-25'),
+  entry(5, 2, 'payout', '1650.00', '2026-09-22', '', FULL_SPLIT('1650.00')),
   entry(6, 3, 'evaluation_fee', '149.00', '2026-09-08'),
   entry(7, 4, 'evaluation_fee', '167.00', '2026-08-25'),
   entry(8, 4, 'reset_fee', '80.00', '2026-09-12', 'Reset after the CPI move'),
@@ -200,6 +222,11 @@ function find(id: number): AccountDetail {
   if (!account) throw new AccountRefused('That account does not exist.')
   return account
 }
+
+/** For the sample rules and the Accounts tab (`rules.ts`). */
+export const allAccounts = (): readonly AccountDetail[] => accounts
+export const accountById = (id: number): AccountDetail => find(id)
+export const ledgerEntries = (): readonly LedgerEntry[] => ledger
 
 function replace(next: AccountDetail): AccountDetail {
   accounts = accounts.map((a) => (a.id === next.id ? next : a))
@@ -271,6 +298,26 @@ export function businessTotals(): BusinessTotals {
 
 // ---- accounts ---------------------------------------------------------------------------------------------------
 
+/** The phase to store, as `accounts.check_phase`: the type's own phase, or live for a funded account. */
+function checkPhase(input: AccountDetailsInput): Phase {
+  const allowed = PHASES_BY_TYPE[input.account_type]
+  if (input.phase !== null && !allowed.includes(input.phase)) {
+    throw new AccountRefused(`The phase must be ${allowed.join(' or ')} for ${input.account_type} accounts.`)
+  }
+  return input.phase ?? input.account_type
+}
+
+/** As `accounts.check_purchase_date`: a real day, not in the future (a day of slack for time zones). */
+function checkPurchaseDate(day: string | null): string | null {
+  if (day === null) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || Number.isNaN(Date.parse(day))) {
+    throw new AccountRefused('Choose the purchase date.')
+  }
+  if (Date.parse(day) > Date.now() + 86_400_000) throw new AccountRefused('The purchase date cannot be in the future.')
+  if (day < '2000-01-01') throw new AccountRefused('The purchase date is too long ago.')
+  return day
+}
+
 function checkDetails(input: AccountDetailsInput, except?: number): string {
   const name = input.name.split(/\s+/).filter(Boolean).join(' ')
   if (!name) throw new AccountRefused('Give the account a name.')
@@ -287,6 +334,9 @@ function checkDetails(input: AccountDetailsInput, except?: number): string {
 
 export function createAccount(input: AccountDetailsInput): AccountDetail {
   const name = checkDetails(input)
+  if (input.purchase_date === null) throw new AccountRefused('Choose the purchase date.')
+  const purchase_date = checkPurchaseDate(input.purchase_date)
+  const phase = checkPhase(input)
   const account = base({
     id: nextAccountId++,
     name,
@@ -295,6 +345,8 @@ export function createAccount(input: AccountDetailsInput): AccountDetail {
     account_size: input.account_size,
     starting_balance: input.starting_balance,
     created_at: new Date().toISOString(),
+    purchase_date,
+    phase,
   })
   accounts = [...accounts, account]
   return account
@@ -315,6 +367,8 @@ export function updateAccount(id: number, input: AccountDetailsInput): AccountDe
     account_type: input.account_type,
     account_size: input.account_size,
     starting_balance: input.starting_balance,
+    purchase_date: checkPurchaseDate(input.purchase_date),
+    phase: checkPhase(input),
   })
 }
 
@@ -342,6 +396,11 @@ export function archiveAccount(id: number, input: ArchiveInput): AccountDetail {
 
 export function restoreAccount(id: number): AccountDetail {
   return replace({ ...find(id), outcome: null, ended_on: null, archive_note: '' })
+}
+
+export function dismissPassPrompt(id: number): AccountDetail {
+  const current = find(id)
+  return replace({ ...current, pass_prompt_dismissed_at: current.pass_prompt_dismissed_at ?? new Date().toISOString() })
 }
 
 // ---- fees -------------------------------------------------------------------------------------------------------
@@ -378,9 +437,47 @@ export function addEntry(id: number, input: NewLedgerEntry): LedgerEntry {
   if (!(input.kind in LEDGER_KINDS)) throw new AccountRefused('Choose what the money was for.')
   if (!new Decimal(input.amount).greaterThan(0)) throw new AccountRefused('The amount must be more than zero.')
   if (!/^\d{4}-\d{2}-\d{2}$/.test(input.entry_date)) throw new AccountRefused('Choose a date.')
-  const created: LedgerEntry = { id: nextEntryId++, account_id: id, ...input, note: input.note.trim() }
+  const created = entry(nextEntryId++, id, input.kind, input.amount, input.entry_date, input.note.trim())
   ledger = [...ledger, created]
-  return created
+  renumberPayouts(id)
+  return ledger.find((e) => e.id === created.id) ?? created
+}
+
+/** As `pg/ledger.add_payout`: the gross, the split (the net is gross x split, half up), and a fee. */
+export function addPayoutEntry(
+  id: number,
+  input: { entry_date: string; gross: string; split_pct: string; fee: string; note: string },
+): LedgerEntry {
+  find(id)
+  const gross = new Decimal(input.gross).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+  const split = new Decimal(input.split_pct).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+  const fee = new Decimal(input.fee).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+  if (!gross.greaterThan(0)) throw new AccountRefused('The gross amount must be more than zero.')
+  if (!split.greaterThan(0) || split.greaterThan(100)) {
+    throw new AccountRefused('The split must be more than 0% and at most 100%.')
+  }
+  if (fee.isNegative()) throw new AccountRefused('The fee cannot be negative.')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.entry_date)) throw new AccountRefused('Choose a date.')
+  const net = gross.times(split).div(100).toDecimalPlaces(2, Decimal.ROUND_HALF_UP)
+  if (!net.greaterThan(0)) throw new AccountRefused('The net amount (gross x split) must be at least one cent.')
+  const created = entry(nextEntryId++, id, 'payout', net.toFixed(2), input.entry_date, input.note.trim(), {
+    payout_number: null,
+    gross_amount: gross.toFixed(2),
+    profit_split_pct: split.toFixed(2),
+    payout_fee: fee.toFixed(2),
+  })
+  ledger = [...ledger, created]
+  renumberPayouts(id)
+  return ledger.find((e) => e.id === created.id) ?? created
+}
+
+/** Payouts are numbered 1, 2, 3... by date, then by when they were logged. */
+function renumberPayouts(id: number): void {
+  const ordered = ledger
+    .filter((e) => e.account_id === id && e.kind === 'payout')
+    .sort((a, b) => a.entry_date.localeCompare(b.entry_date) || a.id - b.id)
+  const numbers = new Map(ordered.map((e, n) => [e.id, n + 1]))
+  ledger = ledger.map((e) => (numbers.has(e.id) ? { ...e, payout_number: numbers.get(e.id) ?? null } : e))
 }
 
 export function deleteEntry(id: number, entryId: number): void {
@@ -388,4 +485,5 @@ export function deleteEntry(id: number, entryId: number): void {
   if (!ledger.some((e) => e.id === entryId && e.account_id === id))
     throw new AccountRefused('That entry does not exist.')
   ledger = ledger.filter((e) => e.id !== entryId)
+  renumberPayouts(id)
 }

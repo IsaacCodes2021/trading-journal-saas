@@ -11,7 +11,7 @@ from pydantic import AfterValidator, ConfigDict, Field
 from ...accounts import FIRMS
 from ...ledger import KINDS
 from .base import ApiModel
-from .journal import AccountOut, AccountType, Outcome, RowId, TrailingType
+from .journal import AccountOut, AccountType, Outcome, Phase, RowId, TrailingType
 from .money import Money
 
 # Amounts are cents in a numeric(20, 2) column; this is a sanity bound well inside it, so a typo is a refusal in words
@@ -32,6 +32,7 @@ def _between(low: Decimal, high: Decimal, *, low_open: bool = False):
 Amount = Annotated[Money, AfterValidator(_between(Decimal("0"), MAX_AMOUNT))]  # 0 to the bound
 PositiveAmount = Annotated[Money, AfterValidator(_between(Decimal("0"), MAX_AMOUNT, low_open=True))]
 FeeRate = Annotated[Money, AfterValidator(_between(Decimal("0"), MAX_FEE_RATE))]
+Percent = Annotated[Money, AfterValidator(_between(Decimal("0"), Decimal("100"), low_open=True))]  # (0, 100]
 
 FirmName = Literal[*FIRMS]  # the firms the app knows (accounts.FIRMS); the front end offers the same list
 LedgerKind = Literal[*KINDS]
@@ -50,6 +51,14 @@ class AccountDetailsIn(_In):
     account_type: AccountType
     account_size: Amount | None
     starting_balance: Amount
+    purchase_date: date | None  # null clears it (an account from before purchase dates were kept)
+    phase: Phase | None  # null: the same as the type; a funded account can be live
+
+
+class NewAccountIn(AccountDetailsIn):
+    """A new account needs the day it was bought: it decides which version of the firm's rules applies."""
+
+    purchase_date: date
 
 
 class AccountRulesIn(_In):
@@ -84,9 +93,14 @@ class LedgerEntryOut(ApiModel):
     id: RowId
     account_id: RowId
     kind: LedgerKind
-    amount: Money
+    amount: Money  # for a payout, the net: what the trader received before any fee
     entry_date: date
     note: str
+    # A payout's own facts; null on costs, and on payouts recorded before they were kept.
+    payout_number: int | None  # 1, 2, 3... by date
+    gross_amount: Money | None  # what the firm paid out of the account
+    profit_split_pct: Money | None  # the trader's share (amount = gross x split)
+    payout_fee: Money | None  # kept by the firm or the bank; counted as a cost
 
 
 class AccountProgressOut(ApiModel):

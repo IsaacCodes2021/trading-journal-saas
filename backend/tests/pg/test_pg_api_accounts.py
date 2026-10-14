@@ -18,6 +18,8 @@ DETAILS = {
     "account_type": "evaluation",
     "account_size": "50000.00",
     "starting_balance": "50000.00",
+    "purchase_date": "2026-01-05",
+    "phase": None,
 }
 NO_RULES = {
     "profit_target": None,
@@ -113,6 +115,40 @@ def test_renaming_onto_another_accounts_name_is_refused_and_an_archived_outcome_
     )
     refused = client.put(f"/api/v1/accounts/{first['id']}", json={**DETAILS, "account_type": "funded"})
     assert refused.status_code == 422 and "restore it first" in refused.json()["detail"]
+
+
+def test_a_new_account_needs_its_purchase_date_and_takes_a_phase_that_fits_its_type(db, alice):
+    client = api(db, alice)
+    for missing in ({k: v for k, v in DETAILS.items() if k != "purchase_date"}, {**DETAILS, "purchase_date": None}):
+        refused = client.post("/api/v1/accounts", json=missing)
+        assert refused.status_code == 422 and refused.json()["errors"][0]["field"] == "purchase_date"
+    created = make(client)
+    assert (created["purchase_date"], created["phase"], created["pass_prompt_dismissed_at"]) == (
+        "2026-01-05",
+        "evaluation",
+        None,
+    )
+    assert make(client, name="Lucid Live", account_type="funded", phase="live")["phase"] == "live"
+    wrong = client.post("/api/v1/accounts", json={**DETAILS, "name": "X", "phase": "live"})
+    assert wrong.status_code == 422
+    assert wrong.json()["detail"] == "The phase must be evaluation for evaluation accounts."
+    future = client.post("/api/v1/accounts", json={**DETAILS, "name": "Y", "purchase_date": "2999-01-01"})
+    assert future.status_code == 422 and future.json()["detail"] == "The purchase date cannot be in the future."
+    assert names(client) == ["Apex 11", "Lucid Live"]
+
+
+def test_changing_the_details_sets_or_clears_the_purchase_date_and_phase(db, alice):
+    client = api(db, alice)
+    account = make(client, account_type="funded")
+    url = f"/api/v1/accounts/{account['id']}"
+    changed = client.put(url, json={**DETAILS, "account_type": "funded", "purchase_date": None, "phase": "live"})
+    assert (changed.json()["purchase_date"], changed.json()["phase"]) == (None, "live")
+    back = client.put(url, json={**DETAILS, "account_type": "funded"}).json()
+    assert (back["purchase_date"], back["phase"]) == ("2026-01-05", "funded")
+    # Both are required keys (null allowed), so a client that does not know them cannot clear them by leaving them out.
+    for key in ("purchase_date", "phase"):
+        missing = client.put(url, json={k: v for k, v in {**DETAILS, "account_type": "funded"}.items() if k != key})
+        assert missing.status_code == 422 and missing.json()["errors"][0]["field"] == key
 
 
 # ---- rules ----------------------------------------------------------------------------------------------------------
