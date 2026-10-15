@@ -69,7 +69,7 @@ class PgAccountService:
                     "grant_redeemed",
                     user_id=user_id,
                     ip_hash=ip_hash,
-                    meta={"plan": outcome.plan, "days": outcome.days, "via": "code"},
+                    meta={"plan": outcome.plan, "days": outcome.days, "via": "settings"},
                 )
                 plan = pg_plans.effective(conn, user_id, now)
                 return GrantResult(

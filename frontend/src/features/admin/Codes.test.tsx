@@ -18,7 +18,7 @@ async function open(options: AdminStubOptions = {}, search: Record<string, strin
 }
 
 const requests = (calls: Call[], path: string) => calls.filter((c) => c.path === path)
-const listing = () => screen.findByRole('region', { name: /^(Invites|Plan codes)$/ })
+const listing = () => screen.findByRole('region', { name: /^(Invites|Promo codes)$/ })
 const audit = () => screen.findByRole('region', { name: 'Audit log' })
 
 const INVITES = [
@@ -33,6 +33,7 @@ const INVITES = [
   invite(1, 'Old', { status: 'revoked', revoked_at: '2026-09-30T00:00:00Z' }),
 ]
 const GRANTS = [
+  grant(6, 'Launch post', { code: 'FREE30', days: 30, used: 18 }),
   grant(5, 'Beta testers', { used: 4, max_redemptions: 25, expires_at: '2026-12-31T00:00:00Z' }),
   grant(4, 'Leaked', { status: 'revoked', revoked_at: '2026-09-30T00:00:00Z' }),
 ]
@@ -62,6 +63,7 @@ describe('the overview', () => {
     expect(tiles).toHaveTextContent('57 Free · 7 Pro')
     expect(tiles).toHaveTextContent('2 · 2')
     expect(tiles).toHaveTextContent('3 · 1')
+    expect(tiles).toHaveTextContent('Free days ending, next 7 days4')
   })
 
   it('says so when the numbers cannot be loaded, and the rest of the page still works', async () => {
@@ -257,15 +259,16 @@ describe('making an invite', () => {
     await waitFor(() => expect(within(card).getByLabelText('Label')).toHaveValue(''))
   })
 
-  it('offers only the plan codes that still work, and sends the one chosen', async () => {
+  it('offers only the codes that still work, by their code when they have one, and sends the one chosen', async () => {
     const { calls, card, user: u } = await form({ grantCodes: GRANTS })
     const select = within(card).getByLabelText('Plan it carries (optional)')
-    await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(2))
+    await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(3))
     expect(
       within(select)
         .getAllByRole('option')
         .map((o) => o.textContent),
-    ).toEqual(['None', 'Beta testers (90 days of Pro)'])
+    ).toEqual(['None', 'FREE30 (30 days of Pro)', 'Beta testers (90 days of Pro)'])
+    expect(requests(calls, '/api/admin/v1/grant-codes').some((c) => c.query['show'] === 'works')).toBe(true)
     await u.selectOptions(select, '5')
     await u.click(within(card).getByRole('button', { name: 'Make invite' }))
     await screen.findByRole('region', { name: 'New code' })
@@ -346,116 +349,174 @@ describe('making an invite', () => {
   })
 })
 
-describe('plan codes', () => {
-  const tab = async (options: AdminStubOptions = {}) => {
-    const view = await open({ grantCodes: GRANTS, ...options }, { tab: 'codes' })
-    return { ...view, region: await screen.findByRole('region', { name: 'Plan codes' }) }
+describe('promo codes', () => {
+  const tab = async (options: AdminStubOptions = {}, search: Record<string, string> = {}) => {
+    const view = await open({ grantCodes: GRANTS, ...options }, { tab: 'codes', ...search })
+    return { ...view, region: await screen.findByRole('region', { name: 'Promo codes' }) }
   }
+  const make = () => screen.getByRole('region', { name: 'Make a promo code' })
 
-  it('lists each with what it gives, how many people used it, when it ends and where it stands', async () => {
+  it('lists each with its code to copy, the note, what it gives, how many used it, when it stops and where it stands', async () => {
     const { region } = await tab()
     const rows = (await within(region).findAllByRole('row')).slice(1)
-    expect(rows).toHaveLength(2)
-    expect(rows[0]).toHaveTextContent('Beta testers')
-    expect(rows[0]).toHaveTextContent('90 days of Pro')
-    expect(rows[0]).toHaveTextContent('4 / 25')
-    expect(rows[0]).toHaveTextContent('Dec 31, 2026')
-    expect(rows[1]).toHaveTextContent('Revoked')
-    expect(within(rows[1] as HTMLElement).queryByRole('button')).not.toBeInTheDocument()
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent('FREE30')
+    expect(rows[0]).toHaveTextContent('Launch post')
+    expect(rows[0]).toHaveTextContent('30 days of Pro')
+    expect(rows[0]).toHaveTextContent('18 / any')
+    expect(within(rows[0] as HTMLElement).getByRole('button', { name: 'Copy FREE30' })).toBeInTheDocument()
+    expect(rows[1]).toHaveTextContent('GR-····-····')
+    expect(rows[1]).toHaveTextContent('Beta testers · random code, shown once')
+    expect(rows[1]).toHaveTextContent('4 / 25')
+    expect(rows[1]).toHaveTextContent('Dec 31, 2026')
+    expect(within(rows[1] as HTMLElement).queryByRole('button', { name: /^Copy/ })).not.toBeInTheDocument()
+    expect(rows[2]).toHaveTextContent('Revoked')
+    expect(within(rows[2] as HTMLElement).queryByRole('button', { name: /Revoke/ })).not.toBeInTheDocument()
   })
 
-  it('shows a count with no limit as just the number', async () => {
-    const { region } = await tab({ grantCodes: [grant(1, 'Anyone', { used: 6 })] })
-    const row = (await within(region).findAllByRole('row'))[1] as HTMLElement
-    expect(row).toHaveTextContent(/Anyone90 days of Pro6—/)
+  it('copies a code on request and says so', async () => {
+    const { region, user: u } = await tab()
+    const writeText = vi.fn(async () => undefined) // after the setup, which puts a clipboard of its own in place
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    await u.click(await within(region).findByRole('button', { name: 'Copy FREE30' }))
+    expect(writeText).toHaveBeenCalledWith('FREE30')
+    expect(await within(region).findByRole('button', { name: 'Copy FREE30' })).toHaveTextContent('Copied')
   })
 
   it('is on its own tab, and the tab is in the address', async () => {
     const { router, user: u } = await open({ invites: INVITES, grantCodes: GRANTS })
     await listing()
-    await u.click(screen.getByRole('tab', { name: 'Plan codes' }))
-    await screen.findByRole('region', { name: 'Plan codes' })
+    await u.click(screen.getByRole('tab', { name: 'Promo codes' }))
+    await screen.findByRole('region', { name: 'Promo codes' })
     expect(router.state.location.search).toEqual({ tab: 'codes' })
-    expect(screen.getByRole('tab', { name: 'Plan codes' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Promo codes' })).toHaveAttribute('aria-selected', 'true')
     await u.click(screen.getByRole('tab', { name: 'Invites' }))
     await screen.findByRole('region', { name: 'Invites' })
     expect(router.state.location.search).toEqual({})
   })
 
-  it('makes one, sends what was typed, and shows the code once', async () => {
+  it('shows only the codes asked for, asks the server for them, and keeps the choice in the address', async () => {
+    const { calls, region, router, user: u } = await tab()
+    await u.selectOptions(within(region).getByLabelText('Show'), 'revoked')
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'codes', show: 'revoked' }))
+    await waitFor(() => expect(within(region).getAllByRole('row')).toHaveLength(2))
+    expect(within(region).getAllByRole('row')[1]).toHaveTextContent('Leaked')
+    expect(requests(calls, '/api/admin/v1/grant-codes').at(-1)?.query).toMatchObject({ show: 'revoked' })
+    await u.selectOptions(within(region).getByLabelText('Show'), '')
+    await waitFor(() => expect(router.state.location.search).toEqual({ tab: 'codes' }))
+  })
+
+  it('opens on the filter the address names, and ignores one it does not know', async () => {
+    const first = await tab({}, { show: 'ended' })
+    expect(within(first.region).getByLabelText('Show')).toHaveValue('ended')
+    first.unmount()
+    const second = await tab({}, { show: 'everything' })
+    expect(within(second.region).getByLabelText('Show')).toHaveValue('')
+  })
+
+  it('makes a typed code, in capitals, and says it stays in the table', async () => {
     const { calls, user: u } = await tab()
-    const card = screen.getByRole('region', { name: 'Make a plan code' })
-    await u.type(within(card).getByLabelText('Label'), '  Beta testers ')
-    await u.clear(within(card).getByLabelText('Days of Pro'))
-    await u.type(within(card).getByLabelText('Days of Pro'), '25')
-    await u.type(within(card).getByLabelText('How many people (optional)'), '25')
-    await u.type(within(card).getByLabelText('The code ends after (days, optional)'), '30')
-    await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
+    await u.type(within(make()).getByLabelText('Code'), 'spring26')
+    expect(within(make()).getByLabelText('Code')).toHaveValue('SPRING26')
+    await u.type(within(make()).getByLabelText('Note to yourself'), ' Newsletter ')
+    await u.clear(within(make()).getByLabelText('Days of Pro'))
+    await u.type(within(make()).getByLabelText('Days of Pro'), '14')
+    await u.type(within(make()).getByLabelText('Most people (optional)'), '50')
+    fireEvent.change(within(make()).getByLabelText('Stops working after (optional)'), {
+      target: { value: '2099-12-31' },
+    })
+    await u.click(within(make()).getByRole('button', { name: 'Make code' }))
     const banner = await screen.findByRole('region', { name: 'New code' })
-    expect(within(banner).getByTestId('new-code')).toHaveTextContent('GR-NEW1-CODE')
+    expect(banner).toHaveTextContent('Your new promo code')
+    expect(within(banner).getByTestId('new-code')).toHaveTextContent('SPRING26')
+    expect(banner).toHaveTextContent('stays in the table')
     expect(changes(calls)).toEqual([
       {
         method: 'POST',
         path: '/api/admin/v1/grant-codes',
         query: {},
-        body: { label: 'Beta testers', days: 25, max_redemptions: 25, expires_in_days: 30 },
+        body: { code: 'SPRING26', label: 'Newsletter', days: 14, max_redemptions: 50, expires_on: '2099-12-31' },
         csrf: 'tok',
       },
     ])
   })
 
-  it('defaults to 30 days, any number of people and no end', async () => {
+  it('makes a random code when the box is blank, and says it is shown only once', async () => {
     const { calls, user: u } = await tab()
-    const card = screen.getByRole('region', { name: 'Make a plan code' })
-    expect(within(card).getByLabelText('Days of Pro')).toHaveValue('30')
-    await u.type(within(card).getByLabelText('Label'), 'x')
-    await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
-    await screen.findByRole('region', { name: 'New code' })
-    expect(changes(calls)[0]?.body).toEqual({ label: 'x', days: 30, max_redemptions: null, expires_in_days: null })
+    expect(within(make()).getByLabelText('Days of Pro')).toHaveValue('30')
+    await u.type(within(make()).getByLabelText('Note to yourself'), 'Testers')
+    await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+    const banner = await screen.findByRole('region', { name: 'New code' })
+    expect(within(banner).getByTestId('new-code')).toHaveTextContent('GR-NEW1-CODE')
+    expect(banner).toHaveTextContent('only time the code is shown')
+    expect(changes(calls)[0]?.body).toEqual({ label: 'Testers', days: 30, max_redemptions: null })
+  })
+
+  it('shows what people will be told before anything is made', async () => {
+    const { user: u } = await tab()
+    await u.type(within(make()).getByLabelText('Code'), 'FREE7')
+    await u.clear(within(make()).getByLabelText('Days of Pro'))
+    await u.type(within(make()).getByLabelText('Days of Pro'), '7')
+    await u.type(within(make()).getByLabelText('Most people (optional)'), '1')
+    fireEvent.change(within(make()).getByLabelText('Stops working after (optional)'), {
+      target: { value: '2099-01-31' },
+    })
+    expect(make()).toHaveTextContent(
+      'Anyone who enters FREE7 gets 7 days of Pro, free (the first 1 person, until the end of Jan 31, 2099).',
+    )
+  })
+
+  it('offers discounts only as a choice for later, switched off', async () => {
+    await tab()
+    const option = within(within(make()).getByLabelText('Type')).getByRole('option', { name: /Discount/ })
+    expect(option).toBeDisabled()
+    expect(option).toHaveTextContent('once a payment provider is connected')
   })
 
   it.each([
-    ['', '30', '', '', 'Give it a label, so you can tell it apart later.'],
-    ['x', '0', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
-    ['x', '31', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
-    ['x', '', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
-    ['x', '30', '0', '', 'People must be a whole number of at least 1, or empty for any number.'],
-    ['x', '30', 'many', '', 'People must be a whole number of at least 1, or empty for any number.'],
-    ['x', '30', '1000001', '', 'People must be a whole number of at least 1, or empty for any number.'],
-    ['x', '30', '', '0', 'The code can end after 1 to 3650 days, or never if empty.'],
-    ['x', '30', '', '3651', 'The code can end after 1 to 3650 days, or never if empty.'],
+    ['', '', '30', '', 'A random code needs a note, so you can tell it apart later.'],
+    ['AB', '', '30', '', 'A promo code is 3 to 20 letters and digits'],
+    ['FREE 30', '', '30', '', 'A promo code is 3 to 20 letters and digits'],
+    ['FREE30', '', '0', '', 'Days of Pro must be a whole number from 1 to 30.'],
+    ['FREE30', '', '31', '', 'Days of Pro must be a whole number from 1 to 30.'],
+    ['FREE30', '', '', '', 'Days of Pro must be a whole number from 1 to 30.'],
+    ['FREE30', '', '30', '0', 'Most people must be a whole number of at least 1, or empty for any number.'],
+    ['FREE30', '', '30', 'many', 'Most people must be a whole number of at least 1, or empty for any number.'],
+    ['FREE30', '', '30', '1000001', 'Most people must be a whole number of at least 1, or empty for any number.'],
   ])(
-    'refuses label %j, days %j, people %j, ends %j before sending anything',
-    async (label, days, people, ends, message) => {
+    'refuses code %j, note %j, days %j, people %j before sending anything',
+    async (code, note, days, people, message) => {
       const { calls, user: u } = await tab()
-      const card = screen.getByRole('region', { name: 'Make a plan code' })
-      await u.clear(within(card).getByLabelText('Days of Pro'))
-      if (label) await u.type(within(card).getByLabelText('Label'), label)
-      if (days) await u.type(within(card).getByLabelText('Days of Pro'), days)
-      if (people) await u.type(within(card).getByLabelText('How many people (optional)'), people)
-      if (ends) await u.type(within(card).getByLabelText('The code ends after (days, optional)'), ends)
-      await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
-      expect(await within(card).findByRole('alert')).toHaveTextContent(message)
+      await u.clear(within(make()).getByLabelText('Days of Pro'))
+      if (code) await u.type(within(make()).getByLabelText('Code'), code)
+      if (note) await u.type(within(make()).getByLabelText('Note to yourself'), note)
+      if (days) await u.type(within(make()).getByLabelText('Days of Pro'), days)
+      if (people) await u.type(within(make()).getByLabelText('Most people (optional)'), people)
+      await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+      expect(await within(make()).findByRole('alert')).toHaveTextContent(message)
       expect(changes(calls)).toEqual([])
     },
   )
 
-  it('accepts the largest values it allows', async () => {
+  it('refuses a last day already past', async () => {
     const { calls, user: u } = await tab()
-    const card = screen.getByRole('region', { name: 'Make a plan code' })
-    await u.type(within(card).getByLabelText('Label'), 'Most')
-    await u.clear(within(card).getByLabelText('Days of Pro'))
-    await u.type(within(card).getByLabelText('Days of Pro'), '30')
-    await u.type(within(card).getByLabelText('How many people (optional)'), '1000000')
-    await u.type(within(card).getByLabelText('The code ends after (days, optional)'), '3650')
-    await u.click(within(card).getByRole('button', { name: 'Make plan code' }))
-    await screen.findByRole('region', { name: 'New code' })
-    expect(changes(calls)[0]?.body).toEqual({
-      label: 'Most',
-      days: 30,
-      max_redemptions: 1_000_000,
-      expires_in_days: 3650,
+    await u.type(within(make()).getByLabelText('Code'), 'OLD')
+    fireEvent.change(within(make()).getByLabelText('Stops working after (optional)'), {
+      target: { value: '2001-01-01' },
     })
+    await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+    expect(await within(make()).findByRole('alert')).toHaveTextContent('That day has already passed.')
+    expect(changes(calls)).toEqual([])
+  })
+
+  it('shows the server’s sentence when a code is already in use, and keeps what was typed', async () => {
+    const { user: u } = await tab({
+      changeFails: { status: 422, detail: 'That code is already in use. Codes are never reused, even revoked ones.' },
+    })
+    await u.type(within(make()).getByLabelText('Code'), 'FREE30')
+    await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+    expect(await within(make()).findByRole('alert')).toHaveTextContent('That code is already in use.')
+    expect(within(make()).getByLabelText('Code')).toHaveValue('FREE30')
   })
 
   it('pages through more than 25, and the tab stays in the address', async () => {
@@ -468,23 +529,25 @@ describe('plan codes', () => {
     expect(router.state.location.search).toEqual({ tab: 'codes', page: 2 })
   })
 
-  it('says that a plan code unlocks nothing yet', async () => {
+  it('says a code cannot be edited or reused', async () => {
     await tab()
-    expect(screen.getByRole('region', { name: 'Make a plan code' })).toHaveTextContent('unlocks nothing yet')
+    expect(make()).toHaveTextContent('cannot be edited')
+    expect(make()).toHaveTextContent('never reused')
   })
 
-  it('revokes one with a reason', async () => {
+  it('revokes one with a reason, naming it by its code', async () => {
     const { calls, user: u, region } = await tab()
-    await u.click(await within(region).findByRole('button', { name: 'Revoke the plan code Beta testers' }))
+    await u.click(await within(region).findByRole('button', { name: 'Revoke the code FREE30' }))
     const dialog = await screen.findByRole('dialog')
-    expect(dialog).toHaveAccessibleName('Revoke this plan code?')
-    await u.type(within(dialog).getByLabelText('Why? (kept in the audit log)'), 'leaked')
-    await u.click(within(dialog).getByRole('button', { name: 'Revoke plan code' }))
+    expect(dialog).toHaveAccessibleName('Revoke this code?')
+    expect(dialog).toHaveTextContent('FREE30')
+    await u.type(within(dialog).getByLabelText('Why? (kept in the audit log)'), 'campaign over')
+    await u.click(within(dialog).getByRole('button', { name: 'Revoke code' }))
     await waitFor(() => expect(changes(calls)).toHaveLength(1))
     expect(changes(calls)[0]).toMatchObject({
       method: 'POST',
-      path: '/api/admin/v1/grant-codes/5/revoke',
-      body: { reason: 'leaked' },
+      path: '/api/admin/v1/grant-codes/6/revoke',
+      body: { reason: 'campaign over' },
     })
   })
 })

@@ -155,6 +155,8 @@ describe('signing up', () => {
     const box = await screen.findByLabelText('Sign-up code')
     await user.click(box)
     await user.tab()
+    expect(screen.getByLabelText(/Promo code/)).toHaveFocus()
+    await user.tab()
     expect(screen.getByRole('button', { name: 'Continue to create account' })).toHaveFocus()
     await user.tab()
     expect(within(screen.getByRole('main')).getByRole('link', { name: 'Join the beta' })).toHaveFocus()
@@ -206,7 +208,17 @@ describe('the address the server and the emails use', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_ERRORS.invite_invalid)
   })
 
-  it.each(Object.entries(SIGN_IN_ERRORS).filter(([code]) => code !== 'invite_invalid'))(
+  it('opens on sign-up with both codes back in their boxes when the server refused the promo code', async () => {
+    open('/invite', { error: 'promo_invalid', code: 'TJ-7KQ2-M9XA', promo: 'nope99' })
+    expect(await screen.findByRole('heading', signUpHeading)).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(SIGN_IN_ERRORS.promo_invalid)
+    expect(screen.getByLabelText('Sign-up code')).toHaveValue('TJ-7KQ2-M9XA')
+    expect(screen.getByLabelText(/Promo code/)).toHaveValue('nope99')
+    expect(screen.getByLabelText(/Promo code/)).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Sign-up code')).toHaveAttribute('aria-invalid', 'false')
+  })
+
+  it.each(Object.entries(SIGN_IN_ERRORS).filter(([code]) => code !== 'invite_invalid' && code !== 'promo_invalid'))(
     'tells the person what happened when sign-in comes back with %s, and lets them try again',
     async (code, sentence) => {
       open('/invite', { error: code })
@@ -241,6 +253,32 @@ describe('after asking to delete the account', () => {
     open('/invite', { deleted })
     await screen.findByRole('heading', signInHeading)
     expect(screen.queryByText(/scheduled for deletion/)).not.toBeInTheDocument()
+  })
+})
+
+describe('a promo code at sign-up', () => {
+  it('is optional: the sign-up goes ahead without one', async () => {
+    const { user, leave } = open('/signup')
+    await user.type(await screen.findByLabelText('Sign-up code'), 'TJ-7KQ2-M9XA')
+    await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
+    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?invite=TJ-7KQ2-M9XA'))
+  })
+
+  it('goes to the server beside the sign-up code, as typed', async () => {
+    const { user, leave } = open('/signup')
+    await user.type(await screen.findByLabelText('Sign-up code'), 'TJ-7KQ2-M9XA')
+    await user.type(screen.getByLabelText(/Promo code/), 'free30')
+    await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
+    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?invite=TJ-7KQ2-M9XA&promo=free30'))
+  })
+
+  it('is checked for its shape first, and nothing is sent while it cannot be a code', async () => {
+    const { user, leave } = open('/signup')
+    await user.type(await screen.findByLabelText('Sign-up code'), 'TJ-7KQ2-M9XA')
+    await user.type(screen.getByLabelText(/Promo code/), 'no!')
+    await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('That does not look like a promo code')
+    expect(leave).not.toHaveBeenCalled()
   })
 })
 

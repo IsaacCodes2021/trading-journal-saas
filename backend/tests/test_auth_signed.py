@@ -82,4 +82,4 @@ def test_the_error_codes_are_the_ones_the_front_end_has_words_for():
     source = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "auth.ts").read_text(encoding="utf-8")
     block = source.split("export const SIGN_IN_ERRORS = {")[1].split("} as const")[0]
     worded = set(re.findall(r"^  (\w+):", block, flags=re.MULTILINE))
-    assert sent == worded and len(sent) == 7
+    assert sent == worded and len(sent) == 8

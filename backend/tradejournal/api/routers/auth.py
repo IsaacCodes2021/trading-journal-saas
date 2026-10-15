@@ -52,12 +52,20 @@ def _clear(response: RedirectResponse, name: str) -> None:
 
 @public.get("/auth/login", dependencies=[limited_per_client(lambda limits: limits.login)])
 def login(
-    request: Request, next: str | None = None, invite: str | None = None, stepup: bool = False, reauth: bool = False
+    request: Request,
+    next: str | None = None,
+    invite: str | None = None,
+    promo: str | None = None,
+    stepup: bool = False,
+    reauth: bool = False,
 ) -> RedirectResponse:
-    """Start signing in (or up, with `invite`). `next` is a path on this site to land on afterwards."""
-    if invite:  # guessing codes is slower than signing in, but it is the one thing worth a stricter limit of its own
+    """Start signing in (or up, with `invite` and an optional `promo` code). `next` is a path on this site to land on
+    afterwards."""
+    if (
+        invite or promo
+    ):  # guessing codes is slower than signing in, but it is the one thing worth a stricter limit of its own
         take_place(request, request.app.state.config.rate_limits.invite_attempts, client_key(request))
-    start = flow_of(request).begin(next_url=next, invite=invite, step_up=stepup, reauth=reauth)
+    start = flow_of(request).begin(next_url=next, invite=invite, promo=promo, step_up=stepup, reauth=reauth)
     response = RedirectResponse(start.redirect_url, status_code=302)
     if start.state_cookie is not None:  # none when the code was refused and the person is sent to our own page
         _cookie(response, LOGIN_COOKIE, start.state_cookie, LOGIN_COOKIE_SECONDS)

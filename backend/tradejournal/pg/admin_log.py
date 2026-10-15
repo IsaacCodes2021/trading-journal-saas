@@ -44,6 +44,7 @@ class Overview:
     free: int
     open_invites: int
     open_grant_codes: int
+    grants_ending_7d: int
 
 
 def _like(text: str) -> str:
@@ -127,6 +128,18 @@ def overview(conn: psycopg.Connection, *, now: datetime | None = None) -> Overvi
                   OR (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) < g.max_redemptions)""",
         (moment,),
     ).fetchone()["n"]
+    # Free days (a code or an invite) whose last day is in the next week, for people with no override and no later grant: who
+    # is about to become read-only. Counted from the grants themselves, the way the plan rule reads them.
+    ending = conn.execute(
+        """SELECT count(DISTINCT r.user_id) AS n FROM grant_redemptions r
+           WHERE r.revoked_at IS NULL AND r.ends_at > %(now)s AND r.ends_at <= %(week)s
+             AND NOT EXISTS (SELECT 1 FROM grant_redemptions o
+                             WHERE o.user_id = r.user_id AND o.revoked_at IS NULL AND o.ends_at > %(week)s)
+             AND NOT EXISTS (SELECT 1 FROM plan_overrides p
+                             WHERE p.user_id = r.user_id AND p.revoked_at IS NULL
+                               AND (p.expires_at IS NULL OR p.expires_at > %(now)s))""",
+        {"now": moment, "week": moment + timedelta(days=7)},
+    ).fetchone()["n"]
     return Overview(
         accounts=counts["accounts"],
         signups_7d=counts["signups_7d"],
@@ -138,4 +151,5 @@ def overview(conn: psycopg.Connection, *, now: datetime | None = None) -> Overvi
         free=len(ids) - pro,
         open_invites=open_invites,
         open_grant_codes=open_grants,
+        grants_ending_7d=ending,
     )

@@ -59,6 +59,8 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] **What Free includes and what Pro adds** decided (the machinery exists; nothing is limited yet) **(you)**
 - [ ] A payment provider that accepts a trading journal: the two pre-clearance emails sent and answered **(you)**, then checkout, webhooks and failed-payment handling, a billing screen and discount codes **(me, after approval)**
 - [ ] Cookie and consent wording confirmed for the regions served **(you, a professional)**
+- [ ] Retire the old random `GR-` plan codes once none is outstanding (promo codes replace them; nothing is deleted, the blank-code
+  form can still make one)
 - [ ] A subprocessor list published (host, database, Cloudflare, Kinde, email, payment provider, error tracker) **(you)**
 - [ ] An end-to-end browser test suite and a scan with ZAP against staging **(you for the Playwright install; then me)**
 - [ ] A status page, or a decision to use the site's front page for notices **(you)**; see [support.md](support.md) section 9

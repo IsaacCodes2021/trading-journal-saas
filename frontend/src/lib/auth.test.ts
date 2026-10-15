@@ -11,6 +11,7 @@ import {
   signInUrl,
   signOut,
   signUpUrl,
+  looksLikePromoCode,
 } from './auth'
 
 const json = (body: unknown, status = 200) =>
@@ -49,6 +50,12 @@ describe('the addresses the browser goes to', () => {
   it('sends the code to the server, encoded', () => {
     expect(signUpUrl('TJ-7KQ2-M9XA')).toBe('/auth/login?invite=TJ-7KQ2-M9XA')
     expect(signUpUrl('A&B=C')).toBe('/auth/login?invite=A%26B%3DC')
+  })
+
+  it('sends a promo code beside it when one was typed, as typed, and leaves it out when the box is empty', () => {
+    expect(signUpUrl('TJ-7KQ2-M9XA', ' free 30 ')).toBe('/auth/login?invite=TJ-7KQ2-M9XA&promo=free%2030')
+    expect(signUpUrl('TJ-7KQ2-M9XA', '   ')).toBe('/auth/login?invite=TJ-7KQ2-M9XA')
+    expect(signUpUrl('TJ-7KQ2-M9XA', 'A&B')).toBe('/auth/login?invite=TJ-7KQ2-M9XA&promo=A%26B')
   })
 
   it('remembers where to return to after signing in', () => {
@@ -98,7 +105,7 @@ describe('the day an account will be deleted', () => {
 })
 
 describe('the sign-in error codes', () => {
-  it('knows the seven codes the server uses, each with a sentence of its own', () => {
+  it('knows the eight codes the server uses, each with a sentence of its own', () => {
     // The same list as ERR_* in backend/tradejournal/auth/flow.py (a backend test compares the two).
     expect(Object.keys(SIGN_IN_ERRORS).sort()).toEqual([
       'account_unavailable',
@@ -106,6 +113,7 @@ describe('the sign-in error codes', () => {
       'email_unverified',
       'expired',
       'invite_invalid',
+      'promo_invalid',
       'reauth_failed',
       'signin_failed',
     ])
@@ -205,5 +213,15 @@ describe('signOut', () => {
       vi.fn(async () => Promise.reject(new TypeError('offline'))),
     )
     await expect(signOut()).rejects.toThrow('offline')
+  })
+})
+
+describe('looksLikePromoCode', () => {
+  it.each(['FREE30', 'free30', ' Free30 ', 'free 30', 'FREE_30', 'GR-7KQ2-M9XA', 'abc'])('accepts %j', (typed) => {
+    expect(looksLikePromoCode(typed)).toBe(true)
+  })
+
+  it.each(['', 'ab', 'X'.repeat(21), 'FREE30!', 'FRÉE30', '<b>x</b>'])('refuses %j', (typed) => {
+    expect(looksLikePromoCode(typed)).toBe(false)
   })
 })

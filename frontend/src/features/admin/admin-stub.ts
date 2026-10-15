@@ -50,6 +50,8 @@ export const invite = (id: number, label: string, over: Partial<Invite> = {}): I
 
 export const grant = (id: number, label: string, over: Partial<GrantCode> = {}): GrantCode => ({
   id,
+  code: null,
+  kind: 'free_days',
   label,
   plan: 'pro',
   days: 90,
@@ -130,6 +132,7 @@ export const OVERVIEW: Overview = {
   free: 57,
   open_invites: 3,
   open_grant_codes: 1,
+  grants_ending_7d: 4,
 }
 
 export interface Call {
@@ -335,11 +338,19 @@ export function stubAdmin(options: AdminStubOptions = {}) {
         if (request.method === 'GET') {
           const limit = Number(url.searchParams.get('limit') ?? 50)
           const offset = Number(url.searchParams.get('offset') ?? 0)
-          const rows = list.slice(offset, offset + limit)
+          // The server's "Show" filter: works, ended (used up or expired), revoked.
+          const show = url.searchParams.get('show')
+          const shown =
+            section === 'invites' || !show
+              ? list
+              : grantCodes.filter((g) =>
+                  show === 'ended' ? g.status === 'used_up' || g.status === 'expired' : g.status === show,
+                )
+          const rows = shown.slice(offset, offset + limit)
           return json(
             section === 'invites'
-              ? { invites: rows, total: list.length, limit, offset }
-              : { grant_codes: rows, total: list.length, limit, offset },
+              ? { invites: rows, total: shown.length, limit, offset }
+              : { grant_codes: rows, total: shown.length, limit, offset },
           )
         }
         if (changeFails) return problem(changeFails)
@@ -350,10 +361,13 @@ export function stubAdmin(options: AdminStubOptions = {}) {
             : problem({ status: 404, detail: 'There is no such code.' })
         }
         nextId += 1
-        const sent = body as { label?: string }
+        const sent = body as { label?: string; code?: string }
         return section === 'invites'
           ? json({ invite: invite(nextId, sent.label ?? ''), code: 'TJ-NEW1-CODE' })
-          : json({ grant_code: grant(nextId, sent.label ?? ''), code: 'GR-NEW1-CODE' })
+          : json({
+              grant_code: grant(nextId, sent.label ?? '', { code: sent.code ?? null }),
+              code: sent.code ?? 'GR-NEW1-CODE',
+            })
       }
       const id = url.pathname.split('/')[5] ?? ''
       if (request.method === 'GET') {

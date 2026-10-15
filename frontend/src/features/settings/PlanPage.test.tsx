@@ -12,8 +12,8 @@ async function open(opts: ApiOptions = {}) {
   return userEvent.setup()
 }
 
-const card = () => screen.getByRole('region', { name: 'Redeem a plan code' })
-const field = () => within(card()).getByLabelText('Plan code')
+const card = () => screen.getByRole('region', { name: 'Redeem a promo code' })
+const field = () => within(card()).getByLabelText('Promo code')
 const button = () => within(card()).getByRole('button', { name: 'Redeem' })
 
 /** The requests that tried a code: the method, the CSRF token and the body. */
@@ -26,11 +26,11 @@ async function attempts() {
   return seen
 }
 
-describe('redeeming a plan code', () => {
+describe('redeeming a promo code', () => {
   it('offers a box for it, with the shape of a code, and nothing to press until something is typed', async () => {
     await open()
-    expect(within(card()).getByRole('heading', { name: 'Have a plan code?' })).toBeInTheDocument()
-    expect(within(card()).getByText(/Looks like GR-7KQ2-M9XA/)).toBeInTheDocument()
+    expect(within(card()).getByRole('heading', { name: 'Have a promo code?' })).toBeInTheDocument()
+    expect(within(card()).getByText(/For example FREE30/)).toBeInTheDocument()
     expect(field()).toHaveValue('')
     expect(button()).toBeDisabled()
   })
@@ -161,5 +161,23 @@ describe('redeeming a plan code', () => {
     const user = await open()
     await user.type(field(), 'G'.repeat(80))
     expect(field()).toHaveValue('G'.repeat(64))
+  })
+})
+
+describe('a promo code that could not be applied at sign-up', () => {
+  it('says so once, above the box, when the address says so', async () => {
+    stubApi()
+    openApp('/settings/plan?promo=not_applied')
+    const notice = (await screen.findByText(/the promo code could not be applied/)).closest('[role="status"]')
+    expect(notice).toHaveTextContent('If it still works when those end, enter it below.')
+    expect(card()).toBeInTheDocument()
+  })
+
+  it('says nothing for any other value', async () => {
+    await open()
+    stubApi()
+    openApp('/settings/plan?promo=yes')
+    await screen.findByRole('heading', { name: 'Plan & billing' })
+    expect(screen.queryByText(/could not be applied/)).not.toBeInTheDocument()
   })
 })

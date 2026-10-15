@@ -2300,6 +2300,19 @@
       "GrantCodeIn": {
         "additionalProperties": false,
         "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A promo code to type, 3 to 20 letters and digits (FREE30); case does not matter. Kept readable. Leave it out for a random code, shown once",
+            "title": "Code"
+          },
           "days": {
             "description": "How long the plan lasts once it is redeemed (30 at most)",
             "maximum": 30.0,
@@ -2321,9 +2334,29 @@
             "description": "The code stops working after this many days",
             "title": "Expires In Days"
           },
+          "expires_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Or: the last day it works (it stops at the end of that day, UTC)",
+            "title": "Expires On"
+          },
+          "kind": {
+            "const": "free_days",
+            "default": "free_days",
+            "title": "Kind",
+            "type": "string"
+          },
           "label": {
+            "default": "",
+            "description": "A note to yourself. Needed for a random code, so it can be told apart; optional otherwise",
             "maxLength": 100,
-            "minLength": 1,
             "title": "Label",
             "type": "string"
           },
@@ -2349,7 +2382,6 @@
           }
         },
         "required": [
-          "label",
           "days"
         ],
         "title": "GrantCodeIn",
@@ -2388,6 +2420,18 @@
       },
       "GrantCodeOut": {
         "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The promo code as it was typed (FREE30). None for a random code, which was shown once and never kept",
+            "title": "Code"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -2417,7 +2461,14 @@
             "title": "Id",
             "type": "integer"
           },
+          "kind": {
+            "const": "free_days",
+            "description": "What it gives: free_days is days of Pro",
+            "title": "Kind",
+            "type": "string"
+          },
           "label": {
+            "description": "The operator's note to themselves; never shown to the people who use the code",
             "title": "Label",
             "type": "string"
           },
@@ -2466,6 +2517,8 @@
         },
         "required": [
           "id",
+          "code",
+          "kind",
           "label",
           "plan",
           "days",
@@ -3373,6 +3426,11 @@
             "title": "Free",
             "type": "integer"
           },
+          "grants_ending_7d": {
+            "description": "People whose free days from a code or an invite end in the next 7 days, then read-only",
+            "title": "Grants Ending 7D",
+            "type": "integer"
+          },
           "open_grant_codes": {
             "description": "Plan codes that still work",
             "title": "Open Grant Codes",
@@ -3410,7 +3468,8 @@
           "pro",
           "free",
           "open_invites",
-          "open_grant_codes"
+          "open_grant_codes",
+          "grants_ending_7d"
         ],
         "title": "OverviewOut",
         "type": "object"
@@ -6261,7 +6320,7 @@
     },
     "/api/admin/v1/grant-codes": {
       "get": {
-        "description": "Plan codes, newest first: how many people used each, and whether it still works.",
+        "description": "Promo and plan codes, newest first: how many people used each, and whether it still works.",
         "operationId": "list_grant_codes",
         "parameters": [
           {
@@ -6286,6 +6345,29 @@
               "minimum": 0,
               "title": "Offset",
               "type": "integer"
+            }
+          },
+          {
+            "description": "Only codes that work, that are used up or expired (ended), or that were revoked",
+            "in": "query",
+            "name": "show",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "works",
+                    "ended",
+                    "revoked"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only codes that work, that are used up or expired (ended), or that were revoked",
+              "title": "Show"
             }
           }
         ],
@@ -6367,7 +6449,7 @@
         ]
       },
       "post": {
-        "description": "Make a plan code. The code is in this answer and nowhere else, ever.",
+        "description": "Make a promo code (typed, kept readable) or a random plan code (in this answer and nowhere else, ever).",
         "operationId": "create_grant_code",
         "requestBody": {
           "content": {

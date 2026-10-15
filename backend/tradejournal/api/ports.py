@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Protocol
 from uuid import UUID
 
@@ -216,7 +216,7 @@ class AdminService(Protocol):
 
     def revoke_invite(self, actor: UUID, invite_id: int, reason: str, *, ip_hash: str | None = None) -> InviteOut: ...
 
-    def list_grant_codes(self, *, limit: int, offset: int) -> GrantCodeListOut: ...
+    def list_grant_codes(self, *, limit: int, offset: int, show: str | None = None) -> GrantCodeListOut: ...
 
     def list_beta(self, *, state: str | None, q: str | None, limit: int, offset: int) -> BetaListOut: ...
 
@@ -237,6 +237,8 @@ class AdminService(Protocol):
         days: int,
         max_redemptions: int | None,
         expires_in_days: int | None,
+        code: str | None = None,
+        expires_on: date | None = None,
         ip_hash: str | None = None,
     ) -> CreatedGrantCodeOut: ...
 

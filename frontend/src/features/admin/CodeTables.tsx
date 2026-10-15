@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Button, Spinner } from '../../components/ui/primitives'
 import { CODES_PAGE, STATUS_TEXT, type CodeStatus, type GrantCode, type Invite } from '../../lib/adminCodes'
 import { utcDay } from '../../lib/admin'
@@ -115,7 +116,34 @@ export function InvitesTable({
   )
 }
 
-/** Plan codes: what each gives, how many people used it, until when, and whether it still works. */
+/** A typed code with a Copy button beside it (a random code has nothing to copy: it was shown once). */
+function CopyCode({ code }: { code: string }) {
+  const [copied, setCopied] = useState<'yes' | 'no' | null>(null)
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className="num font-mono font-semibold tracking-wide">{code}</span>
+      <Button
+        className="h-[26px] px-2 text-xs"
+        aria-label={`Copy ${code}`}
+        onClick={() =>
+          navigator.clipboard.writeText(code).then(
+            () => setCopied('yes'),
+            () => setCopied('no'),
+          )
+        }
+      >
+        {copied === 'yes' ? 'Copied' : 'Copy'}
+      </Button>
+      {copied === 'no' ? (
+        <span role="alert" className="text-xs text-neg">
+          Could not copy
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+/** Promo codes: the code (or that it was random), what it gives, how many people used it, until when, and where it stands. */
 export function GrantCodesTable({
   rows,
   total,
@@ -131,18 +159,18 @@ export function GrantCodesTable({
   onPage: (page: number) => void
   onRevoke: (code: GrantCode) => void
 }) {
-  if (loading) return <Spinner label="Loading plan codes" />
-  if (!rows || rows.length === 0) return <p className="m-0 px-4 py-4 text-muted">No plan codes yet.</p>
+  if (loading) return <Spinner label="Loading promo codes" />
+  if (!rows || rows.length === 0) return <p className="m-0 px-4 py-4 text-muted">No codes here yet.</p>
   return (
     <>
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
             <tr className="text-left text-xs text-muted">
-              <th className={TH}>Label</th>
+              <th className={TH}>Code</th>
               <th className={TH}>Gives</th>
               <th className={`${TH} text-right`}>Used</th>
-              <th className={TH}>Ends</th>
+              <th className={TH}>Stops working</th>
               <th className={TH}>Status</th>
               <th className={`${TH} text-right`}>Action</th>
             </tr>
@@ -150,11 +178,22 @@ export function GrantCodesTable({
           <tbody>
             {rows.map((code) => (
               <tr key={code.id}>
-                <td className={`${TD} min-w-[150px]`}>{code.label}</td>
+                <td className={`${TD} min-w-[170px]`}>
+                  {code.code ? (
+                    <CopyCode code={code.code} />
+                  ) : (
+                    <span className="num font-mono text-muted" title="A random code is shown once and never kept">
+                      GR-····-····
+                    </span>
+                  )}
+                  <div className="text-xs text-muted">
+                    {code.label || (code.code ? '' : 'Random code')}
+                    {!code.code && code.label ? ' · random code, shown once' : ''}
+                  </div>
+                </td>
                 <td className={`${TD} whitespace-nowrap`}>{code.days} days of Pro</td>
                 <td className={`${TD} num text-right whitespace-nowrap`}>
-                  {code.used}
-                  {code.max_redemptions === null ? '' : ` / ${code.max_redemptions}`}
+                  {code.used} / {code.max_redemptions === null ? 'any' : code.max_redemptions}
                 </td>
                 <td className={`${TD} num whitespace-nowrap`}>{code.expires_at ? utcDay(code.expires_at) : '—'}</td>
                 <td className={TD}>
@@ -167,7 +206,7 @@ export function GrantCodesTable({
                     <Button
                       className="h-[30px]"
                       onClick={() => onRevoke(code)}
-                      aria-label={`Revoke the plan code ${code.label}`}
+                      aria-label={`Revoke the code ${code.code ?? code.label}`}
                     >
                       Revoke
                     </Button>

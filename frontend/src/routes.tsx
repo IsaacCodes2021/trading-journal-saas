@@ -330,6 +330,7 @@ const welcomeRoute = createRoute({
  * time, and `next` is a path on this site. */
 type EntrySearch = {
   code?: string
+  promo?: string
   error?: SignInErrorCode
   deleted?: string
   next?: string
@@ -337,11 +338,13 @@ type EntrySearch = {
 
 function pickEntry(search: Record<string, unknown>): EntrySearch {
   const code = typeof search['code'] === 'string' && search['code'] !== '' ? search['code'].slice(0, 64) : null
+  const promo = typeof search['promo'] === 'string' && search['promo'] !== '' ? search['promo'].slice(0, 40) : null
   const error = signInErrorOf(search['error'])
   const deleted = typeof search['deleted'] === 'string' && deletionDay(search['deleted']) ? search['deleted'] : null
   const next = safeNext(search['next'])
   return {
     ...(code ? { code } : {}),
+    ...(promo ? { promo } : {}),
     ...(error ? { error } : {}),
     ...(deleted ? { deleted } : {}),
     ...(next ? { next } : {}),
@@ -349,12 +352,13 @@ function pickEntry(search: Record<string, unknown>): EntrySearch {
 }
 
 function EntryRoute({ mode, search }: { mode: 'signin' | 'signup'; search: EntrySearch }) {
-  const { code, error, deleted, next } = pickEntry(search) // the router keeps what it could not validate too
+  const { code, promo, error, deleted, next } = pickEntry(search) // the router keeps what it could not validate too
   return (
     <Suspense fallback={<Spinner label="Loading" />}>
       <AuthPage
         mode={mode}
         {...(code ? { code } : {})}
+        {...(promo ? { promo } : {})}
         {...(error ? { error } : {})}
         {...(deleted ? { deleted } : {})}
         {...(next ? { next } : {})}
@@ -395,8 +399,8 @@ const joinRoute = createRoute({
 
 // The address the server and the emails already use: an email links here with the code (/invite?code=TJ-7KQ2-M9XA), a
 // sign-in that did not complete comes back as /invite?error=<code>, a deleted account lands on /invite?deleted=<time>,
-// and signing out ends here. It opens on the sign-up form when there is a code to put in or the code was refused, and
-// on the sign-in form otherwise.
+// and signing out ends here. It opens on the sign-up form when there is a code to put in or a code (the sign-up code or
+// the promo code) was refused, and on the sign-in form otherwise.
 const inviteRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/invite',
@@ -404,7 +408,7 @@ const inviteRoute = createRoute({
   component: function InviteRoute() {
     const search = inviteRoute.useSearch()
     const picked = pickEntry(search)
-    const signingUp = picked.code !== undefined || picked.error === 'invite_invalid'
+    const signingUp = picked.code !== undefined || picked.error === 'invite_invalid' || picked.error === 'promo_invalid'
     return <EntryRoute mode={signingUp ? 'signup' : 'signin'} search={search} />
   },
 })
@@ -493,7 +497,7 @@ const adminRulesRoute = createRoute({
 
 const SettingsLayout = lazyNamed(() => import('./features/settings/SettingsLayout'), 'SettingsLayout')
 const PreferencesPage = lazyNamed(() => import('./features/settings/PreferencesPage'), 'PreferencesPage')
-const PlanPage = lazyNamed(() => import('./features/settings/PlanPage'), 'PlanPage')
+const PlanPage = lazy(() => import('./features/settings/PlanPage').then((m) => ({ default: m.PlanPage })))
 const AccountsPage = lazy(() => import('./features/accounts/AccountsPage').then((m) => ({ default: m.AccountsPage })))
 const TagsPage = lazyNamed(() => import('./features/tags/TagsPage'), 'TagsPage')
 const SecurityPage = lazyNamed(() => import('./features/settings/SecurityPage'), 'SecurityPage')
@@ -579,7 +583,21 @@ const accountsRoute = createRoute({
   component: AccountsRoute,
 })
 const tagsRoute = createRoute({ getParentRoute: () => settingsRoute, path: 'tags', component: inSettings(TagsPage) })
-const planRoute = createRoute({ getParentRoute: () => settingsRoute, path: 'plan', component: inSettings(PlanPage) })
+const planRoute = createRoute({
+  getParentRoute: () => settingsRoute,
+  path: 'plan',
+  // `promo=not_applied`: a new account whose promo code could not be applied at sign-up; the page says so once.
+  validateSearch: (search: Record<string, unknown>): { promo?: 'not_applied' } =>
+    search['promo'] === 'not_applied' ? { promo: 'not_applied' as const } : {},
+  component: function PlanRoute() {
+    const search = planRoute.useSearch()
+    return (
+      <Suspense fallback={<Spinner label="Loading" />}>
+        <PlanPage promoMissed={search.promo === 'not_applied'} />
+      </Suspense>
+    )
+  },
+})
 const securityRoute = createRoute({
   getParentRoute: () => settingsRoute,
   path: 'security',

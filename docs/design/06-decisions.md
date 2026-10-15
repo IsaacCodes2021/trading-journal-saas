@@ -265,3 +265,9 @@ CSRF protection has four layers, all enforced on unsafe methods: (1) `SameSite=L
 **Consequences.** One more DB role and grant list to maintain and test; admin routes cannot import `tenant_session` and tenant routes cannot import `system_session` (an import-boundary test); the admin SPA chunk is not a security control, only the server-side checks are.
 
 **Revisit when:** a second operator or support staff is hired (add roles, least privilege per role, an approval flow for overrides), or compliance requires separate admin infrastructure.
+
+**Amendment (2026-10-15): promo codes are typed and readable, on `grant_codes`.** The operator may type a code (`FREE30`, 3 to
+20 capital letters and digits) instead of taking a random one; it is stored readable beside its hash (migration 0020), because a
+promo code is meant to be printed and shared, and it is never reused, even after it is revoked. A random code still keeps only
+its hash. The planned `discount_codes` mirror table is folded into `grant_codes` too: a discount is a row of another `kind`,
+pushed to the payment provider (doc 05 section 16). The operator's role reads a typed code and still never a hash.
