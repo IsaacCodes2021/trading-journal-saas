@@ -16,6 +16,7 @@
     <nav class="menu" aria-label="Main">
       <a href="/about/">About</a>
       <a href="/privacy/" aria-current="page">Privacy</a>
+      <a href="/terms/">Terms</a>
       <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
       <a class="btn" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
     </nav>
@@ -25,7 +26,7 @@
 <main>
 <article class="wrap">
   <h1>Privacy</h1>
-  <p class="draft">This page covers the beta sign-up form and Roundturn accounts. It is a draft and not legal advice: a full privacy policy will be written, and reviewed by a professional, before the app opens widely. Last updated 2026-10-10.</p>
+  <p class="draft">This page covers the beta sign-up form, Roundturn accounts and, once paid plans open, payments. It is a draft and not legal advice: it will be reviewed by a professional before the app opens widely. Last updated 2026-10-14.</p>
 
   <h2>Who is responsible</h2>
   <p>Roundturn is run by Northfield Labs, LLC, a California limited liability company. For anything on this page, email <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>.</p>
@@ -39,6 +40,7 @@
     <li><strong>Your sign-in.</strong> Roundturn uses Kinde as its sign-in provider. Kinde holds the details you sign in with, such as your email address, your name, how you sign in and whether you use a second step. Roundturn never sees or stores your password.</li>
     <li><strong>Your journal.</strong> What you import and write: the trades in the files you upload (contracts, quantities, prices, times and results), a record of each import so it can be undone, your notes, tags and screenshots, the accounts and fees you enter, and your settings (time zone, start of the trading day, theme).</li>
     <li><strong>Your plan.</strong> Which plan or code gives you access, and until when.</li>
+    <li><strong>Your payments (when paid plans open).</strong> Payment is taken by a payment provider that acts as the seller of record. We plan to use Lemon Squeezy. It collects your card or other payment details, billing name, country and tax details on its own checkout. Roundturn never sees or stores your card number. We receive a customer reference, your plan, the subscription status and receipts.</li>
     <li><strong>Sign-in records.</strong> For each sign-in, when it started, the description of your browser that your browser sends (cut to 300 characters), and a keyed hash of your IP address. This is so that you can see where you are signed in (in Settings, Security) and so that security problems can be investigated. The hash is made with a secret key held by Roundturn, so the address cannot be recovered from it without that key.</li>
     <li><strong>A security log.</strong> Sign-ins, sign-outs, imports, exports and anything the operator does to your account, with the reason, are recorded in a log that is only ever added to. It holds the same keyed IP hash, and never the content of your trades, notes or screenshots.</li>
   </ul>
@@ -58,7 +60,7 @@
   <p>The same holds for the sign-up and sign-in pages before you sign in. Signing in sets a session cookie, which keeps you signed in (scripts cannot read it, and it is sent only to Roundturn), and a short-lived cookie that is used only during the sign-in. The app keeps a few preferences, such as your theme, in your browser. There are no advertising or analytics cookies.</p>
 
   <h2>Where it is stored</h2>
-  <p>This website runs on Cloudflare, which also forwards email sent to Roundturn and holds screenshots in private buckets (the originals and a daily copy). The app and its database run on Render in the United States. Sign-in is handled by Kinde, which stores that data in Oregon, in the United States. The emails (your sign-up code, and the notice that your access has ended) are sent through Resend, so Resend handles your address and first name to deliver them. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a>, <a href="https://www.kinde.com/privacy-policy/" rel="noopener noreferrer">Kinde</a> and <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>.</p>
+  <p>This website runs on Cloudflare, which also forwards email sent to Roundturn and holds screenshots in private buckets (the originals and a daily copy). The app and its database run on Render in the United States. Sign-in is handled by Kinde, which stores that data in Oregon, in the United States. The emails (your sign-up code, and the notice that your access has ended) are sent through Resend, so Resend handles your address and first name to deliver them. When paid plans open, payments will be handled by Lemon Squeezy (planned), whose checkout pages are run by it and covered by its own privacy policy. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a>, <a href="https://www.kinde.com/privacy-policy/" rel="noopener noreferrer">Kinde</a> and <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>.</p>
 
   <h2>How long</h2>
   <ul>
@@ -67,6 +69,7 @@
     <li><strong>Sign-in sessions</strong> end after 14 days without use, or after 90 days in all.</li>
     <li><strong>The security log</strong> is kept after an account is deleted. Its entries are then no longer linked to your account, but they still show the kind of event, its date and the keyed IP hash. No period for deleting them has been set yet.</li>
     <li><strong>Backups.</strong> The database host keeps recovery copies for up to 7 days, so deleted data can remain in them until they age out. Screenshots are copied once a day to a second private bucket, and a screenshot that is deleted stays in that copy for up to 30 days before it is removed.</li>
+    <li><strong>Billing records.</strong> When paid plans open, the payment provider keeps payment and tax records for as long as the law requires, and Roundturn keeps the plan, status and receipts it receives for the same reason. Deleting your account does not remove records that tax law requires to be kept.</li>
     <li><strong>Email provider.</strong> Resend keeps its own record of messages it delivers, under its own policy.</li>
     <li><strong>Unfinished sign-ups.</strong> If someone starts to create an account at Kinde and never finishes, a sign-in record can remain there. Ask and it will be removed.</li>
   </ul>
@@ -89,6 +92,9 @@
       <nav aria-label="Footer">
         <a href="/">Home</a>
         <a href="/about/">About</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Billing and refunds</a>
         <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
       </nav>
     </div>
