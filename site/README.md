@@ -7,7 +7,7 @@ The public marketing site for roundturn.app: static pages in `public/`, and one 
 It deploys as a **Cloudflare Worker with static assets**. (The design docs said "Cloudflare Pages". Cloudflare's dashboard now creates new projects as Workers, with the same CDN and the same domains, so the site follows that. Nothing in the design depended on the difference.)
 
 ```
-public/            what is served: index, about, privacy, 404, style.css, fonts/, favicon, _headers
+public/            what is served: index, about, privacy, terms, refunds, 404, style.css, fonts/, favicon, _headers
 public/fonts/      IBM Plex Sans and Mono (latin, five weights), the same files the app uses; the CSP allows only this folder
 src/worker.js      runs only for /api/*, to answer 404; everything else is served straight from public/
 wrangler.jsonc     what Cloudflare reads at deploy: the Worker's name and the assets folder (no bindings)
@@ -23,7 +23,7 @@ CI runs the same command (job "Marketing site"). The tests check that nothing lo
 
 ## What the page says matters
 
-Payment providers will read this site, and so will users. Every claim has to be true of the product. If a feature changes, change the page in the same pull request; the tests fail if a required statement disappears or a promise such as "guaranteed" appears. The privacy page is a draft covering the beta form only. A full policy, reviewed by a professional, replaces it before the app opens to users.
+Payment providers will read this site, and so will users. Every claim has to be true of the product. If a feature changes, change the page in the same pull request; the tests fail if a required statement disappears or a promise such as "guaranteed" appears. The privacy page, the terms and the billing and refund policy are drafts (each says so at the top). A professional should review them before the app opens widely; then remove the draft notice. When billing goes live, change "Paid plans are not open yet" on the home, terms and refunds pages together (a test checks they agree on the price, the trial and that wording).
 
 ## Deploying on Cloudflare (the owner's steps)
 

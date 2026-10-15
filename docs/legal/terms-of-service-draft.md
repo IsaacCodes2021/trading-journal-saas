@@ -1,6 +1,6 @@
 # Roundturn Terms of Service
 
-> **DRAFT. Not legal advice, not reviewed by a lawyer, not published.** Written 2026-10-04 from the product's design documents so that a professional has something concrete to correct. Everything in `[square brackets]` is a decision or a fact only the owner can supply. See `README.md` in this folder for the list, and the review questions at the end of this file.
+> **DRAFT. Not legal advice, not reviewed by a lawyer.** The published version is `site/public/terms/index.html` (roundturn.app/terms/, added 2026-10-14); change the two together. Written 2026-10-04 from the product's design documents so that a professional has something concrete to correct. Everything in `[square brackets]` is a decision or a fact only the owner can supply. See `README.md` in this folder for the list, and the review questions at the end of this file.
 
 **Last updated:** [date of publication]
 **Operated by:** Northfield Labs, LLC, a California limited liability company. In these terms, "Roundturn", "we", "us" and "our" mean that operator.
@@ -63,7 +63,7 @@ The Service, its software, design, text and name are ours or our licensors'. We 
 
 ## 8. Plans and payment
 
-[DECIDE AND COMPLETE BEFORE ANY PAID PLAN OPENS.] The beta is free. We plan a free plan and a paid Pro plan. If and when paid plans open: prices, billing period, taxes, how to cancel, refund rules and the name of the company that takes payment (a payment provider acting as the seller or as our processor) will be shown before you pay, and these terms will be updated first. Plans can also be given by invitation or code, and ended when the invitation or code ends.
+Paid plans are not open yet; the beta is free. When they open: **Roundturn Pro is USD 15 per month**, there is no free plan, new users get a 7-day trial, billing renews monthly until cancelled, prices are in USD with taxes added at checkout, and payment is taken by a payment provider acting as seller of record (planned: Lemon Squeezy). **No refunds**: payments are final and non-refundable (owner decision, 2026-10-14), except billing errors we caused and rights the law does not let a person waive. Cancelling stops the next renewal and access runs to the end of the paid period. Full text: `site/public/refunds/index.html`. Plans can also be given by invitation or code, and ended when the invitation or code ends.
 
 ## 9. Ending things
 
@@ -85,7 +85,7 @@ We may change these terms or the Service. If a change matters to you, we will te
 
 ## 13. Governing law and disputes
 
-These terms are governed by the laws of [STATE / COUNTRY], without regard to its conflict-of-laws rules. [Courts of [VENUE] / arbitration: LAWYER TO DECIDE.] Before starting a formal dispute, please email hello@roundturn.app and give us 30 days to try to put it right.
+These terms are governed by the laws of the State of California, United States, without regard to its conflict-of-laws rules, and disputes are for the courts located in California. [Assumed from the operator being a California LLC; LAWYER TO CONFIRM, and decide on arbitration.] Before starting a formal dispute, please email hello@roundturn.app and give us 30 days to try to put it right.
 
 ## 14. Everything else
 

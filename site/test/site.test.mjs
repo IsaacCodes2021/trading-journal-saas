@@ -190,3 +190,40 @@ test("the contact address is the one the site says it uses", () => {
   const addresses = new Set(pages.flatMap((p) => [...read(p).matchAll(/mailto:([^"]+)"/g)].map((m) => m[1])));
   assert.deepEqual([...addresses], ["hello@roundturn.app"]);
 });
+
+test("the terms and refund pages state the same price, trial and no-refund rule, and say paid plans are not open yet", () => {
+  const terms = pageNamed("/terms/index.html").toLowerCase();
+  const refunds = pageNamed("/refunds/index.html").toLowerCase();
+  const home = pageNamed("/index.html").toLowerCase();
+  for (const [name, text] of [["terms", terms], ["refunds", refunds], ["home", home]]) {
+    assert.ok(text.includes("usd 15 per month"), `${name} does not give the price`);
+    assert.ok(text.includes("7-day trial"), `${name} does not mention the trial`);
+    assert.ok(text.includes("paid plans are not open yet"), `${name} does not say paid plans are not open`);
+  }
+  for (const text of ["payments are final and non-refundable", "we do not issue refunds", "there is no free plan"]) {
+    assert.ok(terms.includes(text) || refunds.includes(text), `neither page says: ${text}`);
+  }
+  assert.ok(refunds.includes("we do not issue refunds"));
+  assert.ok(refunds.includes("cannot be waived"), "the refund page does not keep legally required rights");
+  assert.ok(terms.includes("northfield labs, llc, a california limited liability company"));
+  assert.ok(terms.includes("not investment advice") && terms.includes("substantial risk of loss"));
+  assert.ok(terms.includes("not affiliated with"));
+});
+
+test("every page links to the terms, privacy and refund pages in its footer", () => {
+  for (const page of pages) {
+    if (urlOf(page) === "/404.html") continue;
+    const html = read(page);
+    const footer = html.slice(html.indexOf("<footer"));
+    for (const target of ["/privacy/", "/terms/", "/refunds/"]) {
+      assert.ok(footer.includes(`href="${target}"`), `${urlOf(page)} footer does not link to ${target}`);
+    }
+  }
+});
+
+test("the privacy page covers payments without claiming the site stores anything", () => {
+  const privacy = pageNamed("/privacy/index.html").toLowerCase();
+  assert.ok(privacy.includes("lemon squeezy"));
+  assert.ok(privacy.includes("never sees or stores your card number"));
+  assert.ok(privacy.includes("billing records"));
+});

@@ -1,6 +1,6 @@
 # Legal drafts
 
-**Drafts only: not legal advice, not reviewed by a lawyer, and not published anywhere.** They live in `docs/`, not in `site/`, because the marketing site deploys whatever is merged to `main`; nothing here is reachable from the internet. They exist so a professional has something concrete to correct (launch gate in `docs/design/04-security.md` section 4: "Privacy Policy, Terms, financial disclaimer, subprocessor list reviewed by a professional").
+**Drafts only: not legal advice and not reviewed by a lawyer.** Since 2026-10-14 the Terms and a billing and refund policy are also published as pages on the marketing site (`site/public/terms/`, `site/public/refunds/`), next to the interim privacy page. The site pages are what visitors see; these files are the version to hand to a professional. Change them together. They exist so a professional has something concrete to correct (launch gate in `docs/design/04-security.md` section 4: "Privacy Policy, Terms, financial disclaimer, subprocessor list reviewed by a professional").
 
 | File | What it is |
 |---|---|
@@ -12,8 +12,8 @@ Both end with a list of questions for the reviewing professional.
 ## What only the owner can fill in
 
 1. **Operator's legal name and address** (the "operated by" line). Done 2026-10-10: Northfield Labs, LLC, a California limited liability company.
-2. **Governing law and venue** for the Terms.
-3. **Plans and payment wording** (Terms section 8) once a payment provider is chosen and has answered the pre-clearance emails.
+2. **Governing law and venue** for the Terms. Assumed California on 2026-10-14 (the operator is a California LLC); a professional should confirm.
+3. **Plans and payment wording** (Terms section 7 on the site, section 8 here). Done 2026-10-14: USD 15 per month, no free plan, 7-day trial, no refunds. Still to do: name the payment provider as fact once it has approved the store (the pages say "planned: Lemon Squeezy"), and drop "Paid plans are not open yet" when billing goes live.
 4. **Retention periods**: deletion grace period, backup retention, security-record retention (set by the backup and deletion design).
 5. **Subprocessor choices**: host, database, email-sending provider, payment provider, error tracking (the Privacy Policy table marks each *in use*, *planned* or *undecided*).
 6. **Postal address**: none is published, by the owner's choice (email contact only); the reviewing professional says whether that suffices.
