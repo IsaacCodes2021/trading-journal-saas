@@ -27,6 +27,7 @@ class Notice:
     user_id: UUID
     email: str
     first_name: str  # from their beta sign-up when there is one, otherwise "there"
+    kind: str = "free_days"  # what ended: a code or an invite's days ("free_days"), or the trial ("trial")
 
 
 def due(
@@ -39,10 +40,10 @@ def due(
     """Oldest ending first. `since` defaults to `RECENT` before `now`."""
     moment = now or datetime.now(UTC)
     rows = conn.execute(
-        "SELECT redemption_id, user_id, email, first_name FROM ended_notices_due(%s, %s, %s)",
+        "SELECT redemption_id, user_id, email, first_name, kind FROM ended_notices_due(%s, %s, %s)",
         (moment, since or moment - RECENT, limit),
     ).fetchall()
-    return [Notice(r["redemption_id"], r["user_id"], r["email"], r["first_name"]) for r in rows]
+    return [Notice(r["redemption_id"], r["user_id"], r["email"], r["first_name"], r["kind"]) for r in rows]
 
 
 def mark_sent(conn: psycopg.Connection, redemption_id: int, *, now: datetime | None = None) -> bool:

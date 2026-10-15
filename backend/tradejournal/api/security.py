@@ -39,7 +39,7 @@ _STATIC_HEADERS = {
 HSTS = "max-age=63072000; includeSubDomains"
 
 # Responses under these paths are per-user and must never sit in a browser or proxy cache.
-NO_STORE_PREFIXES = ("/api/", "/auth/", "/files/")
+NO_STORE_PREFIXES = ("/api/", "/auth/", "/files/", "/webhooks/", "/billing/")
 
 
 def security_headers(path: str, config: ApiConfig) -> dict[str, str]:

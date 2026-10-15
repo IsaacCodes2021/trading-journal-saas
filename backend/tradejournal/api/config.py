@@ -77,6 +77,15 @@ class ApiConfig:
     # request comes through a proxy that sets it (CF-Connecting-IP behind Cloudflare); left out, the socket's address is used.
     rate_limits: RateLimits = field(default_factory=RateLimits)
     client_ip_header: str | None = None
+    # Billing (the billing design; docs/design/paddle-integration.md). Off: sign-up, access and every page are exactly as they
+    # were, and the billing routes, the webhook and the payment page answer 404. On: a 7-day trial at sign-up, nothing live
+    # means read-only, and the provider below is used. `billing_provider` is "fake" (tests and local clicking-through; refused
+    # in production) or "paddle". The webhook writes as its own database role (`TJ_WEBHOOK_DATABASE_URL`).
+    billing_enabled: bool = False
+    billing_provider: str | None = None
+    webhook_database_url: str | None = field(default=None, repr=False)
+    # The fake provider's webhook secret: a fresh one per process unless a test gives one.
+    fake_billing_secret: str = field(default_factory=lambda: secrets.token_hex(16), repr=False)
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
@@ -87,6 +96,7 @@ class ApiConfig:
             ("TJ_DATABASE_URL", self.database_url),
             ("TJ_LOGIN_DATABASE_URL", self.login_database_url),
             ("TJ_ADMIN_DATABASE_URL", self.admin_database_url),
+            ("TJ_WEBHOOK_DATABASE_URL", self.webhook_database_url),
         ):
             if url is not None and urlsplit(url).scheme not in ("postgresql", "postgres"):
                 raise ConfigError(f"{name} must be a postgresql:// URL")
@@ -117,6 +127,14 @@ class ApiConfig:
             raise ConfigError("TJ_CLIENT_IP_HEADER must be a header name such as CF-Connecting-IP")
         if self.signup_mode not in ("invite", "open"):
             raise ConfigError("TJ_SIGNUP_MODE must be 'invite' or 'open'")
+        if self.billing_provider is not None and self.billing_provider not in ("fake", "paddle"):
+            raise ConfigError("TJ_BILLING_PROVIDER must be 'fake' or 'paddle'")
+        if self.billing_enabled and self.billing_provider is None:
+            raise ConfigError("TJ_BILLING_ENABLED needs TJ_BILLING_PROVIDER")
+        if self.production and self.billing_provider == "fake":
+            raise ConfigError("TJ_BILLING_PROVIDER=fake is for tests and development: it takes no payment")
+        if self.production and self.billing_enabled and self.webhook_database_url is None:
+            raise ConfigError("TJ_BILLING_ENABLED needs TJ_WEBHOOK_DATABASE_URL: the webhook writes as its own role")
         if self.dev_user_id is not None:
             if self.production:
                 raise ConfigError("TJ_DEV_USER_ID is for development only: it signs every request in as that user")
@@ -152,6 +170,14 @@ class ApiConfig:
             values["login_database_url"] = env["TJ_LOGIN_DATABASE_URL"]
         if env.get("TJ_ADMIN_DATABASE_URL"):
             values["admin_database_url"] = env["TJ_ADMIN_DATABASE_URL"]
+        if env.get("TJ_WEBHOOK_DATABASE_URL"):
+            values["webhook_database_url"] = env["TJ_WEBHOOK_DATABASE_URL"]
+        switch = env.get("TJ_BILLING_ENABLED", "").strip().lower()
+        if switch not in ("", "0", "false", "no", "off", "1", "true", "yes", "on"):
+            raise ConfigError("TJ_BILLING_ENABLED must be true or false")
+        values["billing_enabled"] = switch in ("1", "true", "yes", "on")
+        if env.get("TJ_BILLING_PROVIDER", "").strip():
+            values["billing_provider"] = env["TJ_BILLING_PROVIDER"].strip().lower()
         for key, name in (
             ("TJ_KINDE_DOMAIN", "kinde_domain"),
             ("TJ_KINDE_CLIENT_ID", "kinde_client_id"),

@@ -11,13 +11,13 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from uuid import UUID
 
 import psycopg
 
-from ..entitlements import EffectivePlan, Grant, Override, effective_plan
+from ..entitlements import EffectivePlan, Grant, Override, SubscriptionState, effective_plan
 
 PAGE_MAX = 100
 
@@ -82,6 +82,8 @@ class UserDetail:
     overrides: list[OverrideRow]  # newest first; the active one (if any) has no `revoked_at`
     redemptions: list[RedemptionRow]
     events: list[EventRow]
+    subscription: dict | None = None  # the subscriptions row, view only (migration 0021)
+    billing_events: list[dict] = field(default_factory=list)  # type, received_at, outcome: never the payload
 
 
 def _like(text: str) -> str:
@@ -100,11 +102,30 @@ def plans_for(conn: psycopg.Connection, ids: list[UUID], now: datetime) -> dict[
     }
     grants: dict[UUID, list[Grant]] = defaultdict(list)
     for r in conn.execute(
-        "SELECT user_id, plan, starts_at, ends_at FROM grant_redemptions WHERE user_id = ANY(%s) AND ends_at > %s",
+        """SELECT user_id, plan, starts_at, ends_at FROM grant_redemptions
+           WHERE user_id = ANY(%s) AND ends_at > %s AND revoked_at IS NULL""",
         (ids, now),
     ).fetchall():
         grants[r["user_id"]].append(Grant(r["plan"], r["starts_at"], r["ends_at"]))
-    return {i: effective_plan(now, override=overrides.get(i), grants=grants.get(i, ())) for i in ids}
+    subscriptions = {
+        r["user_id"]: SubscriptionState(
+            r["plan"],
+            r["status"],
+            r["current_period_end"],
+            cancel_at_period_end=r["cancel_at_period_end"],
+            past_due_since=r["past_due_since"],
+            ended_at=r["ended_at"],
+        )
+        for r in conn.execute(
+            """SELECT user_id, plan, status, current_period_end, cancel_at_period_end, past_due_since, ended_at
+               FROM subscriptions WHERE user_id = ANY(%s)""",
+            (ids,),
+        ).fetchall()
+    }
+    return {
+        i: effective_plan(now, override=overrides.get(i), grants=grants.get(i, ()), subscription=subscriptions.get(i))
+        for i in ids
+    }
 
 
 _USER_COLUMNS = """u.id, u.email, u.status, u.is_admin, u.created_at, u.last_login_at, u.deletion_scheduled_at,
@@ -197,7 +218,21 @@ def get_user(
             (user_id, max(1, min(events, 100))),
         ).fetchall()
     ]
-    return UserDetail(_rows(conn, [row], moment)[0], sessions, overrides, redemptions, history)
+    subscription = conn.execute(
+        """SELECT provider, status, current_period_end, cancel_at_period_end, cancel_requested_by, past_due_since,
+                  ended_at, provider_customer_id, provider_subscription_id
+           FROM subscriptions WHERE user_id = %s""",
+        (user_id,),
+    ).fetchone()
+    billing = conn.execute(
+        """SELECT type, received_at, outcome FROM billing_events WHERE user_id = %s
+           ORDER BY received_at DESC, id DESC LIMIT 10""",
+        (user_id,),
+    ).fetchall()
+    return UserDetail(
+        _rows(conn, [row], moment)[0], sessions, overrides, redemptions, history, dict(subscription) if subscription else None,
+        [dict(b) for b in billing],
+    )  # fmt: skip
 
 
 def set_status(conn: psycopg.Connection, user_id: UUID, *, to: str) -> bool:

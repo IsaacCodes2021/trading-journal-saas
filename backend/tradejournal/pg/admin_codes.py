@@ -121,8 +121,10 @@ def code_in_use(conn: psycopg.Connection, code: str) -> bool:
 
 
 def grant_exists(conn: psycopg.Connection, grant_id: int, *, now: datetime | None = None) -> bool:
-    """Whether a plan code exists and can still be given (not revoked, not expired)."""
-    row = conn.execute("SELECT revoked_at, expires_at FROM grant_codes WHERE id = %s", (grant_id,)).fetchone()
+    """Whether a plan code exists and can still be given (not revoked, not expired). The trial's code is not one."""
+    row = conn.execute(
+        "SELECT revoked_at, expires_at FROM grant_codes WHERE id = %s AND kind = 'free_days'", (grant_id,)
+    ).fetchone()
     moment = now or datetime.now(UTC)
     return row is not None and row["revoked_at"] is None and (row["expires_at"] is None or row["expires_at"] > moment)
 
@@ -164,7 +166,8 @@ def list_grant_codes(
 ) -> tuple[list[GrantRow], int]:
     """Codes, newest first. `show` narrows them to one of `GRANT_FILTERS` (works, ended, revoked); None is all of them."""
     limit, offset = _page(limit, offset)
-    where = GRANT_FILTERS[show] if show else "true"
+    # The trial's code (migration 0021) is the system's, not a code anyone hands out: it is not listed.
+    where = f"g.kind <> 'trial' AND {GRANT_FILTERS[show] if show else 'true'}"
     params = {"now": now or datetime.now(UTC), "limit": limit, "offset": offset}
     total = conn.execute(f"SELECT count(*) AS n FROM grant_codes g WHERE {where}", params).fetchone()["n"]  # noqa: S608
     rows = conn.execute(

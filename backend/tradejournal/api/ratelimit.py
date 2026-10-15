@@ -52,6 +52,7 @@ class RateLimits:
     callback: Rule = Rule("callback", 30, 60)
     invite_attempts: Rule = Rule("invite_attempts", 10, 900)  # sign-in attempts that carry an invite code
     redeem: Rule = Rule("redeem", 10, 3600)  # plan codes a person tries, right or wrong
+    billing: Rule = Rule("billing", 10, 3600)  # checkout, cancel, resume and the provider's page, per person
 
 
 class RateLimiter:

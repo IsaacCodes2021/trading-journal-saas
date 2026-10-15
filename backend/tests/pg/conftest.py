@@ -8,6 +8,7 @@ folder is skipped, so the rest of the suite still runs anywhere.
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -108,8 +109,8 @@ def owner(owner_url):
         # Cascades through every tenant table; the system tables that hang off no user (invites, the firms' rule
         # templates) are named, so that no test sees another's leftovers.
         conn.execute(
-            "TRUNCATE users, invites, audit_log, identity_removals, file_removals, grant_codes, rule_templates "
-            "RESTART IDENTITY CASCADE"
+            "TRUNCATE users, invites, audit_log, identity_removals, file_removals, grant_codes, rule_templates, "
+            "billing_cancellations RESTART IDENTITY CASCADE"
         )
         yield conn
 
@@ -121,6 +122,21 @@ def make_user(owner, db, email: str):
     with db.tenant_session(row["id"]) as conn:
         provision_defaults(conn)
     return row["id"]
+
+
+TRIAL_INSERT = re.search(
+    r"INSERT INTO grant_codes \(code_hash, label, plan, days, kind, created_by\).*?;",
+    (Path(pg_migrate.__file__).parent / "migrations" / "0021_billing.sql").read_text(encoding="utf-8"),
+    re.DOTALL,
+).group(0)
+
+
+@pytest.fixture
+def trial(owner) -> int:
+    """The trial's code, made by migration 0021's own statement (the `owner` fixture empties `grant_codes` before each test,
+    which takes the migration's row with it). Returns its id."""
+    owner.execute(TRIAL_INSERT)
+    return owner.execute("SELECT id FROM grant_codes WHERE kind = 'trial'").fetchone()["id"]
 
 
 @pytest.fixture

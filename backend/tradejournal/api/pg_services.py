@@ -29,18 +29,24 @@ class PgAccountService:
     settings come through a tenant session like everything else of theirs."""
 
     def __init__(
-        self, database: Database, system: SystemDatabase, *, clock: Callable[[], datetime] = lambda: datetime.now(UTC)
+        self,
+        database: Database,
+        system: SystemDatabase,
+        *,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        billing_enabled: bool = False,
     ) -> None:
         self._database = database
         self._system = system
         self._clock = clock
+        self._billing = billing_enabled  # on: nothing live means read-only (entitlements.access_of)
 
     def load(self, user_id: UUID) -> Account | None:
         with self._system.system_session("login") as conn:
             row = conn.execute("SELECT id, email, status, is_admin FROM users WHERE id = %s", (user_id,)).fetchone()
             now = self._clock()
             plan = pg_plans.effective(conn, user_id, now) if row is not None else None
-            access = pg_plans.access(conn, user_id, now, plan=plan) if plan is not None else None
+            access = pg_plans.access(conn, user_id, now, plan=plan, billing=self._billing) if plan is not None else None
         if row is None or plan is None or access is None or row["status"] != "active":
             return None  # gone, suspended or being deleted: not signed in
         with self._database.tenant_session(user_id) as conn:
@@ -56,7 +62,7 @@ class PgAccountService:
 
     def access(self, user_id: UUID) -> AccessOut:
         with self._system.system_session("login") as conn:
-            state = pg_plans.access(conn, user_id, self._clock())
+            state = pg_plans.access(conn, user_id, self._clock(), billing=self._billing)
         return AccessOut(state=state.state, ends_at=state.ends_at, reason=state.reason)
 
     def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:

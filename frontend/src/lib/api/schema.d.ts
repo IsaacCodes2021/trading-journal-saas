@@ -778,6 +778,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Billing
+         * @description Where this person's plan and billing stand, for the Plan & billing page.
+         */
+        get: operations["get_billing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel
+         * @description Stop the next renewal. Full access stays to the end of the period paid for; nothing is refunded or deleted.
+         */
+        post: operations["cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/checkout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Checkout
+         * @description Open a checkout for Roundturn Pro and say where to pay. A second click within half an hour lands on the same one.
+         */
+        post: operations["start_checkout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/portal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Portal
+         * @description A fresh link to the provider's page for the card, invoices and receipts.
+         */
+        post: operations["portal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/billing/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume
+         * @description Undo a cancel before the period ends: the subscription renews again.
+         */
+        post: operations["resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/business-totals": {
         parameters: {
             query?: never;
@@ -1467,14 +1567,15 @@ export interface components {
     schemas: {
         /**
          * AccessOut
-         * @description May the person change things? "ended" means their time-limited full access (a beta code, a promo code) ran out or was
-         *     ended by an operator: they can still look at everything and download it, and cannot create, change or delete.
+         * @description May the person change things? "ended" means their time-limited full access (a beta code, a promo code, the trial) ran
+         *     out or was ended by an operator, or (with billing on) their subscription ended: they can still look at everything and
+         *     download it, and cannot create, change or delete.
          */
         AccessOut: {
             /** Ends At */
             ends_at: string | null;
             /** Reason */
-            reason: ("expired" | "revoked") | null;
+            reason: ("expired" | "revoked" | "lapsed") | null;
             /**
              * State
              * @enum {string}
@@ -1805,6 +1906,21 @@ export interface components {
              */
             mfa: boolean | null;
         };
+        /**
+         * AdminBillingEventOut
+         * @description One of the provider's events about this person: what and when, never what it carried.
+         */
+        AdminBillingEventOut: {
+            /** Outcome */
+            outcome: string;
+            /**
+             * Received At
+             * Format: date-time
+             */
+            received_at: string;
+            /** Type */
+            type: string;
+        };
         /** AdminRuleTemplateListOut */
         AdminRuleTemplateListOut: {
             /** Limit */
@@ -1838,10 +1954,46 @@ export interface components {
                 [key: string]: string | number | null;
             };
         };
+        /**
+         * AdminSubscriptionOut
+         * @description The person's subscription as the provider last told us (view only: refunds and card problems are handled at the
+         *     provider; the operator's lever here is still the plan override).
+         */
+        AdminSubscriptionOut: {
+            /** Cancel At Period End */
+            cancel_at_period_end: boolean;
+            /** Cancel Requested By */
+            cancel_requested_by: ("person" | "deletion") | null;
+            /** Current Period End */
+            current_period_end: string | null;
+            /** Ended At */
+            ended_at: string | null;
+            /** Past Due Since */
+            past_due_since: string | null;
+            /** Provider */
+            provider: string;
+            /**
+             * Provider Customer Id
+             * @description To find the person in the provider's dashboard
+             */
+            provider_customer_id: string | null;
+            /** Provider Subscription Id */
+            provider_subscription_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "trialing" | "active" | "past_due" | "paused" | "canceled";
+        };
         /** AdminUserDetailOut */
         AdminUserDetailOut: {
             /** Active Sessions */
             active_sessions: number;
+            /**
+             * Billing Events
+             * @description The provider's latest 10 events about this person, newest first
+             */
+            billing_events: components["schemas"]["AdminBillingEventOut"][];
             /**
              * Events
              * @description The latest events about this account, newest first
@@ -1854,6 +2006,8 @@ export interface components {
             overrides: components["schemas"]["OverrideOut"][];
             /** Redemptions */
             redemptions: components["schemas"]["RedemptionOut"][];
+            /** @description None when they never subscribed */
+            subscription: components["schemas"]["AdminSubscriptionOut"] | null;
             user: components["schemas"]["AdminUserOut"];
         };
         /** AdminUserListOut */
@@ -2045,6 +2199,64 @@ export interface components {
             notice: "sent" | "pending" | "not_needed";
             person: components["schemas"]["BetaPersonOut"];
         };
+        /** BillingOut */
+        BillingOut: {
+            /**
+             * Billing Starts At
+             * @description With free days left: when a subscription started now would take its first payment
+             */
+            billing_starts_at: string | null;
+            /**
+             * Can Manage
+             * @description The provider has a customer for this person, so its billing page has something
+             */
+            can_manage: boolean;
+            /** Can Subscribe */
+            can_subscribe: boolean;
+            /** Currency */
+            currency: string;
+            /**
+             * Ends At
+             * @description When the trial, the free days, the paid period (cancelling) or the grace (past_due) ends; for read_only, when access ended
+             */
+            ends_at: string | null;
+            /**
+             * First Charge Pending
+             * @description active: no payment has been taken yet (the first waits for free days)
+             */
+            first_charge_pending: boolean;
+            /**
+             * Interval
+             * @constant
+             */
+            interval: "month";
+            /**
+             * Price
+             * @description The monthly price as an exact decimal, such as 15.00
+             */
+            price: string;
+            /**
+             * Price Text
+             * @description The price in words, as the page shows it
+             */
+            price_text: string;
+            /**
+             * Reason
+             * @description read_only: why
+             */
+            reason: ("expired" | "revoked" | "lapsed") | null;
+            /**
+             * Renews At
+             * @description active: when the next payment is taken (the first one, on a trial)
+             */
+            renews_at: string | null;
+            /**
+             * State
+             * @description trial: the free trial runs; covered: an invitation, a code or the team gives Pro; active: paying; cancelling: paid to the end of the period and not renewing; past_due: the last payment failed and the grace runs; read_only: nothing gives Pro
+             * @enum {string}
+             */
+            state: "trial" | "covered" | "active" | "cancelling" | "past_due" | "read_only";
+        };
         /** Body_add_screenshot */
         Body_add_screenshot: {
             /** File */
@@ -2110,6 +2322,14 @@ export interface components {
             name: string;
             /** Trade Count */
             trade_count: number;
+        };
+        /** CheckoutOut */
+        CheckoutOut: {
+            /**
+             * Pay Url
+             * @description Where the browser goes to pay: a path on this site
+             */
+            pay_url: string;
         };
         /** ColorPresetOut */
         ColorPresetOut: {
@@ -2775,6 +2995,12 @@ export interface components {
              */
             grants_ending_7d: number;
             /**
+             * On Trial
+             * @description People whose 7-day trial is running (billing)
+             * @default 0
+             */
+            on_trial: number;
+            /**
              * Open Grant Codes
              * @description Plan codes that still work
              */
@@ -2784,6 +3010,12 @@ export interface components {
              * @description Invites that still work
              */
             open_invites: number;
+            /**
+             * Paying
+             * @description People with a subscription that gives Pro now (billing)
+             * @default 0
+             */
+            paying: number;
             /** Pending Deletion */
             pending_deletion: number;
             /** Pro */
@@ -2871,6 +3103,14 @@ export interface components {
              * @enum {string}
              */
             source: "override" | "grant" | "subscription" | "free";
+        };
+        /** PortalOut */
+        PortalOut: {
+            /**
+             * Url
+             * @description The provider's page for the card, invoices and receipts, made for this click
+             */
+            url: string;
         };
         /**
          * PreviewRowOut
@@ -7055,6 +7295,421 @@ export interface operations {
             };
             /** @description Too Many Requests */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_billing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    start_checkout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CheckoutOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    portal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PortalOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

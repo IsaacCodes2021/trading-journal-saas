@@ -16,13 +16,19 @@ takes plain values, so every rule is a plain test.
 an invite (a beta account, a promo code) and has run out, or was ended by an operator, keeps their data and can look at all
 of it and download it, but cannot create, change or delete (`access_of`). A person who never had such access (the owner,
 accounts made without one) is never affected, so this rule can be switched on without touching anyone who has no end date.
+
+**With billing switched on** (`TJ_BILLING_ENABLED`, the billing design) there is no free plan: someone with nothing live is
+read-only, and a subscription that ended is a third reason, `lapsed`. A subscription is live while it is paid for: to the end of
+the paid period plus one day while it renews (so a renewal whose webhook is late locks nobody out), to the end of the period
+exactly once it is cancelling, and for 7 days from the first failed payment (`past_due_since`; the provider may already have
+moved the period on). With the switch off, every rule above is exactly as it was.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 
 Plan = Literal["free", "pro"]
@@ -37,8 +43,11 @@ _RANK = {plan: rank for rank, plan in enumerate(PLANS)}
 # does not limit something simply does not list it.
 LIMITS: dict[Plan, dict[str, int | bool]] = {"free": {}, "pro": {}}
 
-# Billing states that count as having the subscription (doc 03: active, trialing, or in the seven-day grace).
-SUBSCRIPTION_LIVE = frozenset({"active", "trialing", "grace"})
+# Stored subscription states that can give the plan (migration 0021): paid for (active), in a provider's trial while free days
+# run (trialing), or a renewal that failed and is in its seven days of grace (past_due). Paused and canceled never do.
+SUBSCRIPTION_LIVE = frozenset({"active", "trialing", "past_due"})
+GRACE = timedelta(days=7)  # after the first failed payment, before read-only
+RENEWAL_MARGIN = timedelta(days=1)  # a renewing subscription stays live this long past its period, for a late webhook
 
 
 @dataclass(frozen=True)
@@ -60,6 +69,35 @@ class SubscriptionState:
     plan: Plan
     status: str
     current_period_end: datetime | None
+    cancel_at_period_end: bool = False
+    past_due_since: datetime | None = None  # when the first failed payment of this run of failures happened
+    ended_at: datetime | None = None  # when the provider ended it (canceled)
+
+
+def subscription_live_until(sub: SubscriptionState) -> tuple[bool, datetime | None]:
+    """Whether the subscription can give its plan at all, and until when: (False, None) for one that never will again, (True,
+    None) for a live one with no end known yet, else (True, the instant it stops). Live means `now < until`."""
+    if sub.status not in SUBSCRIPTION_LIVE or sub.plan not in _RANK:
+        return False, None
+    if sub.status == "past_due":
+        start = sub.past_due_since or sub.current_period_end
+        return (True, start + GRACE) if start is not None else (False, None)
+    if sub.current_period_end is None:
+        return True, None
+    if sub.cancel_at_period_end:
+        return True, sub.current_period_end
+    return True, sub.current_period_end + RENEWAL_MARGIN
+
+
+def subscription_lapsed_at(sub: SubscriptionState | None, now: datetime) -> datetime | None:
+    """When a subscription that no longer gives the plan stopped giving it, or None if it still does (or there is none). This
+    is what "lapsed" refers to on a read-only account."""
+    if sub is None:
+        return None
+    counts, until = subscription_live_until(sub)
+    if counts:
+        return until if until is not None and until <= now else None
+    return sub.ended_at or sub.current_period_end or sub.past_due_since
 
 
 @dataclass(frozen=True)
@@ -78,7 +116,7 @@ class Access:
 
     state: Literal["active", "ended"]
     ends_at: datetime | None = None
-    reason: Literal["expired", "revoked"] | None = None
+    reason: Literal["expired", "revoked", "lapsed"] | None = None
 
 
 @dataclass(frozen=True)
@@ -89,9 +127,24 @@ class EndedGrant:
     revoked: bool
 
 
-def access_of(plan: EffectivePlan, last_ended: EndedGrant | None) -> Access:
+def access_of(
+    plan: EffectivePlan,
+    last_ended: EndedGrant | None,
+    *,
+    billing: bool = False,
+    lapsed_at: datetime | None = None,
+) -> Access:
     """Read-only exactly when the person is on the free plan *because* time-limited access ended. An active grant, an override
-    (the operator decided) and a subscription all keep full access; so does an account that never had a grant."""
+    (the operator decided) and a subscription all keep full access; so does an account that never had a grant.
+
+    With `billing` on there is no free plan, so the free plan always means read-only, and the reason is whichever ended last:
+    a grant (expired or revoked) or a subscription (`lapsed_at`; "lapsed"). An account with nothing at all is "lapsed" with no
+    date. `lapsed_at` is ignored with billing off, so turning the switch off restores today's rule exactly."""
+    if plan.source == "free" and billing:
+        if lapsed_at is not None and (last_ended is None or lapsed_at >= last_ended.ended_at):
+            return Access("ended", lapsed_at, "lapsed")
+        if last_ended is None:
+            return Access("ended", None, "lapsed")
     if plan.source == "free" and last_ended is not None:
         return Access("ended", last_ended.ended_at, "revoked" if last_ended.revoked else "expired")
     return Access("active", plan.expires_at if plan.source == "grant" else None)
@@ -117,13 +170,10 @@ def effective_plan(
     if live:
         best = max(live, key=lambda g: (_RANK[g.plan], g.ends_at))
         candidates.append(EffectivePlan(best.plan, "grant", best.ends_at))
-    if (
-        subscription is not None
-        and subscription.status in SUBSCRIPTION_LIVE
-        and subscription.plan in _RANK
-        and (subscription.current_period_end is None or subscription.current_period_end > now)
-    ):
-        candidates.append(EffectivePlan(subscription.plan, "subscription", subscription.current_period_end))
+    if subscription is not None:
+        counts, until = subscription_live_until(subscription)
+        if counts and (until is None or until > now):
+            candidates.append(EffectivePlan(subscription.plan, "subscription", until))
     if not candidates:
         return FREE
     # The higher plan; on a tie, the subscription.

@@ -73,12 +73,39 @@ class EventOut(ApiModel):
     meta: dict[str, str | int | bool | None]
 
 
+class AdminSubscriptionOut(ApiModel):
+    """The person's subscription as the provider last told us (view only: refunds and card problems are handled at the
+    provider; the operator's lever here is still the plan override)."""
+
+    provider: str
+    status: Literal["trialing", "active", "past_due", "paused", "canceled"]
+    current_period_end: datetime | None
+    cancel_at_period_end: bool
+    cancel_requested_by: Literal["person", "deletion"] | None
+    past_due_since: datetime | None
+    ended_at: datetime | None
+    provider_customer_id: str | None = Field(description="To find the person in the provider's dashboard")
+    provider_subscription_id: str
+
+
+class AdminBillingEventOut(ApiModel):
+    """One of the provider's events about this person: what and when, never what it carried."""
+
+    type: str
+    received_at: datetime
+    outcome: str
+
+
 class AdminUserDetailOut(ApiModel):
     user: AdminUserOut
     active_sessions: int
     overrides: list[OverrideOut] = Field(description="Every override this person has had, newest first")
     redemptions: list[RedemptionOut]
     events: list[EventOut] = Field(description="The latest events about this account, newest first")
+    subscription: AdminSubscriptionOut | None = Field(default=None, description="None when they never subscribed")
+    billing_events: list[AdminBillingEventOut] = Field(
+        default_factory=list, description="The provider's latest 10 events about this person, newest first"
+    )
 
 
 class ReasonIn(ApiModel):
@@ -261,6 +288,8 @@ class OverviewOut(ApiModel):
     grants_ending_7d: int = Field(
         description="People whose free days from a code or an invite end in the next 7 days, then read-only"
     )
+    paying: int = Field(default=0, description="People with a subscription that gives Pro now (billing)")
+    on_trial: int = Field(default=0, description="People whose 7-day trial is running (billing)")
 
 
 # ---- the beta: who joined and where each person stands -----------------------------------------------------------------

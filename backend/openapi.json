@@ -2,7 +2,7 @@
   "components": {
     "schemas": {
       "AccessOut": {
-        "description": "May the person change things? \"ended\" means their time-limited full access (a beta code, a promo code) ran out or was\nended by an operator: they can still look at everything and download it, and cannot create, change or delete.",
+        "description": "May the person change things? \"ended\" means their time-limited full access (a beta code, a promo code, the trial) ran\nout or was ended by an operator, or (with billing on) their subscription ended: they can still look at everything and\ndownload it, and cannot create, change or delete.",
         "properties": {
           "ends_at": {
             "anyOf": [
@@ -21,7 +21,8 @@
               {
                 "enum": [
                   "expired",
-                  "revoked"
+                  "revoked",
+                  "lapsed"
                 ],
                 "type": "string"
               },
@@ -1003,6 +1004,31 @@
         "title": "ActivityOut",
         "type": "object"
       },
+      "AdminBillingEventOut": {
+        "description": "One of the provider's events about this person: what and when, never what it carried.",
+        "properties": {
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "received_at": {
+            "format": "date-time",
+            "title": "Received At",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "received_at",
+          "outcome"
+        ],
+        "title": "AdminBillingEventOut",
+        "type": "object"
+      },
       "AdminRuleTemplateListOut": {
         "properties": {
           "limit": {
@@ -1094,11 +1120,123 @@
         "title": "AdminRuleTemplateOut",
         "type": "object"
       },
+      "AdminSubscriptionOut": {
+        "description": "The person's subscription as the provider last told us (view only: refunds and card problems are handled at the\nprovider; the operator's lever here is still the plan override).",
+        "properties": {
+          "cancel_at_period_end": {
+            "title": "Cancel At Period End",
+            "type": "boolean"
+          },
+          "cancel_requested_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "person",
+                  "deletion"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cancel Requested By"
+          },
+          "current_period_end": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Period End"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "past_due_since": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Past Due Since"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "provider_customer_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "To find the person in the provider's dashboard",
+            "title": "Provider Customer Id"
+          },
+          "provider_subscription_id": {
+            "title": "Provider Subscription Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "trialing",
+              "active",
+              "past_due",
+              "paused",
+              "canceled"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "status",
+          "current_period_end",
+          "cancel_at_period_end",
+          "cancel_requested_by",
+          "past_due_since",
+          "ended_at",
+          "provider_customer_id",
+          "provider_subscription_id"
+        ],
+        "title": "AdminSubscriptionOut",
+        "type": "object"
+      },
       "AdminUserDetailOut": {
         "properties": {
           "active_sessions": {
             "title": "Active Sessions",
             "type": "integer"
+          },
+          "billing_events": {
+            "description": "The provider's latest 10 events about this person, newest first",
+            "items": {
+              "$ref": "#/components/schemas/AdminBillingEventOut"
+            },
+            "title": "Billing Events",
+            "type": "array"
           },
           "events": {
             "description": "The latest events about this account, newest first",
@@ -1123,6 +1261,17 @@
             "title": "Redemptions",
             "type": "array"
           },
+          "subscription": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdminSubscriptionOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None when they never subscribed"
+          },
           "user": {
             "$ref": "#/components/schemas/AdminUserOut"
           }
@@ -1132,7 +1281,9 @@
           "active_sessions",
           "overrides",
           "redemptions",
-          "events"
+          "events",
+          "subscription",
+          "billing_events"
         ],
         "title": "AdminUserDetailOut",
         "type": "object"
@@ -1590,6 +1741,128 @@
         "title": "BetaRevokeOut",
         "type": "object"
       },
+      "BillingOut": {
+        "properties": {
+          "billing_starts_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With free days left: when a subscription started now would take its first payment",
+            "title": "Billing Starts At"
+          },
+          "can_manage": {
+            "description": "The provider has a customer for this person, so its billing page has something",
+            "title": "Can Manage",
+            "type": "boolean"
+          },
+          "can_subscribe": {
+            "title": "Can Subscribe",
+            "type": "boolean"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "ends_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the trial, the free days, the paid period (cancelling) or the grace (past_due) ends; for read_only, when access ended",
+            "title": "Ends At"
+          },
+          "first_charge_pending": {
+            "description": "active: no payment has been taken yet (the first waits for free days)",
+            "title": "First Charge Pending",
+            "type": "boolean"
+          },
+          "interval": {
+            "const": "month",
+            "title": "Interval",
+            "type": "string"
+          },
+          "price": {
+            "description": "The monthly price as an exact decimal, such as 15.00",
+            "title": "Price",
+            "type": "string"
+          },
+          "price_text": {
+            "description": "The price in words, as the page shows it",
+            "title": "Price Text",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "enum": [
+                  "expired",
+                  "revoked",
+                  "lapsed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "read_only: why",
+            "title": "Reason"
+          },
+          "renews_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "active: when the next payment is taken (the first one, on a trial)",
+            "title": "Renews At"
+          },
+          "state": {
+            "description": "trial: the free trial runs; covered: an invitation, a code or the team gives Pro; active: paying; cancelling: paid to the end of the period and not renewing; past_due: the last payment failed and the grace runs; read_only: nothing gives Pro",
+            "enum": [
+              "trial",
+              "covered",
+              "active",
+              "cancelling",
+              "past_due",
+              "read_only"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state",
+          "price",
+          "currency",
+          "interval",
+          "price_text",
+          "ends_at",
+          "renews_at",
+          "first_charge_pending",
+          "can_subscribe",
+          "billing_starts_at",
+          "can_manage",
+          "reason"
+        ],
+        "title": "BillingOut",
+        "type": "object"
+      },
       "Body_add_screenshot": {
         "properties": {
           "file": {
@@ -1757,6 +2030,20 @@
           "trade_count"
         ],
         "title": "CatalogTagOut",
+        "type": "object"
+      },
+      "CheckoutOut": {
+        "properties": {
+          "pay_url": {
+            "description": "Where the browser goes to pay: a path on this site",
+            "title": "Pay Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pay_url"
+        ],
+        "title": "CheckoutOut",
         "type": "object"
       },
       "ColorPresetOut": {
@@ -3431,6 +3718,12 @@
             "title": "Grants Ending 7D",
             "type": "integer"
           },
+          "on_trial": {
+            "default": 0,
+            "description": "People whose 7-day trial is running (billing)",
+            "title": "On Trial",
+            "type": "integer"
+          },
           "open_grant_codes": {
             "description": "Plan codes that still work",
             "title": "Open Grant Codes",
@@ -3439,6 +3732,12 @@
           "open_invites": {
             "description": "Invites that still work",
             "title": "Open Invites",
+            "type": "integer"
+          },
+          "paying": {
+            "default": 0,
+            "description": "People with a subscription that gives Pro now (billing)",
+            "title": "Paying",
             "type": "integer"
           },
           "pending_deletion": {
@@ -3469,7 +3768,9 @@
           "free",
           "open_invites",
           "open_grant_codes",
-          "grants_ending_7d"
+          "grants_ending_7d",
+          "paying",
+          "on_trial"
         ],
         "title": "OverviewOut",
         "type": "object"
@@ -3735,6 +4036,20 @@
           "expires_at"
         ],
         "title": "PlanOut",
+        "type": "object"
+      },
+      "PortalOut": {
+        "properties": {
+          "url": {
+            "description": "The provider's page for the card, invoices and receipts, made for this click",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "PortalOut",
         "type": "object"
       },
       "PreviewRowOut": {
@@ -10429,6 +10744,466 @@
         "summary": "Recent Activity",
         "tags": [
           "activity"
+        ]
+      }
+    },
+    "/api/v1/billing": {
+      "get": {
+        "description": "Where this person's plan and billing stand, for the Plan & billing page.",
+        "operationId": "get_billing",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Get Billing",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/cancel": {
+      "post": {
+        "description": "Stop the next renewal. Full access stays to the end of the period paid for; nothing is refunded or deleted.",
+        "operationId": "cancel",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Cancel",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/checkout": {
+      "post": {
+        "description": "Open a checkout for Roundturn Pro and say where to pay. A second click within half an hour lands on the same one.",
+        "operationId": "start_checkout",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Start Checkout",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/portal": {
+      "post": {
+        "description": "A fresh link to the provider's page for the card, invoices and receipts.",
+        "operationId": "portal",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortalOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Portal",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/resume": {
+      "post": {
+        "description": "Undo a cancel before the period ends: the subscription renews again.",
+        "operationId": "resume",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "Resume",
+        "tags": [
+          "billing"
         ]
       }
     },

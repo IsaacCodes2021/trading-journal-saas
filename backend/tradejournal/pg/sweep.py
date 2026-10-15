@@ -30,6 +30,12 @@ ended by an operator and whose email did not go, are sent the "your access has e
 migration 0016). A send that fails leaves the person due, so the next run tries again. It needs `TJ_EMAIL_API_KEY` and
 `TJ_EMAIL_FROM` (the web service's settings) to apply, and prints counts and the short reason codes of failures only.
 
+`billing` (with a payment provider configured: `TJ_BILLING_PROVIDER` and its settings) ends at the provider the subscriptions
+of deleted accounts (queued in the deletion's own transaction, retried until the provider confirms) and runs the nightly
+check: every subscription not ended is compared with the provider's own answer, and a difference (a missed webhook) is
+corrected and counted. `billing-notices` (with `TJ_BILLING_ENABLED` on) sends the "trial ends in 2 days" and "subscription
+ended" emails once each. With billing on, `ended-notices` words its email for a trial, and offers Subscribe.
+
 `beta-signups` removes the sign-ups (an address, a first name, a favourite firm) and the codes of people who asked to join
 and never made an account, once their last code is older than 24 hours (migration 0017; the owner's decision of
 2026-10-10, and the lifetime of a code since migration 0018, so a code never outlives its sign-up). `--keep-hours` can
@@ -48,12 +54,15 @@ from pathlib import Path
 
 import psycopg
 
-from ..api.emails import access_ended_email
+from ..api.emails import access_ended_email, subscription_ended_email, trial_ended_email, trial_reminder_email
 from ..api.mailer import DEFAULT_API_URL, Mailer, MailError, ResendMailer
 from ..auth.idp import IdentityDirectory, IdentityError
+from ..billing.provider import BillingProvider
+from ..billing.types import BillingError
 from ..bucketstore import BucketFileStore, BucketSettings
 from ..filestore import FileStore, LocalFileStore
 from . import audit, beta, deletion, ended_notices
+from . import billing as pg_billing
 from .system import SystemDatabase
 
 BATCH = 50
@@ -93,6 +102,10 @@ def run(
     for account in due:
         with system.system_session("sweep") as conn, conn.transaction():  # all of it, or none of it
             audit.record(conn, "account_deleted", user_id=account.user_id, actor=ACTOR_SYSTEM)
+            # Before the row goes (the subscription goes with it): remember to end it at the provider. The entry holds no
+            # person's id, so it outlives the account, and the `billing` step sends it until the provider confirms.
+            if pg_billing.queue_cancellation(conn, account.user_id):
+                audit.record(conn, "billing_cancel_queued", user_id=account.user_id, actor=ACTOR_SYSTEM)
             if deletion.delete(conn, account.user_id, now=moment):
                 conn.execute(
                     "INSERT INTO identity_removals (idp_subject) VALUES (%s) ON CONFLICT DO NOTHING",
@@ -127,6 +140,7 @@ def run_notices(
     now: datetime | None = None,
     limit: int = ended_notices.BATCH,
     since: datetime | None = None,
+    billing: bool = False,
 ) -> NoticeReport:
     """Send the "your access has ended" email to everyone who is due it, and record each one that left."""
     moment = now or datetime.now(UTC)
@@ -139,8 +153,12 @@ def run_notices(
     if mailer is None:
         raise ValueError("a mailer is needed to send")
     for notice in waiting:
+        if billing and notice.kind == "trial":
+            message = trial_ended_email(to=notice.email, first_name=notice.first_name)
+        else:
+            message = access_ended_email(to=notice.email, first_name=notice.first_name, billing=billing)
         try:
-            mailer.send(access_ended_email(to=notice.email, first_name=notice.first_name))
+            mailer.send(message)
         except MailError as problem:
             report.failed += 1
             report.reasons[problem.reason] = report.reasons.get(problem.reason, 0) + 1
@@ -149,6 +167,117 @@ def run_notices(
             if ended_notices.mark_sent(conn, notice.redemption_id, now=moment):
                 audit.record(conn, "access_ended_notice_sent", user_id=notice.user_id, actor=ACTOR_SYSTEM)
         report.sent += 1
+    return report
+
+
+@dataclass
+class BillingReport:
+    cancels_sent: int = 0  # deleted accounts' subscriptions ended at the provider
+    cancels_pending: int = 0  # still to send (the provider failed or is not configured): the next run tries again
+    checked: int = 0  # subscriptions compared with the provider
+    corrected: int = 0  # ... that were wrong here (a missed webhook)
+    check_failed: int = 0
+    reasons: dict[str, int] = field(default_factory=dict)
+    dry_run: bool = True
+
+
+def run_billing(
+    system: SystemDatabase,
+    provider: BillingProvider | None,
+    *,
+    apply: bool,
+    now: datetime | None = None,
+    limit: int = 500,
+) -> BillingReport:
+    """End the queued subscriptions of deleted accounts, then the nightly check. Without a provider everything waits."""
+    moment = now or datetime.now(UTC)
+    report = BillingReport(dry_run=not apply)
+    if provider is None:
+        with system.system_session("sweep") as conn:
+            report.cancels_pending = conn.execute("SELECT count(*) AS n FROM billing_cancellations").fetchone()["n"]
+        return report
+    with system.system_session("sweep") as conn:
+        queued = pg_billing.cancellations(conn, provider.name, limit=limit)
+        to_check = pg_billing.to_check(conn, provider.name, limit=limit)
+    if not apply:
+        report.cancels_pending, report.checked = len(queued), len(to_check)
+        return report
+    for subscription_id in queued:
+        try:
+            provider.cancel_now(subscription_id)
+            reason = None
+        except BillingError as problem:
+            reason = problem.reason
+        with system.system_session("sweep") as conn:
+            if reason is None:
+                pg_billing.cancellation_done(conn, provider.name, subscription_id)
+                audit.record(conn, "billing_cancelled_after_deletion", actor=ACTOR_SYSTEM)
+                report.cancels_sent += 1
+            else:
+                pg_billing.cancellation_failed(conn, provider.name, subscription_id, reason)
+                report.cancels_pending += 1
+                report.reasons[reason] = report.reasons.get(reason, 0) + 1
+    for subscription_id in to_check:
+        try:
+            answer = provider.fetch_subscription(subscription_id)
+        except BillingError as problem:
+            report.check_failed += 1
+            report.reasons[problem.reason] = report.reasons.get(problem.reason, 0) + 1
+            continue
+        report.checked += 1
+        with system.system_session("sweep") as conn:
+            if pg_billing.reconcile(conn, provider.name, answer, now=moment):
+                report.corrected += 1
+    return report
+
+
+@dataclass
+class BillingNoticeReport:
+    reminders_due: int = 0
+    reminders_sent: int = 0
+    ended_due: int = 0
+    ended_sent: int = 0
+    failed: int = 0
+    reasons: dict[str, int] = field(default_factory=dict)
+    dry_run: bool = True
+
+
+def run_billing_notices(
+    system: SystemDatabase, mailer: Mailer | None, *, apply: bool, now: datetime | None = None, limit: int = 100
+) -> BillingNoticeReport:
+    """ "Your trial ends in 2 days" and "your subscription has ended", once each. A send that fails stays due."""
+    moment = now or datetime.now(UTC)
+    report = BillingNoticeReport(dry_run=not apply)
+    with system.system_session("sweep") as conn:
+        reminders = pg_billing.trial_reminders_due(conn, now=moment, limit=limit)
+        endings = pg_billing.subscription_ended_due(conn, now=moment, limit=limit)
+    report.reminders_due, report.ended_due = len(reminders), len(endings)
+    if not apply:
+        return report
+    if mailer is None:
+        raise ValueError("a mailer is needed to send")
+
+    def send(message) -> bool:
+        try:
+            mailer.send(message)
+            return True
+        except MailError as problem:
+            report.failed += 1
+            report.reasons[problem.reason] = report.reasons.get(problem.reason, 0) + 1
+            return False
+
+    for reminder in reminders:
+        if send(trial_reminder_email(to=reminder.email, first_name=reminder.first_name, ends_at=reminder.ends_at)):
+            with system.system_session("sweep") as conn, conn.transaction():
+                if pg_billing.mark_reminder_sent(conn, reminder.redemption_id, now=moment):
+                    audit.record(conn, "trial_reminder_sent", user_id=reminder.user_id, actor=ACTOR_SYSTEM)
+            report.reminders_sent += 1
+    for ending in endings:
+        if send(subscription_ended_email(to=ending.email, first_name=ending.first_name)):
+            with system.system_session("sweep") as conn, conn.transaction():
+                if pg_billing.mark_ended_notice_sent(conn, ending.user_id, now=moment):
+                    audit.record(conn, "subscription_ended_notice_sent", user_id=ending.user_id, actor=ACTOR_SYSTEM)
+            report.ended_sent += 1
     return report
 
 
@@ -262,6 +391,18 @@ def _mailer_from_env() -> Mailer | None:
     )
 
 
+def _billing_on() -> bool:
+    return os.environ.get("TJ_BILLING_ENABLED", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _provider_from_env() -> BillingProvider | None:
+    """The payment provider the job's settings name (`TJ_BILLING_PROVIDER=paddle` and its `TJ_PADDLE_*`), or None. The
+    fake provider lives inside one process, so a job cannot use it."""
+    from ..billing.factory import provider_from_env
+
+    return provider_from_env(os.environ)
+
+
 def _main_notices(args: argparse.Namespace, url: str) -> int:
     mailer = _mailer_from_env()
     if args.apply and mailer is None:
@@ -270,7 +411,9 @@ def _main_notices(args: argparse.Namespace, url: str) -> int:
     system = SystemDatabase({"sweep": url})
     system.open()
     try:
-        report = run_notices(system, mailer, apply=args.apply, limit=min(args.limit, ended_notices.BATCH * 5))
+        report = run_notices(
+            system, mailer, apply=args.apply, limit=min(args.limit, ended_notices.BATCH * 5), billing=_billing_on()
+        )
     finally:
         system.close()
     mode = "dry run: nothing changed" if report.dry_run else "applied"
@@ -278,6 +421,54 @@ def _main_notices(args: argparse.Namespace, url: str) -> int:
     for reason, count in sorted(report.reasons.items()):
         print(f"  {reason}: {count}", file=sys.stderr)
     return 1 if report.failed else 0  # a refused email is a failed run on the host, where someone will see it
+
+
+def _main_billing(args: argparse.Namespace, url: str) -> int:
+    try:
+        provider = _provider_from_env()
+    except ValueError as problem:  # names the settings, never their values
+        print(problem, file=sys.stderr)
+        return 2
+    system = SystemDatabase({"sweep": url})
+    system.open()
+    try:
+        report = run_billing(system, provider, apply=args.apply, limit=min(args.limit * 10, 1000))
+    finally:
+        system.close()
+    mode = "dry run: nothing changed" if report.dry_run else "applied"
+    print(
+        f"{mode}; cancels sent {report.cancels_sent}, cancels still to send {report.cancels_pending}, "
+        f"subscriptions checked {report.checked}, corrected {report.corrected}, check failures {report.check_failed}"
+    )
+    for reason, count in sorted(report.reasons.items()):
+        print(f"  {reason}: {count}", file=sys.stderr)
+    if provider is None and report.cancels_pending:
+        print("cancels are waiting because no payment provider is configured on this job", file=sys.stderr)
+    return 1 if report.check_failed or (report.cancels_pending and provider is not None) else 0
+
+
+def _main_billing_notices(args: argparse.Namespace, url: str) -> int:
+    if not _billing_on():
+        print("billing is switched off (TJ_BILLING_ENABLED): no billing emails")
+        return 0
+    mailer = _mailer_from_env()
+    if args.apply and mailer is None:
+        print("refusing to send without TJ_EMAIL_API_KEY and TJ_EMAIL_FROM", file=sys.stderr)
+        return 2
+    system = SystemDatabase({"sweep": url})
+    system.open()
+    try:
+        report = run_billing_notices(system, mailer, apply=args.apply, limit=min(args.limit, 500))
+    finally:
+        system.close()
+    mode = "dry run: nothing changed" if report.dry_run else "applied"
+    print(
+        f"{mode}; trial reminders due {report.reminders_due}, sent {report.reminders_sent}; "
+        f"subscription endings due {report.ended_due}, sent {report.ended_sent}; failed {report.failed}"
+    )
+    for reason, count in sorted(report.reasons.items()):
+        print(f"  {reason}: {count}", file=sys.stderr)
+    return 1 if report.failed else 0
 
 
 def _main_beta_signups(args: argparse.Namespace, url: str) -> int:
@@ -334,8 +525,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "command",
-        choices=["deletions", "ended-notices", "all", "beta-signups"],
-        help="`all` runs the three, in that order, and fails if any did (so one scheduled job covers them)",
+        choices=["deletions", "ended-notices", "all", "beta-signups", "billing", "billing-notices"],
+        help="`all` runs every one, in that order, and fails if any did (so one scheduled job covers them)",
     )
     parser.add_argument("--apply", action="store_true", help="actually do it (the default only counts)")
     parser.add_argument("--limit", type=int, default=BATCH, help="at most this many per run")
@@ -361,8 +552,18 @@ def main(argv: list[str] | None = None) -> int:
         return _main_notices(args, url)
     if args.command == "beta-signups":
         return _main_beta_signups(args, url)
+    if args.command == "billing":
+        return _main_billing(args, url)
+    if args.command == "billing-notices":
+        return _main_billing_notices(args, url)
     # `all`: every step, even when one cannot run, so a missing setting for one never stops the others.
-    return max(_main_deletions(args, url), _main_notices(args, url), _main_beta_signups(args, url))
+    return max(
+        _main_deletions(args, url),
+        _main_notices(args, url),
+        _main_beta_signups(args, url),
+        _main_billing(args, url),
+        _main_billing_notices(args, url),
+    )
 
 
 if __name__ == "__main__":
