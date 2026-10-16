@@ -23,6 +23,8 @@ export const SIGN_IN_ERRORS = {
     'Your email address is not verified yet. Look for the message from the sign-in service, confirm it, and try again.',
   invite_invalid:
     'That sign-up code did not work. It may be wrong, already used, expired, or meant for a different email address.',
+  promo_invalid:
+    'That promo code did not work. It may be wrong, used up, expired, or withdrawn. Fix it, or leave it empty and add a code later in Settings.',
   account_unavailable:
     'This account is not available right now. If you think that is a mistake, email hello@roundturn.app.',
   reauth_failed: 'We could not confirm it is you. Please try again, and sign in with the same account.',
@@ -75,10 +77,23 @@ export function looksLikeInviteCode(code: string): boolean {
 }
 
 export const EXAMPLE_INVITE = 'TJ-7KQ2-M9XA'
+export const EXAMPLE_PROMO = 'FREE30'
 
-/** Where the sign-up code is sent to the server, which checks it before anyone is sent to the identity provider. */
-export function signUpUrl(code: string): string {
-  return `/auth/login?invite=${encodeURIComponent(code)}`
+/**
+ * A promo code as the server will look it up: trimmed and in capitals. Spaces inside are left for the server, which reads
+ * "free 30" as FREE30, so the box only checks that what is there could be a code at all.
+ */
+export function looksLikePromoCode(text: string): boolean {
+  const code = text.trim().toUpperCase()
+  const compact = code.replace(/[\s_-]+/g, '')
+  return code.length <= 40 && (/^[A-Z0-9]{3,20}$/.test(compact) || looksLikeInviteCode(normalizeInviteCode(code)))
+}
+
+/** Where the sign-up code (and a promo code, if one was typed) is sent to the server, which checks both before anyone is
+ * sent to the identity provider. */
+export function signUpUrl(code: string, promo = ''): string {
+  const typed = promo.trim()
+  return `/auth/login?invite=${encodeURIComponent(code)}${typed ? `&promo=${encodeURIComponent(typed)}` : ''}`
 }
 
 export function signInUrl(next = '/'): string {

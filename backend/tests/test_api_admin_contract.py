@@ -24,6 +24,7 @@ NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 # What an operator may send: the words and numbers that describe a decision or a code, never free-form data.
 ALLOWED_INPUT = {
     "reason", "plan", "expires_at", "label", "email", "max_uses", "days", "grant_code_id", "max_redemptions", "expires_in_days",
+    "code", "kind", "expires_on",  # a promo code: 3 to 20 letters and digits, a fixed word for its kind, and a date
 }  # fmt: skip
 # The firms' rule templates are the one thing an operator edits in full: a rule set's values and flags, and the research
 # CSV as a file. They hold the firms' published rules, which every person reads to pick their account's rules, and never

@@ -3,9 +3,11 @@ import { Link } from '@tanstack/react-router'
 import {
   deletionDay,
   EXAMPLE_INVITE,
+  EXAMPLE_PROMO,
   SIGN_IN_ERRORS,
   go,
   looksLikeInviteCode,
+  looksLikePromoCode,
   normalizeInviteCode,
   signInErrorOf,
   signInUrl,
@@ -24,6 +26,7 @@ export type AuthMode = 'signin' | 'signup'
 export function AuthPage({
   mode,
   code: initial = '',
+  promo: initialPromo = '',
   error: asked,
   deleted,
   next,
@@ -31,6 +34,8 @@ export function AuthPage({
   mode: AuthMode
   /** A code from the link in the email, put in the box for the person. */
   code?: string
+  /** A promo code the person typed, sent back with a refusal so they only have to fix it. */
+  promo?: string
   /** What the server said when a sign-in did not complete (one of its own short codes). */
   error?: string
   /** When the account just asked to be deleted will be deleted (an ISO time); the page says so. */
@@ -54,7 +59,11 @@ export function AuthPage({
         </div>
       ) : null}
 
-      {mode === 'signin' ? <SignIn error={error} next={next} /> : <SignUp error={error} initial={initial} />}
+      {mode === 'signin' ? (
+        <SignIn error={error} next={next} />
+      ) : (
+        <SignUp error={error} initial={initial} initialPromo={initialPromo} />
+      )}
     </AuthFrame>
   )
 }
@@ -166,24 +175,36 @@ function SignIn({ error, next }: { error: keyof typeof SIGN_IN_ERRORS | null; ne
   )
 }
 
-function SignUp({ error, initial }: { error: keyof typeof SIGN_IN_ERRORS | null; initial: string }) {
+function SignUp({
+  error,
+  initial,
+  initialPromo,
+}: {
+  error: keyof typeof SIGN_IN_ERRORS | null
+  initial: string
+  initialPromo: string
+}) {
   const [code, setCode] = useState(initial)
+  const [promo, setPromo] = useState(initialPromo)
   const [problem, setProblem] = useState<string | null>(null)
+  const [promoProblem, setPromoProblem] = useState<string | null>(null)
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
     const normalized = normalizeInviteCode(code)
-    if (!looksLikeInviteCode(normalized)) {
-      setProblem(`That does not look like a sign-up code. It looks like ${EXAMPLE_INVITE}.`)
-      return
-    }
-    setProblem(null)
-    go.to(signUpUrl(normalized))
+    const badCode = !looksLikeInviteCode(normalized)
+    const badPromo = promo.trim() !== '' && !looksLikePromoCode(promo)
+    setProblem(badCode ? `That does not look like a sign-up code. It looks like ${EXAMPLE_INVITE}.` : null)
+    setPromoProblem(badPromo ? `That does not look like a promo code. It looks like ${EXAMPLE_PROMO}.` : null)
+    if (badCode || badPromo) return
+    go.to(signUpUrl(normalized, promo))
   }
 
-  // The server refused the code: say so on the box itself as well, so it is clear which field to look at.
+  // The server refused a code: say so on that box as well, so it is clear which field to look at.
   const refused = error === 'invite_invalid'
+  const promoRefused = error === 'promo_invalid'
   const flagged = problem !== null || refused
+  const promoFlagged = promoProblem !== null || promoRefused
 
   return (
     <>
@@ -234,6 +255,40 @@ function SignUp({ error, initial }: { error: keyof typeof SIGN_IN_ERRORS | null;
               ) : (
                 'It works once and is tied to the email address we sent it to.'
               )}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="signup-promo" className="text-[13px] font-medium">
+            Promo code <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <input
+            id="signup-promo"
+            value={promo}
+            onChange={(e) => {
+              setPromo(e.target.value)
+              setPromoProblem(null)
+            }}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={40}
+            placeholder={EXAMPLE_PROMO}
+            aria-describedby={promoProblem ? 'promo-problem' : 'promo-hint'}
+            aria-invalid={promoFlagged}
+            className={`num h-12 w-full rounded-[10px] border bg-bg px-3.5 font-mono text-base tracking-[0.04em] text-ink ${
+              promoFlagged ? 'border-neg' : 'border-line-strong'
+            }`}
+          />
+          {promoProblem ? (
+            <div id="promo-problem" role="alert" className="text-xs text-neg">
+              {promoProblem}
+            </div>
+          ) : (
+            <div id="promo-hint" className="text-xs text-muted">
+              {promoRefused
+                ? 'Check the promo code, or empty this box to sign up without it.'
+                : 'If you have one. You can also add it later, in Settings.'}
             </div>
           )}
         </div>

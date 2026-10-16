@@ -69,6 +69,8 @@ def invite(id=7, status="works") -> InviteOut:
 def grant(id=3, status="works") -> GrantCodeOut:
     return GrantCodeOut(
         id=id,
+        code=None,
+        kind="free_days",
         label="Beta testers",
         plan="pro",
         days=90,
@@ -97,12 +99,17 @@ class FakeAdminCodes:
         self._do("revoke_invite", actor, invite_id, reason, ip_hash=ip_hash)
         return invite(invite_id, "revoked")
 
-    def list_grant_codes(self, *, limit, offset):
-        self._do("list_grant_codes", limit, offset)
+    def list_grant_codes(self, *, limit, offset, show=None):
+        self._do("list_grant_codes", limit, offset, show)
         return GrantCodeListOut(grant_codes=[grant()], total=1, limit=limit, offset=offset)
 
-    def create_grant_code(self, actor, *, label, plan, days, max_redemptions, expires_in_days, ip_hash=None):
-        self._do("create_grant_code", actor, label, plan, days, max_redemptions, expires_in_days, ip_hash=ip_hash)
+    def create_grant_code(
+        self, actor, *, label, plan, days, max_redemptions, expires_in_days, code=None, expires_on=None, ip_hash=None
+    ):
+        self._do(
+            "create_grant_code", actor, label, plan, days, max_redemptions, expires_in_days, code, expires_on,
+            ip_hash=ip_hash,
+        )  # fmt: skip
         return CreatedGrantCodeOut(grant_code=grant(), code="GR-ABCD-EFGH")
 
     def revoke_grant_code(self, actor, grant_id, reason, *, ip_hash=None):
@@ -126,6 +133,7 @@ class FakeAdminCodes:
             free=57,
             open_invites=3,
             open_grant_codes=1,
+            grants_ending_7d=0,
         )
 
 

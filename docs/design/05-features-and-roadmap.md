@@ -745,3 +745,45 @@ Next: deciding what Free and Pro include so the first limit can be enforced (sli
 - **The command.** `python -m tradejournal.pg.clear_journal --user-id <id>` is a dry run that counts. `--apply` needs `--expect-accounts N --expect-trades N` and refuses when the real counts differ, so the journal that was looked at is the one that is emptied. It refuses while any screenshot exists (their files would be left behind). It removes accounts (and by cascade fees, imports, fill pairs, trades, tag links and ledger), tags and day notes; it keeps the sign-in, the settings and the tag groups; it recounts the usage counters; it prints counts only. One transaction.
 - **Tests.** 17 on a real Postgres (what goes, what stays, another person untouched, each refusal changes nothing, the command's exit codes, and that the migration then accepts the journal); 11 deliberate breaks, all caught.
 - **Not built:** a delete-a-prop-account feature in the app. That is a product gap worth a decision (beta testers will want to remove a mistaken account); this command is the owner's tool, not a feature.
+
+## 16. Promo codes and billing (M9, running log)
+
+The owner's go-ahead on 2026-10-15 ("fully build out the checkout, coupon code, etc."): build promo codes, billing with a fake
+provider, and the Paddle adapter, all behind `TJ_BILLING_ENABLED` (off in production), with the billing design's recommended
+answers standing in for its open questions until the owner picks others. Specs: `docs/design/promo-codes.md`,
+`docs/design/billing-plan.md`, `docs/design/paddle-integration.md` (not committed) and the billing design doc (a private
+artifact). Nothing here charges anyone, and no migration is applied to the hosted database.
+
+**Slice 1 (2026-10-15): promo codes on the existing plan codes** (migration 0020; `pg/plans.py`, `pg/admin_codes.py`,
+`api/admin_service.py`, `auth/flow.py`, `/admin/codes`, the sign-up form, Settings > Plan & billing; promo spec Phase 1).
+
+- **The table.** `grant_codes` gains `code` (the code as the operator typed it, 3 to 20 capital letters and digits, unique
+  ignoring case, revoked and expired codes included, so a code is never reused) and `kind` (`free_days` only for now). A typed
+  code is kept readable because it is meant to be shared; a random `GR-` code still keeps only its hash. The hash stays the
+  lookup key for both, so redeeming is unchanged and old codes keep working. The operator's role reads and writes the two new
+  columns and still cannot read a hash; the sign-in role needs neither.
+- **Typing a code.** A person may type `free30`, ` Free30 `, `free 30` or `FREE_30`: the lookup tries the dashed form (a
+  random code's shape) and then the same letters without dashes (a typed code never has one). Everything else is the one
+  refusal, as before.
+- **Sign-up.** The sign-up form has an optional promo box. The code is checked before the browser leaves for Kinde; a code that
+  would not work sends the person back with `error=promo_invalid` and both codes in their boxes (the audit row says
+  `promo_precheck`, never the code). Inside the sign-up transaction the promo is redeemed after the invite; if it cannot be
+  applied (its last use was taken meanwhile, or the invite's own free days come first) the account is still made, the person
+  lands on `/settings/plan?promo=not_applied`, and the log has `grant_refused` with `via: signup`. A returning person who
+  brings a promo is simply signed in. `grant_redeemed` now says `via` `signup`, `settings` (it said `code`) or `invite`.
+- **The operator.** "Plan codes" is now **Promo codes**: the code with a Copy button (a random one shows `GR-····-····`), the
+  note, what it gives, `used / limit` (`any` for none), the day it stops, the status, and Revoke. A Show filter (All, Working,
+  Used up or expired, Revoked) is applied by the server, so a page of 25 is 25 of the kind asked for. "Make a promo code" has
+  Code (blank makes a random one, which then needs a note), Note to yourself, Type (Free days of Pro; Discount shown switched
+  off until a provider is connected), Days of Pro (1 to 30), Most people, Stops working after (a date; the code works to the
+  end of that day, UTC) and a "What people will see" preview. A duplicate in any case is a 422 ("That code is already in use").
+  The audit log may name a typed code; a random code never appears. The overview gains "Free days ending, next 7 days".
+- **Settings.** The card is "Have a promo code?" with the same behaviour.
+- **Tests.** Backend: 39 new tests on Postgres (making, reusing, the database's own checks, role grants, every way of typing,
+  the pre-check, the Show filter at the last second, the overview count, sign-up with a good, bad, used-up and invite-beaten
+  promo, and that no person's row ever holds what they typed), 50 with no database (the lookup forms and the operator route's validation).
+  Front end: the sign-up box and its refusal, the Plan page notice, and the rebuilt Promo codes tab (copy, filter, form,
+  preview, refusals, revoke). **Mutations: 16 of 17 caught**; the survivor (the service's duplicate pre-check removed) is
+  equivalent, because the unique index refuses the duplicate inside a savepoint with the same answer.
+- **Not done here:** discount codes (they need the payment provider; slice 4), and retiring the old random `GR-` codes (see
+  the launch checklist).

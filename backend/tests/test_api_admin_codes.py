@@ -161,8 +161,8 @@ def test_making_a_plan_code_passes_it_on_and_shows_the_code_once(world):
     body = {"label": " Beta testers ", "days": 30, "max_redemptions": 25, "expires_in_days": 60}
     response = call(world, "POST", f"{BASE}/grant-codes", headers, body)
     assert response.status_code == 200 and response.json()["code"] == "GR-ABCD-EFGH"
-    [(name, actor, label, plan, days, max_redemptions, ends, _)] = world.admin.calls
-    assert (name, actor, label, plan, days, max_redemptions, ends) == (
+    [(name, actor, label, plan, days, max_redemptions, ends, code, ends_on, _)] = world.admin.calls
+    assert (name, actor, label, plan, days, max_redemptions, ends, code, ends_on) == (
         "create_grant_code",
         operator.user.id,
         "Beta testers",
@@ -170,7 +170,36 @@ def test_making_a_plan_code_passes_it_on_and_shows_the_code_once(world):
         30,
         25,
         60,
+        None,  # no code typed: a random one is made
+        None,
     )
+
+
+@pytest.mark.parametrize(("typed", "stored"), [("FREE30", "FREE30"), ("free30", "FREE30"), (" Launch7 ", "LAUNCH7")])
+def test_a_typed_promo_code_is_passed_on_in_capitals_and_needs_no_note(world, typed, stored):
+    _, headers = world.person()
+    body = {"code": typed, "days": 30, "expires_on": "2026-12-31"}
+    assert call(world, "POST", f"{BASE}/grant-codes", headers, body).status_code == 200
+    [call_made] = world.admin.calls
+    assert call_made[2] == "" and call_made[7] == stored and str(call_made[8]) == "2026-12-31"
+
+
+@pytest.mark.parametrize(
+    "code",
+    ["AB", "A" * 21, "FREE-30", "FREE 30", "FREE_30", "FRÉE30", "FREE30!", "１２３"],
+)
+def test_a_promo_code_of_the_wrong_shape_is_refused_before_anything_is_made(world, code):
+    _, headers = world.person()
+    body = {"code": code, "label": "x", "days": 30}
+    assert call(world, "POST", f"{BASE}/grant-codes", headers, body).status_code == 422
+    assert world.admin.calls == []
+
+
+def test_a_code_cannot_end_on_a_date_and_after_some_days_at_once(world):
+    _, headers = world.person()
+    body = {"code": "FREE30", "days": 30, "expires_in_days": 5, "expires_on": "2026-12-31"}
+    assert call(world, "POST", f"{BASE}/grant-codes", headers, body).status_code == 422
+    assert world.admin.calls == []
 
 
 @pytest.mark.parametrize(
@@ -190,6 +219,9 @@ def test_making_a_plan_code_passes_it_on_and_shows_the_code_once(world):
         {"label": "x", "days": 30, "max_redemptions": 1_000_001},
         {"label": "x", "days": 30, "expires_in_days": 0},
         {"label": "x", "days": 30, "expires_in_days": 3651},
+        {"code": "", "days": 30},  # an empty code is a random one, and a random one needs a note
+        {"label": "x", "days": 30, "kind": "discount"},  # discounts arrive with the payment provider
+        {"label": "x", "days": 30, "expires_on": "31/12/2026"},
     ],
 )
 def test_a_plan_code_that_makes_no_sense_is_refused_before_anything_is_made(world, body):
@@ -204,8 +236,21 @@ def test_the_plan_code_list_and_revoke_pass_things_on(world):
     assert (
         call(world, "POST", f"{BASE}/grant-codes/3/revoke", headers, {"reason": "leaked"}).json()["status"] == "revoked"
     )
-    assert world.admin.calls[0][:3] == ("list_grant_codes", 5, 10)
+    assert world.admin.calls[0][:4] == ("list_grant_codes", 5, 10, None)
     assert world.admin.calls[1][:4] == ("revoke_grant_code", operator.user.id, 3, "leaked")
+
+
+@pytest.mark.parametrize("show", ["works", "ended", "revoked"])
+def test_the_code_list_can_show_one_kind_of_code(world, show):
+    _, headers = world.person()
+    assert call(world, "GET", f"{BASE}/grant-codes?show={show}", headers).status_code == 200
+    assert world.admin.calls[0][:4] == ("list_grant_codes", 50, 0, show)
+
+
+def test_the_code_list_refuses_a_filter_it_does_not_know(world):
+    _, headers = world.person()
+    assert call(world, "GET", f"{BASE}/grant-codes?show=everything", headers).status_code == 422
+    assert world.admin.calls == []
 
 
 @pytest.mark.parametrize("query", ["limit=0", "limit=101", "limit=x", "offset=-1", "offset=1000001"])
@@ -264,6 +309,7 @@ def test_the_overview_has_the_numbers_and_nothing_a_person_wrote(world):
         "free": 57,
         "open_invites": 3,
         "open_grant_codes": 1,
+        "grants_ending_7d": 0,
     }
 
 

@@ -13,7 +13,7 @@ command line, not by each other). Looking is allowed.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from uuid import UUID
 
 import psycopg
@@ -61,6 +61,8 @@ OPERATOR_REFUSED = "That account is an operator. Operators are changed with the 
 NOT_FOUND = "There is no such account."
 NO_INVITE = "There is no such invite."
 NO_GRANT = "There is no such plan code."
+CODE_TAKEN = "That code is already in use. Codes are never reused, even revoked ones: choose another."
+BAD_CODE = "A promo code is 3 to 20 letters and digits, with no spaces or dashes, such as FREE30."
 NO_PERSON = "There is no such person in the beta."
 HAS_ACCOUNT = "They have an account. Delete the account instead: that removes the sign-up and its codes with it."
 NO_TEMPLATE = "There is no such rule template."
@@ -126,6 +128,8 @@ def beta_person_out(row: pg_beta.BetaRow) -> BetaPersonOut:
 def grant_out(row: pg_codes.GrantRow, now: datetime) -> GrantCodeOut:
     return GrantCodeOut(
         id=row.id,
+        code=row.code,
+        kind=row.kind,  # type: ignore[arg-type]  # a CHECK constraint holds it to the kinds the schema names
         label=row.label,
         plan=row.plan,  # type: ignore[arg-type]  # a CHECK constraint holds it to 'pro'
         days=row.days,
@@ -333,10 +337,10 @@ class PgAdminService:
             raise AdminRefusal(404, NO_INVITE)
         return invite_out(row, now)
 
-    def list_grant_codes(self, *, limit: int, offset: int) -> GrantCodeListOut:
+    def list_grant_codes(self, *, limit: int, offset: int, show: str | None = None) -> GrantCodeListOut:
         now = self._clock()
         with self._system.system_session(ADMIN) as conn:
-            rows, total = pg_codes.list_grant_codes(conn, limit=limit, offset=offset)
+            rows, total = pg_codes.list_grant_codes(conn, limit=limit, offset=offset, show=show, now=now)
         return GrantCodeListOut(grant_codes=[grant_out(r, now) for r in rows], total=total, limit=limit, offset=offset)
 
     def create_grant_code(
@@ -348,21 +352,45 @@ class PgAdminService:
         days: int,
         max_redemptions: int | None,
         expires_in_days: int | None,
+        code: str | None = None,
+        expires_on: date | None = None,
         ip_hash: str | None = None,
     ) -> CreatedGrantCodeOut:
+        """Make a plan code. A typed `code` (FREE30) is kept readable and may appear in the audit log; a random one is shown
+        in this answer only. A typed code already in use, in any case and even revoked, is refused: codes are never reused."""
         now = self._clock()
-        code = pg_plans.generate_code()
+        typed = pg_plans.typed_code(code) if code is not None else None
+        if code is not None and typed is None:
+            raise AdminRefusal(422, BAD_CODE)
+        made = typed or pg_plans.generate_code()
+        if expires_on is not None:
+            expires_at: datetime | None = datetime.combine(expires_on + timedelta(days=1), time(), tzinfo=UTC)
+            if expires_at <= now:
+                raise AdminRefusal(422, "That date has already passed. Choose a day from today on.")
+        else:
+            expires_at = now + timedelta(days=expires_in_days) if expires_in_days else None
         with self._system.system_session(ADMIN) as conn:
-            grant_id = pg_codes.create_grant_code(
-                conn,
-                code_hash=pg_invites.hash_code(code),
-                label=label,
-                plan=plan,
-                days=days,
-                max_redemptions=max_redemptions,
-                expires_at=now + timedelta(days=expires_in_days) if expires_in_days else None,
-                created_by=_by(actor),
-            )
+            if typed is not None and pg_codes.code_in_use(conn, typed):
+                raise AdminRefusal(422, CODE_TAKEN)
+            try:
+                with (
+                    conn.transaction()
+                ):  # a savepoint: a duplicate made a moment ago by someone else is refused cleanly
+                    grant_id = pg_codes.create_grant_code(
+                        conn,
+                        code_hash=pg_invites.hash_code(made),
+                        code=typed,
+                        label=label,
+                        plan=plan,
+                        days=days,
+                        max_redemptions=max_redemptions,
+                        expires_at=expires_at,
+                        created_by=_by(actor),
+                    )
+            except psycopg.errors.UniqueViolation:
+                raise AdminRefusal(422, CODE_TAKEN) from None
+            # A typed code is meant to be shared, so the log may name it; a random one never appears in the log.
+            named = {"code": typed} if typed is not None else {}
             self._record(
                 conn,
                 "admin_grant_code_created",
@@ -370,6 +398,7 @@ class PgAdminService:
                 None,
                 ip_hash,
                 grant=grant_id,
+                **named,
                 label=label,
                 plan=plan,
                 days=days,
@@ -378,7 +407,7 @@ class PgAdminService:
             row = pg_codes.get_grant_code(conn, grant_id)
         if row is None:
             raise AdminRefusal(404, NO_GRANT)
-        return CreatedGrantCodeOut(grant_code=grant_out(row, now), code=code)
+        return CreatedGrantCodeOut(grant_code=grant_out(row, now), code=made)
 
     def revoke_grant_code(self, actor: UUID, grant_id: int, reason: str, *, ip_hash: str | None = None) -> GrantCodeOut:
         now = self._clock()
@@ -387,7 +416,9 @@ class PgAdminService:
                 raise AdminRefusal(404, NO_GRANT)
             if not pg_codes.revoke_grant_code(conn, grant_id, now=now):
                 raise AdminRefusal(409, "That plan code is already revoked.")
-            self._record(conn, "admin_grant_code_revoked", actor, None, ip_hash, grant=grant_id, reason=reason)
+            typed = pg_codes.get_grant_code(conn, grant_id)
+            named = {"code": typed.code} if typed is not None and typed.code is not None else {}
+            self._record(conn, "admin_grant_code_revoked", actor, None, ip_hash, grant=grant_id, **named, reason=reason)
             row = pg_codes.get_grant_code(conn, grant_id)
         if row is None:
             raise AdminRefusal(404, NO_GRANT)

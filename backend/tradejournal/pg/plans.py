@@ -2,9 +2,14 @@
 
 A code is stored hashed. Anyone redeeming one gets the same answer for every kind of failure (unknown, revoked, expired,
 used up, already used by this person), so a guess teaches nothing. Creating, listing and revoking codes needs the schema
-owner (the CLI below, until the admin back end in M10); reading a person's plan and redeeming happen as the `login` role.
+owner (the CLI below) or the operator's tools; reading a person's plan and redeeming happen as the `login` role.
+
+Two shapes of code exist. A random one (GR-XXXX-XXXX) is shown once and only its hash is kept. A promo code is typed by the
+operator (FREE30: 3 to 20 capital letters and digits) and is also kept readable, because it is meant to be shared (migration
+0020). Both are looked up by hash, so redeeming works the same way for each.
 
     TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --label "Beta testers" --days 30
+    TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --code FREE30 --days 30
 """
 
 from __future__ import annotations
@@ -23,7 +28,8 @@ import psycopg
 from ..entitlements import Access, EffectivePlan, EndedGrant, Grant, Override, access_of, effective_plan
 from .invites import ALPHABET, hash_code, normalize
 
-_SHAPE = re.compile(r"^[A-Z0-9]{2,}(?:-[A-Z0-9]{2,})+$")
+_SHAPE = re.compile(r"^[A-Z0-9]{2,}(?:-[A-Z0-9]{2,})+$")  # a random code: GR-XXXX-XXXX
+PROMO_SHAPE = re.compile(r"^[A-Z0-9]{3,20}$")  # a typed code: FREE30 (migration 0020 holds the same rule)
 LOCK_CLASS = 7_283_003  # advisory lock: one redemption of one code at a time (invites use 7_283_002)
 MAX_GRANT_DAYS = 30  # a code that gives full access gives at most this long (migration 0014 holds the same line)
 
@@ -31,6 +37,40 @@ MAX_GRANT_DAYS = 30  # a code that gives full access gives at most this long (mi
 def generate_code() -> str:
     """GR-XXXX-XXXX: its own prefix, so a plan code is not mistaken for an invite code (TJ-...)."""
     return "GR-" + "-".join("".join(secrets.choice(ALPHABET) for _ in range(4)) for _ in range(2))
+
+
+def typed_code(text: str) -> str | None:
+    """The promo code an operator typed, as it is stored ("free30" is "FREE30"), or None if it is not 3 to 20 letters and
+    digits. Spaces and dashes are refused here rather than removed: what is stored is exactly what people will be told."""
+    code = text.strip().upper()
+    return code if PROMO_SHAPE.fullmatch(code) else None
+
+
+def lookup_forms(code: str | None) -> list[str]:
+    """The forms of what a person typed to look up, in order. "gr 7kq2-m9xa" is the random code GR-7KQ2-M9XA; "free30",
+    " Free30 " and "free 30" are all the promo code FREE30 (a typed code never has a dash, so the dashes that `normalize`
+    puts for spaces can be taken out again). Empty when it cannot be any code, so nothing is looked up."""
+    if not code:
+        return []
+    normalized = normalize(code)
+    if len(normalized) > 40:
+        return []
+    forms = []
+    if _SHAPE.fullmatch(normalized) or PROMO_SHAPE.fullmatch(normalized):
+        forms.append(normalized)
+    compact = normalized.replace("-", "")
+    if compact != normalized and PROMO_SHAPE.fullmatch(compact):
+        forms.append(compact)
+    return forms
+
+
+def find_code(conn: psycopg.Connection, code: str | None) -> int | None:
+    """The id of the code a person typed, in either shape, or None."""
+    for form in lookup_forms(code):
+        row = conn.execute("SELECT id FROM grant_codes WHERE code_hash = %s", (hash_code(form),)).fetchone()
+        if row is not None:
+            return row["id"]
+    return None
 
 
 # ---- a person's plan -----------------------------------------------------------------------------------------------
@@ -132,16 +172,11 @@ def redeem(
     """Use a code for this person. Call it inside a transaction: two people redeeming the last use at once cannot both get
     it, and a person redeeming the same code in two tabs gets it once."""
     moment = now or datetime.now(UTC)
-    if not code:
-        return Refused()
-    normalized = normalize(code)
-    if len(normalized) > 40 or not _SHAPE.fullmatch(normalized):
-        return Refused()
-    found = conn.execute("SELECT id FROM grant_codes WHERE code_hash = %s", (hash_code(normalized),)).fetchone()
+    found = find_code(conn, code)
     if found is None:
         return Refused()
-    conn.execute("SELECT pg_advisory_xact_lock(%s, %s)", (LOCK_CLASS, found["id"]))
-    row = _usable(conn, found["id"], user_id, moment)
+    conn.execute("SELECT pg_advisory_xact_lock(%s, %s)", (LOCK_CLASS, found))
+    row = _usable(conn, found, user_id, moment)
     if row is None:
         return Refused()
     active = conn.execute(
@@ -152,6 +187,28 @@ def redeem(
     if active["ends_at"] is not None:
         return AlreadyHave(active["ends_at"])
     return _give(conn, row, user_id, moment)
+
+
+def usable_by_anyone(conn: psycopg.Connection, code: str | None, *, now: datetime | None = None) -> bool:
+    """Whether this code could still be redeemed by *somebody* now: it exists, is not revoked or expired, and has a use left.
+    The check made at sign-up before the browser leaves for the identity provider; `redeem` still decides, inside the
+    sign-up transaction. One answer (False) for every way it cannot."""
+    found = find_code(conn, code)
+    if found is None:
+        return False
+    row = conn.execute(
+        """SELECT g.max_redemptions, g.expires_at, g.revoked_at,
+                  (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) AS used
+           FROM grant_codes g WHERE g.id = %s""",
+        (found,),
+    ).fetchone()
+    moment = now or datetime.now(UTC)
+    return not (
+        row is None
+        or row["revoked_at"] is not None
+        or (row["expires_at"] is not None and row["expires_at"] <= moment)
+        or (row["max_redemptions"] is not None and row["used"] >= row["max_redemptions"])
+    )
 
 
 def give_bundled(
@@ -176,19 +233,28 @@ def create_grant(
     days: int,
     max_redemptions: int | None = None,
     expires_in: timedelta | None = None,
+    code: str | None = None,
     now: datetime | None = None,
 ) -> tuple[int, str]:
-    """Make a code (as the schema owner). Returns its id and the code, which is shown once: only its hash is kept."""
+    """Make a code (as the schema owner). Returns its id and the code. A typed `code` (FREE30) is kept readable; without one
+    a random code is made, which is shown once: only its hash is kept. A typed code already in use, in any case and even if
+    it was revoked, is refused by the database (`psycopg.errors.UniqueViolation`)."""
     if not 1 <= days <= MAX_GRANT_DAYS:
         raise ValueError(f"a grant lasts from 1 to {MAX_GRANT_DAYS} days")
     if max_redemptions is not None and max_redemptions < 1:
         raise ValueError("a code must allow at least one use")
-    code = generate_code()
+    typed = None
+    if code is not None:
+        typed = typed_code(code)
+        if typed is None:
+            raise ValueError("a promo code is 3 to 20 letters and digits, such as FREE30")
+    made = typed or generate_code()
     row = owner_conn.execute(
-        """INSERT INTO grant_codes (code_hash, label, plan, days, max_redemptions, expires_at)
-           VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
+        """INSERT INTO grant_codes (code_hash, code, label, plan, days, max_redemptions, expires_at)
+           VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
         (
-            hash_code(code),
+            hash_code(made),
+            typed,
             label.strip(),
             plan,
             days,
@@ -196,12 +262,12 @@ def create_grant(
             (now or datetime.now(UTC)) + expires_in if expires_in else None,
         ),
     ).fetchone()
-    return row["id"], code
+    return row["id"], made
 
 
 def list_grants(owner_conn: psycopg.Connection) -> list[dict]:
     return owner_conn.execute(
-        """SELECT g.id, g.label, g.plan, g.days, g.max_redemptions, g.expires_at, g.revoked_at,
+        """SELECT g.id, g.code, g.label, g.plan, g.days, g.max_redemptions, g.expires_at, g.revoked_at,
                   (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) AS used
            FROM grant_codes g ORDER BY g.id"""
     ).fetchall()
@@ -223,6 +289,9 @@ def main(argv: list[str] | None = None) -> int:
     create.add_argument(
         "--label", default="", help="who or what it is for, in your words (shown to you, never to them)"
     )
+    create.add_argument(
+        "--code", help="a promo code to type, such as FREE30 (kept readable); leave out for a random one"
+    )
     create.add_argument("--plan", default="pro", choices=["pro"])
     create.add_argument("--days", type=int, required=True, help="how long the plan lasts once redeemed")
     create.add_argument("--max-redemptions", type=int, help="how many people may use it (default: any number)")
@@ -237,23 +306,28 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     with psycopg.connect(url, autocommit=True, row_factory=psycopg.rows.dict_row) as conn:
         if args.command == "create-grant":
-            grant_id, code = create_grant(
-                conn,
-                label=args.label,
-                plan=args.plan,
-                days=args.days,
-                max_redemptions=args.max_redemptions,
-                expires_in=timedelta(days=args.expires_days) if args.expires_days else None,
-            )
+            try:
+                grant_id, code = create_grant(
+                    conn,
+                    label=args.label,
+                    plan=args.plan,
+                    days=args.days,
+                    max_redemptions=args.max_redemptions,
+                    expires_in=timedelta(days=args.expires_days) if args.expires_days else None,
+                    code=args.code,
+                )
+            except psycopg.errors.UniqueViolation:
+                print("That code is already in use (codes are never reused, even revoked ones).", file=sys.stderr)
+                return 1
             print(f"Plan code #{grant_id} ({args.days} days of {args.plan}): {code}")
-            print("It is shown once. Only its hash is kept.")
+            if args.code is None:
+                print("It is shown once. Only its hash is kept.")
         elif args.command == "list-grants":
             for g in list_grants(conn):
                 limit = "any number" if g["max_redemptions"] is None else f"up to {g['max_redemptions']}"
                 state = "revoked" if g["revoked_at"] else "works"
-                print(
-                    f"#{g['id']} {g['label'] or '(no label)'}: {g['days']} days of {g['plan']}, used {g['used']} ({limit}), {state}"
-                )
+                name = g["code"] or g["label"] or "(no label)"
+                print(f"#{g['id']} {name}: {g['days']} days of {g['plan']}, used {g['used']} ({limit}), {state}")
         else:
             print("revoked" if revoke_grant(conn, args.id) else "no such code, or it was already revoked")
     return 0

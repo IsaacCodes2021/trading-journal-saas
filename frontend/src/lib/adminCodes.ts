@@ -10,6 +10,8 @@ export type CodeStatus = Invite['status']
 export type CreatedInvite = components['schemas']['CreatedInviteOut']
 export type CreatedGrantCode = components['schemas']['CreatedGrantCodeOut']
 
+export type CodeShow = 'works' | 'ended' | 'revoked'
+
 export const CODES_PAGE = 25
 export const AUDIT_PAGE = 50
 
@@ -36,13 +38,14 @@ export function useInvites(page: number) {
   })
 }
 
-export function useGrantCodes(page: number) {
+/** Promo and plan codes, a page at a time; `show` narrows them to the ones that work, have ended, or were revoked. */
+export function useGrantCodes(page: number, show?: CodeShow) {
   return useQuery({
-    queryKey: [...KEY, 'grant-codes', page],
+    queryKey: [...KEY, 'grant-codes', page, show ?? 'all'],
     queryFn: () =>
       unwrap(
         api.GET('/api/admin/v1/grant-codes', {
-          params: { query: { limit: CODES_PAGE, offset: (page - 1) * CODES_PAGE } },
+          params: { query: { limit: CODES_PAGE, offset: (page - 1) * CODES_PAGE, ...(show ? { show } : {}) } },
         }),
       ),
     placeholderData: keepPreviousData,
@@ -92,10 +95,13 @@ export interface NewInvite {
 }
 
 export interface NewGrantCode {
+  /** The promo code to type (FREE30), or null for a random one shown once. */
+  code: string | null
   label: string
   days: number
   maxRedemptions: number | null
-  expiresInDays: number | null
+  /** The last day it works, as YYYY-MM-DD (it stops at the end of that day, UTC), or null for never. */
+  expiresOn: string | null
 }
 
 /** Make an invite. The answer holds the code, which is shown once and never again. */
@@ -125,10 +131,11 @@ export function useCreateGrantCode() {
       unwrap(
         api.POST('/api/admin/v1/grant-codes', {
           body: {
+            ...(code.code ? { code: code.code } : {}),
             label: code.label,
             days: code.days,
             max_redemptions: code.maxRedemptions,
-            expires_in_days: code.expiresInDays,
+            ...(code.expiresOn ? { expires_on: code.expiresOn } : {}),
           },
         }),
       ),
@@ -157,6 +164,37 @@ export function useRevokeCode() {
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   })
+}
+
+/** A typed promo code as it will be kept: trimmed and in capitals, or null if it is not 3 to 20 letters and digits. */
+export function promoCodeOf(text: string): string | null {
+  const code = text.trim().toUpperCase()
+  return /^[A-Z0-9]{3,20}$/.test(code) ? code : null
+}
+
+/** "Dec 31, 2026" for a YYYY-MM-DD day, in UTC (the day a code stops working is a UTC day). */
+function dayText(day: string): string {
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }).format(
+    new Date(`${day}T00:00:00Z`),
+  )
+}
+
+/** What people are told a code gives, in one sentence, for the form's preview. */
+export function promoPreview(code: {
+  code: string | null
+  days: number
+  people: number | null
+  endsOn: string | null
+}) {
+  const who = code.code ? `Anyone who enters ${code.code}` : 'Anyone with this code'
+  const limits = [
+    code.people === null
+      ? null
+      : `the first ${code.people.toLocaleString('en-US')} ${code.people === 1 ? 'person' : 'people'}`,
+    code.endsOn ? `until the end of ${dayText(code.endsOn)}` : null,
+  ].filter((part): part is string => part !== null)
+  const days = `${code.days} ${code.days === 1 ? 'day' : 'days'} of Pro, free`
+  return `${who} gets ${days}${limits.length ? ` (${limits.join(', ')})` : ''}. Their journal stays theirs when the days end.`
 }
 
 /** The words for where a code stands. */

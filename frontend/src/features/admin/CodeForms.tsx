@@ -2,7 +2,15 @@ import { useState, type FormEvent } from 'react'
 import { CONTROL, Field } from '../../components/ui/Field'
 import { Modal } from '../../components/ui/Modal'
 import { Button, Card } from '../../components/ui/primitives'
-import { useCreateGrantCode, useCreateInvite, useRevokeCode, type GrantCode, type Revoke } from '../../lib/adminCodes'
+import {
+  promoCodeOf,
+  promoPreview,
+  useCreateGrantCode,
+  useCreateInvite,
+  useRevokeCode,
+  type GrantCode,
+  type Revoke,
+} from '../../lib/adminCodes'
 import { messageOf } from '../tags/messages'
 
 /** The number in a box, or null for an empty one. Anything that is not a whole number is NaN, which the caller refuses. */
@@ -19,8 +27,19 @@ export interface Dialog {
   label: string
 }
 
-/** A code that was just made. It is the only time it is ever shown: only its hash is kept. */
-export function NewCode({ code, what, onDone }: { code: string; what: string; onDone: () => void }) {
+/** A code that was just made. A random code (and an invite) is shown this once: only its hash is kept. A typed promo code
+ * (`kept`) stays readable in the table. */
+export function NewCode({
+  code,
+  what,
+  kept = false,
+  onDone,
+}: {
+  code: string
+  what: string
+  kept?: boolean
+  onDone: () => void
+}) {
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null)
   const copy = () => {
     navigator.clipboard.writeText(code).then(
@@ -34,13 +53,19 @@ export function NewCode({ code, what, onDone }: { code: string; what: string; on
       <p className="num m-0 text-xl font-semibold tracking-wide break-all" data-testid="new-code">
         {code}
       </p>
-      <p className="m-0 text-[13px] text-warn">
-        This is the only time the code is shown. Only its hash is kept, so it cannot be looked up later: copy it now.
-      </p>
+      {kept ? (
+        <p className="m-0 text-[13px] text-muted">
+          It works now. It stays in the table below, so you can copy it again any time.
+        </p>
+      ) : (
+        <p className="m-0 text-[13px] text-warn">
+          This is the only time the code is shown. Only its hash is kept, so it cannot be looked up later: copy it now.
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={copy}>Copy</Button>
         <Button variant="ghost" onClick={onDone}>
-          I have copied it
+          {kept ? 'Done' : 'I have copied it'}
         </Button>
         {copied === 'yes' ? (
           <span role="status" className="text-[13px] text-pos">
@@ -157,7 +182,7 @@ export function CreateInvite({ working, onCreated }: { working: GrantCode[]; onC
             <option value="">None</option>
             {working.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.label} ({g.days} days of Pro)
+                {g.code ?? g.label} ({g.days} days of Pro)
               </option>
             ))}
           </select>
@@ -180,37 +205,53 @@ export function CreateInvite({ working, onCreated }: { working: GrantCode[]; onC
   )
 }
 
-/** Make a plan code: a name, how many days of Pro it gives, how many people may use it, and when the code itself ends. */
-export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => void }) {
+/** The day after today, as YYYY-MM-DD in UTC: the earliest a code can be set to stop. */
+function today(): string {
+  return new Date().toISOString().slice(0, 10)
+}
+
+/**
+ * Make a promo code: the code people type (or a random one), a note, what it gives (days of Pro; discounts switch on with
+ * the payment provider), how many people may use it, and the last day it works. A typed code cannot be edited or reused
+ * later, so the form says what people will be told before it is made.
+ */
+export function CreateGrantCode({ onCreated }: { onCreated: (code: string, kept: boolean) => void }) {
   const create = useCreateGrantCode()
+  const [code, setCode] = useState('')
   const [label, setLabel] = useState('')
   const [days, setDays] = useState('30')
   const [uses, setUses] = useState('')
   const [ends, setEnds] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
 
+  const typed = code.trim()
+  const promo = typed ? promoCodeOf(typed) : null
+  const given = wholeNumber(days)
+  const people = wholeNumber(uses)
+  const previewable =
+    given !== null && !Number.isNaN(given) && given >= 1 && given <= 30 && (people === null || !Number.isNaN(people))
+
   const submit = (event: FormEvent) => {
     event.preventDefault()
     if (create.isPending) return
-    const given = wholeNumber(days)
-    const people = wholeNumber(uses)
-    const ending = wholeNumber(ends)
-    if (!label.trim()) return setProblem('Give it a label, so you can tell it apart later.')
+    if (typed && promo === null) {
+      return setProblem('A promo code is 3 to 20 letters and digits, with no spaces or dashes, such as FREE30.')
+    }
+    if (!typed && !label.trim()) return setProblem('A random code needs a note, so you can tell it apart later.')
     if (given === null || Number.isNaN(given) || given < 1 || given > 30) {
       return setProblem('Days of Pro must be a whole number from 1 to 30.')
     }
     if (people !== null && (Number.isNaN(people) || people < 1 || people > 1_000_000)) {
-      return setProblem('People must be a whole number of at least 1, or empty for any number.')
+      return setProblem('Most people must be a whole number of at least 1, or empty for any number.')
     }
-    if (ending !== null && (Number.isNaN(ending) || ending < 1 || ending > 3650)) {
-      return setProblem('The code can end after 1 to 3650 days, or never if empty.')
-    }
+    if (ends && ends < today()) return setProblem('That day has already passed. Choose a day from today on.')
     setProblem(null)
     create.mutate(
-      { label: label.trim(), days: given, maxRedemptions: people, expiresInDays: ending },
+      { code: promo, label: label.trim(), days: given, maxRedemptions: people, expiresOn: ends || null },
       {
         onSuccess: (made) => {
-          onCreated(made.code)
+          onCreated(made.code, made.grant_code.code !== null)
+          setCode('')
           setLabel('')
           setDays('30')
           setUses('')
@@ -221,10 +262,26 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
   }
 
   return (
-    <Card className="flex flex-col gap-3 px-5 py-4" role="region" aria-label="Make a plan code">
-      <h2 className="m-0 text-base font-semibold">Make a plan code</h2>
+    <Card className="flex flex-col gap-3 px-5 py-4" role="region" aria-label="Make a promo code">
+      <h2 className="m-0 text-base font-semibold">Make a promo code</h2>
       <form onSubmit={submit} className="flex flex-col gap-3">
-        <Field id="grant-label" label="Label" hint="What it is for, in your words. Only you see it.">
+        <Field
+          id="grant-code"
+          label="Code"
+          hint="3 to 20 letters and numbers, such as FREE30. Leave it blank to make a random one."
+        >
+          <input
+            id="grant-code"
+            value={code}
+            maxLength={20}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            className={`${CONTROL} font-mono tracking-wide uppercase`}
+          />
+        </Field>
+        <Field id="grant-label" label="Note to yourself" hint="Where you shared it, or who it is for. Only you see it.">
           <input
             id="grant-label"
             value={label}
@@ -232,6 +289,14 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
             onChange={(e) => setLabel(e.target.value)}
             className={CONTROL}
           />
+        </Field>
+        <Field id="grant-kind" label="Type">
+          <select id="grant-kind" value="free_days" onChange={() => undefined} className={CONTROL}>
+            <option value="free_days">Free days of Pro</option>
+            <option value="discount" disabled>
+              Discount (switches on once a payment provider is connected)
+            </option>
+          </select>
         </Field>
         <div className="flex flex-wrap gap-3">
           <div className="min-w-[110px] flex-1">
@@ -246,7 +311,7 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
             </Field>
           </div>
           <div className="min-w-[110px] flex-1">
-            <Field id="grant-uses" label="How many people (optional)">
+            <Field id="grant-uses" label="Most people (optional)">
               <input
                 id="grant-uses"
                 inputMode="numeric"
@@ -257,15 +322,21 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
             </Field>
           </div>
         </div>
-        <Field id="grant-ends" label="The code ends after (days, optional)">
+        <Field id="grant-ends" label="Stops working after (optional)" hint="The last day it works, in UTC.">
           <input
             id="grant-ends"
-            inputMode="numeric"
+            type="date"
             value={ends}
             onChange={(e) => setEnds(e.target.value)}
             className={CONTROL}
           />
         </Field>
+        {previewable ? (
+          <div className="rounded-lg border border-line bg-bg px-3.5 py-2.5 text-[13px]" aria-live="polite">
+            <div className="text-xs text-muted">What people will see</div>
+            <p className="m-0 mt-1">{promoPreview({ code: promo, days: given, people, endsOn: ends || null })}</p>
+          </div>
+        ) : null}
         {problem ? (
           <p role="alert" className="m-0 text-[13px] text-neg">
             {problem}
@@ -277,10 +348,11 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string) => vo
           </p>
         ) : null}
         <Button type="submit" variant="primary" disabled={create.isPending}>
-          {create.isPending ? 'Making…' : 'Make plan code'}
+          {create.isPending ? 'Making…' : 'Make code'}
         </Button>
         <p className="m-0 text-xs text-muted">
-          What Pro includes is not decided yet, so a plan code changes the label and the date and unlocks nothing yet.
+          A code is kept readable and cannot be edited: revoke it and make another. A code is never reused, even after
+          it is revoked.
         </p>
       </form>
     </Card>
@@ -302,7 +374,7 @@ export function RevokeDialog({
   const revoke = useRevokeCode()
   const [reason, setReason] = useState('')
   const typed = reason.trim()
-  const what = kind === 'invite' ? 'invite' : 'plan code'
+  const what = kind === 'invite' ? 'invite' : 'code'
 
   const submit = (event: FormEvent) => {
     event.preventDefault()

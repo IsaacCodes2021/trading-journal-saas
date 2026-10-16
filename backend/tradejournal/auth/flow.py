@@ -22,7 +22,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from uuid import UUID
 
 import psycopg
@@ -46,12 +46,16 @@ ERR_EXPIRED = "expired"  # the attempt timed out or its cookie was missing: just
 ERR_FAILED = "signin_failed"
 ERR_UNVERIFIED = "email_unverified"
 ERR_INVITE = "invite_invalid"  # one code for "no invite", "wrong invite", "used up", "meant for someone else"
+ERR_PROMO = "promo_invalid"  # one code for every promo code that would not work: unknown, used up, expired, revoked
 ERR_UNAVAILABLE = "account_unavailable"  # suspended or being deleted
 ERR_EMAIL_TAKEN = "email_taken"
 ERR_REAUTH = "reauth_failed"  # asked to prove who they are again, and did not (or someone else did)
 
 REAUTH_WINDOW = timedelta(minutes=2)  # how fresh the provider's `auth_time` must be for a re-authentication to count
 RESTORED_PATH = "/settings/privacy?restored=1"  # where signing in lands when it cancelled a scheduled deletion
+# Where a new account lands when the promo code it was made with could not be applied after all (its last use was taken in
+# the minute between the check and the sign-up, or the invite's own free days come first). The account is made either way.
+PROMO_MISSED_PATH = "/settings/plan?promo=not_applied"
 
 
 def safe_next(value: str | None) -> str:
@@ -80,6 +84,14 @@ class LoginResult:
     session_token: str | None  # set as the session cookie when signed in
     error: str | None  # a short code when not
     restored: bool = False  # signing in cancelled a scheduled account deletion
+
+
+@dataclass(frozen=True)
+class _SignedIn:
+    user_id: UUID
+    token: str
+    restored: bool = False  # it cancelled a scheduled deletion
+    promo_missed: bool = False  # a new account whose promo code could not be applied
 
 
 class AuthFlow:
@@ -116,9 +128,16 @@ class AuthFlow:
     # ---- step 1 ---------------------------------------------------------------------------------------------------
 
     def begin(
-        self, *, next_url: str | None, invite: str | None, step_up: bool = False, reauth: bool = False
+        self,
+        *,
+        next_url: str | None,
+        invite: str | None,
+        promo: str | None = None,
+        step_up: bool = False,
+        reauth: bool = False,
     ) -> LoginStart:
         code = invites.normalize(invite) if invite and len(invite) <= 60 else None
+        promo_code = promo.strip() if promo and len(promo) <= 60 and promo.strip() else None
         hint: str | None = None
         if invite and self._invite_only:
             # A sign-up code is checked before the browser leaves for the identity provider, so a wrong, used or expired one
@@ -130,6 +149,16 @@ class AuthFlow:
             if usable is None:
                 return LoginStart(f"/invite?error={ERR_INVITE}", None)
             hint = usable.email
+        if promo_code is not None and not step_up and not reauth:
+            # A promo code is checked up front too, so a mistyped one is caught while the person is still on our page. They
+            # are sent back with what they typed in both boxes, so only the promo needs fixing (or emptying).
+            with self._system.system_session("login") as conn:
+                works = plans.usable_by_anyone(conn, promo_code, now=self._clock())
+                if not works:
+                    audit.record(conn, "login_failed", actor=audit.ACTOR_SYSTEM, meta={"reason": "promo_precheck"})
+            if not works:
+                back = {"error": ERR_PROMO, **({"code": code} if code else {}), "promo": promo_code}
+                return LoginStart(f"/invite?{urlencode(back)}", None)
         state, nonce, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
         cookie = sign(
@@ -141,6 +170,7 @@ class AuthFlow:
                 "v": verifier,
                 "next": safe_next(next_url),
                 "inv": code,
+                "promo": promo_code if not step_up and not reauth else None,
                 "up": step_up,
                 "re": reauth,
             },
@@ -210,16 +240,23 @@ class AuthFlow:
             reauth_for = asking.user_id
 
         outcome = self._record_sign_in(
-            identity, saved.get("inv"), mfa_at, previous_session, user_agent, ip_hash, reauth_for=reauth_for
+            identity,
+            saved.get("inv"),
+            saved.get("promo"),
+            mfa_at,
+            previous_session,
+            user_agent,
+            ip_hash,
+            reauth_for=reauth_for,
         )
         if isinstance(outcome, str):
             return LoginResult("/", None, outcome)
-        user_id, token, restored = outcome
         # Their own tables start with the defaults (settings, usage row, the three default categories). Idempotent, so
         # every sign-in repairs a first sign-in that was cut short.
-        with self._database.tenant_session(user_id) as conn:
+        with self._database.tenant_session(outcome.user_id) as conn:
             provision_defaults(conn)
-        return LoginResult(RESTORED_PATH if restored else next_url, token, None, restored=restored)
+        target = RESTORED_PATH if outcome.restored else PROMO_MISSED_PATH if outcome.promo_missed else next_url
+        return LoginResult(target, outcome.token, None, restored=outcome.restored)
 
     def _reauth_problem(self, identity) -> str | None:
         """Why this answer does not prove a fresh authentication, or None if it does."""
@@ -233,14 +270,24 @@ class AuthFlow:
         return None
 
     def _record_sign_in(
-        self, identity, invite_code, mfa_at, previous_session, user_agent, ip_hash, *, reauth_for: UUID | None = None
-    ) -> tuple[UUID, str, bool] | str:
-        """Everything the sign-in changes, in one transaction. Returns (user id, session token, whether it cancelled a
-        scheduled deletion), or an error code (the audit row for the failure is committed; nothing else is)."""
+        self,
+        identity,
+        invite_code,
+        promo_code,
+        mfa_at,
+        previous_session,
+        user_agent,
+        ip_hash,
+        *,
+        reauth_for: UUID | None = None,
+    ) -> _SignedIn | str:
+        """Everything the sign-in changes, in one transaction. Returns who signed in with their new session token, or an
+        error code (the audit row for the failure is committed; nothing else is)."""
         now = self._clock()
         with self._system.system_session("login") as conn:
             user = users.find_by_subject(conn, identity.subject)
             restored = False
+            promo_missed = False
             if reauth_for is not None and (user is None or user.id != reauth_for):
                 # Someone else completed the prompt, or the identity is not the one that asked: nothing changes.
                 audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "reauth_other_person"})
@@ -250,6 +297,8 @@ class AuthFlow:
                 if isinstance(created, str):
                     return created
                 user, signup = created, True
+                if promo_code:
+                    promo_missed = not self._apply_promo(conn, user.id, promo_code, now, ip_hash)
             else:
                 signup = False
                 if user.status == "pending_deletion":
@@ -286,7 +335,25 @@ class AuthFlow:
                 ip_hash=ip_hash,
                 meta={"mfa": mfa_at is not None, "reauth": reauth_for is not None},
             )
-            return user.id, token, restored
+            return _SignedIn(user.id, token, restored=restored, promo_missed=promo_missed)
+
+    def _apply_promo(self, conn: psycopg.Connection, user_id: UUID, promo_code: str, now, ip_hash) -> bool:
+        """Redeem the promo code a new account was made with, in the sign-up transaction. Unlike an invite's own grant, a
+        promo that cannot be applied (its last use was just taken, or the invite's free days run first) never stops the
+        sign-up: the account is made and the person is told once. The log never holds what was typed."""
+        outcome = plans.redeem(conn, user_id, promo_code, now=now)
+        if isinstance(outcome, plans.Redeemed):
+            audit.record(
+                conn,
+                "grant_redeemed",
+                user_id=user_id,
+                ip_hash=ip_hash,
+                meta={"plan": outcome.plan, "days": outcome.days, "via": "signup"},
+            )
+            return True
+        reason = "active" if isinstance(outcome, plans.AlreadyHave) else "refused"
+        audit.record(conn, "grant_refused", user_id=user_id, ip_hash=ip_hash, meta={"reason": reason, "via": "signup"})
+        return False
 
     def _sign_up(self, conn: psycopg.Connection, identity, invite_code, now, ip_hash) -> users.User | str:
         invite = None

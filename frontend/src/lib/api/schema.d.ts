@@ -96,13 +96,13 @@ export interface paths {
         };
         /**
          * List Grant Codes
-         * @description Plan codes, newest first: how many people used each, and whether it still works.
+         * @description Promo and plan codes, newest first: how many people used each, and whether it still works.
          */
         get: operations["list_grant_codes"];
         put?: never;
         /**
          * Create Grant Code
-         * @description Make a plan code. The code is in this answer and nowhere else, ever.
+         * @description Make a promo code (typed, kept readable) or a random plan code (in this answer and nowhere else, ever).
          */
         post: operations["create_grant_code"];
         delete?: never;
@@ -2351,6 +2351,11 @@ export interface components {
         /** GrantCodeIn */
         GrantCodeIn: {
             /**
+             * Code
+             * @description A promo code to type, 3 to 20 letters and digits (FREE30); case does not matter. Kept readable. Leave it out for a random code, shown once
+             */
+            code?: string | null;
+            /**
              * Days
              * @description How long the plan lasts once it is redeemed (30 at most)
              */
@@ -2360,8 +2365,23 @@ export interface components {
              * @description The code stops working after this many days
              */
             expires_in_days?: number | null;
-            /** Label */
-            label: string;
+            /**
+             * Expires On
+             * @description Or: the last day it works (it stops at the end of that day, UTC)
+             */
+            expires_on?: string | null;
+            /**
+             * Kind
+             * @default free_days
+             * @constant
+             */
+            kind?: "free_days";
+            /**
+             * Label
+             * @description A note to yourself. Needed for a random code, so it can be told apart; optional otherwise
+             * @default
+             */
+            label?: string;
             /**
              * Max Redemptions
              * @description How many people may use it; none means any number
@@ -2388,6 +2408,11 @@ export interface components {
         /** GrantCodeOut */
         GrantCodeOut: {
             /**
+             * Code
+             * @description The promo code as it was typed (FREE30). None for a random code, which was shown once and never kept
+             */
+            code: string | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -2400,7 +2425,16 @@ export interface components {
             expires_at: string | null;
             /** Id */
             id: number;
-            /** Label */
+            /**
+             * Kind
+             * @description What it gives: free_days is days of Pro
+             * @constant
+             */
+            kind: "free_days";
+            /**
+             * Label
+             * @description The operator's note to themselves; never shown to the people who use the code
+             */
             label: string;
             /** Max Redemptions */
             max_redemptions: number | null;
@@ -2735,6 +2769,11 @@ export interface components {
             active_7d: number;
             /** Free */
             free: number;
+            /**
+             * Grants Ending 7D
+             * @description People whose free days from a code or an invite end in the next 7 days, then read-only
+             */
+            grants_ending_7d: number;
             /**
              * Open Grant Codes
              * @description Plan codes that still work
@@ -3899,6 +3938,8 @@ export interface operations {
             query?: {
                 limit?: number;
                 offset?: number;
+                /** @description Only codes that work, that are used up or expired (ended), or that were revoked */
+                show?: ("works" | "ended" | "revoked") | null;
             };
             header?: never;
             path?: never;

@@ -89,16 +89,25 @@ def revoke_invite(
 
 
 @router.get("/grant-codes", response_model=GrantCodeListOut)
-def list_grant_codes(_: AdminDep, admin: AdminServiceDep, limit: Limit = 50, offset: Offset = 0) -> GrantCodeListOut:
-    """Plan codes, newest first: how many people used each, and whether it still works."""
-    return admin.list_grant_codes(limit=limit, offset=offset)
+def list_grant_codes(
+    _: AdminDep,
+    admin: AdminServiceDep,
+    limit: Limit = 50,
+    offset: Offset = 0,
+    show: Annotated[
+        Literal["works", "ended", "revoked"] | None,
+        Query(description="Only codes that work, that are used up or expired (ended), or that were revoked"),
+    ] = None,
+) -> GrantCodeListOut:
+    """Promo and plan codes, newest first: how many people used each, and whether it still works."""
+    return admin.list_grant_codes(limit=limit, offset=offset, show=show)
 
 
 @router.post("/grant-codes", response_model=CreatedGrantCodeOut)
 def create_grant_code(
     body: GrantCodeIn, request: Request, operator: WriteAdminDep, admin: AdminServiceDep, config: ConfigDep
 ) -> CreatedGrantCodeOut:
-    """Make a plan code. The code is in this answer and nowhere else, ever."""
+    """Make a promo code (typed, kept readable) or a random plan code (in this answer and nowhere else, ever)."""
     return admin.create_grant_code(
         operator.user_id,
         label=body.label,
@@ -106,6 +115,8 @@ def create_grant_code(
         days=body.days,
         max_redemptions=body.max_redemptions,
         expires_in_days=body.expires_in_days,
+        code=body.code,
+        expires_on=body.expires_on,
         ip_hash=_ip(request, config),
     )
 

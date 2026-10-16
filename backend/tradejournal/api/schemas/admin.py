@@ -3,11 +3,11 @@ test scans every schema reachable from `/api/admin/v1` for trade, note and scree
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import ConfigDict, Field, StringConstraints
+from pydantic import ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 from .base import ApiModel
 from .session import PlanOut
@@ -148,9 +148,16 @@ class CreatedInviteOut(ApiModel):
     code: str = Field(description="The code itself. It is shown this once and only its hash is kept")
 
 
+GrantKind = Literal["free_days"]
+
+
 class GrantCodeOut(ApiModel):
     id: int
-    label: str
+    code: str | None = Field(
+        description="The promo code as it was typed (FREE30). None for a random code, which was shown once and never kept"
+    )
+    kind: GrantKind = Field(description="What it gives: free_days is days of Pro")
+    label: str = Field(description="The operator's note to themselves; never shown to the people who use the code")
     plan: Literal["pro"]
     days: int
     max_redemptions: int | None
@@ -172,7 +179,17 @@ class GrantCodeListOut(ApiModel):
 class GrantCodeIn(ApiModel):
     model_config = ConfigDict(extra="forbid")  # an unknown or misspelled field is an error, not ignored
 
-    label: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    code: str | None = Field(
+        default=None,
+        max_length=40,
+        description="A promo code to type, 3 to 20 letters and digits (FREE30); case does not matter. Kept readable. "
+        "Leave it out for a random code, shown once",
+    )
+    kind: GrantKind = "free_days"
+    label: Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)] = Field(
+        default="",
+        description="A note to yourself. Needed for a random code, so it can be told apart; optional otherwise",
+    )
     plan: Literal["pro"] = "pro"
     days: int = Field(ge=1, le=30, description="How long the plan lasts once it is redeemed (30 at most)")
     max_redemptions: int | None = Field(
@@ -181,6 +198,27 @@ class GrantCodeIn(ApiModel):
     expires_in_days: int | None = Field(
         default=None, ge=1, le=3650, description="The code stops working after this many days"
     )
+    expires_on: date | None = Field(
+        default=None, description="Or: the last day it works (it stops at the end of that day, UTC)"
+    )
+
+    @field_validator("code")
+    @classmethod
+    def _shape(cls, value: str | None) -> str | None:
+        if value is None or not value.strip():
+            return None
+        code = value.strip().upper()
+        if not (3 <= len(code) <= 20 and code.isascii() and code.isalnum()):
+            raise ValueError("a promo code is 3 to 20 letters and digits, with no spaces or dashes, such as FREE30")
+        return code
+
+    @model_validator(mode="after")
+    def _consistent(self) -> GrantCodeIn:
+        if self.code is None and not self.label:
+            raise ValueError("give a random code a note, so you can tell it apart later")
+        if self.expires_in_days is not None and self.expires_on is not None:
+            raise ValueError("give either expires_in_days or expires_on, not both")
+        return self
 
 
 class CreatedGrantCodeOut(ApiModel):
@@ -220,6 +258,9 @@ class OverviewOut(ApiModel):
     free: int
     open_invites: int = Field(description="Invites that still work")
     open_grant_codes: int = Field(description="Plan codes that still work")
+    grants_ending_7d: int = Field(
+        description="People whose free days from a code or an invite end in the next 7 days, then read-only"
+    )
 
 
 # ---- the beta: who joined and where each person stands -----------------------------------------------------------------

@@ -1,9 +1,11 @@
-import type { AuditQuery } from '../../lib/adminCodes'
+import type { AuditQuery, CodeShow } from '../../lib/adminCodes'
 
 /** What the codes and audit address holds, with only the valid keys kept (the page applies the defaults). */
 export interface CodesSearch {
-  /** The plan codes tab (the invites tab is the default). */
+  /** The promo codes tab (the invites tab is the default). */
   tab?: 'codes'
+  /** On the promo codes tab: only the codes that work, have ended, or were revoked (all of them by default). */
+  show?: CodeShow
   action?: string
   actor?: string
   q?: string
@@ -23,6 +25,9 @@ export function pickCodesSearch(raw: Record<string, unknown>): CodesSearch {
   const page = Number(raw['page'])
   return {
     ...(raw['tab'] === 'codes' ? { tab: 'codes' as const } : {}),
+    ...(raw['tab'] === 'codes' && (raw['show'] === 'works' || raw['show'] === 'ended' || raw['show'] === 'revoked')
+      ? { show: raw['show'] }
+      : {}),
     ...(action ? { action } : {}),
     ...(actor ? { actor } : {}),
     ...(q ? { q } : {}),
@@ -41,6 +46,7 @@ export function auditQueryOf(search: CodesSearch): AuditQuery {
 export function searchWithAudit(search: CodesSearch, query: AuditQuery): CodesSearch {
   return {
     ...(search.tab ? { tab: search.tab } : {}),
+    ...(search.show ? { show: search.show } : {}),
     ...(search.page ? { page: search.page } : {}),
     ...(query.action ? { action: query.action } : {}),
     ...(query.actor ? { actor: query.actor } : {}),

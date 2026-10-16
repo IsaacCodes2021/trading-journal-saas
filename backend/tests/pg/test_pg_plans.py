@@ -446,7 +446,7 @@ def test_redeeming_through_the_service_records_what_happened_and_never_the_code(
     assert service.redeem_grant(alice, other).status == "active"
     log = audit_rows(owner)
     assert [(r["action"], r["meta"]) for r in log] == [
-        ("grant_redeemed", {"plan": "pro", "days": 25, "via": "code"}),
+        ("grant_redeemed", {"plan": "pro", "days": 25, "via": "settings"}),
         ("grant_refused", {"reason": "refused"}),
         ("grant_refused", {"reason": "active"}),
     ]
