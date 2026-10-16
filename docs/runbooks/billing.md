@@ -103,10 +103,11 @@ It answers 404 unless billing is on with Paddle. **To check in the sandbox:** th
 while the checkout opens and takes a test card, including the 3-D Secure card; add only what is reported.
 
 **Paddle's checkout settings** (sandbox, then live): the default payment link is `https://app.roundturn.app/billing/pay`;
-payment recovery cancels the subscription when retries run out (Roundturn has no pause). The sandbox form refused
-`http://localhost:8000/billing/pay` as "not a valid URL" (2026-10-16), so the sandbox uses `https://localhost/`, Paddle's
-own example. That is enough: Roundturn sends people to its own page (`/billing/pay?_ptxn=...` on the site in use) and never
-to Paddle's link, which only appears in Paddle's emails (a sandbox email's "update card" link will not open locally).
+payment recovery cancels the subscription when retries run out (Roundturn has no pause). The sandbox takes the same link:
+its form refuses any `localhost` address (2026-10-16), and without a saved link Paddle creates no checkout at all
+(`transaction_default_checkout_url_not_set`, shown as "The payment provider would not open a checkout"). A test on a PC
+still works: Roundturn sends people to its own page (`/billing/pay?_ptxn=...` on the site in use) and never to Paddle's
+link, which only appears in Paddle's emails (a sandbox email's "update card" link opens the real site, where billing is off).
 
 ## Paddle sandbox: from nothing to a test payment (each step needs the owner's yes)
 
@@ -114,7 +115,7 @@ to Paddle's link, which only appears in Paddle's emails (a sandbox email's "upda
    included; the whole key, starting `pdl_sdbx_apikey_`: without that part Paddle answers `authentication_malformed`), a
    client-side token, and the product "Roundturn Pro" with a USD 15 monthly price (no trial on the price: the
    trial is Roundturn's). Or Claude makes the product and price through the `paddle-sandbox` tools, after a yes. The
-   default payment link `https://localhost/` (above).
+   default payment link `https://app.roundturn.app/billing/pay`, saved (above).
 2. A notification destination at a public HTTPS address: a tunnel to a PC (an install) or a paid staging Web Service (a
    cost). Subscribe it to `subscription.*`, `transaction.completed`, `transaction.payment_failed` and `adjustment.*`.
    On the owner's PC: cloudflared 2026.9.3 at `C:\Users\Isaac\Tools\cloudflared\cloudflared.exe` (Cloudflare's GitHub
