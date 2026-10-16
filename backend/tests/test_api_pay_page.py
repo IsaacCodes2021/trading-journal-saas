@@ -55,8 +55,11 @@ def test_only_this_page_may_load_paddles_script_and_frame_its_checkout(tmp_path)
     app = client(tmp_path)
     page = app.get("/billing/pay")
     assert page.headers["content-security-policy"] == PAY_CSP
-    assert "script-src 'self' https://cdn.paddle.com" in PAY_CSP and "'unsafe-inline'" not in PAY_CSP
-    assert "frame-ancestors 'none'" in PAY_CSP and "'unsafe-eval'" not in PAY_CSP
+    directives = dict(part.split(" ", 1) for part in PAY_CSP.split("; "))
+    assert directives["script-src"] == "'self' https://cdn.paddle.com"  # no inline code, no other site's script
+    # Paddle.js styles the checkout it opens: its stylesheet (live and sandbox) and inline styles, on this page only.
+    assert directives["style-src"] == "'self' 'unsafe-inline' https://cdn.paddle.com https://sandbox-cdn.paddle.com"
+    assert directives["frame-ancestors"] == "'none'" and "'unsafe-eval'" not in PAY_CSP
     assert page.headers["cross-origin-opener-policy"] == "same-origin-allow-popups"
     assert page.headers["cache-control"] == "no-store"
     for elsewhere in ("/", "/settings/plan", "/billing/payx", "/healthz"):

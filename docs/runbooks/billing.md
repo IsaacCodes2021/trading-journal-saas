@@ -100,7 +100,9 @@ it). Paid: back to Plan & billing, which waits for Paddle's notification. Closed
 It is the only page that may load a script from another site: it has a Content-Security-Policy of its own (Paddle's script,
 frames and API; no inline code) and every other page keeps the strict one. Paddle's emails link here too, to update a card.
 It answers 404 unless billing is on with Paddle. **To check in the sandbox:** the browser console must show no CSP refusal
-while the checkout opens and takes a test card, including the 3-D Secure card; add only what is reported.
+while the checkout opens and takes a test card, including the 3-D Secure card; add only what is reported. Found on
+2026-10-16 and allowed: Paddle's stylesheet (`sandbox-cdn.paddle.com`, `cdn.paddle.com` live) and the inline styles
+Paddle.js sets on its frame. Without them the checkout is a small unstyled box that cannot be completed.
 
 **Paddle's checkout settings** (sandbox, then live): the default payment link is `https://app.roundturn.app/billing/pay`;
 payment recovery cancels the subscription when retries run out (Roundturn has no pause). The sandbox takes the same link:
