@@ -6,7 +6,7 @@ import {
   billingDay,
   billingOf,
   hideBannerToday,
-  isSubscribed,
+  isPaidUp,
   planTag,
   priceOf,
   type Billing,
@@ -37,16 +37,16 @@ describe('billingOf', () => {
   })
 })
 
-describe('isSubscribed', () => {
-  it('is true only with a live subscription', () => {
-    expect(isSubscribed(billing({ state: 'active' }))).toBe(true)
-    expect(isSubscribed(billing({ state: 'cancelling' }))).toBe(true)
-    expect(isSubscribed(billing({ state: 'past_due' }))).toBe(true)
-    expect(isSubscribed(billing({ state: 'trial' }))).toBe(false)
-    expect(isSubscribed(billing({ state: 'covered' }))).toBe(false)
-    expect(isSubscribed(billing({ state: 'read_only' }))).toBe(false)
-    expect(isSubscribed(null)).toBe(false)
-    expect(isSubscribed(undefined)).toBe(false)
+describe('isPaidUp', () => {
+  it('is true only with a subscription that owes nothing', () => {
+    expect(isPaidUp(billing({ state: 'active' }))).toBe(true)
+    expect(isPaidUp(billing({ state: 'cancelling' }))).toBe(true)
+    expect(isPaidUp(billing({ state: 'past_due' }))).toBe(false) // what someone paying a failed renewal comes back from
+    expect(isPaidUp(billing({ state: 'trial' }))).toBe(false)
+    expect(isPaidUp(billing({ state: 'covered' }))).toBe(false)
+    expect(isPaidUp(billing({ state: 'read_only' }))).toBe(false)
+    expect(isPaidUp(null)).toBe(false)
+    expect(isPaidUp(undefined)).toBe(false)
   })
 })
 

@@ -355,6 +355,15 @@ describe('back from the checkout', () => {
     await waitFor(() => expect(sent('/api/v1/session').length).toBeGreaterThan(sessionsBefore))
   })
 
+  it('after paying a failed renewal, waits until the failure clears rather than confirming beside it', async () => {
+    await open({ billing: [PAST_DUE, ACTIVE] }, '?checkout=done')
+    expect(await screen.findByRole('status', { name: 'Your plan' })).toHaveTextContent('Confirming your payment')
+    expect(screen.queryByText('Payment confirmed.')).not.toBeInTheDocument()
+    expect(await screen.findByText('Payment confirmed.', {}, { timeout: 5000 })).toBeInTheDocument()
+    expect(await plan()).toHaveTextContent('Renews on Nov 14.')
+    expect(await plan()).not.toHaveTextContent('Payment failed')
+  })
+
   it('says the payment is not confirmed yet after a minute without word, and stops asking', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     vi.setSystemTime(new Date('2026-10-16T09:00:00Z'))

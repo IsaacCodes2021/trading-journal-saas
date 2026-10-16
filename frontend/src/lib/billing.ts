@@ -9,9 +9,12 @@ export type BillingState = Billing['state']
 
 const STATES: readonly BillingState[] = ['trial', 'covered', 'active', 'cancelling', 'past_due', 'read_only']
 
-/** The states with a live subscription: what a finished checkout turns into once the provider confirms it. */
-export function isSubscribed(billing: Billing | null | undefined): boolean {
-  return billing?.state === 'active' || billing?.state === 'cancelling' || billing?.state === 'past_due'
+/**
+ * A subscription with nothing owed: what a finished checkout (a new subscription, a failed payment paid, a new card)
+ * turns into once the provider confirms it. Not `past_due`, which someone paying a failed renewal comes back from.
+ */
+export function isPaidUp(billing: Billing | null | undefined): boolean {
+  return billing?.state === 'active' || billing?.state === 'cancelling'
 }
 
 /** The answer, if it is one: anything else (a server that does not know the route) counts as billing being off. */
@@ -24,7 +27,7 @@ export function billingOf(body: unknown): Billing | null {
 /**
  * Where the person's billing stands, or null while billing is switched off (the server answers 404, and the Plan page
  * shows what it always showed). Read once a minute at most; the actions below read it again when they change it.
- * `poll`: back from the checkout, read it every 2 seconds until the subscription shows.
+ * `poll`: back from the checkout, read it every 2 seconds until the subscription shows paid up.
  */
 export function useBilling(options: { poll?: boolean } = {}) {
   return useQuery({
@@ -37,7 +40,7 @@ export function useBilling(options: { poll?: boolean } = {}) {
     },
     staleTime: 60_000,
     retry: false,
-    refetchInterval: options.poll ? (query) => (isSubscribed(query.state.data) ? false : 2_000) : false,
+    refetchInterval: options.poll ? (query) => (isPaidUp(query.state.data) ? false : 2_000) : false,
   })
 }
 

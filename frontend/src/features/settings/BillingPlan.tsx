@@ -4,7 +4,7 @@ import { Button, Card } from '../../components/ui/primitives'
 import type { components } from '../../lib/api/schema'
 import {
   billingDay,
-  isSubscribed,
+  isPaidUp,
   priceOf,
   useCancelSubscription,
   useManageBilling,
@@ -369,19 +369,19 @@ export function BillingPlan({
   promoSaved?: boolean
   checkout: CheckoutReturn
 }) {
-  const subscribed = isSubscribed(billing)
-  const waiting = checkout === 'waiting' && !subscribed
+  const paidUp = isPaidUp(billing)
+  const waiting = checkout === 'waiting' && !paidUp
   return (
     <>
       <SectionHeader title="Plan & billing">What you have, and what you pay.</SectionHeader>
       {promoMissed ? <PromoNotApplied /> : null}
       {promoSaved ? <PromoSaved /> : null}
-      {checkout !== null && subscribed ? (
+      {checkout !== null && paidUp ? (
         <p role="status" className="m-0 rounded-[10px] border border-line bg-raised px-4 py-3 text-[13px] text-pos">
-          <strong>Payment confirmed.</strong> Thank you for subscribing to Roundturn Pro.
+          <strong>Payment confirmed.</strong> Thank you: Roundturn Pro is active.
         </p>
       ) : null}
-      {checkout === 'late' && !subscribed ? (
+      {checkout === 'late' && !paidUp ? (
         <p role="status" className="m-0 rounded-[10px] border border-warn-line bg-raised px-4 py-3 text-[13px]">
           <strong>Your payment is not confirmed yet.</strong> If you paid, your plan changes to Pro by itself once the
           payment provider confirms. Still nothing in a few minutes? Write to hello@roundturn.app.
