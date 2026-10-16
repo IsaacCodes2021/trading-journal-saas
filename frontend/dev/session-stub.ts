@@ -8,6 +8,33 @@ import { answerRuleTemplates } from './rule-templates'
  */
 const ID = '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11'
 
+/** What `GET /api/v1/billing` would say in each state, or null for billing switched off. */
+function devBilling(state: string, now: number): Record<string, unknown> | null {
+  const at = (days: number) => new Date(now + days * 86_400_000).toISOString()
+  const base = {
+    price: '15.00',
+    currency: 'USD',
+    interval: 'month',
+    price_text: 'USD 15 a month, plus applicable tax',
+    ends_at: null,
+    renews_at: null,
+    first_charge_pending: false,
+    can_subscribe: false,
+    billing_starts_at: null,
+    can_manage: true,
+    reason: null,
+  }
+  const states: Record<string, Record<string, unknown>> = {
+    trial: { ends_at: at(2.5), can_subscribe: true, billing_starts_at: at(2.5), can_manage: false },
+    covered: { ends_at: at(25.5), can_subscribe: true, billing_starts_at: at(25.5), can_manage: false },
+    active: { renews_at: at(29) },
+    cancelling: { ends_at: at(29) },
+    past_due: { ends_at: at(5) },
+    read_only: { ends_at: at(-6), can_subscribe: true, reason: 'expired', can_manage: false },
+  }
+  return states[state] ? { ...base, state, ...states[state] } : null
+}
+
 export function devSessionStub(enabled: boolean): Plugin {
   const settings: Record<string, string | null> = {
     timezone: 'America/New_York',
@@ -405,6 +432,19 @@ export function devSessionStub(enabled: boolean): Plugin {
         if (path === '/api/v1/account/deletion' && request.method === 'POST') {
           // Nothing is deleted in the stub: it only answers with the date a real server would give.
           return send(200, { scheduled_for: new Date(now + 7 * 86_400_000).toISOString() })
+        }
+        if (path === '/api/v1/billing' || path.startsWith('/api/v1/billing/')) {
+          // Off (a 404, as in production today) unless the browser has a `tj-dev-billing` cookie naming a state, so each
+          // Plan & billing screen can be seen with no backend: document.cookie = 'tj-dev-billing=past_due; path=/'.
+          const state = /(?:^|;\s*)tj-dev-billing=(\w+)/.exec(request.headers.cookie ?? '')?.[1] ?? ''
+          const body = devBilling(state, now)
+          if (!body) return send(404, { title: 'Not Found', status: 404, detail: 'Not Found', errors: null })
+          if (request.method === 'GET') return send(200, body)
+          if (path.endsWith('/checkout')) return send(200, { pay_url: '/settings/plan?checkout=done' })
+          if (path.endsWith('/portal')) return send(200, { url: 'https://example.com/' })
+          const after = path.endsWith('/cancel') ? 'cancelling' : 'active'
+          response.setHeader('set-cookie', `tj-dev-billing=${after}; path=/`)
+          return send(200, devBilling(after, now))
         }
         if (path === '/auth/logout' && request.method === 'POST') return send(204)
         next()

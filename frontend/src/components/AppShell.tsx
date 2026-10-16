@@ -2,10 +2,21 @@ import { Link, useLocation, useSearch } from '@tanstack/react-router'
 import { useEffect, useState, type ReactNode } from 'react'
 import type { components } from '../lib/api/schema'
 import { go, signOut } from '../lib/auth'
+import {
+  bannerHiddenToday,
+  bannerOf,
+  billingDay,
+  hideBannerToday,
+  planTag,
+  useBilling,
+  type BannerKind,
+  type Billing,
+  type TagTone,
+} from '../lib/billing'
 import { exitDemo, isDemo } from '../lib/demoMode'
 import { useDataSource } from '../lib/data/source'
 import { filtersOf, parseFilters } from '../lib/filters'
-import { daysLeft } from '../lib/format'
+import { daysLeft, pluralize } from '../lib/format'
 import { useSaveTheme, useSession } from '../lib/session'
 import { applyTheme, otherTheme, type Theme } from '../lib/theme'
 import { Popover } from './ui/Popover'
@@ -28,20 +39,99 @@ function titleCase(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-/** "Pro · 9 days left" for a plan that expires, "Free" otherwise. Amber while a plan is running out. */
-function PlanChip({ plan }: { plan: Session['plan'] }) {
-  const left = daysLeft(plan.expires_at)
-  const expiring = left !== null
+const TAG_TONE: Record<TagTone, string> = {
+  quiet: 'border-line text-muted',
+  warn: 'border-warn-line text-warn',
+  bad: 'border-transparent bg-short-bg text-neg',
+}
+
+/**
+ * The plan tag, which leads to Plan & billing. While billing is on it says where billing stands ("Trial · 5 days left",
+ * "Payment failed", "Read-only"); while it is off, "Pro · 9 days left" for a plan that expires (amber), "Free" otherwise.
+ */
+function PlanChip({ plan, billing }: { plan: Session['plan']; billing: Billing | null }) {
+  let tag: { text: string; tone: TagTone }
+  if (billing) {
+    tag = planTag(billing)
+  } else {
+    const left = daysLeft(plan.expires_at)
+    tag =
+      left === null
+        ? { text: titleCase(plan.effective), tone: 'quiet' }
+        : { text: `${titleCase(plan.effective)} · ${left} ${left === 1 ? 'day' : 'days'} left`, tone: 'warn' }
+  }
   return (
-    <span
+    <Link
+      to="/settings/plan"
+      title="Plan & billing"
       className={cx(
-        'inline-flex h-[22px] items-center rounded-full border px-2 text-xs',
-        expiring ? 'border-warn-line text-warn' : 'border-line text-muted',
+        'inline-flex h-[22px] items-center rounded-full border px-2 text-xs whitespace-nowrap no-underline hover:border-line-strong',
+        TAG_TONE[tag.tone],
       )}
     >
-      {titleCase(plan.effective)}
-      {expiring ? ` · ${left} ${left === 1 ? 'day' : 'days'} left` : ''}
-    </span>
+      {tag.text}
+    </Link>
+  )
+}
+
+const BANNER_TONE: Record<BannerKind, string> = {
+  trial: 'border-warn-line bg-gold-bg text-warn',
+  payment: 'border-warn-line bg-gold-bg text-warn',
+  read_only: 'border-line bg-short-bg text-ink',
+}
+
+/**
+ * One billing banner under the header, while billing is on: read-only (it stays), else a failed payment, else the
+ * trial's last 3 days (those two can be closed until tomorrow). Each leads to Plan & billing.
+ */
+function BillingBanner({ billing }: { billing: Billing | null }) {
+  const [, setHidden] = useState(0)
+  const kind = bannerOf(billing)
+  if (!billing || kind === null || bannerHiddenToday(kind)) return null
+  const left = daysLeft(billing.ends_at) ?? 0
+  const text = {
+    trial: `Your free trial ends in ${pluralize(left, 'day')}. Subscribe to keep importing and editing.`,
+    payment: `Your last payment did not go through. Full access continues until ${billingDay(billing.ends_at)}.`,
+    read_only:
+      'Your journal is read-only. You can look at everything and download it; importing and editing are paused.',
+  }[kind]
+  return (
+    <div
+      role="status"
+      className={cx(
+        'flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5 border-b px-4 py-2.5 text-center sm:px-8',
+        BANNER_TONE[kind],
+      )}
+    >
+      <span>{text}</span>
+      <Link to="/settings/plan" className="font-semibold text-ink">
+        {kind === 'payment' ? 'Update payment method' : 'Subscribe'}
+      </Link>
+      {kind === 'read_only' ? null : (
+        <button
+          type="button"
+          aria-label="Hide until tomorrow"
+          title="Hide until tomorrow"
+          onClick={() => {
+            hideBannerToday(kind)
+            setHidden((n) => n + 1)
+          }}
+          className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border-0 bg-transparent p-0 text-current hover:bg-raised"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            aria-hidden="true"
+          >
+            <path d="M2 2l8 8M10 2l-8 8" />
+          </svg>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -189,6 +279,7 @@ export function AppShell({
   action?: ReactNode
 }) {
   const session = useSession()
+  const billing = useBilling().data ?? null // null while billing is off, or could not be read: the shell as before
   const search = useSearch({ strict: false })
   const theme = session.data?.settings.theme
   useEffect(() => {
@@ -240,12 +331,13 @@ export function AppShell({
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 sm:ml-0">
-            <PlanChip plan={session.data.plan} />
+            <PlanChip plan={session.data.plan} billing={billing} />
             <ThemeButton theme={session.data.settings.theme} />
             <AccountMenu email={session.data.user.email} operator={session.data.flags.is_admin} />
           </div>
         </div>
       </header>
+      <BillingBanner billing={billing} />
       <SampleDataBanner />
       <main className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 pt-6 pb-12 sm:px-8">{children}</main>
     </div>

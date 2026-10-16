@@ -45,7 +45,35 @@ export interface ApiOptions {
   activity?: object[]
   /** Answer redeeming a plan code with this instead of putting the person on Pro until 2027-01-12. */
   redeem?: { status: number; body: object }
+  /**
+   * Billing switched on, and where it stands (`billingBody` makes one). A list is answered in turn, the last one from then
+   * on (a checkout the provider confirms after a few reads). Default: billing is off, and `GET /api/v1/billing` is a 404.
+   */
+  billing?: object | object[]
+  /** Answer a billing action with this instead of what the fake provider would do. */
+  billingAnswers?: Partial<Record<'checkout' | 'cancel' | 'resume' | 'portal', { status: number; body: object }>>
 }
+
+/** What `GET /api/v1/billing` says: on a trial with 5 days left, unless `changes` say otherwise. */
+export function billingBody(changes: object = {}) {
+  return {
+    state: 'trial',
+    price: '15.00',
+    currency: 'USD',
+    interval: 'month',
+    price_text: 'USD 15 a month, plus applicable tax',
+    ends_at: new Date(Date.now() + 4.5 * 86_400_000).toISOString(),
+    renews_at: null,
+    first_charge_pending: false,
+    can_subscribe: true,
+    billing_starts_at: new Date(Date.now() + 4.5 * 86_400_000).toISOString(),
+    can_manage: false,
+    reason: null,
+    ...changes,
+  }
+}
+
+const NOT_FOUND = { title: 'Not Found', status: 404, detail: 'Not Found', errors: null }
 
 export function sessionBody(opts: ApiOptions = {}) {
   return {
@@ -68,6 +96,10 @@ export function sessionBody(opts: ApiOptions = {}) {
 export function stubApi(opts: ApiOptions = {}) {
   const saved: unknown[] = []
   let plan: object | undefined = opts.plan // a redeemed code changes the plan the session reports from then on
+  const billingReads = Array.isArray(opts.billing) ? [...opts.billing] : opts.billing ? [opts.billing] : []
+  let billing: Record<string, unknown> | undefined // what a cancel or a resume changed
+  const billingNow = () =>
+    billing ?? ((billingReads.length > 1 ? billingReads.shift() : billingReads[0]) as Record<string, unknown>)
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {
@@ -79,6 +111,20 @@ export function stubApi(opts: ApiOptions = {}) {
         if (opts.redeem) return json(opts.redeem.body, opts.redeem.status)
         plan = { effective: 'pro', source: 'grant', expires_at: '2027-01-12T09:30:00Z' }
         return json(plan)
+      }
+      const path = new URL(request.url).pathname
+      if (path === '/api/v1/billing' || path.startsWith('/api/v1/billing/')) {
+        if (billingReads.length === 0) return json(NOT_FOUND, 404)
+        const action = path.split('/')[4] as 'checkout' | 'cancel' | 'resume' | 'portal' | undefined
+        if (request.method === 'GET' && action === undefined) return json(billingNow())
+        const answer = action ? opts.billingAnswers?.[action] : undefined
+        if (answer) return json(answer.body, answer.status)
+        const now = billingNow()
+        if (action === 'checkout') return json({ pay_url: '/billing/pay?_ptxn=txn_test_1' })
+        if (action === 'portal') return json({ url: 'https://billing.example.test/portal/ctm_1' })
+        if (action === 'cancel') billing = { ...now, state: 'cancelling', ends_at: now['renews_at'], renews_at: null }
+        if (action === 'resume') billing = { ...now, state: 'active', renews_at: now['ends_at'], ends_at: null }
+        return json(billing)
       }
       if (request.method === 'GET' && new URL(request.url).pathname === '/api/v1/activity') {
         return json({ events: opts.activity ?? [] })

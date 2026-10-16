@@ -15,6 +15,76 @@ import { OverrideCard } from './OverrideCard'
 import { ASKS, ReasonDialog, type Ask, type ReasonOnly } from './ReasonDialog'
 import { PlanText, StatusBadge } from './parts'
 
+type AdminSubscription = NonNullable<AdminUserDetail['subscription']>
+
+const SUBSCRIPTION_STATUS: Record<AdminSubscription['status'], string> = {
+  trialing: 'Subscribed, first payment not taken yet',
+  active: 'Paying',
+  past_due: 'Payment failed',
+  paused: 'Paused',
+  canceled: 'Ended',
+}
+
+/** The subscription as the provider last told us, and its latest events (what and when, never what they carried). View
+ * only: refunds and card problems are handled at the provider; the lever here is still the plan override. */
+function Subscription({ detail }: { detail: AdminUserDetail }) {
+  const sub = detail.subscription
+  return (
+    <Card className="p-0" role="region" aria-label="Subscription">
+      <h2 className="m-0 border-b border-line px-5 py-3 text-[13px] font-semibold tracking-wide text-muted uppercase">
+        Subscription
+      </h2>
+      {sub === null ? (
+        <p className="m-0 px-5 py-3.5 text-[13px] text-muted">Never subscribed.</p>
+      ) : (
+        <div className="flex flex-col gap-1 px-5 py-3.5 text-[13px]">
+          <div>
+            <span className="font-semibold">{SUBSCRIPTION_STATUS[sub.status]}</span>
+            {sub.status === 'canceled' && sub.ended_at ? (
+              <span className="text-muted"> · {utcDay(sub.ended_at)}</span>
+            ) : sub.cancel_at_period_end ? (
+              <span className="text-muted">
+                {' '}
+                · cancelled {sub.cancel_requested_by === 'deletion' ? 'by the account deletion' : 'by the person'}
+                {sub.current_period_end ? `, ends ${utcDay(sub.current_period_end)}` : ''}
+              </span>
+            ) : sub.current_period_end ? (
+              <span className="text-muted"> · renews {utcDay(sub.current_period_end)}</span>
+            ) : null}
+          </div>
+          {sub.past_due_since ? (
+            <div className="text-muted">Payment failing since {utcDay(sub.past_due_since)}</div>
+          ) : null}
+          <div className="text-muted break-all">
+            {sub.provider}: <span className="num">{sub.provider_subscription_id}</span>
+            {sub.provider_customer_id ? (
+              <>
+                {' · customer '}
+                <span className="num">{sub.provider_customer_id}</span>
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
+      {detail.billing_events.length > 0 ? (
+        <ul aria-label="Billing events" className="m-0 list-none divide-y divide-line-soft border-t border-line p-0">
+          {detail.billing_events.map((e, i) => (
+            <li key={i} className="flex flex-wrap items-baseline justify-between gap-x-4 px-5 py-2.5 text-[13px]">
+              <span>
+                <span className="num">{e.type}</span>
+                <span className="text-muted"> · {e.outcome}</span>
+              </span>
+              <time dateTime={e.received_at} className="text-xs text-muted">
+                {utcMoment(e.received_at)}
+              </time>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Card>
+  )
+}
+
 function Fact({ label, children, note }: { label: string; children: React.ReactNode; note?: string }) {
   return (
     <div>
@@ -99,6 +169,7 @@ function Account({ detail, mine }: { detail: AdminUserDetail; mine: boolean }) {
         <ReasonDialog ask={asking} userId={user.id} email={user.email} onClose={() => setAsking(null)} />
       ) : null}
       {locked ? null : <OverrideCard detail={detail} />}
+      <Subscription detail={detail} />
       <Card className="p-0" role="region" aria-label="Override history">
         <h2 className="m-0 border-b border-line px-5 py-3 text-[13px] font-semibold tracking-wide text-muted uppercase">
           Override history
