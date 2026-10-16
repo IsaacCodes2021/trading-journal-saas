@@ -39,7 +39,17 @@ export default defineConfig(({ mode, command }) => {
         '/files': API,
       },
     },
-    build: { sourcemap: false },
+    build: {
+      sourcemap: false,
+      // Two pages: the app, and the payment page (pay.html), which alone loads Paddle's script under its own
+      // Content-Security-Policy (backend/tradejournal/api/routers/pay.py). They share no chunk with each other's code.
+      rollupOptions: {
+        input: {
+          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          pay: fileURLToPath(new URL('./pay.html', import.meta.url)),
+        },
+      },
+    },
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],

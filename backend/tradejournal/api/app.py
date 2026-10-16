@@ -55,6 +55,7 @@ from .routers import (
     grants,
     imports,
     journal,
+    pay,
     rules,
     screenshots,
     session,
@@ -239,6 +240,7 @@ def create_app(
     app.include_router(grants.router)
     app.include_router(billing.router)
     app.include_router(webhooks.router)
+    app.include_router(pay.router)
     app.include_router(export.router)
     app.include_router(rules.router)  # before accounts: /accounts/overview is not an account id
     app.include_router(accounts.router)

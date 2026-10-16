@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import datetime
 
 from .fake import FakeBilling
+from .paddle import PaddleBilling, PaddleSettings
 from .provider import BillingProvider
 
 
@@ -15,7 +16,9 @@ def provider_for(config, *, clock: Callable[[], datetime]) -> BillingProvider | 
     if config.billing_provider == "fake":
         return FakeBilling(secret=config.fake_billing_secret, clock=clock)
     if config.billing_provider == "paddle":
-        raise ValueError("TJ_BILLING_PROVIDER=paddle: the Paddle adapter is not in this build")
+        if config.paddle is None:  # the configuration refuses this; a guard for a hand-made one
+            raise ValueError("TJ_BILLING_PROVIDER=paddle needs the TJ_PADDLE_* settings")
+        return PaddleBilling(config.paddle)
     return None
 
 
@@ -28,5 +31,8 @@ def provider_from_env(env) -> BillingProvider | None:
     if name == "fake":
         raise ValueError("TJ_BILLING_PROVIDER=fake cannot be used by a scheduled job")
     if name == "paddle":
-        raise ValueError("TJ_BILLING_PROVIDER=paddle: the Paddle adapter is not in this build")
+        settings = PaddleSettings.from_env(env)  # a job needs only TJ_PADDLE_ENV and TJ_PADDLE_API_KEY
+        if settings is None:
+            raise ValueError("TJ_BILLING_PROVIDER=paddle needs TJ_PADDLE_ENV and TJ_PADDLE_API_KEY")
+        return PaddleBilling(settings)
     raise ValueError("TJ_BILLING_PROVIDER must be 'fake' or 'paddle'")

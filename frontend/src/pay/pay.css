@@ -1,0 +1,67 @@
+/* The payment page, apart from the app: the app's dark colours (styles/tokens.css) without Tailwind or its fonts. */
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: #141a22;
+  --line: #263040;
+  --text: #e8edf3;
+  --muted: #93a0b2;
+  --accent: #6ea8fe;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+
+.pay {
+  box-sizing: border-box;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pay-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pay-mark {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--accent);
+}
+
+.pay h1 {
+  margin: 12px 0 0;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.pay p {
+  margin: 0;
+}
+
+.pay-note {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.pay a {
+  color: var(--accent);
+}

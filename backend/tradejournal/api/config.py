@@ -11,6 +11,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 from uuid import UUID
 
+from ..billing.paddle import PaddleSettings
 from ..bucketstore import BucketSettings
 from .ratelimit import RateLimits
 
@@ -86,6 +87,9 @@ class ApiConfig:
     webhook_database_url: str | None = field(default=None, repr=False)
     # The fake provider's webhook secret: a fresh one per process unless a test gives one.
     fake_billing_secret: str = field(default_factory=lambda: secrets.token_hex(16), repr=False)
+    # Paddle (`TJ_PADDLE_*`, billing/paddle.py): all six with TJ_BILLING_PROVIDER=paddle. The key and the webhook secret are
+    # secrets; a sandbox key with live settings, or the reverse, stops the server at start-up.
+    paddle: PaddleSettings | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
@@ -135,6 +139,11 @@ class ApiConfig:
             raise ConfigError("TJ_BILLING_PROVIDER=fake is for tests and development: it takes no payment")
         if self.production and self.billing_enabled and self.webhook_database_url is None:
             raise ConfigError("TJ_BILLING_ENABLED needs TJ_WEBHOOK_DATABASE_URL: the webhook writes as its own role")
+        if self.billing_provider == "paddle" and (self.paddle is None or not self.paddle.complete_for_web):
+            raise ConfigError(
+                "TJ_BILLING_PROVIDER=paddle needs TJ_PADDLE_ENV, TJ_PADDLE_API_KEY, TJ_PADDLE_WEBHOOK_SECRET, "
+                "TJ_PADDLE_CLIENT_TOKEN, TJ_PADDLE_PRODUCT_ID and TJ_PADDLE_PRICE_ID"
+            )
         if self.dev_user_id is not None:
             if self.production:
                 raise ConfigError("TJ_DEV_USER_ID is for development only: it signs every request in as that user")
@@ -178,6 +187,12 @@ class ApiConfig:
         values["billing_enabled"] = switch in ("1", "true", "yes", "on")
         if env.get("TJ_BILLING_PROVIDER", "").strip():
             values["billing_provider"] = env["TJ_BILLING_PROVIDER"].strip().lower()
+        try:
+            paddle = PaddleSettings.from_env(env)
+        except ValueError as problem:  # names the setting, never its value
+            raise ConfigError(str(problem)) from None
+        if paddle is not None:
+            values["paddle"] = paddle
         for key, name in (
             ("TJ_KINDE_DOMAIN", "kinde_domain"),
             ("TJ_KINDE_CLIENT_ID", "kinde_client_id"),

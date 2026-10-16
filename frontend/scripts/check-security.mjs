@@ -25,6 +25,7 @@ const source = Object.fromEntries(
   Object.entries(readTree(join(root, 'src'))).map(([path, text]) => [`src/${path}`, text]),
 )
 source['index.html'] = readFileSync(join(root, 'index.html'), 'utf8')
+source['pay.html'] = readFileSync(join(root, 'pay.html'), 'utf8')
 
 const problems = [...scanSource(source), ...scanEnvFiles(readdirSync(root))]
 
