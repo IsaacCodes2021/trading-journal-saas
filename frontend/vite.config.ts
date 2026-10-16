@@ -37,6 +37,10 @@ export default defineConfig(({ mode, command }) => {
         '/api': { target: API, headers: api === 'dev-user' ? { cookie: '__Host-tj_session=dev-session' } : {} },
         '/auth': API,
         '/files': API,
+        // The payment page is the API's (it fills in Paddle's settings), with its script from the last `pnpm build`
+        // (dist/assets/pay-*.js). This dev server never serves anything of its own under /assets.
+        '/billing': API,
+        '/assets': API,
       },
     },
     build: {

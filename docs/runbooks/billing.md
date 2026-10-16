@@ -117,8 +117,17 @@ to Paddle's link, which only appears in Paddle's emails (a sandbox email's "upda
    default payment link `https://localhost/` (above).
 2. A notification destination at a public HTTPS address: a tunnel to a PC (an install) or a paid staging Web Service (a
    cost). Subscribe it to `subscription.*`, `transaction.completed`, `transaction.payment_failed` and `adjustment.*`.
+   On the owner's PC: cloudflared 2026.9.3 at `C:\Users\Isaac\Tools\cloudflared\cloudflared.exe` (Cloudflare's GitHub
+   release, checksum checked, 2026-10-16). `cloudflared.exe tunnel --url http://localhost:8000` prints a
+   `https://<words>.trycloudflare.com` address, a new one at each start; the destination is that address followed by
+   `/webhooks/billing`, and its secret key (`pdl_ntfset_...`) goes in `TJ_PADDLE_WEBHOOK_SECRET`.
 3. The six `TJ_PADDLE_*` settings (sandbox values), `TJ_BILLING_PROVIDER=paddle`, `TJ_BILLING_ENABLED=true` and
-   `TJ_WEBHOOK_DATABASE_URL` on the test server, with migrations 0020 to 0022 applied to its database.
+   `TJ_WEBHOOK_DATABASE_URL` on the test server, with migrations 0020 to 0022 applied to its database. On a PC: the six go
+   in the gitignored `backend/.env.paddle`, and the dev server sets the rest:
+   `.venv\Scripts\python.exe -m tradejournal.api.devserver --real-sign-in --billing --migrate` in `backend/` (sandbox
+   only; `--migrate` applies the migrations to the local `tj_dev`), then in `frontend/` `pnpm build` once (the payment
+   page's script) and the front end's dev server with `TJ_DEV_API=signin` (docs/runbooks/try-real-sign-in.md). It forwards
+   `/billing` and `/assets` to the API, so the app and its payment page share `http://localhost:5173`.
 4. Sign up, open Plan & billing, press Subscribe, pay with `4242 4242 4242 4242` (any future date, security code `100`).
    Paddle's notification log must show `200`, and the page must say "Payment confirmed".
 5. Then the rest of the lifecycle in the Paddle guide's section 7.2 (renewal and failed payment through Paddle's
