@@ -21,9 +21,11 @@ reach this server through a tunnel (docs/runbooks/billing.md, "Paddle sandbox").
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import TextIO
 from uuid import UUID
 
 import psycopg
@@ -34,6 +36,7 @@ from ..pg.migrate import latest_version, migrate
 from ..pg.provision import read_env_file
 from .app import create_app
 from .config import ApiConfig, ConfigError
+from .logs import scrub
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env.test"
 KINDE_ENV_FILE = Path(__file__).resolve().parents[2] / ".env.kinde"
@@ -47,6 +50,22 @@ PADDLE_KEYS = (
 
 class DevServerError(Exception):
     """Something the person starting the server can fix; the message says what."""
+
+
+class _ScrubbedLine(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return scrub(super().format(record))
+
+
+def show_log_lines(stream: TextIO | None = None) -> logging.Handler:
+    """Print the app's own records (`tj.*`, from INFO) beside the server's, as plain lines scrubbed as in production. In
+    production they go to `configure_logging`'s JSON stream; without either, they go nowhere (api/logs.py)."""
+    handler = logging.StreamHandler(stream or sys.stderr)
+    handler.setFormatter(_ScrubbedLine("%(levelname)s:     %(name)s: %(message)s"))
+    ours = logging.getLogger("tj")
+    ours.addHandler(handler)
+    ours.setLevel(logging.INFO)
+    return handler
 
 
 def pick_user(login_url: str, wanted: str | None) -> UUID:
@@ -231,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     import uvicorn  # imported here: the checks above need none of it
 
+    show_log_lines()
     if config.dev_user_id is None:
         print(
             f"Real sign-in through Kinde on {config.app_origin} (new people need an invite: --make-invite).\n"

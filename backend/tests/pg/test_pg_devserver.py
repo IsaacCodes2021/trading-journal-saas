@@ -267,3 +267,21 @@ def test_billing_without_the_paddle_file_or_the_webhook_role_says_so(tmp_path, a
     env.write_text(env.read_text().replace(f"TJ_DEV_WEBHOOK_URL={WEBHOOK_URL}\n", ""), encoding="utf-8")
     with pytest.raises(DevServerError, match="no TJ_DEV_WEBHOOK_URL"):
         with_billing(env, kinde, paddle_file)
+
+
+def test_the_apps_own_log_lines_are_printed_and_scrubbed():
+    import io
+    import logging
+
+    from tradejournal.api.devserver import show_log_lines
+
+    out = io.StringIO()
+    handler = show_log_lines(out)
+    try:
+        logging.getLogger("tj.billing").warning("checkout refused: %s", "paddle_create_transaction_bad_request")
+        logging.getLogger("tj.auth").info("callback at /auth/callback?code=%s", "one-time-secret")
+    finally:
+        logging.getLogger("tj").removeHandler(handler)
+    printed = out.getvalue()
+    assert "WARNING:     tj.billing: checkout refused: paddle_create_transaction_bad_request" in printed
+    assert "tj.auth" in printed and "one-time-secret" not in printed
