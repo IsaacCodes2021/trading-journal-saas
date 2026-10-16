@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Filled by the server (backend/tradejournal/api/routers/pay.py): Paddle's client-side token, public by design. -->
+    <meta name="tj-paddle-token" content="__TJ_PADDLE_TOKEN__" />
+    <meta name="tj-paddle-env" content="__TJ_PADDLE_ENV__" />
+    <meta name="robots" content="noindex" />
+    <title>Payment · Roundturn</title>
+  </head>
+  <body>
+    <main class="pay">
+      <div class="pay-brand"><span class="pay-mark" aria-hidden="true"></span>Roundturn</div>
+      <h1>Roundturn Pro</h1>
+      <p id="pay-status" role="status">Opening the secure payment form…</p>
+      <p class="pay-note">
+        The payment form is Paddle's, our payment provider: Roundturn never sees your card. Paddle is the seller of
+        record.
+      </p>
+      <p><a href="/settings/plan">Back to Plan &amp; billing</a></p>
+      <noscript><p>The payment form needs JavaScript switched on in this browser.</p></noscript>
+    </main>
+    <script type="module" src="/src/pay/main.ts"></script>
+  </body>
+</html>

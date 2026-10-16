@@ -4,7 +4,7 @@ import { Button, Card } from '../../components/ui/primitives'
 import type { components } from '../../lib/api/schema'
 import {
   billingDay,
-  isSubscribed,
+  isPaidUp,
   priceOf,
   useCancelSubscription,
   useManageBilling,
@@ -16,7 +16,7 @@ import { EXPORT_URL } from '../../lib/exportData'
 import { daysLeft, pluralize } from '../../lib/format'
 import { messageOf } from '../tags/messages'
 import { DANGER } from './DeleteAccount'
-import { PromoNotApplied, RedeemCode } from './PromoCode'
+import { PromoNotApplied, PromoSaved, RedeemCode } from './PromoCode'
 import { SectionHeader } from './SettingsLayout'
 
 type PlanSource = components['schemas']['PlanOut']['source']
@@ -67,6 +67,11 @@ function SubscribeOffer({ billing, title, note }: { billing: Billing; title: str
         </Button>
       </div>
       {subscribe.isError ? <Problem error={subscribe.error} /> : null}
+      {billing.discount ? (
+        <p className="m-0 text-[13px] text-pos" role="note">
+          Your discount code is saved: {billing.discount.words}, applied at checkout.
+        </p>
+      ) : null}
       <p className="m-0 text-[13px] text-muted">
         {note} {TAX} {NO_REFUNDS}
       </p>
@@ -355,25 +360,28 @@ export function BillingPlan({
   billing,
   source,
   promoMissed,
+  promoSaved = false,
   checkout,
 }: {
   billing: Billing
   source: PlanSource
   promoMissed: boolean
+  promoSaved?: boolean
   checkout: CheckoutReturn
 }) {
-  const subscribed = isSubscribed(billing)
-  const waiting = checkout === 'waiting' && !subscribed
+  const paidUp = isPaidUp(billing)
+  const waiting = checkout === 'waiting' && !paidUp
   return (
     <>
       <SectionHeader title="Plan & billing">What you have, and what you pay.</SectionHeader>
       {promoMissed ? <PromoNotApplied /> : null}
-      {checkout !== null && subscribed ? (
+      {promoSaved ? <PromoSaved /> : null}
+      {checkout !== null && paidUp ? (
         <p role="status" className="m-0 rounded-[10px] border border-line bg-raised px-4 py-3 text-[13px] text-pos">
-          <strong>Payment confirmed.</strong> Thank you for subscribing to Roundturn Pro.
+          <strong>Payment confirmed.</strong> Thank you: Roundturn Pro is active.
         </p>
       ) : null}
-      {checkout === 'late' && !subscribed ? (
+      {checkout === 'late' && !paidUp ? (
         <p role="status" className="m-0 rounded-[10px] border border-warn-line bg-raised px-4 py-3 text-[13px]">
           <strong>Your payment is not confirmed yet.</strong> If you paid, your plan changes to Pro by itself once the
           payment provider confirms. Still nothing in a few minutes? Write to hello@roundturn.app.

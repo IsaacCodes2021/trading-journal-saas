@@ -14,7 +14,7 @@ from typing import Literal, Protocol
 from uuid import UUID
 
 from ..prop_rules import RuleValues
-from .schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
+from .schemas import AccessOut, DiscountOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 from .schemas.admin import (
     AdminUserDetailOut,
     AdminUserListOut,
@@ -73,9 +73,10 @@ class Account:
 class GrantResult:
     """What redeeming a plan code did. A code that did not work is one answer, whatever the reason (a guess teaches nothing)."""
 
-    status: Literal["ok", "refused", "active"]
-    plan: PlanOut | None = None  # the person's plan afterwards (status "ok")
+    status: Literal["ok", "refused", "active", "discount"]
+    plan: PlanOut | None = None  # the person's plan afterwards (status "ok" and "discount")
     ends_at: datetime | None = None  # when the plan they already have from a code ends (status "active")
+    discount: DiscountOut | None = None  # a discount code saved for the next checkout (status "discount")
 
 
 class SessionStore(Protocol):

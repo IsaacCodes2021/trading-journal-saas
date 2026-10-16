@@ -287,3 +287,9 @@ pushed to the payment provider (doc 05 section 16). The operator's role reads a 
 writable by it: refunds, card problems and cancels by email are done in the provider's dashboard, and the operator's lever in
 the app stays the plan override, which still wins over a subscription. The person panel shows the subscription and its
 latest events, and the overview counts paying and on-trial people (migration 0021; tests pin every grant).
+
+**Amendment (2026-10-16): discount codes as built.** A discount code is a `grant_codes` row of kind `discount` (migration
+0022), saved locally first and then made at the payment provider (Paddle) as a percentage off the Pro product; the row's
+`sync_status` says whether the provider's copy is in place, and the operator retries a failed push or archive. The local row
+stays the source of truth: people type the code in the app, where it is saved and carried to their checkout; Paddle's own
+discount box is hidden on the payment page. The operator still never sees a hash, and the sign-in role never reads a code.

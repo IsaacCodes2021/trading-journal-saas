@@ -242,7 +242,7 @@ def usable_by_anyone(conn: psycopg.Connection, code: str | None, *, now: datetim
     row = conn.execute(
         """SELECT g.max_redemptions, g.expires_at, g.revoked_at,
                   (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) AS used
-           FROM grant_codes g WHERE g.id = %s""",
+           FROM grant_codes g WHERE g.id = %s AND g.kind = 'free_days'""",
         (found,),
     ).fetchone()
     moment = now or datetime.now(UTC)

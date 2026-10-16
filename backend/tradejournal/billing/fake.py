@@ -14,7 +14,7 @@ import itertools
 import json
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
@@ -25,6 +25,7 @@ from .types import (
     BadSignature,
     BillingEvent,
     Checkout,
+    DiscountSpec,
     ProviderRefused,
     ProviderSubscription,
     ProviderUnavailable,
@@ -72,6 +73,7 @@ class FakeBilling:
         self.customers: dict[str, str] = {}  # id -> email
         self.checkouts: dict[str, _Checkout] = {}
         self.subscriptions: dict[str, ProviderSubscription] = {}
+        self.discounts: dict[str, dict[str, Any]] = {}  # id -> the spec as a dict, and "archived"
         self.calls: list[tuple[str, str]] = []  # (what, the id it was about): what the app asked for
         self._failures: list[Failure] = []
         self._ids = itertools.count(1)
@@ -154,6 +156,31 @@ class FakeBilling:
         if found is None:
             raise ProviderRefused("fake_not_found")
         return found
+
+    def create_discount(self, spec: DiscountSpec) -> str:
+        how = self._gate("create_discount", spec.code)
+        if any(d["code"] == spec.code.upper() for d in self.discounts.values()):
+            raise ProviderRefused("fake_discount_code_conflict")
+        discount = self._next("dsc")
+        self.discounts[discount] = {**asdict(spec), "code": spec.code.upper(), "archived": False}
+        if how == "act_then_timeout":
+            raise ProviderUnavailable("fake_timeout")
+        return discount
+
+    def find_discount(self, code: str) -> str | None:
+        self._gate("find_discount", code)
+        return next(
+            (did for did, d in self.discounts.items() if d["code"] == code.upper() and not d["archived"]),
+            None,
+        )
+
+    def archive_discount(self, discount_id: str) -> None:
+        how = self._gate("archive_discount", discount_id)
+        if discount_id not in self.discounts:
+            raise ProviderRefused("fake_not_found")
+        self.discounts[discount_id]["archived"] = True
+        if how == "act_then_timeout":
+            raise ProviderUnavailable("fake_timeout")
 
     def verify_webhook(self, headers: Mapping[str, str], raw_body: bytes) -> BillingEvent:
         header = next((v for k, v in headers.items() if k.lower() == SIGNATURE_HEADER.lower()), None)

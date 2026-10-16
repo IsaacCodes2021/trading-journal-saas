@@ -9,6 +9,8 @@ import {
   useCreateInvite,
   useRevokeCode,
   type GrantCode,
+  type DiscountTerms,
+  type Duration,
   type Revoke,
 } from '../../lib/adminCodes'
 import { messageOf } from '../tags/messages'
@@ -220,6 +222,10 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string, kept:
   const [code, setCode] = useState('')
   const [label, setLabel] = useState('')
   const [days, setDays] = useState('30')
+  const [kind, setKind] = useState<'free_days' | 'discount'>('free_days')
+  const [percent, setPercent] = useState('20')
+  const [duration, setDuration] = useState<Duration>('repeating')
+  const [months, setMonths] = useState('3')
   const [uses, setUses] = useState('')
   const [ends, setEnds] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
@@ -228,8 +234,22 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string, kept:
   const promo = typed ? promoCodeOf(typed) : null
   const given = wholeNumber(days)
   const people = wholeNumber(uses)
-  const previewable =
-    given !== null && !Number.isNaN(given) && given >= 1 && given <= 30 && (people === null || !Number.isNaN(people))
+  const off = wholeNumber(percent)
+  const repeat = wholeNumber(months)
+  const discount: DiscountTerms | null =
+    kind === 'discount' && off !== null && !Number.isNaN(off) && off >= 1 && off <= 100
+      ? {
+          percentOff: off,
+          duration,
+          months: duration === 'repeating' && repeat !== null && !Number.isNaN(repeat) ? repeat : null,
+        }
+      : null
+  const termsOk =
+    kind === 'free_days'
+      ? given !== null && !Number.isNaN(given) && given >= 1 && given <= 30
+      : discount !== null &&
+        (duration !== 'repeating' || (discount.months !== null && discount.months >= 1 && discount.months <= 24))
+  const previewable = termsOk && (people === null || !Number.isNaN(people))
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
@@ -237,23 +257,37 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string, kept:
     if (typed && promo === null) {
       return setProblem('A promo code is 3 to 20 letters and digits, with no spaces or dashes, such as FREE30.')
     }
+    if (kind === 'discount' && !typed) {
+      return setProblem('A discount code is typed, such as LAUNCH20: the payment page shows it.')
+    }
     if (!typed && !label.trim()) return setProblem('A random code needs a note, so you can tell it apart later.')
-    if (given === null || Number.isNaN(given) || given < 1 || given > 30) {
+    if (kind === 'free_days' && (given === null || Number.isNaN(given) || given < 1 || given > 30)) {
       return setProblem('Days of Pro must be a whole number from 1 to 30.')
     }
+    if (kind === 'discount' && discount === null)
+      return setProblem('The discount must be a whole number from 1 to 100.')
+    if (kind === 'discount' && !termsOk) return setProblem('Months must be a whole number from 1 to 24.')
     if (people !== null && (Number.isNaN(people) || people < 1 || people > 1_000_000)) {
       return setProblem('Most people must be a whole number of at least 1, or empty for any number.')
     }
     if (ends && ends < today()) return setProblem('That day has already passed. Choose a day from today on.')
     setProblem(null)
     create.mutate(
-      { code: promo, label: label.trim(), days: given, maxRedemptions: people, expiresOn: ends || null },
+      {
+        code: promo,
+        label: label.trim(),
+        days: kind === 'free_days' ? given : null,
+        discount,
+        maxRedemptions: people,
+        expiresOn: ends || null,
+      },
       {
         onSuccess: (made) => {
           onCreated(made.code, made.grant_code.code !== null)
           setCode('')
           setLabel('')
           setDays('30')
+          setKind('free_days')
           setUses('')
           setEnds('')
         },
@@ -290,26 +324,81 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string, kept:
             className={CONTROL}
           />
         </Field>
-        <Field id="grant-kind" label="Type">
-          <select id="grant-kind" value="free_days" onChange={() => undefined} className={CONTROL}>
+        <Field
+          id="grant-kind"
+          label="Type"
+          hint={
+            kind === 'discount'
+              ? 'A percentage off Roundturn Pro at checkout. It is also made at the payment provider, which applies it.'
+              : undefined
+          }
+        >
+          <select
+            id="grant-kind"
+            value={kind}
+            onChange={(e) => setKind(e.target.value as 'free_days' | 'discount')}
+            className={CONTROL}
+          >
             <option value="free_days">Free days of Pro</option>
-            <option value="discount" disabled>
-              Discount (switches on once a payment provider is connected)
-            </option>
+            <option value="discount">Discount</option>
           </select>
         </Field>
-        <div className="flex flex-wrap gap-3">
-          <div className="min-w-[110px] flex-1">
-            <Field id="grant-days" label="Days of Pro">
-              <input
-                id="grant-days"
-                inputMode="numeric"
-                value={days}
-                onChange={(e) => setDays(e.target.value)}
-                className={CONTROL}
-              />
-            </Field>
+        {kind === 'discount' ? (
+          <div className="flex flex-wrap gap-3">
+            <div className="min-w-[110px] flex-1">
+              <Field id="grant-percent" label="Percent off">
+                <input
+                  id="grant-percent"
+                  inputMode="numeric"
+                  value={percent}
+                  onChange={(e) => setPercent(e.target.value)}
+                  className={CONTROL}
+                />
+              </Field>
+            </div>
+            <div className="min-w-[160px] flex-1">
+              <Field id="grant-duration" label="For">
+                <select
+                  id="grant-duration"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value as Duration)}
+                  className={CONTROL}
+                >
+                  <option value="once">The first payment</option>
+                  <option value="repeating">The first months</option>
+                  <option value="forever">Every payment</option>
+                </select>
+              </Field>
+            </div>
+            {duration === 'repeating' ? (
+              <div className="min-w-[110px] flex-1">
+                <Field id="grant-months" label="Months">
+                  <input
+                    id="grant-months"
+                    inputMode="numeric"
+                    value={months}
+                    onChange={(e) => setMonths(e.target.value)}
+                    className={CONTROL}
+                  />
+                </Field>
+              </div>
+            ) : null}
           </div>
+        ) : null}
+        <div className="flex flex-wrap gap-3">
+          {kind === 'free_days' ? (
+            <div className="min-w-[110px] flex-1">
+              <Field id="grant-days" label="Days of Pro">
+                <input
+                  id="grant-days"
+                  inputMode="numeric"
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                  className={CONTROL}
+                />
+              </Field>
+            </div>
+          ) : null}
           <div className="min-w-[110px] flex-1">
             <Field id="grant-uses" label="Most people (optional)">
               <input
@@ -334,7 +423,9 @@ export function CreateGrantCode({ onCreated }: { onCreated: (code: string, kept:
         {previewable ? (
           <div className="rounded-lg border border-line bg-bg px-3.5 py-2.5 text-[13px]" aria-live="polite">
             <div className="text-xs text-muted">What people will see</div>
-            <p className="m-0 mt-1">{promoPreview({ code: promo, days: given, people, endsOn: ends || null })}</p>
+            <p className="m-0 mt-1">
+              {promoPreview({ code: promo, days: given ?? 0, people, endsOn: ends || null, discount })}
+            </p>
           </div>
         ) : null}
         {problem ? (

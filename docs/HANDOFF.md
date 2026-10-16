@@ -24,7 +24,7 @@ home or postal address published anywhere.
 | Piece | Where | Notes |
 |---|---|---|
 | App (API and React front end, one container) | https://app.roundturn.app, Render web service `roundturn` | Oregon, plan `0.5c-512mb`, deploys every commit to `main`, health check `/readyz` |
-| Database | Render Postgres 18 `roundturn-db`, Oregon | forced row-level security, six roles, migrations 0001 to 0019 applied (0019 on 2026-10-14) |
+| Database | Render Postgres 18 `roundturn-db`, Oregon | forced row-level security, six roles, migrations 0001 to 0022 applied (0020 to 0022, promo codes and billing, on 2026-10-16) |
 | Sign-in | Kinde, custom domain `auth.roundturn.app` | OIDC with PKCE; custom screens come from `kinde/` in this repo |
 | Screenshots | Cloudflare R2 bucket `roundturn-screenshots` (private) | read back through the server; no versioning |
 | Screenshot copy | R2 bucket `roundturn-screenshots-backup` | daily job, keeps a deleted picture 30 days |
@@ -108,7 +108,7 @@ reading source (you would be reading the mutant).
 **Deploy path:** a merge to `main` deploys the web service on its own. The new image stays **out of traffic until the database
 has its migrations** (the health check is `/readyz`, which compares the schema version). Migrations are never run by the app:
 the owner or a session runs `python -m tradejournal.pg.migrate` as the schema owner (`TJ_OWNER_URL`, from the git-ignored
-`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0020**. In
+`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0023**. In
 `.env.hosted` the owner, admin, sweep and webhook addresses are **commented-out lines** (`# TJ_OWNER_URL=...`), so a search for
 `^TJ_` misses them: load the value in a small script that sets the environment and runs the module, never on a command line
 or printed.

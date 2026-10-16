@@ -26,7 +26,7 @@ import psycopg
 
 from ..billing.types import BillingEvent, ProviderSubscription
 from ..entitlements import SubscriptionState, subscription_live_until
-from . import audit
+from . import audit, discounts
 from .plans import LOCK_CLASS, Redeemed, _give, _usable
 
 TRIAL_DAYS = 7  # migration 0021 makes the trial's code with this many days
@@ -194,12 +194,19 @@ def recent_checkout(conn: psycopg.Connection, user_id: UUID, provider: str, *, n
 
 
 def record_checkout(
-    conn: psycopg.Connection, checkout_id: str, provider: str, user_id: UUID, *, now: datetime | None = None
+    conn: psycopg.Connection,
+    checkout_id: str,
+    provider: str,
+    user_id: UUID,
+    *,
+    now: datetime | None = None,
+    grant_code_id: int | None = None,
 ) -> None:
+    """`grant_code_id`: the discount code the checkout carries, if any (migration 0022)."""
     conn.execute(
-        """INSERT INTO billing_checkouts (provider_checkout_id, provider, user_id, created_at) VALUES (%s, %s, %s, %s)
-           ON CONFLICT DO NOTHING""",
-        (checkout_id, provider, user_id, now or datetime.now(UTC)),
+        """INSERT INTO billing_checkouts (provider_checkout_id, provider, user_id, created_at, grant_code_id)
+           VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
+        (checkout_id, provider, user_id, now or datetime.now(UTC), grant_code_id),
     )
 
 
@@ -425,6 +432,7 @@ def _write(
              AND (provider_checkout_id = %s OR created_at > %s)""",
         (now, owner, provider, sub.checkout_id or "", now - OPEN_CHECKOUT),
     )
+    discounts.forget_used(conn, owner)  # a discount the checkout carried has done its work
     status_before = before.status if same and before is not None else None
     changed = (
         not same

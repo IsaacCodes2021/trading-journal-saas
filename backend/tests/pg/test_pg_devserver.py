@@ -5,6 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 
 import pytest
+from paddle_world import API_KEY, CLIENT_TOKEN, PRICE, PRODUCT, WEBHOOK_SECRET
 
 from tradejournal.api.devserver import DevServerError, build_config, main, pick_user
 
@@ -177,3 +178,148 @@ def test_make_invite_without_the_owner_connection_says_so(tmp_path, capsys, app_
     assert main(["--env-file", str(env), "--make-invite"]) == 2
     err = capsys.readouterr().err
     assert "cannot make an invite" in err and "TJ_DEV_OWNER_URL" in err and app_url not in err
+
+
+# ---- a test payment with the Paddle sandbox on this machine ----------------------------------------------------------
+
+WEBHOOK_URL = "postgresql://app_webhook@127.0.0.1:5432/tj_dev"  # never connected to here: pools open at start-up
+
+
+def paddle_files(tmp_path, app_url, login_url, **paddle):
+    """The three files `--real-sign-in --billing` reads; `paddle` changes or blanks a TJ_PADDLE_* setting."""
+    env, kinde = env_files(tmp_path, app_url, login_url)
+    env.write_text(env.read_text() + f"TJ_DEV_WEBHOOK_URL={WEBHOOK_URL}\n", encoding="utf-8")
+    values = {
+        "TJ_PADDLE_ENV": "sandbox",
+        "TJ_PADDLE_API_KEY": API_KEY,
+        "TJ_PADDLE_CLIENT_TOKEN": CLIENT_TOKEN,
+        "TJ_PADDLE_WEBHOOK_SECRET": WEBHOOK_SECRET,
+        "TJ_PADDLE_PRODUCT_ID": PRODUCT,
+        "TJ_PADDLE_PRICE_ID": PRICE,
+        **paddle,
+    }
+    paddle_file = tmp_path / "env.paddle"
+    paddle_file.write_text("".join(f"{k}={v}\n" for k, v in values.items()), encoding="utf-8")
+    return env, kinde, paddle_file
+
+
+def with_billing(env, kinde, paddle_file):
+    return build_config(
+        env,
+        origin="http://localhost:5173",
+        user_id=None,
+        real_sign_in=True,
+        kinde_env_file=kinde,
+        billing=True,
+        paddle_env_file=paddle_file,
+    )
+
+
+def test_billing_turns_on_with_the_sandbox_settings_and_the_webhooks_own_role(tmp_path, app_url, login_url):
+    config = with_billing(*paddle_files(tmp_path, app_url, login_url))
+    assert (config.billing_enabled, config.billing_provider, config.production) == (True, "paddle", False)
+    assert config.paddle is not None and config.paddle.environment == "sandbox" and config.paddle.complete_for_web
+    assert (config.paddle.product_id, config.paddle.price_id) == (PRODUCT, PRICE)
+    assert config.webhook_database_url == WEBHOOK_URL and config.admin_database_url is None
+    assert API_KEY not in repr(config) and WEBHOOK_SECRET not in repr(config)
+
+
+def test_the_app_built_with_billing_has_the_billing_service_and_without_it_has_none(
+    tmp_path, app_url, login_url, alice
+):
+    from tradejournal.api.app import create_app
+    from tradejournal.billing.paddle import PaddleBilling
+
+    env, kinde, paddle_file = paddle_files(tmp_path, app_url, login_url)
+    billing = create_app(with_billing(env, kinde, paddle_file)).state.services.billing
+    assert billing is not None and isinstance(billing.provider, PaddleBilling)
+    plain = build_config(env, origin="http://localhost:5173", user_id=None, real_sign_in=True, kinde_env_file=kinde)
+    assert plain.billing_enabled is False and create_app(plain).state.services.billing is None
+
+
+def test_billing_needs_real_sign_in(tmp_path, app_url, login_url, alice):
+    env, _, paddle_file = paddle_files(tmp_path, app_url, login_url)
+    with pytest.raises(DevServerError, match="--billing needs --real-sign-in"):
+        build_config(env, origin="http://localhost:5173", user_id=None, billing=True, paddle_env_file=paddle_file)
+
+
+@pytest.mark.parametrize(
+    ("paddle", "said"),
+    [
+        ({"TJ_PADDLE_WEBHOOK_SECRET": ""}, "env.paddle has no value for TJ_PADDLE_WEBHOOK_SECRET"),
+        ({"TJ_PADDLE_ENV": "production"}, "for the Paddle sandbox only"),
+        ({"TJ_PADDLE_API_KEY": "pdl_live_apikey_" + "x" * 20}, "TJ_PADDLE_API_KEY is a live key"),
+        ({"TJ_PADDLE_CLIENT_TOKEN": "live_" + "x" * 20}, "TJ_PADDLE_CLIENT_TOKEN must start with test_"),
+    ],
+)
+def test_billing_takes_the_sandbox_only_and_says_what_is_wrong_never_a_value(
+    tmp_path, app_url, login_url, paddle, said
+):
+    with pytest.raises(DevServerError, match=said) as problem:
+        with_billing(*paddle_files(tmp_path, app_url, login_url, **paddle))
+    assert API_KEY not in str(problem.value) and WEBHOOK_SECRET not in str(problem.value)
+
+
+def test_billing_without_the_paddle_file_or_the_webhook_role_says_so(tmp_path, app_url, login_url):
+    env, kinde, paddle_file = paddle_files(tmp_path, app_url, login_url)
+    with pytest.raises(DevServerError, match="env.paddle.missing does not exist: it holds TJ_PADDLE_ENV"):
+        with_billing(env, kinde, tmp_path / "env.paddle.missing")
+    env.write_text(env.read_text().replace(f"TJ_DEV_WEBHOOK_URL={WEBHOOK_URL}\n", ""), encoding="utf-8")
+    with pytest.raises(DevServerError, match="no TJ_DEV_WEBHOOK_URL"):
+        with_billing(env, kinde, paddle_file)
+
+
+def test_the_apps_own_log_lines_are_printed_and_scrubbed():
+    import io
+    import logging
+
+    from tradejournal.api.devserver import show_log_lines
+
+    out = io.StringIO()
+    handler = show_log_lines(out)
+    try:
+        logging.getLogger("tj.billing").warning("checkout refused: %s", "paddle_create_transaction_bad_request")
+        logging.getLogger("tj.auth").info("callback at /auth/callback?code=%s", "one-time-secret")
+    finally:
+        logging.getLogger("tj").removeHandler(handler)
+    printed = out.getvalue()
+    assert "WARNING:     tj.billing: checkout refused: paddle_create_transaction_bad_request" in printed
+    assert "tj.auth" in printed and "one-time-secret" not in printed
+
+
+def test_a_request_line_prints_its_fields_scrubbed():
+    import io
+    import logging
+
+    from tradejournal.api.devserver import show_log_lines
+
+    out = io.StringIO()
+    handler = show_log_lines(out)
+    try:
+        fields = {"method": "POST", "path": "/webhooks/billing", "status": 200, "duration_ms": 12.5}
+        logging.getLogger("tj.request").info("request", extra={"fields": fields})
+        logging.getLogger("tj.request").warning("request", extra={"fields": {"path": "/x?code=one-time-secret"}})
+    finally:
+        logging.getLogger("tj").removeHandler(handler)
+    printed = out.getvalue()
+    assert "tj.request: request method=POST path=/webhooks/billing status=200 duration_ms=12.5\n" in printed
+    assert "tj.request: request path=/x" in printed and "one-time-secret" not in printed
+
+
+def test_the_server_runs_without_uvicorns_access_log_as_in_production(tmp_path, monkeypatch, app_url, login_url):
+    """Its lines would repeat the app's own request lines, with the query strings (a sign-in's one-time code) left in."""
+    import logging
+
+    import uvicorn
+
+    seen = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **options: seen.update(options))
+    env, kinde = env_files(tmp_path, app_url, login_url)
+    ours = logging.getLogger("tj")
+    before = list(ours.handlers)
+    try:
+        assert main(["--env-file", str(env), "--real-sign-in", "--kinde-env-file", str(kinde)]) == 0
+    finally:
+        for handler in [h for h in ours.handlers if h not in before]:
+            ours.removeHandler(handler)
+    assert seen["access_log"] is False and seen["host"] == "127.0.0.1"

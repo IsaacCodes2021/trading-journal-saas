@@ -28,7 +28,7 @@ from uuid import UUID
 import psycopg
 
 from ..api.sessions import PgSessionStore
-from ..pg import audit, deletion, invites, plans, users
+from ..pg import audit, deletion, discounts, invites, plans, users
 from ..pg import billing as pg_billing
 from ..pg import sessions as pg_sessions
 from ..pg.defaults import provision_defaults
@@ -57,6 +57,8 @@ RESTORED_PATH = "/settings/privacy?restored=1"  # where signing in lands when it
 # Where a new account lands when the promo code it was made with could not be applied after all (its last use was taken in
 # the minute between the check and the sign-up, or the invite's own free days come first). The account is made either way.
 PROMO_MISSED_PATH = "/settings/plan?promo=not_applied"
+# Where a new account lands when it signed up with a discount code (billing on): saved for its first checkout.
+PROMO_SAVED_PATH = "/settings/plan?promo=saved"
 
 
 def safe_next(value: str | None) -> str:
@@ -93,6 +95,7 @@ class _SignedIn:
     token: str
     restored: bool = False  # it cancelled a scheduled deletion
     promo_missed: bool = False  # a new account whose promo code could not be applied
+    promo_saved: bool = False  # a new account whose promo code was a discount code, saved for its first checkout
 
 
 class AuthFlow:
@@ -122,6 +125,8 @@ class AuthFlow:
         self._invite_only = invite_only
         self._trial = trial
         self._billing = billing
+        # The provider whose discount codes a sign-up may bring (billing on); None: no discount code works at sign-up.
+        self._discounts = billing.provider.name if trial and billing is not None else None
         self._clock = clock
         self._wall = wall
 
@@ -160,7 +165,10 @@ class AuthFlow:
             # A promo code is checked up front too, so a mistyped one is caught while the person is still on our page. They
             # are sent back with what they typed in both boxes, so only the promo needs fixing (or emptying).
             with self._system.system_session("login") as conn:
-                works = plans.usable_by_anyone(conn, promo_code, now=self._clock())
+                now = self._clock()
+                works = plans.usable_by_anyone(conn, promo_code, now=now) or (
+                    discounts.find_live(conn, promo_code, provider=self._discounts, now=now) is not None
+                )
                 if not works:
                     audit.record(conn, "login_failed", actor=audit.ACTOR_SYSTEM, meta={"reason": "promo_precheck"})
             if not works:
@@ -264,7 +272,15 @@ class AuthFlow:
             provision_defaults(conn)
         if outcome.restored and self._billing is not None:
             self._billing.resume_after_restore(outcome.user_id)  # best effort; the person can also press Resume
-        target = RESTORED_PATH if outcome.restored else PROMO_MISSED_PATH if outcome.promo_missed else next_url
+        target = (
+            RESTORED_PATH
+            if outcome.restored
+            else PROMO_MISSED_PATH
+            if outcome.promo_missed
+            else PROMO_SAVED_PATH
+            if outcome.promo_saved
+            else next_url
+        )
         return LoginResult(target, outcome.token, None, restored=outcome.restored)
 
     def _reauth_problem(self, identity) -> str | None:
@@ -296,7 +312,7 @@ class AuthFlow:
         with self._system.system_session("login") as conn:
             user = users.find_by_subject(conn, identity.subject)
             restored = False
-            promo_missed = False
+            promo_missed = promo_saved = False
             if reauth_for is not None and (user is None or user.id != reauth_for):
                 # Someone else completed the prompt, or the identity is not the one that asked: nothing changes.
                 audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "reauth_other_person"})
@@ -307,7 +323,8 @@ class AuthFlow:
                     return created
                 user, signup = created, True
                 if promo_code:
-                    promo_missed = not self._apply_promo(conn, user.id, promo_code, now, ip_hash)
+                    applied = self._apply_promo(conn, user.id, promo_code, now, ip_hash)
+                    promo_missed, promo_saved = applied == "missed", applied == "saved"
             else:
                 signup = False
                 if user.status == "pending_deletion":
@@ -344,12 +361,13 @@ class AuthFlow:
                 ip_hash=ip_hash,
                 meta={"mfa": mfa_at is not None, "reauth": reauth_for is not None},
             )
-            return _SignedIn(user.id, token, restored=restored, promo_missed=promo_missed)
+            return _SignedIn(user.id, token, restored=restored, promo_missed=promo_missed, promo_saved=promo_saved)
 
-    def _apply_promo(self, conn: psycopg.Connection, user_id: UUID, promo_code: str, now, ip_hash) -> bool:
-        """Redeem the promo code a new account was made with, in the sign-up transaction. Unlike an invite's own grant, a
-        promo that cannot be applied (its last use was just taken, or the invite's free days run first) never stops the
-        sign-up: the account is made and the person is told once. The log never holds what was typed."""
+    def _apply_promo(self, conn: psycopg.Connection, user_id: UUID, promo_code: str, now, ip_hash) -> str:
+        """Redeem the promo code a new account was made with, in the sign-up transaction: "applied" (free days),
+        "saved" (a discount code, kept for the first checkout) or "missed". Unlike an invite's own grant, a promo that
+        cannot be applied (its last use was just taken, or the invite's free days run first) never stops the sign-up: the
+        account is made and the person is told once. The log never holds what was typed, only a discount code's name."""
         outcome = plans.redeem(conn, user_id, promo_code, now=now)
         if isinstance(outcome, plans.Redeemed):
             audit.record(
@@ -359,10 +377,15 @@ class AuthFlow:
                 ip_hash=ip_hash,
                 meta={"plan": outcome.plan, "days": outcome.days, "via": "signup"},
             )
-            return True
+            return "applied"
+        if isinstance(outcome, plans.Refused):
+            terms = discounts.remember(conn, user_id, promo_code, provider=self._discounts, now=now)
+            if terms is not None:
+                audit.record(conn, "discount_saved", user_id=user_id, ip_hash=ip_hash, meta={"via": "signup"})
+                return "saved"
         reason = "active" if isinstance(outcome, plans.AlreadyHave) else "refused"
         audit.record(conn, "grant_refused", user_id=user_id, ip_hash=ip_hash, meta={"reason": reason, "via": "signup"})
-        return False
+        return "missed"
 
     def _sign_up(self, conn: psycopg.Connection, identity, invite_code, now, ip_hash) -> users.User | str:
         invite = None

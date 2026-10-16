@@ -21,8 +21,10 @@ from ..billing.provider import BillingProvider
 from ..billing.types import BillingError, ProviderRefused, ProviderUnavailable
 from ..pg import audit as pg_audit
 from ..pg import billing as pg_billing
+from ..pg import discounts as pg_discounts
 from ..pg import plans as pg_plans
 from ..pg.system import SystemDatabase
+from .pg_services import discount_out
 from .schemas.billing import BillingOut, CheckoutOut, PortalOut
 
 logger = logging.getLogger("tj.billing")
@@ -124,8 +126,13 @@ class PgBillingService:
                 **base,
             )
         starts = free.until if free.until is not None and free.until > now else None
+        saved = pg_discounts.pending(conn, user_id, provider=self._provider.name, now=now)
+        if saved is not None:  # shown only while Subscribe is offered (every answer below that offers it)
+            base["discount"] = discount_out(saved.terms)
         if free.override_live:
             # The team's own decision. With no end date there is nothing to pay for, so Subscribe is not offered.
+            if free.override_ends_at is None:
+                base.pop("discount", None)
             return BillingOut(
                 state="covered",
                 ends_at=free.override_ends_at,
@@ -180,13 +187,19 @@ class PgBillingService:
             email = conn.execute("SELECT email FROM users WHERE id = %s", (user_id,)).fetchone()["email"]
             customer = pg_billing.customer_of(conn, user_id, provider.name)
             free_until = state.billing_starts_at
+            discount = pg_discounts.pending(conn, user_id, provider=provider.name, now=now)
         free_days = math.ceil((free_until - now) / timedelta(days=1)) if free_until is not None else 0
         try:
             if customer is None:
                 made = provider.find_or_create_customer(email=email, user_id=user_id)
                 with self._system.system_session("login") as conn:
                     customer = pg_billing.save_customer(conn, user_id, provider.name, made)
-            checkout = provider.create_checkout(customer_id=customer, user_id=user_id, free_days=free_days)
+            checkout = provider.create_checkout(
+                customer_id=customer,
+                user_id=user_id,
+                free_days=free_days,
+                discount_id=discount.provider_discount_id if discount else None,
+            )
         except ProviderUnavailable as problem:
             logger.warning("checkout not opened: %s", problem.reason)
             raise BillingRefusal(503, UNAVAILABLE) from None
@@ -194,10 +207,16 @@ class PgBillingService:
             logger.warning("checkout refused: %s", problem.reason)
             raise BillingRefusal(409, "The payment provider would not open a checkout. Nothing was charged.") from None
         with self._system.system_session("login") as conn:
-            pg_billing.record_checkout(conn, checkout.checkout_id, provider.name, user_id, now=now)
-            pg_audit.record(
-                conn, "billing_checkout_started", user_id=user_id, ip_hash=ip_hash, meta={"free_days": free_days}
+            pg_billing.record_checkout(
+                conn,
+                checkout.checkout_id,
+                provider.name,
+                user_id,
+                now=now,
+                grant_code_id=discount.grant_code_id if discount else None,
             )
+            meta = {"free_days": free_days, **({"discount": discount.grant_code_id} if discount else {})}
+            pg_audit.record(conn, "billing_checkout_started", user_id=user_id, ip_hash=ip_hash, meta=meta)
         return CheckoutOut(pay_url=checkout.pay_url)
 
     # ---- cancel, resume, the provider's page ----------------------------------------------------------------------------

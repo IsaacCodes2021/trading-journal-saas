@@ -18,6 +18,7 @@ WRITES = [
     ("POST", f"{BASE}/invites/7/revoke", {"reason": "sent to the wrong person"}),
     ("POST", f"{BASE}/grant-codes", {"label": "Beta testers", "days": 30}),
     ("POST", f"{BASE}/grant-codes/3/revoke", {"reason": "leaked"}),
+    ("POST", f"{BASE}/grant-codes/3/sync", None),
 ]
 
 
@@ -225,6 +226,59 @@ def test_a_code_cannot_end_on_a_date_and_after_some_days_at_once(world):
     ],
 )
 def test_a_plan_code_that_makes_no_sense_is_refused_before_anything_is_made(world, body):
+    _, headers = world.person()
+    assert call(world, "POST", f"{BASE}/grant-codes", headers, body).status_code == 422
+    assert world.admin.calls == []
+
+
+DISCOUNT = {"code": "LAUNCH20", "kind": "discount", "percent_off": 20, "duration": "repeating", "duration_months": 3}
+
+
+def test_a_discount_code_reaches_the_service_with_its_terms_and_no_days(world):
+    operator, headers = world.person()
+    assert call(world, "POST", f"{BASE}/grant-codes", headers, DISCOUNT).status_code == 200
+    [(name, *args, kwargs)] = world.admin.calls
+    assert name == "create_grant_code" and args[3] is None and args[6] == "LAUNCH20"
+    assert kwargs["discount"] == {"kind": "discount", "percent_off": 20, "duration": "repeating", "duration_months": 3}
+
+
+def test_a_discount_code_can_be_synced_again_by_an_operator(world):
+    operator, headers = world.person()
+    assert call(world, "POST", f"{BASE}/grant-codes/3/sync", headers).status_code == 200
+    assert world.admin.calls[0][:3] == ("sync_grant_code", operator.user.id, 3)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"code": None},  # a discount is always typed: the provider shows it
+        {"days": 30},  # it gives no days
+        {"percent_off": None},
+        {"percent_off": 0},
+        {"percent_off": 101},
+        {"duration": None},
+        {"duration": "weekly"},
+        {"duration_months": None},  # repeating needs its months
+        {"duration": "once"},  # and only repeating has them
+        {"duration_months": 25},
+    ],
+)
+def test_a_discount_code_that_makes_no_sense_is_refused_before_anything_is_made(world, changes):
+    _, headers = world.person()
+    body = {k: v for k, v in {**DISCOUNT, **changes}.items() if v is not None}
+    assert call(world, "POST", f"{BASE}/grant-codes", headers, body).status_code == 422
+    assert world.admin.calls == []
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"label": "x", "days": 30, "percent_off": 20},
+        {"label": "x", "days": 30, "duration": "once"},
+        {"label": "x", "days": 30, "duration_months": 3},
+    ],
+)
+def test_a_free_days_code_takes_none_of_a_discounts_terms(world, body):
     _, headers = world.person()
     assert call(world, "POST", f"{BASE}/grant-codes", headers, body).status_code == 422
     assert world.admin.calls == []

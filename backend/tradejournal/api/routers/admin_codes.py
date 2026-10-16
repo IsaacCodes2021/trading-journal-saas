@@ -118,7 +118,19 @@ def create_grant_code(
         code=body.code,
         expires_on=body.expires_on,
         ip_hash=_ip(request, config),
+        kind=body.kind,
+        percent_off=body.percent_off,
+        duration=body.duration,
+        duration_months=body.duration_months,
     )
+
+
+@router.post("/grant-codes/{grant_id}/sync", response_model=GrantCodeOut)
+def sync_grant_code(
+    grant_id: RowId, request: Request, operator: WriteAdminDep, admin: AdminServiceDep, config: ConfigDep
+) -> GrantCodeOut:
+    """Try again to give the payment provider its copy of a discount code, or to archive it once revoked."""
+    return admin.sync_grant_code(operator.user_id, grant_id, ip_hash=_ip(request, config))
 
 
 @router.post("/grant-codes/{grant_id}/revoke", response_model=GrantCodeOut)

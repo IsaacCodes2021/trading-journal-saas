@@ -131,6 +131,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/v1/grant-codes/{grant_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync Grant Code
+         * @description Try again to give the payment provider its copy of a discount code, or to archive it once revoked.
+         */
+        post: operations["sync_grant_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/v1/invites": {
         parameters: {
             query?: never;
@@ -1011,7 +1031,8 @@ export interface paths {
         put?: never;
         /**
          * Redeem
-         * @description Use a plan code. Answers the plan the person is on afterwards.
+         * @description Use a promo code. Answers the plan the person is on afterwards, and for a discount code (billing on) the discount
+         *     saved for their next checkout.
          */
         post: operations["redeem"];
         delete?: never;
@@ -2215,6 +2236,8 @@ export interface components {
             can_subscribe: boolean;
             /** Currency */
             currency: string;
+            /** @description A discount code saved for the next checkout, while Subscribe is offered */
+            discount: components["schemas"]["DiscountOut"] | null;
             /**
              * Ends At
              * @description When the trial, the free days, the paid period (cancelling) or the grace (past_due) ends; for read_only, when access ended
@@ -2430,6 +2453,27 @@ export interface components {
              */
             email: string;
         };
+        /**
+         * DiscountOut
+         * @description A discount code a person has saved for their next checkout (migration 0022). What it gives, not its name: the sign-in
+         *     role cannot read codes, and the person knows what they typed.
+         */
+        DiscountOut: {
+            /**
+             * Duration
+             * @enum {string}
+             */
+            duration: "once" | "repeating" | "forever";
+            /** Duration Months */
+            duration_months: number | null;
+            /** Percent Off */
+            percent_off: number;
+            /**
+             * Words
+             * @description What it gives, as the page says it: "20% off your first 3 months"
+             */
+            words: string;
+        };
         /** EndedOut */
         EndedOut: {
             /**
@@ -2577,9 +2621,19 @@ export interface components {
             code?: string | null;
             /**
              * Days
-             * @description How long the plan lasts once it is redeemed (30 at most)
+             * @description Free days: how long the plan lasts once it is redeemed (30 at most)
              */
-            days: number;
+            days?: number | null;
+            /**
+             * Duration
+             * @description Discount: the first payment, the first months (with duration_months), or every payment
+             */
+            duration?: ("once" | "repeating" | "forever") | null;
+            /**
+             * Duration Months
+             * @description Discount repeating: how many months
+             */
+            duration_months?: number | null;
             /**
              * Expires In Days
              * @description The code stops working after this many days
@@ -2593,9 +2647,9 @@ export interface components {
             /**
              * Kind
              * @default free_days
-             * @constant
+             * @enum {string}
              */
-            kind?: "free_days";
+            kind?: "free_days" | "discount";
             /**
              * Label
              * @description A note to yourself. Needed for a random code, so it can be told apart; optional otherwise
@@ -2608,6 +2662,11 @@ export interface components {
              */
             max_redemptions?: number | null;
             /**
+             * Percent Off
+             * @description Discount: the percentage off Pro
+             */
+            percent_off?: number | null;
+            /**
              * Plan
              * @default pro
              * @constant
@@ -2616,6 +2675,12 @@ export interface components {
         };
         /** GrantCodeListOut */
         GrantCodeListOut: {
+            /**
+             * Discounts Live
+             * @description Whether people can use discount codes now: billing is on and a provider is set
+             * @default false
+             */
+            discounts_live: boolean;
             /** Grant Codes */
             grant_codes: components["schemas"]["GrantCodeOut"][];
             /** Limit */
@@ -2639,18 +2704,31 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by: string;
-            /** Days */
-            days: number;
+            /**
+             * Days
+             * @description Days of Pro (free_days); none for a discount
+             */
+            days: number | null;
+            /**
+             * Duration
+             * @description A discount's reach: the first payment, the first months, or every payment
+             */
+            duration: ("once" | "repeating" | "forever") | null;
+            /**
+             * Duration Months
+             * @description With duration repeating: how many months
+             */
+            duration_months: number | null;
             /** Expires At */
             expires_at: string | null;
             /** Id */
             id: number;
             /**
              * Kind
-             * @description What it gives: free_days is days of Pro
-             * @constant
+             * @description What it gives: free_days is days of Pro; discount is a percentage off Pro
+             * @enum {string}
              */
-            kind: "free_days";
+            kind: "free_days" | "discount";
             /**
              * Label
              * @description The operator's note to themselves; never shown to the people who use the code
@@ -2658,6 +2736,11 @@ export interface components {
             label: string;
             /** Max Redemptions */
             max_redemptions: number | null;
+            /**
+             * Percent Off
+             * @description A discount's percentage
+             */
+            percent_off: number | null;
             /**
              * Plan
              * @constant
@@ -2670,8 +2753,26 @@ export interface components {
              * @enum {string}
              */
             status: "works" | "used_up" | "expired" | "revoked";
-            /** Used */
+            /**
+             * Sync Error
+             * @description Why the last push or archive failed, as a short code
+             */
+            sync_error: string | null;
+            /**
+             * Sync Status
+             * @description A discount's copy at the payment provider: pending (not there yet), synced, or failed (retry it)
+             */
+            sync_status: ("pending" | "synced" | "failed") | null;
+            /**
+             * Used
+             * @description People who used it: redeemed it (free_days), or subscribed with it (discount)
+             */
             used: number;
+            /**
+             * Words
+             * @description A discount as people read it: "20% off your first 3 months"
+             */
+            words: string | null;
         };
         /**
          * ImportIssueOut
@@ -3170,6 +3271,24 @@ export interface components {
         ReasonIn: {
             /** Reason */
             reason: string;
+        };
+        /**
+         * RedeemOut
+         * @description What using a code did: the person's plan afterwards and, for a discount code, the discount saved for their next
+         *     checkout (their plan does not change until they subscribe).
+         */
+        RedeemOut: {
+            /** @description Set when the code was a discount code */
+            discount: components["schemas"]["DiscountOut"] | null;
+            /** Effective */
+            effective: string;
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "override" | "grant" | "subscription" | "free";
         };
         /** RedeemRequest */
         RedeemRequest: {
@@ -4344,6 +4463,82 @@ export interface operations {
                 "application/json": components["schemas"]["ReasonIn"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GrantCodeOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    sync_grant_code: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                grant_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -8169,7 +8364,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PlanOut"];
+                    "application/json": components["schemas"]["RedeemOut"];
                 };
             };
             /** @description Unauthorized */

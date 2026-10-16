@@ -12,31 +12,67 @@ It reads the development database URLs from the gitignored `backend/.env.test` (
 `backend/.env.kinde`), get real sessions, and a new person needs an invite (`--make-invite` prints one). Pair it with
 `TJ_DEV_API=signin pnpm dev` (docs/runbooks/try-real-sign-in.md). Still development only: it listens on 127.0.0.1 and
 uses the local database.
+
+`--billing` (with `--real-sign-in`) turns billing on with the Paddle sandbox, to take a test payment on this machine: the
+six `TJ_PADDLE_*` settings come from the gitignored `backend/.env.paddle`, and only a sandbox is accepted. Paddle's webhooks
+reach this server through a tunnel (docs/runbooks/billing.md, "Paddle sandbox").
 """
 
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from datetime import timedelta
 from pathlib import Path
+from typing import TextIO
 from uuid import UUID
 
 import psycopg
 
+from ..billing.paddle import PaddleSettings
 from ..pg.invites import create_invite
 from ..pg.migrate import latest_version, migrate
 from ..pg.provision import read_env_file
 from .app import create_app
 from .config import ApiConfig, ConfigError
+from .logs import scrub
 
 ENV_FILE = Path(__file__).resolve().parents[2] / ".env.test"
 KINDE_ENV_FILE = Path(__file__).resolve().parents[2] / ".env.kinde"
 KINDE_KEYS = ("KINDE_DOMAIN", "KINDE_CLIENT_ID", "KINDE_CLIENT_SECRET")
+PADDLE_ENV_FILE = Path(__file__).resolve().parents[2] / ".env.paddle"
+PADDLE_KEYS = (
+    "TJ_PADDLE_ENV", "TJ_PADDLE_API_KEY", "TJ_PADDLE_CLIENT_TOKEN", "TJ_PADDLE_WEBHOOK_SECRET",
+    "TJ_PADDLE_PRODUCT_ID", "TJ_PADDLE_PRICE_ID",
+)  # fmt: skip
 
 
 class DevServerError(Exception):
     """Something the person starting the server can fix; the message says what."""
+
+
+class _ScrubbedLine(logging.Formatter):
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        line = super().formatMessage(record)
+        fields = getattr(record, "fields", None)  # what production writes as JSON (a request: method, path, status)
+        if isinstance(fields, dict):
+            line += "".join(f" {key}={value}" for key, value in fields.items())
+        return line
+
+    def format(self, record: logging.LogRecord) -> str:
+        return scrub(super().format(record))
+
+
+def show_log_lines(stream: TextIO | None = None) -> logging.Handler:
+    """Print the app's own records (`tj.*`, from INFO) beside the server's, as plain lines scrubbed as in production. In
+    production they go to `configure_logging`'s JSON stream; without either, they go nowhere (api/logs.py)."""
+    handler = logging.StreamHandler(stream or sys.stderr)
+    handler.setFormatter(_ScrubbedLine("%(levelname)s:     %(name)s: %(message)s"))
+    ours = logging.getLogger("tj")
+    ours.addHandler(handler)
+    ours.setLevel(logging.INFO)
+    return handler
 
 
 def pick_user(login_url: str, wanted: str | None) -> UUID:
@@ -86,6 +122,32 @@ def kinde_settings(kinde_env_file: Path) -> dict[str, str]:
     return {key: env[key].strip() for key in KINDE_KEYS}
 
 
+def billing_settings(env: dict[str, str], env_file: Path, paddle_env_file: Path) -> dict[str, object]:
+    """Billing on with the Paddle sandbox, and the webhook's and the operator's database roles. Only the names of what is
+    missing are ever said; a live key or `TJ_PADDLE_ENV=production` is refused (a test payment here takes no money)."""
+    if not paddle_env_file.exists():
+        raise DevServerError(f"{paddle_env_file.name} does not exist: it holds {', '.join(PADDLE_KEYS)}")
+    paddle_env = read_env_file(paddle_env_file)
+    missing = [key for key in PADDLE_KEYS if not paddle_env.get(key, "").strip()]
+    if missing:
+        raise DevServerError(f"{paddle_env_file.name} has no value for {', '.join(missing)}")
+    if paddle_env["TJ_PADDLE_ENV"].strip().lower() != "sandbox":
+        raise DevServerError("--billing is for the Paddle sandbox only: TJ_PADDLE_ENV must be sandbox")
+    if not env.get("TJ_DEV_WEBHOOK_URL"):
+        raise DevServerError(f"{env_file.name} has no TJ_DEV_WEBHOOK_URL: run the provisioning script")
+    try:
+        paddle = PaddleSettings.from_env(paddle_env)
+    except ValueError as problem:  # names the setting, never its value
+        raise DevServerError(str(problem)) from None
+    return {
+        "billing_enabled": True,
+        "billing_provider": "paddle",
+        "paddle": paddle,
+        "webhook_database_url": env["TJ_DEV_WEBHOOK_URL"],
+        "admin_database_url": env.get("TJ_DEV_ADMIN_URL") or None,  # discount codes are made in the operator's tools
+    }
+
+
 def build_config(
     env_file: Path,
     *,
@@ -94,6 +156,8 @@ def build_config(
     migrate_now: bool = False,
     real_sign_in: bool = False,
     kinde_env_file: Path = KINDE_ENV_FILE,
+    billing: bool = False,
+    paddle_env_file: Path = PADDLE_ENV_FILE,
 ) -> ApiConfig:
     env = read_env_file(env_file)
     app_url, login_url = env.get("TJ_DEV_APP_URL"), env.get("TJ_DEV_LOGIN_URL")
@@ -101,7 +165,12 @@ def build_config(
         raise DevServerError(f"{env_file.name} has no TJ_DEV_APP_URL and TJ_DEV_LOGIN_URL: run the provisioning script")
     if real_sign_in and user_id:
         raise DevServerError("--user-id is for the development sign-in; with --real-sign-in people sign in themselves")
+    if billing and not real_sign_in:
+        raise DevServerError(
+            "--billing needs --real-sign-in: billing runs on real sessions, which the development sign-in has not"
+        )
     kinde = kinde_settings(kinde_env_file) if real_sign_in else None
+    paying = billing_settings(env, env_file, paddle_env_file) if billing else {}
     if applied := check_schema(env, migrate_now=migrate_now):
         print(applied)
     try:
@@ -114,6 +183,7 @@ def build_config(
                 kinde_client_id=kinde["KINDE_CLIENT_ID"],
                 kinde_client_secret=kinde["KINDE_CLIENT_SECRET"],
                 signup_mode="invite",
+                **paying,  # type: ignore[arg-type]  # the billing fields, with their types (billing_settings)
             )
         return ApiConfig(
             app_origin=origin,
@@ -147,6 +217,12 @@ def main(argv: list[str] | None = None) -> int:
         help="sign in through Kinde (settings from backend/.env.kinde) instead of the one-user development sign-in",
     )
     parser.add_argument(
+        "--billing",
+        action="store_true",
+        help="with --real-sign-in: billing on with the Paddle sandbox (settings from backend/.env.paddle)",
+    )
+    parser.add_argument("--paddle-env-file", type=Path, default=PADDLE_ENV_FILE, help="with --billing")
+    parser.add_argument(
         "--make-invite",
         action="store_true",
         help="print a single-use invite code (valid 7 days) for the local database, and exit",
@@ -173,21 +249,32 @@ def main(argv: list[str] | None = None) -> int:
             migrate_now=args.migrate,
             real_sign_in=args.real_sign_in,
             kinde_env_file=args.kinde_env_file,
+            billing=args.billing,
+            paddle_env_file=args.paddle_env_file,
         )
     except (DevServerError, psycopg.Error, OSError) as problem:
         print(f"cannot start: {problem}", file=sys.stderr)
         return 2
     import uvicorn  # imported here: the checks above need none of it
 
+    show_log_lines()
     if config.dev_user_id is None:
         print(
             f"Real sign-in through Kinde on {config.app_origin} (new people need an invite: --make-invite).\n"
             f"  Allowed callback URL in Kinde:  {config.app_origin}/auth/callback\n"
             f"  Allowed logout redirect URL:    {config.app_origin}/invite"
         )
+        if config.billing_enabled:
+            print(
+                "Billing on with the Paddle SANDBOX (test cards only, no money moves).\n"
+                f"  Payment page:   {config.app_origin}/billing/pay (Paddle's checkout opens there)\n"
+                f"  Webhooks:       a tunnel to http://localhost:{args.port}, and in the sandbox a notification\n"
+                "                  destination at https://<the tunnel's address>/webhooks/billing"
+            )
     else:
         print(f"Development sign-in: every request is user {str(config.dev_user_id)[:8]}... on {config.app_origin}")
-    uvicorn.run(create_app(config), host="127.0.0.1", port=args.port)
+    # No access log, as in production (Dockerfile): the app's own request lines say the same, without query strings.
+    uvicorn.run(create_app(config), host="127.0.0.1", port=args.port, access_log=False)
     return 0
 
 

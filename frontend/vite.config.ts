@@ -37,9 +37,23 @@ export default defineConfig(({ mode, command }) => {
         '/api': { target: API, headers: api === 'dev-user' ? { cookie: '__Host-tj_session=dev-session' } : {} },
         '/auth': API,
         '/files': API,
+        // The payment page is the API's (it fills in Paddle's settings), with its script from the last `pnpm build`
+        // (dist/assets/pay-*.js). This dev server never serves anything of its own under /assets.
+        '/billing': API,
+        '/assets': API,
       },
     },
-    build: { sourcemap: false },
+    build: {
+      sourcemap: false,
+      // Two pages: the app, and the payment page (pay.html), which alone loads Paddle's script under its own
+      // Content-Security-Policy (backend/tradejournal/api/routers/pay.py). They share no chunk with each other's code.
+      rollupOptions: {
+        input: {
+          main: fileURLToPath(new URL('./index.html', import.meta.url)),
+          pay: fileURLToPath(new URL('./pay.html', import.meta.url)),
+        },
+      },
+    },
     test: {
       environment: 'jsdom',
       setupFiles: ['./src/test-setup.ts'],

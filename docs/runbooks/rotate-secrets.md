@@ -26,7 +26,8 @@ Never put a secret in this repository, a chat, a ticket or a log. The continuous
 | The database provider's own admin login | Everything at the provider | Owner's password manager | Total | |
 | Host, Cloudflare, GitHub, registrar, Kinde and email logins and their recovery codes | The accounts that control the product | Owner's password manager; recovery codes offline | Total | |
 | Cloudflare API tokens, GitHub tokens, deploy keys | Deploying and the site | The tool that uses them | Deploy code or change DNS. Critical | |
-| Payment provider keys, webhook signing secret | (When billing exists, M9) | Host environment | Fake or hidden payments | n/a yet |
+| `TJ_PADDLE_API_KEY` | Paddle's API for this account: customers, checkouts, subscriptions (cancel), discounts, portal links | The web service's environment **and** the sweep's; Paddle dashboard (Developer tools > Authentication) | Cancel or change anyone's subscription, make discounts, read customers' details at Paddle. **Critical** | |
+| `TJ_PADDLE_WEBHOOK_SECRET` | The signature on Paddle's notifications | The web service's environment; Paddle dashboard (Developer tools > Notifications) | Forge notifications: give someone Pro, or end a subscription in our records (Paddle's own state is untouched; the nightly check corrects it). High | |
 | `TJ_S3_ACCESS_KEY_ID` and `TJ_S3_SECRET_ACCESS_KEY` (the R2 API token) | Reading, writing and deleting every person's screenshot files | The web service's environment **and** the sweep's | Read, overwrite or delete anyone's pictures. **Critical** (the files are the only content a person cannot re-import) | |
 
 **Not secrets, so there is nothing to rotate:** invite codes and plan codes (only their hashes are stored; to take one away, revoke it in the operator tools, Codes & audit); the Kinde client *id* and *domain*; the public site's D1 database id.
@@ -81,6 +82,18 @@ The token is limited to the one bucket, so a leak is limited to the pictures (ne
 3. Check with your own account that a picture still shows and a new one uploads; the logs say "the file store was unavailable" (type only, never the address or the answer) if the new token is wrong.
 4. Revoke the first token in Cloudflare.
 5. If the old token leaked, also look in the bucket for objects you did not expect, and note that **R2 keeps no versions** (there is no way to put back a changed or deleted picture until a second copy of the bucket exists; see [deploy.md](deploy.md) section 2, step 4), so write down what you find for the affected people. Everything under `u/<person's id>/` belongs to one person.
+
+## Paddle keys (`TJ_PADDLE_API_KEY`, `TJ_PADDLE_WEBHOOK_SECRET`)
+
+1. **API key:** in Paddle (Developer tools > Authentication) make a new key with the same permissions, put it on both Render
+   services (the Web Service and the Cron Job `roundturn-sweep`), let them redeploy, then revoke the old key in Paddle. Check
+   with Subscribe on a sandbox account, or the next sweep run's billing line. Note the key's expiry date here if it has one.
+2. **Webhook secret:** rotate it on the notification destination in Paddle, put the new value on the Web Service, and
+   redeploy. During the change Paddle may sign with both the old and the new secret; the app accepts any one signature that
+   matches its own secret. Check Paddle's notification log for `200`. Failed deliveries are retried by Paddle, and the
+   nightly check corrects anything missed.
+3. Never paste either value in chat, a ticket or the repository. The client-side token (`TJ_PADDLE_CLIENT_TOKEN`) is public
+   by design and needs no rotation unless it is revoked.
 
 ## Database role passwords
 

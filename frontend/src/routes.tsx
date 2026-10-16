@@ -588,15 +588,22 @@ const planRoute = createRoute({
   path: 'plan',
   // `promo=not_applied`: a new account whose promo code could not be applied at sign-up; the page says so once.
   // `checkout=done`: back from the payment page; the page waits for the payment provider to confirm.
-  validateSearch: (search: Record<string, unknown>): { promo?: 'not_applied'; checkout?: 'done' } => ({
-    ...(search['promo'] === 'not_applied' ? { promo: 'not_applied' as const } : {}),
+  // `promo=saved`: a new account made with a discount code; the code waits for the first checkout.
+  validateSearch: (search: Record<string, unknown>): { promo?: 'not_applied' | 'saved'; checkout?: 'done' } => ({
+    ...(search['promo'] === 'not_applied' || search['promo'] === 'saved'
+      ? { promo: search['promo'] as 'not_applied' | 'saved' }
+      : {}),
     ...(search['checkout'] === 'done' ? { checkout: 'done' as const } : {}),
   }),
   component: function PlanRoute() {
     const search = planRoute.useSearch()
     return (
       <Suspense fallback={<Spinner label="Loading" />}>
-        <PlanPage promoMissed={search.promo === 'not_applied'} checkoutDone={search.checkout === 'done'} />
+        <PlanPage
+          promoMissed={search.promo === 'not_applied'}
+          promoSaved={search.promo === 'saved'}
+          checkoutDone={search.checkout === 'done'}
+        />
       </Suspense>
     )
   },

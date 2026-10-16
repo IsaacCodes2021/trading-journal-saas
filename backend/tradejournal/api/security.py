@@ -29,6 +29,29 @@ CSP = "; ".join(
     ]
 )
 
+# The payment page only (routers/pay.py): Paddle.js from Paddle's address, Paddle's checkout in a frame, and Paddle's API
+# from the page. Nowhere else may load a script from another site. Each origin is to be confirmed in the browser's console
+# during the sandbox tests (docs/design/paddle-integration.md section 6.2), and only what is reported added.
+# Reported in the sandbox on 2026-10-16: Paddle.js loads its stylesheet from its CDN (`sandbox-cdn.paddle.com` in the
+# sandbox, `cdn.paddle.com` live) and sets inline styles on the frame it opens; without both, the checkout is drawn as a
+# small unstyled box and cannot be completed. Inline styles only: scripts stay 'self' and Paddle's script address.
+PAY_PATH = "/billing/pay"
+PAY_CSP = "; ".join(
+    [
+        "default-src 'self'",
+        "script-src 'self' https://cdn.paddle.com",
+        "style-src 'self' 'unsafe-inline' https://cdn.paddle.com https://sandbox-cdn.paddle.com",
+        "img-src 'self' data: https://*.paddle.com",
+        "font-src 'self'",
+        "connect-src 'self' https://*.paddle.com",
+        "frame-src https://buy.paddle.com https://sandbox-buy.paddle.com",
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+        "frame-ancestors 'none'",
+    ]
+)
+
 _STATIC_HEADERS = {
     "Content-Security-Policy": CSP,
     "X-Content-Type-Options": "nosniff",
@@ -49,6 +72,11 @@ def security_headers(path: str, config: ApiConfig) -> dict[str, str]:
         headers["Strict-Transport-Security"] = HSTS
     if path.startswith(NO_STORE_PREFIXES):
         headers["Cache-Control"] = "no-store"
+    if path == PAY_PATH:
+        headers["Content-Security-Policy"] = PAY_CSP
+        # A bank's 3-D Secure window or a wallet may open from Paddle's checkout as a popup; the page still cannot be
+        # reached from a window someone else opened.
+        headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
     return headers
 
 

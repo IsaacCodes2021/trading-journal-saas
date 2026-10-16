@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { Card, Spinner } from '../../components/ui/primitives'
 import type { components } from '../../lib/api/schema'
-import { isSubscribed, useBilling } from '../../lib/billing'
+import { isPaidUp, useBilling } from '../../lib/billing'
 import { daysLeft, pluralize } from '../../lib/format'
 import { useSession } from '../../lib/session'
 import { BillingPlan } from './BillingPlan'
@@ -37,20 +37,22 @@ function valueText(value: number | boolean): string {
  * version of the page (`BillingPlan`); while it is off, what it always showed: the plan and what it includes.
  * `promoMissed`: the person has just signed up with a promo code that could not be applied (`?promo=not_applied`).
  * `checkoutDone`: the person is back from the payment page (`?checkout=done`); the page asks every 2 seconds for a minute
- * until the subscription shows.
+ * until the subscription shows paid up.
  */
 export function PlanPage({
   promoMissed = false,
+  promoSaved = false,
   checkoutDone = false,
 }: {
   promoMissed?: boolean
+  promoSaved?: boolean
   checkoutDone?: boolean
 }) {
   const session = useSession()
   const queryClient = useQueryClient()
   const [late, setLate] = useState(false)
   const billing = useBilling({ poll: checkoutDone && !late })
-  const confirmed = checkoutDone && isSubscribed(billing.data)
+  const confirmed = checkoutDone && isPaidUp(billing.data)
 
   useEffect(() => {
     if (!checkoutDone) return
@@ -69,6 +71,7 @@ export function PlanPage({
         billing={billing.data}
         source={session.data.plan.source}
         promoMissed={promoMissed}
+        promoSaved={promoSaved}
         checkout={checkoutDone ? (late ? 'late' : 'waiting') : null}
       />
     )

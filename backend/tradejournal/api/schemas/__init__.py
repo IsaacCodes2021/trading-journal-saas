@@ -3,7 +3,17 @@
 from .base import ApiModel
 from .money import MONEY_PATTERN, Money
 from .problem import PROBLEM_MEDIA_TYPE, FieldError, Problem
-from .session import AccessOut, FlagsOut, PlanOut, SessionOut, SettingsOut, SettingsPatch, UserOut
+from .session import (
+    AccessOut,
+    DiscountOut,
+    FlagsOut,
+    PlanOut,
+    RedeemOut,
+    SessionOut,
+    SettingsOut,
+    SettingsPatch,
+    UserOut,
+)
 
 __all__ = [
     "MONEY_PATTERN",
@@ -14,6 +24,8 @@ __all__ = [
     "FlagsOut",
     "Money",
     "PlanOut",
+    "RedeemOut",
+    "DiscountOut",
     "Problem",
     "SessionOut",
     "SettingsOut",

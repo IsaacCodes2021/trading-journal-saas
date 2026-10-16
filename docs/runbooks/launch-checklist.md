@@ -60,8 +60,11 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] A payment provider that accepts a trading journal: Paddle's written pre-clearance asked for and answered **(you)**; the
   trial, webhooks, failed-payment handling and the billing screens are built with a fake provider (2026-10-15 and 16, switch
   off); the Paddle adapter, the payment page and discount codes next **(me)**. Operating it: [billing.md](billing.md)
-- [ ] Migrations 0020 and 0021 applied **before** the billing branches merge (the Cron Job runs the new image at the next
-  hour) **(you, as the schema owner)**
+- [ ] Migrations 0020, 0021 and 0022 applied **before** the billing branches merge (the Cron Job runs the new image at
+  the next hour) **(you, as the schema owner)**
+- [ ] A test payment in Paddle's sandbox, and the rest of the lifecycle ([billing.md](billing.md), "Paddle sandbox"): the
+  connector, the payment page and discount codes are built (2026-10-16) and tested against a stand-in for Paddle's API, never
+  against Paddle itself **(you for the sandbox settings and the webhook address; then me)**
 - [ ] Switch-on day: an override for your own account, then `python -m tradejournal.pg.plans start-trials --apply` (built
   2026-10-16), then the Cron Job's and the Web Service's billing settings **(you)**; [billing.md](billing.md)
 - [ ] Cookie and consent wording confirmed for the regions served **(you, a professional)**

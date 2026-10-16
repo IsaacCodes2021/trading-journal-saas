@@ -8,7 +8,7 @@ from typing import Literal
 from uuid import UUID
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from .base import ApiModel
 
@@ -70,6 +70,23 @@ class PlanOut(ApiModel):
     effective: str
     source: Literal["override", "grant", "subscription", "free"]
     expires_at: datetime | None
+
+
+class DiscountOut(ApiModel):
+    """A discount code a person has saved for their next checkout (migration 0022). What it gives, not its name: the sign-in
+    role cannot read codes, and the person knows what they typed."""
+
+    percent_off: int = Field(ge=1, le=100)
+    duration: Literal["once", "repeating", "forever"]
+    duration_months: int | None
+    words: str = Field(description='What it gives, as the page says it: "20% off your first 3 months"')
+
+
+class RedeemOut(PlanOut):
+    """What using a code did: the person's plan afterwards and, for a discount code, the discount saved for their next
+    checkout (their plan does not change until they subscribe)."""
+
+    discount: DiscountOut | None = Field(default=None, description="Set when the code was a discount code")
 
 
 class FlagsOut(ApiModel):

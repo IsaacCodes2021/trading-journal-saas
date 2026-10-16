@@ -69,6 +69,7 @@ export function billingBody(changes: object = {}) {
     billing_starts_at: new Date(Date.now() + 4.5 * 86_400_000).toISOString(),
     can_manage: false,
     reason: null,
+    discount: null,
     ...changes,
   }
 }

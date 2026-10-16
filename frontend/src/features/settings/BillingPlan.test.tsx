@@ -355,6 +355,15 @@ describe('back from the checkout', () => {
     await waitFor(() => expect(sent('/api/v1/session').length).toBeGreaterThan(sessionsBefore))
   })
 
+  it('after paying a failed renewal, waits until the failure clears rather than confirming beside it', async () => {
+    await open({ billing: [PAST_DUE, ACTIVE] }, '?checkout=done')
+    expect(await screen.findByRole('status', { name: 'Your plan' })).toHaveTextContent('Confirming your payment')
+    expect(screen.queryByText('Payment confirmed.')).not.toBeInTheDocument()
+    expect(await screen.findByText('Payment confirmed.', {}, { timeout: 5000 })).toBeInTheDocument()
+    expect(await plan()).toHaveTextContent('Renews on Nov 14.')
+    expect(await plan()).not.toHaveTextContent('Payment failed')
+  })
+
   it('says the payment is not confirmed yet after a minute without word, and stops asking', async () => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] })
     vi.setSystemTime(new Date('2026-10-16T09:00:00Z'))
@@ -368,5 +377,39 @@ describe('back from the checkout', () => {
     const reads = sent('/api/v1/billing').length
     await act(() => vi.advanceTimersByTimeAsync(10_000))
     expect(sent('/api/v1/billing')).toHaveLength(reads)
+  })
+})
+
+describe('a discount code', () => {
+  const DISCOUNT = { percent_off: 20, duration: 'repeating', duration_months: 3, words: '20% off your first 3 months' }
+
+  it('says a saved code is applied at checkout, beside Subscribe', async () => {
+    await open({ billing: { ...TRIAL, discount: DISCOUNT } })
+    expect(await plan()).toHaveTextContent(
+      'Your discount code is saved: 20% off your first 3 months, applied at checkout.',
+    )
+  })
+
+  it('says nothing of a discount when none is saved', async () => {
+    await open({ billing: TRIAL })
+    expect(await plan()).not.toHaveTextContent('discount code')
+  })
+
+  it('tells someone who typed one in the box that it is saved for when they subscribe', async () => {
+    const user = await open({
+      billing: TRIAL,
+      redeem: { status: 200, body: { effective: 'pro', source: 'grant', expires_at: null, discount: DISCOUNT } },
+    })
+    const box = screen.getByRole('region', { name: 'Redeem a promo code' })
+    await user.type(within(box).getByLabelText('Promo code'), 'LAUNCH20')
+    await user.click(within(box).getByRole('button', { name: 'Redeem' }))
+    expect(await within(box).findByRole('status')).toHaveTextContent(
+      'Saved: 20% off your first 3 months. It is applied when you subscribe.',
+    )
+  })
+
+  it('says once, on the way in from sign-up, that the code it was made with is saved', async () => {
+    await open({ billing: TRIAL }, '?promo=saved')
+    expect(screen.getByText(/your discount code is saved/)).toBeInTheDocument()
   })
 })

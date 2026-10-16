@@ -143,6 +143,20 @@ function CopyCode({ code }: { code: string }) {
   )
 }
 
+/** Where a discount code's copy at the payment provider stands. Every other kind has no copy, and nothing is shown. */
+function SyncPill({ code, live }: { code: GrantCode; live: boolean }) {
+  if (code.kind !== 'discount' || code.sync_status === null) return null
+  const [text, tone] =
+    code.sync_status === 'failed'
+      ? [`Sync failed${code.sync_error ? ` (${code.sync_error})` : ''}`, 'text-neg']
+      : code.sync_status === 'pending'
+        ? ['Not at the payment provider yet', 'text-warn']
+        : live
+          ? ['At the payment provider', 'text-muted']
+          : ['At the payment provider · not live while billing is off', 'text-muted']
+  return <div className={`text-xs ${tone}`}>{text}</div>
+}
+
 /** Promo codes: the code (or that it was random), what it gives, how many people used it, until when, and where it stands. */
 export function GrantCodesTable({
   rows,
@@ -151,6 +165,9 @@ export function GrantCodesTable({
   loading,
   onPage,
   onRevoke,
+  discountsLive = false,
+  onSync,
+  syncing = null,
 }: {
   rows: GrantCode[] | undefined
   total: number
@@ -158,6 +175,12 @@ export function GrantCodesTable({
   loading: boolean
   onPage: (page: number) => void
   onRevoke: (code: GrantCode) => void
+  /** Whether people can use discount codes now (billing on, a provider set). */
+  discountsLive?: boolean
+  /** Try a discount code's copy at the provider again. */
+  onSync?: (code: GrantCode) => void
+  /** The code being synced now, if any. */
+  syncing?: number | null
 }) {
   if (loading) return <Spinner label="Loading promo codes" />
   if (!rows || rows.length === 0) return <p className="m-0 px-4 py-4 text-muted">No codes here yet.</p>
@@ -191,7 +214,12 @@ export function GrantCodesTable({
                     {!code.code && code.label ? ' · random code, shown once' : ''}
                   </div>
                 </td>
-                <td className={`${TD} whitespace-nowrap`}>{code.days} days of Pro</td>
+                <td className={TD}>
+                  <div className="whitespace-nowrap">
+                    {code.kind === 'discount' ? (code.words ?? 'A discount') : `${code.days} days of Pro`}
+                  </div>
+                  <SyncPill code={code} live={discountsLive} />
+                </td>
                 <td className={`${TD} num text-right whitespace-nowrap`}>
                   {code.used} / {code.max_redemptions === null ? 'any' : code.max_redemptions}
                 </td>
@@ -200,17 +228,31 @@ export function GrantCodesTable({
                   <Status status={code.status} />
                 </td>
                 <td className={`${TD} text-right`}>
-                  {code.status === 'revoked' ? (
-                    <span className="text-muted">—</span>
-                  ) : (
-                    <Button
-                      className="h-[30px]"
-                      onClick={() => onRevoke(code)}
-                      aria-label={`Revoke the code ${code.code ?? code.label}`}
-                    >
-                      Revoke
-                    </Button>
-                  )}
+                  <div className="flex flex-wrap justify-end gap-2">
+                    {code.kind === 'discount' && code.sync_status === 'failed' && onSync ? (
+                      <Button
+                        className="h-[30px]"
+                        onClick={() => onSync(code)}
+                        disabled={syncing === code.id}
+                        aria-label={`Retry the code ${code.code ?? code.label} at the payment provider`}
+                      >
+                        {syncing === code.id ? 'Retrying…' : 'Retry'}
+                      </Button>
+                    ) : null}
+                    {code.status === 'revoked' ? (
+                      code.sync_status === 'failed' ? null : (
+                        <span className="text-muted">—</span>
+                      )
+                    ) : (
+                      <Button
+                        className="h-[30px]"
+                        onClick={() => onRevoke(code)}
+                        aria-label={`Revoke the code ${code.code ?? code.label}`}
+                      >
+                        Revoke
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

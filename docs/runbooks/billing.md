@@ -6,13 +6,15 @@ here can charge anyone until a real provider is connected and switched on, each 
 
 ## What is built, and what is not
 
-| Built (2026-10-15 and 16) | Not built yet |
+| Built (2026-10-15 and 16) | Not done yet |
 |---|---|
-| The trial, the access rules, the subscription tables (migration 0021) | The Paddle adapter (`TJ_BILLING_PROVIDER=paddle` is refused) |
-| The connector and a fake provider, used by the tests | The payment page `/billing/pay` (Paddle's checkout opens there) |
-| `POST /webhooks/billing`, the person's billing routes, the screens | Discount codes (they need the provider) |
+| The trial, the access rules, the subscription tables (migration 0021) | Anything in Paddle's sandbox or live account (each step needs the owner's yes) |
+| The connector, a fake provider for the tests, and **the Paddle connector** | A test payment end to end in the sandbox (section "Paddle sandbox" below) |
+| `POST /webhooks/billing`, the person's billing routes, the screens | A nightly comparison of discount codes with Paddle's copies |
+| **The payment page `/billing/pay`**, the only page that loads Paddle's script | |
 | Deletion stopping a subscription, the nightly check, the emails | |
 | `start-trials`: the trial for the accounts that exist on switch-on day | |
+| **Discount codes** (migration 0022): made by the operator, given to Paddle, saved by people, applied at checkout | |
 
 ## The rules (what a person gets)
 
@@ -36,14 +38,19 @@ changes no access by itself. Subscribing during free days delays the first charg
 | `TJ_BILLING_ENABLED` | `true` turns billing on (the trial, Subscribe, read-only for nothing live) | `true` sends the billing emails and words the "access ended" email for a trial |
 | `TJ_BILLING_PROVIDER` | `paddle` (`fake` is refused in production) | `paddle`, so the job can send cancels and run the nightly check |
 | `TJ_WEBHOOK_DATABASE_URL` | The `app_webhook` role's **private** address. Required with billing on | Not needed |
-| `TJ_PADDLE_*` | Come with the Paddle adapter (the guide's section 5.1) | The same, for the job |
+| `TJ_PADDLE_ENV` | `sandbox` or `production` | The same |
+| `TJ_PADDLE_API_KEY` (secret) | The server key (sandbox keys contain `_sdbx`) | The same key: the job cancels and checks subscriptions |
+| `TJ_PADDLE_WEBHOOK_SECRET` (secret) | The notification destination's secret key (`pdl_ntfset_...`) | Not needed |
+| `TJ_PADDLE_CLIENT_TOKEN` | The client-side token for the payment page (`test_...` or `live_...`; public by design) | Not needed |
+| `TJ_PADDLE_PRODUCT_ID`, `TJ_PADDLE_PRICE_ID` | Roundturn Pro and its USD 15 monthly price (`pro_...`, `pri_...`; sandbox and live differ) | Not needed |
 
 The web service refuses to start with billing on and no provider, with `fake` in production, or without
-`TJ_WEBHOOK_DATABASE_URL`. Leaving `TJ_BILLING_ENABLED` unset (or `false`) is the off switch; nothing else needs removing.
+`TJ_WEBHOOK_DATABASE_URL`. With `TJ_BILLING_PROVIDER=paddle` it needs all six `TJ_PADDLE_*` settings, and it refuses a sandbox
+key with `TJ_PADDLE_ENV=production`, a live key with `sandbox`, a client token of the other environment, or a mistyped id. Leaving `TJ_BILLING_ENABLED` unset (or `false`) is the off switch; nothing else needs removing.
 
 ## Releasing the code (before any switch-on)
 
-1. **Apply migrations 0020 and 0021 before merging** the branches that ship them, as the schema owner (`TJ_OWNER_URL`,
+1. **Apply migrations 0020, 0021 and 0022 before merging** the branches that ship them, as the schema owner (`TJ_OWNER_URL`,
    `python -m tradejournal.pg.migrate`; `deploy.md` section 1, step 4). Both are additive, so the running image works on
    the new schema. The order matters for the **Cron Job**: it runs the new image at the next hour without waiting for the
    web service's `/readyz`, and its billing step needs the 0021 tables. (The Web Service is safe either way: it stays out of
@@ -82,6 +89,75 @@ Then:
 
 **To switch off again:** set `TJ_BILLING_ENABLED` to `false` on both services. Subscriptions keep running at the provider and
 their rows stay; the app simply stops showing billing, and every rule returns to what it was before.
+
+## The payment page (`/billing/pay`)
+
+Subscribe sends the browser to `/billing/pay?_ptxn=txn_...`, a transaction the server made for the person signed in. The page
+loads Paddle.js from Paddle's address (Paddle requires it), and Paddle opens its checkout for that transaction: card only for
+now, dark, in English, with Paddle's own discount box hidden (a code is typed in the app and the checkout already carries
+it). Paid: back to Plan & billing, which waits for Paddle's notification. Closed: back to Plan & billing.
+
+It is the only page that may load a script from another site: it has a Content-Security-Policy of its own (Paddle's script,
+frames and API; no inline code) and every other page keeps the strict one. Paddle's emails link here too, to update a card.
+It answers 404 unless billing is on with Paddle. **To check in the sandbox:** the browser console must show no CSP refusal
+while the checkout opens and takes a test card, including the 3-D Secure card; add only what is reported. Found on
+2026-10-16 and allowed: Paddle's stylesheet (`sandbox-cdn.paddle.com`, `cdn.paddle.com` live) and the inline styles
+Paddle.js sets on its frame. Without them the checkout is a small unstyled box that cannot be completed.
+
+**Paddle's checkout settings** (sandbox, then live): the default payment link is `https://app.roundturn.app/billing/pay`;
+payment recovery cancels the subscription when retries run out (Roundturn has no pause). The sandbox takes the same link:
+its form refuses any `localhost` address (2026-10-16), and without a saved link Paddle creates no checkout at all
+(`transaction_default_checkout_url_not_set`, shown as "The payment provider would not open a checkout"). A test on a PC
+still works: Roundturn sends people to its own page (`/billing/pay?_ptxn=...` on the site in use) and never to Paddle's
+link, which only appears in Paddle's emails (a sandbox email's "update card" link opens the real site, where billing is off).
+
+## Paddle sandbox: from nothing to a test payment (each step needs the owner's yes)
+
+1. In the sandbox dashboard: an API key with the permissions in the Paddle guide's section 2.3 (discounts read and write
+   included; the whole key, starting `pdl_sdbx_apikey_`: without that part Paddle answers `authentication_malformed`), a
+   client-side token, and the product "Roundturn Pro" with a USD 15 monthly price (no trial on the price: the
+   trial is Roundturn's). Or Claude makes the product and price through the `paddle-sandbox` tools, after a yes. The
+   default payment link `https://app.roundturn.app/billing/pay`, saved (above).
+2. A notification destination at a public HTTPS address: a tunnel to a PC (an install) or a paid staging Web Service (a
+   cost). Subscribe it to `subscription.*`, `transaction.completed`, `transaction.payment_failed` and `adjustment.*`.
+   On the owner's PC: cloudflared 2026.9.3 at `C:\Users\Isaac\Tools\cloudflared\cloudflared.exe` (Cloudflare's GitHub
+   release, checksum checked, 2026-10-16). `cloudflared.exe tunnel --url http://localhost:8000` prints a
+   `https://<words>.trycloudflare.com` address, a new one at each start; the destination is that address followed by
+   `/webhooks/billing`, and its secret key (`pdl_ntfset_...`) goes in `TJ_PADDLE_WEBHOOK_SECRET`.
+3. The six `TJ_PADDLE_*` settings (sandbox values), `TJ_BILLING_PROVIDER=paddle`, `TJ_BILLING_ENABLED=true` and
+   `TJ_WEBHOOK_DATABASE_URL` on the test server, with migrations 0020 to 0022 applied to its database. On a PC: the six go
+   in the gitignored `backend/.env.paddle`, and the dev server sets the rest:
+   `.venv\Scripts\python.exe -m tradejournal.api.devserver --real-sign-in --billing --migrate` in `backend/` (sandbox
+   only; `--migrate` applies the migrations to the local `tj_dev`), then in `frontend/` `pnpm build` once (the payment
+   page's script) and the front end's dev server with `TJ_DEV_API=signin` (docs/runbooks/try-real-sign-in.md). It forwards
+   `/billing` and `/assets` to the API, so the app and its payment page share `http://localhost:5173`.
+4. Sign up, open Plan & billing, press Subscribe, pay with `4242 4242 4242 4242` (any future date, security code `100`).
+   Paddle's notification log must show `200`, and the page must say "Payment confirmed".
+5. Then the rest of the lifecycle in the Paddle guide's section 7.2 (renewal and failed payment through Paddle's
+   simulations, cancel, resume, the portal, a refund, deleting the account).
+
+## Discount codes
+
+**Making one (Operator tools > Codes > Promo codes).** Type a code (LAUNCH20), choose Type "Discount", the percent off and
+for how long (the first payment, the first months, or every payment), and optionally how many people and the last day.
+The code is saved first, then made at Paddle as a percentage off the Roundturn Pro product, usable at checkout with the same
+code. The table says where Paddle's copy stands:
+
+| It says | Meaning | Do |
+|---|---|---|
+| At the payment provider | Paddle has it | Nothing |
+| … not live while billing is off | Paddle has it, but nobody can use a discount until billing is on | Nothing |
+| Not at the payment provider yet | No provider on this server when it was made | It is pushed on the next Retry, once a provider is set |
+| Sync failed (`reason`) | Paddle did not answer, or refused (`..._discount_code_conflict`: Paddle already has that code) | Retry. A copy Paddle made but never confirmed is found by its code and adopted, never made twice |
+
+**Revoking one** stops it here at once, then archives Paddle's copy (a failed archive shows "Sync failed" and Retry). People
+already subscribed with it keep their discount, as Paddle keeps it on their subscription.
+
+**People** type a discount code in the same box as a free-days code (Settings > Plan & billing, or at sign-up). It is saved
+on their account ("Saved: 20% off your first 3 months. It is applied when you subscribe."), shown beside Subscribe, put on
+their next checkout, and forgotten once a subscription comes of that checkout. A newer code replaces an older one. With
+billing off, a discount code is the one refusal ("That code did not work"). **Used** counts people who subscribed with it.
+A discount over free days starts after them (Paddle applies a recurring discount after a trial).
 
 ## The webhook (`https://app.roundturn.app/webhooks/billing`)
 

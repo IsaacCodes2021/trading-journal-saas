@@ -10,7 +10,7 @@ from collections.abc import Mapping
 from typing import Protocol
 from uuid import UUID
 
-from .types import BillingEvent, Checkout, ProviderSubscription
+from .types import BillingEvent, Checkout, DiscountSpec, ProviderSubscription
 
 
 class BillingProvider(Protocol):
@@ -49,6 +49,21 @@ class BillingProvider(Protocol):
 
     def fetch_subscription(self, subscription_id: str) -> ProviderSubscription:
         """The provider's current answer, for the nightly check."""
+        ...
+
+    def create_discount(self, spec: DiscountSpec) -> str:
+        """Make the discount at the provider, applicable to Roundturn Pro only, and return its id. The code is the one people
+        type in the app; the provider's checkout applies it when a checkout carries it."""
+        ...
+
+    def find_discount(self, code: str) -> str | None:
+        """The id of an active discount the provider already holds with this code, or None. A retry after a timeout uses
+        it, so a code the provider made but never confirmed is adopted rather than made twice."""
+        ...
+
+    def archive_discount(self, discount_id: str) -> None:
+        """Stop the discount being applied to new checkouts. People already subscribed with it keep it. Archiving one
+        already archived is not an error."""
         ...
 
     def verify_webhook(self, headers: Mapping[str, str], raw_body: bytes) -> BillingEvent:

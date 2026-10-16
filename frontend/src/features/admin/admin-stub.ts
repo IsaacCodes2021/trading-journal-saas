@@ -64,6 +64,12 @@ export const grant = (id: number, label: string, over: Partial<GrantCode> = {}):
   created_at: '2026-09-22T10:00:00Z',
   revoked_at: null,
   status: 'works',
+  percent_off: null,
+  duration: null,
+  duration_months: null,
+  words: null,
+  sync_status: null,
+  sync_error: null,
   ...over,
 })
 
@@ -209,7 +215,10 @@ export function stubAdmin(options: AdminStubOptions = {}) {
           ? null
           : multipart
             ? { multipart: await request.clone().text() }
-            : await request.clone().json()
+            : await request
+                .clone()
+                .text()
+                .then((text) => (text ? JSON.parse(text) : null)) // a POST may carry no body (Retry)
       calls.push({
         method: request.method,
         path: url.pathname,
@@ -354,10 +363,16 @@ export function stubAdmin(options: AdminStubOptions = {}) {
           return json(
             section === 'invites'
               ? { invites: rows, total: shown.length, limit, offset }
-              : { grant_codes: rows, total: shown.length, limit, offset },
+              : { grant_codes: rows, discounts_live: false, total: shown.length, limit, offset },
           )
         }
         if (changeFails) return problem(changeFails)
+        if (verb === 'sync') {
+          const found = list.find((c) => String(c.id) === rawId)
+          return found
+            ? json({ ...found, sync_status: 'synced', sync_error: null })
+            : problem({ status: 404, detail: 'There is no such code.' })
+        }
         if (verb === 'revoke') {
           const found = list.find((c) => String(c.id) === rawId)
           return found

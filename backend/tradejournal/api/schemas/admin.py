@@ -175,7 +175,8 @@ class CreatedInviteOut(ApiModel):
     code: str = Field(description="The code itself. It is shown this once and only its hash is kept")
 
 
-GrantKind = Literal["free_days"]
+GrantKind = Literal["free_days", "discount"]
+SyncStatus = Literal["pending", "synced", "failed"]
 
 
 class GrantCodeOut(ApiModel):
@@ -183,12 +184,23 @@ class GrantCodeOut(ApiModel):
     code: str | None = Field(
         description="The promo code as it was typed (FREE30). None for a random code, which was shown once and never kept"
     )
-    kind: GrantKind = Field(description="What it gives: free_days is days of Pro")
+    kind: GrantKind = Field(description="What it gives: free_days is days of Pro; discount is a percentage off Pro")
     label: str = Field(description="The operator's note to themselves; never shown to the people who use the code")
     plan: Literal["pro"]
-    days: int
+    days: int | None = Field(description="Days of Pro (free_days); none for a discount")
     max_redemptions: int | None
-    used: int
+    used: int = Field(description="People who used it: redeemed it (free_days), or subscribed with it (discount)")
+    percent_off: int | None = Field(default=None, description="A discount's percentage")
+    duration: Literal["once", "repeating", "forever"] | None = Field(
+        default=None, description="A discount's reach: the first payment, the first months, or every payment"
+    )
+    duration_months: int | None = Field(default=None, description="With duration repeating: how many months")
+    words: str | None = Field(default=None, description='A discount as people read it: "20% off your first 3 months"')
+    sync_status: SyncStatus | None = Field(
+        default=None,
+        description="A discount's copy at the payment provider: pending (not there yet), synced, or failed (retry it)",
+    )
+    sync_error: str | None = Field(default=None, description="Why the last push or archive failed, as a short code")
     expires_at: datetime | None
     created_by: str
     created_at: datetime
@@ -198,6 +210,9 @@ class GrantCodeOut(ApiModel):
 
 class GrantCodeListOut(ApiModel):
     grant_codes: list[GrantCodeOut]
+    discounts_live: bool = Field(
+        default=False, description="Whether people can use discount codes now: billing is on and a provider is set"
+    )
     total: int
     limit: int
     offset: int
@@ -218,7 +233,15 @@ class GrantCodeIn(ApiModel):
         description="A note to yourself. Needed for a random code, so it can be told apart; optional otherwise",
     )
     plan: Literal["pro"] = "pro"
-    days: int = Field(ge=1, le=30, description="How long the plan lasts once it is redeemed (30 at most)")
+    days: int | None = Field(
+        default=None, ge=1, le=30, description="Free days: how long the plan lasts once it is redeemed (30 at most)"
+    )
+    percent_off: int | None = Field(default=None, ge=1, le=100, description="Discount: the percentage off Pro")
+    duration: Literal["once", "repeating", "forever"] | None = Field(
+        default=None,
+        description="Discount: the first payment, the first months (with duration_months), or every payment",
+    )
+    duration_months: int | None = Field(default=None, ge=1, le=24, description="Discount repeating: how many months")
     max_redemptions: int | None = Field(
         default=None, ge=1, le=1_000_000, description="How many people may use it; none means any number"
     )
@@ -241,6 +264,20 @@ class GrantCodeIn(ApiModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> GrantCodeIn:
+        if self.kind == "discount":
+            if self.code is None:
+                raise ValueError("a discount code is typed, such as LAUNCH20: the payment provider shows it")
+            if self.days is not None:
+                raise ValueError("a discount code gives no days of Pro: leave days out")
+            if self.percent_off is None or self.duration is None:
+                raise ValueError("a discount code needs percent_off and duration")
+            if (self.duration == "repeating") != (self.duration_months is not None):
+                raise ValueError("give duration_months with duration repeating, and only then")
+        else:
+            if self.days is None:
+                raise ValueError("a free-days code needs days")
+            if self.percent_off is not None or self.duration is not None or self.duration_months is not None:
+                raise ValueError("percent_off, duration and duration_months are for discount codes")
         if self.code is None and not self.label:
             raise ValueError("give a random code a note, so you can tell it apart later")
         if self.expires_in_days is not None and self.expires_on is not None:

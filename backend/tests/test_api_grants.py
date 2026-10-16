@@ -54,7 +54,12 @@ def test_a_code_that_works_answers_the_plan_the_person_is_on_afterwards(world):
     accounts.codes["GR-ABCD-EFGH"] = GrantResult("ok", plan=PRO)
     response = redeem(client, headers)
     assert response.status_code == 200
-    assert response.json() == {"effective": "pro", "source": "grant", "expires_at": "2027-01-12T09:30:00Z"}
+    assert response.json() == {
+        "effective": "pro",
+        "source": "grant",
+        "expires_at": "2027-01-12T09:30:00Z",
+        "discount": None,
+    }
     assert accounts.load(alice.user.id).plan == PRO  # and that is the plan the session now reports
 
 

@@ -467,11 +467,130 @@ describe('promo codes', () => {
     )
   })
 
-  it('offers discounts only as a choice for later, switched off', async () => {
-    await tab()
-    const option = within(within(make()).getByLabelText('Type')).getByRole('option', { name: /Discount/ })
-    expect(option).toBeDisabled()
-    expect(option).toHaveTextContent('once a payment provider is connected')
+  it('makes a discount code with its percentage and months, and says what people get', async () => {
+    const { calls, user: u } = await tab()
+    await u.type(within(make()).getByLabelText('Code'), 'launch20')
+    await u.selectOptions(within(make()).getByLabelText('Type'), 'discount')
+    expect(within(make()).queryByLabelText('Days of Pro')).not.toBeInTheDocument()
+    expect(within(make()).getByLabelText('Percent off')).toHaveValue('20')
+    expect(within(make()).getByLabelText('For')).toHaveValue('repeating')
+    expect(within(make()).getByLabelText('Months')).toHaveValue('3')
+    await u.type(within(make()).getByLabelText('Most people (optional)'), '100')
+    expect(make()).toHaveTextContent(
+      'Anyone who enters LAUNCH20 gets 20% off your first 3 months of Roundturn Pro when they subscribe (the first 100 people to subscribe). It is saved on their account and applied at checkout.',
+    )
+    await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+    await screen.findByRole('region', { name: 'New code' })
+    expect(changes(calls)[0]?.body).toEqual({
+      code: 'LAUNCH20',
+      label: '',
+      kind: 'discount',
+      percent_off: 20,
+      duration: 'repeating',
+      duration_months: 3,
+      max_redemptions: 100,
+    })
+  })
+
+  it('sends no months for a discount on the first payment or on every payment', async () => {
+    const { calls, user: u } = await tab()
+    await u.type(within(make()).getByLabelText('Code'), 'HALF')
+    await u.selectOptions(within(make()).getByLabelText('Type'), 'discount')
+    await u.selectOptions(within(make()).getByLabelText('For'), 'forever')
+    expect(within(make()).queryByLabelText('Months')).not.toBeInTheDocument()
+    await u.clear(within(make()).getByLabelText('Percent off'))
+    await u.type(within(make()).getByLabelText('Percent off'), '50')
+    expect(make()).toHaveTextContent('gets 50% off every payment of Roundturn Pro')
+    await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+    await screen.findByRole('region', { name: 'New code' })
+    expect(changes(calls)[0]?.body).toMatchObject({ kind: 'discount', percent_off: 50, duration: 'forever' })
+    expect(changes(calls)[0]?.body).not.toHaveProperty('duration_months')
+    expect(changes(calls)[0]?.body).not.toHaveProperty('days')
+  })
+
+  it.each([
+    ['', '20', '3', 'A discount code is typed, such as LAUNCH20'],
+    ['LAUNCH0', '0', '3', 'The discount must be a whole number from 1 to 100.'],
+    ['LAUNCH101', '101', '3', 'The discount must be a whole number from 1 to 100.'],
+    ['LAUNCH25M', '20', '25', 'Months must be a whole number from 1 to 24.'],
+    ['LAUNCH0M', '20', '0', 'Months must be a whole number from 1 to 24.'],
+  ])(
+    'refuses discount code %j at %j%% for %j months before sending anything',
+    async (code, percent, months, message) => {
+      const { calls, user: u } = await tab()
+      if (code) await u.type(within(make()).getByLabelText('Code'), code)
+      else await u.type(within(make()).getByLabelText('Note to yourself'), 'x')
+      await u.selectOptions(within(make()).getByLabelText('Type'), 'discount')
+      await u.clear(within(make()).getByLabelText('Percent off'))
+      await u.type(within(make()).getByLabelText('Percent off'), percent)
+      await u.clear(within(make()).getByLabelText('Months'))
+      await u.type(within(make()).getByLabelText('Months'), months)
+      await u.click(within(make()).getByRole('button', { name: 'Make code' }))
+      expect(within(make()).getByRole('alert')).toHaveTextContent(message)
+      expect(changes(calls)).toEqual([])
+    },
+  )
+
+  it('shows a discount by what it gives and where its copy at the payment provider stands, with Retry when it failed', async () => {
+    const discounts = [
+      grant(9, 'Launch', {
+        code: 'LAUNCH20',
+        kind: 'discount',
+        days: null,
+        words: '20% off your first 3 months',
+        sync_status: 'failed',
+        sync_error: 'paddle_create_discount_500',
+      }),
+      grant(8, 'Spring', {
+        code: 'SPRING10',
+        kind: 'discount',
+        days: null,
+        words: '10% off every payment',
+        sync_status: 'synced',
+      }),
+      grant(7, 'Later', {
+        code: 'LATER5',
+        kind: 'discount',
+        days: null,
+        words: '5% off your first payment',
+        sync_status: 'pending',
+      }),
+    ]
+    const { calls, region, user: u } = await tab({ grantCodes: discounts })
+    const rows = (await within(region).findAllByRole('row')).slice(1)
+    expect(rows[0]).toHaveTextContent('20% off your first 3 months')
+    expect(rows[0]).toHaveTextContent('Sync failed (paddle_create_discount_500)')
+    expect(rows[1]).toHaveTextContent('At the payment provider · not live while billing is off')
+    expect(rows[2]).toHaveTextContent('Not at the payment provider yet')
+    expect(within(rows[1] as HTMLElement).queryByRole('button', { name: /Retry/ })).not.toBeInTheDocument()
+    await u.click(
+      within(rows[0] as HTMLElement).getByRole('button', { name: 'Retry the code LAUNCH20 at the payment provider' }),
+    )
+    await waitFor(() =>
+      expect(changes(calls)).toEqual([
+        { method: 'POST', path: '/api/admin/v1/grant-codes/9/sync', query: {}, body: null, csrf: 'tok' },
+      ]),
+    )
+  })
+
+  it('never offers a discount code to carry on an invite', async () => {
+    const both = [
+      grant(9, 'Launch', {
+        code: 'LAUNCH20',
+        kind: 'discount',
+        days: null,
+        words: '20% off your first payment',
+        sync_status: 'synced',
+      }),
+      ...GRANTS,
+    ]
+    await open({ invites: INVITES, grantCodes: both })
+    await listing()
+    const carry = within(screen.getByRole('region', { name: 'Make an invite' })).getByLabelText(
+      'Plan it carries (optional)',
+    )
+    expect(await within(carry).findByRole('option', { name: /FREE30/ })).toBeInTheDocument() // the list has loaded
+    expect(within(carry).queryByRole('option', { name: /LAUNCH20/ })).not.toBeInTheDocument()
   })
 
   it.each([

@@ -45,6 +45,9 @@ def make_fake(clock: Clock) -> FakeBilling:
 
 
 def billing_app(db, app_url, login_url, fake: FakeBilling, clock: Clock, *, enabled: bool = True, **config_changes):
+    """The app with billing on (or off), using `fake` as the provider: a `FakeBilling`, or a `PaddleBilling` talking to the
+    stand-in Paddle API (then pass `billing_provider="paddle"` and its `paddle` settings)."""
+    config_changes.setdefault("billing_provider", "fake")
     config = ApiConfig(
         app_origin=ORIGIN,
         web_dist=Path("/nonexistent"),
@@ -53,7 +56,6 @@ def billing_app(db, app_url, login_url, fake: FakeBilling, clock: Clock, *, enab
         login_database_url=login_url,
         webhook_database_url=webhook_url(),
         billing_enabled=enabled,
-        billing_provider="fake",
         **config_changes,
     )
     idp = FakeIdp()
