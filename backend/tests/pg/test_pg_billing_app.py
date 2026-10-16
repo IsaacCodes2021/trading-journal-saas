@@ -268,6 +268,23 @@ def test_billing_actions_are_limited_to_ten_an_hour_per_person(browser, alice):
     assert answers[:10] == [409] * 10 and answers[10] == 429  # nothing to manage yet, then the limit
 
 
+def test_a_request_without_the_csrf_token_uses_up_none_of_the_limit(browser, alice):
+    signed_in(browser)
+    for _ in range(12):  # what a forged request from another site would look like, carrying the cookie
+        refused = browser.client.post("/api/v1/billing/portal", headers={"sec-fetch-site": "cross-site"})
+        assert refused.status_code == 403
+    assert write(browser, "POST", "/api/v1/billing/portal").status_code == 409  # still allowed: nothing to manage yet
+
+
+def test_with_the_switch_off_the_guards_still_come_first(db, app_url, login_url, fake, clock, alice, started):
+    app = billing_app(db, app_url, login_url, fake, clock, enabled=False)
+    browser = open_browser(app)
+    started.append(browser)
+    assert browser.client.get("/api/v1/billing").status_code == 401  # not signed in: the switch is not revealed
+    signed_in(browser)
+    assert browser.client.post("/api/v1/billing/checkout", headers={"sec-fetch-site": "same-origin"}).status_code == 403
+
+
 # ---- cancel, resume, the provider's page -------------------------------------------------------------------------------
 
 
@@ -290,6 +307,19 @@ def test_cancel_or_resume_with_nothing_to_act_on_is_refused(browser, alice):
     assert write(browser, "POST", "/api/v1/billing/resume").status_code == 409
 
 
+@pytest.mark.parametrize("then", ["fail_payment", "finish"])
+def test_cancel_is_refused_after_a_failed_payment_or_once_it_ended_and_the_provider_is_not_asked(
+    browser, fake, clock, alice, then
+):
+    signed_in(browser)
+    sub = pay(browser, fake, clock)
+    clock.advance(hours=1)
+    assert post_webhook(browser, getattr(fake, then)(sub)).json()["outcome"] == "applied"
+    refused = write(browser, "POST", "/api/v1/billing/cancel")
+    assert refused.status_code == 409 and "no renewing subscription" in refused.json()["detail"]
+    assert ("cancel", sub) not in fake.calls
+
+
 def test_the_providers_page_is_a_fresh_link_once_there_is_a_customer(browser, fake, clock, alice):
     signed_in(browser)
     assert write(browser, "POST", "/api/v1/billing/portal").status_code == 409
@@ -297,6 +327,15 @@ def test_the_providers_page_is_a_fresh_link_once_there_is_a_customer(browser, fa
     first = write(browser, "POST", "/api/v1/billing/portal").json()["url"]
     second = write(browser, "POST", "/api/v1/billing/portal").json()["url"]
     assert first.startswith("https://") and first != second
+
+
+def test_a_providers_link_that_is_not_https_never_reaches_the_browser(browser, owner, fake, clock, alice, monkeypatch):
+    signed_in(browser)
+    pay(browser, fake, clock)
+    monkeypatch.setattr(fake, "portal_url", lambda **_: "http://billing.fake.test/portal/x")
+    refused = write(browser, "POST", "/api/v1/billing/portal")
+    assert refused.status_code == 503 and "billing.fake.test" not in refused.text
+    assert "billing_portal_opened" not in [r["action"] for r in audit_rows(owner)]
 
 
 # ---- the webhook route ---------------------------------------------------------------------------------------------------
@@ -323,6 +362,14 @@ def test_the_webhook_refuses_what_is_not_json_or_too_large(browser, fake):
     assert browser.client.post("/webhooks/billing", content=delivery.body, headers=headers).status_code == 415
     big = json.dumps({"x": "y" * 70_000}).encode()
     assert browser.client.post("/webhooks/billing", content=big, headers=fake.sign(big)).status_code == 413
+
+
+def test_the_webhook_stops_at_64_kb_even_when_the_body_declares_no_size(browser, owner, fake):
+    big = json.dumps({"x": "y" * 70_000}).encode()
+    pieces = iter([big[:40_000], big[40_000:]])  # sent in pieces: no Content-Length header to refuse it by
+    response = browser.client.post("/webhooks/billing", content=pieces, headers=fake.sign(big))
+    assert response.status_code == 413
+    assert owner.execute("SELECT count(*) AS n FROM billing_events").fetchone()["n"] == 0
 
 
 def test_the_webhook_answers_200_to_a_repeat_and_to_an_event_it_does_not_apply(browser, fake):

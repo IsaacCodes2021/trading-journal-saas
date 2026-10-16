@@ -140,7 +140,8 @@ read-only with export; a deleted screenshot stays in the copy bucket for 30 days
 
 **Runbooks** (`docs/runbooks/`): `first-deploy.md` (also DNS and the sweep settings), `deploy.md`, `restore.md`,
 `rotate-secrets.md`, `incident.md`, `kinde-branding.md`, `beta.md`, `support.md`, `migrate-local-data.md`,
-`try-real-sign-in.md`, `run-locally.md`, `launch-checklist.md`.
+`try-real-sign-in.md`, `run-locally.md`, `launch-checklist.md`, `billing.md` (billing, off in
+production).
 
 **Owner tools (run by hand, never scheduled):** `python -m tradejournal.pg.migrate`, `pg.provision_hosted`, `pg.migrate_local`
 (dry run first), `pg.clear_journal` (empties one person's journal; refuses while screenshots exist), `pg.users make-operator`,

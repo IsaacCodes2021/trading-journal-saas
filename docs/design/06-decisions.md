@@ -158,6 +158,16 @@ Status of every decision below is **Proposed** until you confirm it, and the spi
 
 **Spike prep findings for S5 (2026-10-02, doc 08).** The policy check turns the risk from unverified into real but manageable. Stripe lists funded prop trading as prohibited and investment services as restricted; Paddle prohibits trading platforms and trading signals or strategies and reserves judgment; Lemon Squeezy lists neither and tells sellers to ask support first. Pre-clear with Lemon Squeezy and Stripe support in M1 with a precise description, keep marketing wording to analytics of the user's own trades (not advice, not signals, not a prop firm), and note that Lemon Squeezy has been Stripe-owned since 2024 (its long-term status is unverified).
 
+**Amendment (2026-10-15): the model, and Paddle first.** Decided by the owner on 2026-10-14 and published on roundturn.app:
+**one plan, Roundturn Pro, USD 15 a month; a 7-day trial with no card; no free plan** (after the trial, nothing live means
+read-only, never deletion); **no refunds** (billing mistakes are fixed, legal rights are kept); cancel in Settings or by
+email; deleting the account ends the subscription. On 2026-10-15 the owner moved the provider from Lemon Squeezy to
+**Paddle** (a merchant of record), **after Paddle's written pre-clearance**, because its policy names trading platforms and
+signals (`docs/design/paddle-integration.md`, section 1); the fallback order stays Lemon Squeezy, then Stripe. Billing is built
+provider-neutral behind `TJ_BILLING_ENABLED` (off in production): a connector with a fake provider for tests, the webhook, the
+trial as a grant, the access rules and the screens (doc 05 section 16, `docs/runbooks/billing.md`). Only the adapter depends
+on the provider.
+
 ---
 
 ## ADR-008: Retire local-first mode; freeze it as a tag
@@ -271,3 +281,9 @@ CSRF protection has four layers, all enforced on unsafe methods: (1) `SameSite=L
 promo code is meant to be printed and shared, and it is never reused, even after it is revoked. A random code still keeps only
 its hash. The planned `discount_codes` mirror table is folded into `grant_codes` too: a discount is a row of another `kind`,
 pushed to the payment provider (doc 05 section 16). The operator's role reads a typed code and still never a hash.
+
+**Amendment (2026-10-15): the operator and billing.** The operator's role reads `subscriptions`, `billing_customers`,
+`billing_cancellations` and the columns of `billing_events` that say what and when (never `payload`), and nothing billing is
+writable by it: refunds, card problems and cancels by email are done in the provider's dashboard, and the operator's lever in
+the app stays the plan override, which still wins over a subscription. The person panel shows the subscription and its
+latest events, and the overview counts paying and on-trial people (migration 0021; tests pin every grant).

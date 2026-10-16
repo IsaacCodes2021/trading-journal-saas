@@ -216,4 +216,5 @@ def test_the_routes_that_answer_without_a_session_are_exactly_the_known_ones():
         ("GET", "/auth/login"),
         ("GET", "/auth/callback"),
         ("POST", "/api/v1/beta/join"),
+        ("POST", "/webhooks/billing"),  # the payment provider's: its signature is the lock (test_pg_billing_app.py)
     }

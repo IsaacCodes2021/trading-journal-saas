@@ -2,6 +2,7 @@
 
     subscription_of, live_until       a person's subscription and when it stops giving Pro   (login, admin, sweep, webhook)
     give_trial                        the 7-day trial, inside the sign-up transaction          (login)
+    start_trials                      the trial for accounts that exist on switch-on day      (owner, from pg.plans)
     customer_of, save_customer        the provider's customer for a person                     (login)
     recent_checkout, record_checkout  the checkouts the server opened                          (login)
     mark_cancelling                   a cancel or a resume the app asked the provider for      (login)
@@ -109,6 +110,55 @@ def give_trial(conn: psycopg.Connection, user_id: UUID, *, now: datetime | None 
     conn.execute("SELECT pg_advisory_xact_lock(%s, %s)", (LOCK_CLASS, code))
     row = _usable(conn, code, user_id, moment)
     return None if row is None else _give(conn, row, user_id, moment)
+
+
+@dataclass(frozen=True)
+class SwitchOnTrials:
+    """What `start_trials` found and did. Counts only: no address leaves this module."""
+
+    due: int  # accounts that billing switched on would leave read-only at once
+    operators: int  # of the accounts with nothing, operators: they get no trial, the owner gives them an override
+    started: int  # trials given (0 on a dry run)
+    no_trial_code: bool = False  # the trial's code is missing or revoked: nothing can be given
+
+
+def start_trials(conn: psycopg.Connection, *, apply: bool, now: datetime | None = None) -> SwitchOnTrials:
+    """The trial for the accounts that exist on the day billing is switched on (the billing design, question 3): every
+    active account (or one waiting to be deleted, which signing in again restores) that has never had free days from a
+    code or an invite, has no override in force and no subscription. Without this, billing on would make each of them
+    read-only at once, because there is no free plan. Someone whose free days already ended had them, and gets none; an
+    operator gets none either (the owner's own account takes an override, Pro with no end). Each trial is 7 days from
+    `now`, once per account like any trial, and is recorded in the audit log. Run as the schema owner."""
+    moment = now or datetime.now(UTC)
+    rows = conn.execute(
+        """SELECT u.id, u.is_admin FROM users u
+           WHERE u.status IN ('active', 'pending_deletion')
+             AND NOT EXISTS (SELECT 1 FROM grant_redemptions r WHERE r.user_id = u.id)
+             AND NOT EXISTS (SELECT 1 FROM plan_overrides o
+                             WHERE o.user_id = u.id AND o.revoked_at IS NULL AND (o.expires_at IS NULL OR o.expires_at > %s))
+             AND NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.user_id = u.id)
+           ORDER BY u.created_at, u.id""",
+        (moment,),
+    ).fetchall()
+    people = [row["id"] for row in rows if not row["is_admin"]]
+    operators = len(rows) - len(people)
+    with conn.transaction():
+        missing = trial_code_id(conn) is None
+    if not apply or missing:
+        return SwitchOnTrials(due=len(people), operators=operators, started=0, no_trial_code=missing)
+    started = 0
+    for user_id in people:
+        with conn.transaction():  # one account at a time: a failure later keeps the trials already given
+            if give_trial(conn, user_id, now=moment) is not None:
+                audit.record(
+                    conn,
+                    "trial_started",
+                    user_id=user_id,
+                    actor="cli:owner",
+                    meta={"days": TRIAL_DAYS, "via": "switch_on"},
+                )
+                started += 1
+    return SwitchOnTrials(due=len(people), operators=operators, started=started)
 
 
 # ---- customers and checkouts (the sign-in role, for the person's own routes) ------------------------------------------

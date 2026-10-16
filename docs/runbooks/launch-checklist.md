@@ -56,8 +56,14 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 
 ## B. Before it opens to everyone (public launch)
 
-- [ ] **What Free includes and what Pro adds** decided (the machinery exists; nothing is limited yet) **(you)**
-- [ ] A payment provider that accepts a trading journal: the two pre-clearance emails sent and answered **(you)**, then checkout, webhooks and failed-payment handling, a billing screen and discount codes **(me, after approval)**
+- [x] **What Free includes and what Pro adds** decided: one plan, Pro, USD 15 a month, a 7-day trial and no free plan (2026-10-14)
+- [ ] A payment provider that accepts a trading journal: Paddle's written pre-clearance asked for and answered **(you)**; the
+  trial, webhooks, failed-payment handling and the billing screens are built with a fake provider (2026-10-15 and 16, switch
+  off); the Paddle adapter, the payment page and discount codes next **(me)**. Operating it: [billing.md](billing.md)
+- [ ] Migrations 0020 and 0021 applied **before** the billing branches merge (the Cron Job runs the new image at the next
+  hour) **(you, as the schema owner)**
+- [ ] Switch-on day: an override for your own account, then `python -m tradejournal.pg.plans start-trials --apply` (built
+  2026-10-16), then the Cron Job's and the Web Service's billing settings **(you)**; [billing.md](billing.md)
 - [ ] Cookie and consent wording confirmed for the regions served **(you, a professional)**
 - [ ] Retire the old random `GR-` plan codes once none is outstanding (promo codes replace them; nothing is deleted, the blank-code
   form can still make one)
@@ -65,7 +71,8 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] An end-to-end browser test suite and a scan with ZAP against staging **(you for the Playwright install; then me)**
 - [ ] A status page, or a decision to use the site's front page for notices **(you)**; see [support.md](support.md) section 9
 - [ ] SPF, DKIM and DMARC for the domain's mail **(you)**
-- [ ] Billing's reverse path: a cancelled subscription and an account deletion agree **(me, with billing)**
+- [ ] Billing's reverse path: a cancelled subscription and an account deletion agree (built and tested with the fake provider,
+  2026-10-15; to prove once in Paddle's sandbox) **(me)**
 - [ ] Support has run for the whole beta and the questions it received are answered in the Help page **(me)**
 - [ ] Watch activation (invited, signed in, imported a file) and the import failure rate for the first weeks; a failure rate above [5%] is fixed before more people come in **(me, with real data)**
 

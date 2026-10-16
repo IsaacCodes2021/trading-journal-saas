@@ -787,3 +787,65 @@ artifact). Nothing here charges anyone, and no migration is applied to the hoste
   equivalent, because the unique index refuses the duplicate inside a savepoint with the same answer.
 - **Not done here:** discount codes (they need the payment provider; slice 4), and retiring the old random `GR-` codes (see
   the launch checklist).
+
+**Slice 2 (2026-10-15): billing with a fake provider** (migration 0021; `entitlements.py`, `tradejournal/billing/`,
+`pg/billing.py`, `api/billing_service.py`, `api/routers/billing.py` and `webhooks.py`, `auth/flow.py`, `pg/sweep.py`,
+`api/emails.py`; the billing design's slices 1 to 5, 7 and 8; operating it: `docs/runbooks/billing.md`).
+
+- **The switch.** `TJ_BILLING_ENABLED` (off in production) with `TJ_BILLING_PROVIDER` (`fake`, refused in production, or
+  `paddle`, refused in this build) and `TJ_WEBHOOK_DATABASE_URL` (the webhook's own role). **Off: sign-up, access, every page
+  and every email are exactly as before** (the "access ended" email is proven byte-identical), and the billing routes and the
+  webhook answer 404.
+- **Access** (`entitlements`). One plan, Pro, USD 15 a month (`billing/price.py`, held equal to the published price by a
+  test). With billing on there is **no free plan**: nothing live means read-only, and a subscription that ended is a third
+  reason, `lapsed`. A subscription is live to its period's end plus one day while it renews (a late renewal webhook locks
+  nobody out), to the period's end exactly once cancelling, and for 7 days from the first failed payment
+  (`past_due_since`). `billing_live_until` in SQL says the same, and a test holds the two together.
+- **The trial** is a grant of kind `trial` (7 days, one per account, a code nobody can type), given in the sign-up
+  transaction unless the invite brings its own free days. It never blocks a promo code. A checkout opened during free days
+  delays the first charge by the free days left, rounded up, so nobody pays for days they already have.
+- **The connector** (`billing/provider.py`): customer, checkout, pay link, the provider's page, cancel, resume, cancel now,
+  fetch (for the nightly check) and the webhook's check; no provider type crosses it. `FakeBilling` implements it in memory
+  with Paddle's signature scheme (`ts=…;h1=…`, HMAC-SHA256 (a keyed hash) over the raw body, 5 seconds of tolerance).
+- **The webhook** (`POST /webhooks/billing`): JSON only, 64 KB at most, then the signature (401, nothing stored); each event
+  stored once by its id (`billing_events`, personal details removed), applied in order (an older event is kept as `stale`),
+  and linked to a person only through a checkout the server opened. Refunds are recorded and change no access. Every outcome
+  after the signature is a 200, so the provider stops retrying; a database that is away is a 503, which it retries.
+- **The routes** (`/api/v1/billing`: `GET`, and `POST` `checkout`, `cancel`, `resume`, `portal`): the person's own billing
+  only, no id taken, CSRF-checked, not blocked by read-only (a read-only person must be able to subscribe); the four
+  actions are limited to 10 an hour per person.
+  A second Subscribe within 30 minutes lands on the same checkout.
+- **Deletion.** Asking to delete stops the next renewal; signing in again within the 7 days resumes it (only a cancel the
+  deletion made). The deletion itself queues the final cancel (`billing_cancellations`), which the sweep sends until the
+  provider confirms.
+- **The sweep** gains `billing` (the queued cancels, then the nightly check: every subscription not ended compared with the
+  provider's answer, a difference corrected and counted) and `billing-notices` (the "trial ends in 2 days" and
+  "subscription ended" emails, once each); both are in `all`. With billing on, the "access ended" email is worded for a trial
+  and offers Subscribe.
+- **The operator** sees the subscription and its latest events (never what they carried) and the paying and on-trial counts.
+  Also fixed: `plans_for` counted revoked grants.
+- **Tests.** 55 new tests on Postgres for the tables, roles, rules and webhook, 37 through the app (including one lifecycle:
+  trial, subscribe, renew, payment fails, grace, read-only, resubscribe, cancel, delete) and 31 with no database. Full
+  backend suite on the slices together: 3276 passed, 10 skipped (2026-10-16, with the fixes below). **Mutations: 25 of 25 caught** (the access rules, the
+  signature, the webhook's order and ownership checks, the routes' guards, the free days rounded up, the deletion's cancel,
+  the sweep, the switch-on trials). The first pass caught 22; the three survivors (a webhook body over 64 KB sent with no
+  declared size, a cancel after a failed payment or once ended, a provider link that is not https) each gained a test.
+
+**Slice 3 (2026-10-16): the billing screens** (doc 07 slice 29). Settings > Plan & billing in each state (trial, Pro from a
+code or the team, paying, cancelling, payment failed, read-only) with Subscribe, the Cancel dialog, Resume and the provider's
+page; "Confirming your payment" after the checkout; the header's plan tag as a link that says where billing stands; one
+banner (read-only, a failed payment, the trial's last 3 days); the operator's Subscription card and Paying · on trial tile.
+Billing off: unchanged. 52 new front-end tests; 10 of 10 mutations caught.
+
+- **Switch-on day** (2026-10-16, `pg/billing.start_trials`, `python -m tradejournal.pg.plans start-trials [--apply]`, as the
+  schema owner): the billing design's question 3. Every active account (or one waiting to be deleted) that never had free
+  days from a code or an invite, has no override in force and no subscription gets the 7-day trial from that moment, once,
+  with a `trial_started` row (`via: switch_on`, by `cli:owner`). Without it, billing on would make each of them read-only at
+  once (no free plan). Operators get none (the owner's own account takes an override); the command counts them. It counts
+  without `--apply` and names nobody. 3 tests on Postgres.
+- **What the full backend suite found** (2026-10-16, the first full run with billing in it): with billing off, the billing
+  routes answered 404 before the sign-in and CSRF checks, and the 10-an-hour limit counted requests the CSRF check would
+  then refuse. Now the guards come first whatever the switch says, and the limit counts only after the CSRF check
+  (`limited_per_person(..., after_csrf=True)`); 2 tests. Three lists the tests keep on purpose (write routes that take no id,
+  routes left out of the API description, the operator's overview fields) gained the billing entries.
+- **Not done yet:** the Paddle adapter and the payment page (`/billing/pay`), discount codes, and switching on anywhere.

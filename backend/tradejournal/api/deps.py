@@ -165,14 +165,18 @@ def get_admin_service(services: ServicesDep) -> AdminService:
 AdminServiceDep = Annotated[AdminService, Depends(get_admin_service)]
 
 
-def limited_per_person(pick: Callable[[RateLimits], Rule]):
+def limited_per_person(pick: Callable[[RateLimits], Rule], *, after_csrf: bool = False):
     """A route dependency: this person may do this only so often. It runs after sign-in, so a stranger cannot use up
-    anyone's allowance."""
+    anyone's allowance. `after_csrf` (a write route): it counts only once the CSRF check has passed too, so a request that
+    check refuses uses up nothing."""
 
     def dependency(request: Request, session: SessionDep) -> None:
         take_place(request, pick(request.app.state.config.rate_limits), str(session.user_id))
 
-    return Depends(dependency)
+    def checked(request: Request, session: WriteSessionDep) -> None:
+        take_place(request, pick(request.app.state.config.rate_limits), str(session.user_id))
+
+    return Depends(checked if after_csrf else dependency)
 
 
 HEAVY = (

@@ -198,6 +198,106 @@ def test_no_trial_code_no_trial_and_no_error(system, clock, alice):
         assert pg_billing.give_trial(conn, alice, now=clock()) is None
 
 
+# ---- switch-on day: a trial for the accounts that exist -------------------------------------------------------------------
+
+
+def switch_on_world(owner, db, clock):
+    """One account of each kind, as they could be on the day billing is switched on. Returns them by name."""
+    from conftest import make_user
+
+    people = {
+        name: make_user(owner, db, f"{name}@example.test")
+        for name in (
+            "plain",
+            "leaving",
+            "suspended",
+            "had_code",
+            "coded",
+            "free_override",
+            "ended_override",
+            "paying",
+            "op",
+        )
+    }
+    owner.execute(
+        "UPDATE users SET status = 'pending_deletion', deletion_scheduled_at = %s WHERE id = %s",
+        (clock() + 3 * DAY, people["leaving"]),
+    )
+    owner.execute("UPDATE users SET status = 'suspended' WHERE id = %s", (people["suspended"],))
+    owner.execute("UPDATE users SET is_admin = true WHERE id = %s", (people["op"],))
+    code, _ = plans.create_grant(owner, label="Beta", days=30)
+    for name, ends in (("had_code", clock() - 2 * DAY), ("coded", clock() + 10 * DAY)):
+        owner.execute(
+            "INSERT INTO grant_redemptions (grant_code_id, user_id, plan, starts_at, ends_at) VALUES (%s, %s, 'pro', %s, %s)",
+            (code, people[name], ends - 30 * DAY, ends),
+        )
+    for name, plan, ends in (("free_override", "free", None), ("ended_override", "pro", clock() - DAY)):
+        owner.execute(
+            "INSERT INTO plan_overrides (user_id, plan, expires_at, reason, created_by) VALUES (%s, %s, %s, 'x', 'admin:x')",
+            (people[name], plan, ends),
+        )
+    owner.execute(
+        """INSERT INTO subscriptions (user_id, provider, provider_subscription_id, status, current_period_end)
+           VALUES (%s, 'fake', 'sub_paying', 'active', %s)""",
+        (people["paying"], clock() + 20 * DAY),
+    )
+    return people
+
+
+def trials_of(owner):
+    return {
+        r["user_id"]: r["ends_at"]
+        for r in owner.execute(
+            """SELECT r.user_id, r.ends_at FROM grant_redemptions r JOIN grant_codes g ON g.id = r.grant_code_id
+               WHERE g.kind = 'trial'"""
+        ).fetchall()
+    }
+
+
+def test_switch_on_day_counts_first_then_gives_a_trial_only_to_accounts_with_nothing(owner, db, trial, clock):
+    people = switch_on_world(owner, db, clock)
+    dry = pg_billing.start_trials(owner, apply=False, now=clock())
+    assert dry == pg_billing.SwitchOnTrials(due=3, operators=1, started=0)  # plain, leaving, ended_override; op apart
+    assert trials_of(owner) == {} and actions(owner, "trial") == []
+
+    done = pg_billing.start_trials(owner, apply=True, now=clock())
+    assert done == pg_billing.SwitchOnTrials(due=3, operators=1, started=3)
+    ends = clock() + 7 * DAY
+    assert trials_of(owner) == {people["plain"]: ends, people["leaving"]: ends, people["ended_override"]: ends}
+    assert actions(owner, "trial") == [("trial_started", {"days": 7, "via": "switch_on"})] * 3
+    assert {r["actor"] for r in owner.execute("SELECT actor FROM audit_log WHERE action = 'trial_started'")} == {
+        "cli:owner"
+    }
+
+    again = pg_billing.start_trials(owner, apply=True, now=clock() + DAY)  # a second run gives nobody a second trial
+    assert again == pg_billing.SwitchOnTrials(due=0, operators=1, started=0)
+    assert len(trials_of(owner)) == 3
+
+
+def test_switch_on_day_with_no_trial_code_gives_nothing_and_says_so(owner, db, clock):
+    switch_on_world(owner, db, clock)
+    done = pg_billing.start_trials(owner, apply=True, now=clock())
+    assert done == pg_billing.SwitchOnTrials(due=3, operators=1, started=0, no_trial_code=True)
+    assert owner.execute("SELECT count(*) AS n FROM grant_redemptions").fetchone()["n"] == 2  # the two code rows only
+
+
+def test_the_start_trials_command_counts_without_apply_and_names_no_one(
+    owner_url, owner, db, trial, clock, monkeypatch, capsys
+):
+    switch_on_world(owner, db, clock)
+    monkeypatch.setenv("TJ_OWNER_URL", owner_url)
+    assert plans.main(["start-trials"]) == 0
+    printed = capsys.readouterr().out
+    assert "dry run: nothing changed; accounts with nothing that gives Pro: 3, trials started: 0" in printed
+    assert "1 operator account(s) also have nothing: give each an override (Pro, no end) instead." in printed
+    assert "@" not in printed
+    assert plans.main(["start-trials", "--apply"]) == 0
+    assert "applied; accounts with nothing that gives Pro: 3, trials started: 3" in capsys.readouterr().out
+    owner.execute("UPDATE grant_codes SET revoked_at = now() WHERE kind = 'trial'")
+    assert plans.main(["start-trials", "--apply"]) == 1
+    assert "no trial can be given" in capsys.readouterr().err
+
+
 def test_the_trial_can_never_be_redeemed_by_typing_even_with_its_hash(system, owner, trial, clock, alice, monkeypatch):
     with system.system_session("login") as conn:
         monkeypatch.setattr(plans, "find_code", lambda *_: trial)  # as if someone had found the code

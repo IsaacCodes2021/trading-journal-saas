@@ -10,6 +10,10 @@ operator (FREE30: 3 to 20 capital letters and digits) and is also kept readable,
 
     TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --label "Beta testers" --days 30
     TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --code FREE30 --days 30
+
+`start-trials` is for the day billing is switched on (`docs/runbooks/billing.md`): it gives the 7-day trial to every account
+that has never had free days, no override and no subscription, which billing on would otherwise make read-only at once.
+Without `--apply` it only counts.
 """
 
 from __future__ import annotations
@@ -338,6 +342,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("list-grants", help="every code, how many people used it, and whether it still works")
     revoke = sub.add_parser("revoke-grant", help="stop a code being used (people who used it keep their plan)")
     revoke.add_argument("--id", type=int, required=True)
+    trials = sub.add_parser(
+        "start-trials", help="switch-on day: a 7-day trial for every account with no code, override or subscription"
+    )
+    trials.add_argument("--apply", action="store_true", help="give them (the default only counts)")
     args = parser.parse_args(argv)
     url = os.environ.get("TJ_OWNER_URL")
     if not url:
@@ -367,6 +375,22 @@ def main(argv: list[str] | None = None) -> int:
                 state = "revoked" if g["revoked_at"] else "works"
                 name = g["code"] or g["label"] or "(no label)"
                 print(f"#{g['id']} {name}: {g['days']} days of {g['plan']}, used {g['used']} ({limit}), {state}")
+        elif args.command == "start-trials":
+            from .billing import start_trials  # billing builds on this module
+
+            done = start_trials(conn, apply=args.apply)
+            if done.no_trial_code:
+                print(
+                    "The trial's code is missing or revoked (migration 0021 makes it): no trial can be given.",
+                    file=sys.stderr,
+                )
+                return 1
+            mode = "applied" if args.apply else "dry run: nothing changed"
+            print(f"{mode}; accounts with nothing that gives Pro: {done.due}, trials started: {done.started}")
+            if done.operators:
+                print(
+                    f"{done.operators} operator account(s) also have nothing: give each an override (Pro, no end) instead."
+                )
         else:
             print("revoked" if revoke_grant(conn, args.id) else "no such code, or it was already revoked")
     return 0

@@ -310,6 +310,8 @@ def test_the_overview_has_the_numbers_and_nothing_a_person_wrote(world):
         "open_invites": 3,
         "open_grant_codes": 1,
         "grants_ending_7d": 0,
+        "on_trial": 0,
+        "paying": 0,
     }
 
 
