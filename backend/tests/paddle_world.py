@@ -64,6 +64,7 @@ class FakePaddleApi:
         self.customers: dict[str, str] = {}  # id -> email
         self.transactions: dict[str, dict[str, Any]] = {}
         self.subscriptions: dict[str, dict[str, Any]] = {}
+        self.discounts: dict[str, dict[str, Any]] = {}
         self.requests: list[tuple[str, str, Any]] = []  # (method, path and query, the JSON body)
         self.answers: list[httpx.Response | Exception] = []  # given first, in order, instead of the real answer
         self._ids = itertools.count(1)
@@ -104,6 +105,21 @@ class FakePaddleApi:
             return self._portal(parts[1], body)
         if parts == ["transactions"] and method == "POST":
             return self._create_transaction(body)
+        if parts == ["discounts"] and method == "POST":
+            return self._create_discount(body)
+        if parts == ["discounts"] and method == "GET":
+            query = parse_qs(request.url.query.decode())
+            wanted, status = query.get("code", [""])[0].upper(), query.get("status", [None])[0]
+            found = [
+                d for d in self.discounts.values() if d["code"] == wanted and (status is None or d["status"] == status)
+            ]
+            return ok(found)
+        if len(parts) == 2 and parts[0] == "discounts" and method == "PATCH":
+            found = self.discounts.get(parts[1])
+            if found is None:
+                return error(404, "not_found", f"Entity {parts[1]} not found")
+            found.update({k: v for k, v in (body or {}).items() if k == "status"})
+            return ok(found)
         if len(parts) >= 2 and parts[0] == "subscriptions":
             sub = self.subscriptions.get(parts[1])
             if sub is None:
@@ -147,6 +163,14 @@ class FakePaddleApi:
             },
             status=201,
         )
+
+    def _create_discount(self, body: dict[str, Any]) -> httpx.Response:
+        code = str(body.get("code") or "").upper()
+        if any(d["code"] == code for d in self.discounts.values()):
+            return error(409, "discount_code_conflict", "Discount code already in use")
+        did = self._id("dsc")
+        self.discounts[did] = {"id": did, "status": "active", "times_used": 0, **body, "code": code}
+        return ok(self.discounts[did], status=201)
 
     def _portal(self, customer: str, body: dict[str, Any]) -> httpx.Response:
         if customer not in self.customers:

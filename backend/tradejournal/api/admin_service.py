@@ -18,12 +18,15 @@ from uuid import UUID
 
 import psycopg
 
+from ..billing.provider import BillingProvider
+from ..billing.types import BillingError, DiscountSpec
 from ..pg import admin as pg_admin
 from ..pg import admin_beta as pg_beta
 from ..pg import admin_codes as pg_codes
 from ..pg import admin_log as pg_log
 from ..pg import audit as pg_audit
 from ..pg import deletion as pg_deletion
+from ..pg import discounts as pg_discounts
 from ..pg import invites as pg_invites
 from ..pg import plans as pg_plans
 from ..pg import rule_templates as pg_templates
@@ -137,6 +140,14 @@ def grant_out(row: pg_codes.GrantRow, now: datetime) -> GrantCodeOut:
         days=row.days,
         max_redemptions=row.max_redemptions,
         used=row.used,
+        percent_off=row.percent_off,
+        duration=row.duration,  # type: ignore[arg-type]  # a CHECK constraint holds it
+        duration_months=row.duration_months,
+        words=pg_discounts.describe(row.percent_off, row.duration, row.duration_months)
+        if row.percent_off is not None and row.duration is not None
+        else None,
+        sync_status=row.sync_status,  # type: ignore[arg-type]
+        sync_error=row.sync_error,
         expires_at=row.expires_at,
         created_by=row.created_by,
         created_at=row.created_at,
@@ -156,10 +167,14 @@ class PgAdminService:
         sessions: SessionStore,
         *,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        billing: BillingProvider | None = None,
+        billing_enabled: bool = False,
     ) -> None:
         self._system = system
         self._sessions = sessions
         self._clock = clock
+        self._billing = billing  # the payment provider discount codes are pushed to; None: they wait as "pending"
+        self._billing_enabled = billing_enabled
 
     # ---- looking -----------------------------------------------------------------------------------------------------
 
@@ -345,7 +360,13 @@ class PgAdminService:
         now = self._clock()
         with self._system.system_session(ADMIN) as conn:
             rows, total = pg_codes.list_grant_codes(conn, limit=limit, offset=offset, show=show, now=now)
-        return GrantCodeListOut(grant_codes=[grant_out(r, now) for r in rows], total=total, limit=limit, offset=offset)
+        return GrantCodeListOut(
+            grant_codes=[grant_out(r, now) for r in rows],
+            discounts_live=self._billing is not None and self._billing_enabled,
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
 
     def create_grant_code(
         self,
@@ -353,12 +374,16 @@ class PgAdminService:
         *,
         label: str,
         plan: str,
-        days: int,
+        days: int | None,
         max_redemptions: int | None,
         expires_in_days: int | None,
         code: str | None = None,
         expires_on: date | None = None,
         ip_hash: str | None = None,
+        kind: str = "free_days",
+        percent_off: int | None = None,
+        duration: str | None = None,
+        duration_months: int | None = None,
     ) -> CreatedGrantCodeOut:
         """Make a plan code. A typed `code` (FREE30) is kept readable and may appear in the audit log; a random one is shown
         in this answer only. A typed code already in use, in any case and even revoked, is refused: codes are never reused."""
@@ -366,6 +391,9 @@ class PgAdminService:
         typed = pg_plans.typed_code(code) if code is not None else None
         if code is not None and typed is None:
             raise AdminRefusal(422, BAD_CODE)
+        discount = kind == "discount"
+        if discount and (typed is None or percent_off is None or duration is None):
+            raise AdminRefusal(422, "A discount code is typed (such as LAUNCH20) and has a percentage and a duration.")
         made = typed or pg_plans.generate_code()
         if expires_on is not None:
             expires_at: datetime | None = datetime.combine(expires_on + timedelta(days=1), time(), tzinfo=UTC)
@@ -380,17 +408,31 @@ class PgAdminService:
                 with (
                     conn.transaction()
                 ):  # a savepoint: a duplicate made a moment ago by someone else is refused cleanly
-                    grant_id = pg_codes.create_grant_code(
-                        conn,
-                        code_hash=pg_invites.hash_code(made),
-                        code=typed,
-                        label=label,
-                        plan=plan,
-                        days=days,
-                        max_redemptions=max_redemptions,
-                        expires_at=expires_at,
-                        created_by=_by(actor),
-                    )
+                    if discount:
+                        grant_id = pg_codes.create_discount_code(
+                            conn,
+                            code_hash=pg_invites.hash_code(made),
+                            code=made,
+                            label=label,
+                            percent_off=percent_off,  # type: ignore[arg-type]  # checked above
+                            duration=duration,  # type: ignore[arg-type]
+                            duration_months=duration_months,
+                            max_redemptions=max_redemptions,
+                            expires_at=expires_at,
+                            created_by=_by(actor),
+                        )
+                    else:
+                        grant_id = pg_codes.create_grant_code(
+                            conn,
+                            code_hash=pg_invites.hash_code(made),
+                            code=typed,
+                            label=label,
+                            plan=plan,
+                            days=days,  # type: ignore[arg-type]  # the schema requires it for free days
+                            max_redemptions=max_redemptions,
+                            expires_at=expires_at,
+                            created_by=_by(actor),
+                        )
             except psycopg.errors.UniqueViolation:
                 raise AdminRefusal(422, CODE_TAKEN) from None
             # A typed code is meant to be shared, so the log may name it; a random one never appears in the log.
@@ -405,13 +447,91 @@ class PgAdminService:
                 **named,
                 label=label,
                 plan=plan,
-                days=days,
+                **(
+                    {"kind": kind, "percent_off": percent_off, "duration": duration, "duration_months": duration_months}
+                    if discount
+                    else {"days": days}
+                ),
                 max_redemptions=max_redemptions,
             )
+        if discount:  # saved first; the provider's copy follows, outside the transaction (it can be slow, or fail)
+            self._push(grant_id, actor, ip_hash)
+        with self._system.system_session(ADMIN) as conn:
             row = pg_codes.get_grant_code(conn, grant_id)
         if row is None:
             raise AdminRefusal(404, NO_GRANT)
         return CreatedGrantCodeOut(grant_code=grant_out(row, now), code=made)
+
+    def sync_grant_code(self, actor: UUID, grant_id: int, *, ip_hash: str | None = None) -> GrantCodeOut:
+        """Try again to give the provider its copy of a discount code (or to archive it, once revoked). Safe to repeat: a
+        copy the provider already holds is found and adopted, never made twice."""
+        with self._system.system_session(ADMIN) as conn:
+            row = pg_codes.get_grant_code(conn, grant_id)
+        if row is None:
+            raise AdminRefusal(404, NO_GRANT)
+        if row.kind != "discount":
+            raise AdminRefusal(409, "Only a discount code has a copy at the payment provider.")
+        if self._billing is None:
+            raise AdminRefusal(409, "No payment provider is set up on this server, so there is nothing to sync with.")
+        self._push(grant_id, actor, ip_hash)
+        with self._system.system_session(ADMIN) as conn:
+            row = pg_codes.get_grant_code(conn, grant_id)
+        return grant_out(row, self._clock())  # type: ignore[arg-type]  # it existed a moment ago; codes are never deleted
+
+    def _push(self, grant_id: int, actor: UUID, ip_hash: str | None) -> None:
+        """Make the provider's copy of a discount code match the row: create it (adopting one the provider already holds
+        with this code), or archive it once the code is revoked. Never raises: a provider that fails leaves the row
+        `failed` with a short reason (never its message), which the operator sees and can retry."""
+        provider = self._billing
+        if provider is None:
+            return  # no provider on this server: the code waits as "pending"
+        with self._system.system_session(ADMIN) as conn:
+            row = pg_codes.get_grant_code(conn, grant_id)
+        if row is None or row.kind != "discount" or row.code is None:
+            return
+        discount_id = row.provider_discount_id
+        try:
+            if row.revoked_at is not None:
+                if discount_id is not None:
+                    provider.archive_discount(discount_id)
+            elif discount_id is None:
+                discount_id = provider.find_discount(row.code) or provider.create_discount(
+                    DiscountSpec(
+                        code=row.code,
+                        percent_off=row.percent_off,  # type: ignore[arg-type]  # a CHECK holds a discount's terms
+                        duration=row.duration,  # type: ignore[arg-type]
+                        months=row.duration_months,
+                        max_uses=row.max_redemptions,
+                        expires_at=row.expires_at,
+                        note=row.label,
+                    )
+                )
+        except BillingError as problem:
+            status, error = "failed", problem.reason
+        else:
+            status, error = "synced", None
+        with self._system.system_session(ADMIN) as conn:
+            pg_codes.set_sync(
+                conn,
+                grant_id,
+                status=status,
+                provider=provider.name,
+                provider_discount_id=discount_id if status == "synced" else None,
+                error=error,
+                now=self._clock(),
+            )
+            outcome = {"reason": error} if error else {}
+            self._record(
+                conn,
+                "admin_discount_synced",
+                actor,
+                None,
+                ip_hash,
+                grant=grant_id,
+                code=row.code,
+                status=status,
+                **outcome,
+            )
 
     def revoke_grant_code(self, actor: UUID, grant_id: int, reason: str, *, ip_hash: str | None = None) -> GrantCodeOut:
         now = self._clock()
@@ -423,6 +543,9 @@ class PgAdminService:
             typed = pg_codes.get_grant_code(conn, grant_id)
             named = {"code": typed.code} if typed is not None and typed.code is not None else {}
             self._record(conn, "admin_grant_code_revoked", actor, None, ip_hash, grant=grant_id, **named, reason=reason)
+        if typed is not None and typed.kind == "discount":
+            self._push(grant_id, actor, ip_hash)  # revoked here first; then archived at the provider
+        with self._system.system_session(ADMIN) as conn:
             row = pg_codes.get_grant_code(conn, grant_id)
         if row is None:
             raise AdminRefusal(404, NO_GRANT)

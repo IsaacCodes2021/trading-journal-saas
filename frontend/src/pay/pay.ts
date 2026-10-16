@@ -83,6 +83,7 @@ export function startPayment(
           theme: 'dark',
           locale: 'en',
           allowedPaymentMethods: ['card'],
+          showAddDiscounts: false, // a code is typed in the app and saved there; the checkout carries it already
           successUrl: `${win.location.origin}/settings/plan?checkout=done`,
         },
       },

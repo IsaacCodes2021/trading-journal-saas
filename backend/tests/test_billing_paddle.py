@@ -22,7 +22,7 @@ from tradejournal.billing.paddle import (
     read_event,
     subscription_from_paddle,
 )
-from tradejournal.billing.types import BadSignature, ProviderRefused, ProviderUnavailable
+from tradejournal.billing.types import BadSignature, DiscountSpec, ProviderRefused, ProviderUnavailable
 
 NOW = datetime(2026, 10, 16, 12, 0, tzinfo=UTC)
 LIVE_KEY = "pdl_" + "live_" + "apikey_" + "test" * 4
@@ -257,6 +257,58 @@ def test_an_id_that_is_not_paddles_shape_never_reaches_a_request(api, paddle, ba
     with pytest.raises(ProviderRefused, match="paddle_id_malformed"):
         paddle.portal_url(customer_id=bad, subscription_id=None)
     assert api.requests == []
+
+
+# ---- discount codes ------------------------------------------------------------------------------------------------------
+
+
+def test_a_discount_is_a_percentage_off_the_pro_product_usable_at_checkout_with_the_apps_code(api, paddle):
+    expires = datetime(2026, 12, 31, 23, 59, 59, tzinfo=UTC)
+    spec = DiscountSpec("LAUNCH20", 20, "repeating", months=3, max_uses=50, expires_at=expires, note="Launch week")
+    discount = paddle.create_discount(spec)
+    method, where, body = api.requests[-1]
+    assert (method, where) == ("POST", "/discounts") and discount in api.discounts
+    assert body == {
+        "description": "LAUNCH20: Launch week",
+        "type": "percentage",
+        "amount": "20",
+        "enabled_for_checkout": True,
+        "code": "LAUNCH20",
+        "recur": True,
+        "usage_limit": 50,
+        "expires_at": "2026-12-31T23:59:59Z",
+        "restrict_to": [PRODUCT],  # the product: every price of it, a checkout's own price with free days included
+        "maximum_recurring_intervals": 3,
+    }
+
+
+@pytest.mark.parametrize(
+    ("duration", "months", "recurs"),
+    [("once", None, {"recur": False}), ("forever", None, {"recur": True, "maximum_recurring_intervals": None})],
+)
+def test_once_does_not_recur_and_forever_recurs_without_a_limit(api, paddle, duration, months, recurs):
+    paddle.create_discount(DiscountSpec("X" + duration.upper()[:5], 10, duration, months=months))
+    body = api.requests[-1][2]
+    assert {k: body[k] for k in recurs} == recurs
+    if duration == "once":
+        assert "maximum_recurring_intervals" not in body
+
+
+def test_a_discount_paddle_already_holds_is_found_by_its_code_and_an_archived_one_is_not(api, paddle):
+    assert paddle.find_discount("LAUNCH20") is None
+    made = paddle.create_discount(DiscountSpec("LAUNCH20", 20, "once"))
+    assert paddle.find_discount("launch20") == made
+    assert api.requests[-1][1] == "/discounts?code=launch20&status=active"
+    paddle.archive_discount(made)
+    assert api.requests[-1] == ("PATCH", f"/discounts/{made}", {"status": "archived"})
+    assert api.discounts[made]["status"] == "archived" and paddle.find_discount("LAUNCH20") is None
+
+
+def test_a_code_paddle_already_has_is_paddles_no(api, paddle):
+    paddle.create_discount(DiscountSpec("LAUNCH20", 20, "once"))
+    with pytest.raises(PaddleRefused) as refused:
+        paddle.create_discount(DiscountSpec("LAUNCH20", 30, "once"))
+    assert refused.value.code == "discount_code_conflict"
 
 
 # ---- when Paddle is busy, down or odd --------------------------------------------------------------------------------------

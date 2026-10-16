@@ -35,6 +35,7 @@ from .types import (
     BadSignature,
     BillingEvent,
     Checkout,
+    DiscountSpec,
     ProviderRefused,
     ProviderSubscription,
     ProviderUnavailable,
@@ -266,6 +267,45 @@ class PaddleBilling:
     def fetch_subscription(self, subscription_id: str) -> ProviderSubscription:
         return self._sub("fetch_subscription", "GET", f"/subscriptions/{self._checked(subscription_id)}", None)
 
+    def create_discount(self, spec: DiscountSpec) -> str:
+        """A percentage off Roundturn Pro (every price of the product, so a checkout's own price with free days gets it
+        too), usable at checkout with the app's code, which is how a checkout the server made can carry it. The checkout
+        page hides Paddle's own discount box, so the app stays the one place a code is typed. With free days, Paddle starts
+        a recurring discount after them (its docs, 2026-10-16). `maximum_recurring_intervals` is the months: VERIFY in the
+        sandbox that "3" means three payments."""
+        product = self.settings.product_id
+        if product is None:
+            raise ProviderUnavailable("paddle_not_configured")
+        body: dict[str, Any] = {
+            "description": (f"{spec.code}: {spec.note}" if spec.note else spec.code)[:500],
+            "type": "percentage",
+            "amount": str(spec.percent_off),
+            "enabled_for_checkout": True,
+            "code": spec.code,
+            "recur": spec.duration != "once",
+            "usage_limit": spec.max_uses,
+            "expires_at": _rfc3339(spec.expires_at),
+            "restrict_to": [product],
+        }
+        if spec.duration != "once":
+            body["maximum_recurring_intervals"] = spec.months if spec.duration == "repeating" else None
+        return self._id(self._call("create_discount", "POST", "/discounts", body=body), "dsc")
+
+    def find_discount(self, code: str) -> str | None:
+        """Paddle's list, narrowed to this code and to active discounts (VERIFY the `code` filter in the sandbox)."""
+        listed = self._call("find_discount", "GET", "/discounts", params={"code": code, "status": "active"})
+        for discount in listed if isinstance(listed, list) else []:
+            if (
+                isinstance(discount, dict)
+                and str(discount.get("code", "")).upper() == code.upper()
+                and discount.get("status") == "active"
+            ):
+                return self._id(discount, "dsc")
+        return None
+
+    def archive_discount(self, discount_id: str) -> None:
+        self._call("archive_discount", "PATCH", f"/discounts/{self._checked(discount_id)}", body={"status": "archived"})
+
     def verify_webhook(self, headers: Mapping[str, str], raw_body: bytes) -> BillingEvent:
         secret = self.settings.webhook_secret
         header = next((v for k, v in headers.items() if k.lower() == SIGNATURE_HEADER.lower()), None)
@@ -454,6 +494,10 @@ def _when(value: Any) -> datetime | None:
     if moment.tzinfo is None:
         raise ValueError("a time without its zone")
     return moment.astimezone(UTC)
+
+
+def _rfc3339(moment: datetime | None) -> str | None:
+    return moment.astimezone(UTC).isoformat().replace("+00:00", "Z") if moment is not None else None
 
 
 def _json(response: httpx.Response) -> Any:

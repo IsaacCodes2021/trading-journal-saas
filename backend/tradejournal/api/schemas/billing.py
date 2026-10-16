@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import Field
 
 from .base import ApiModel
+from .session import DiscountOut
 
 BillingState = Literal["trial", "covered", "active", "cancelling", "past_due", "read_only"]
 
@@ -38,6 +39,9 @@ class BillingOut(ApiModel):
         description="The provider has a customer for this person, so its billing page has something"
     )
     reason: Literal["expired", "revoked", "lapsed"] | None = Field(description="read_only: why")
+    discount: DiscountOut | None = Field(
+        default=None, description="A discount code saved for the next checkout, while Subscribe is offered"
+    )
 
 
 class CheckoutOut(ApiModel):

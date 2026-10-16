@@ -145,9 +145,17 @@ def create_app(
         billing_service = PgBillingService(system, provider, clock=clock) if provider is not None else None
         services = Services(
             sessions=store,
-            accounts=PgAccountService(database, system, clock=clock, billing_enabled=config.billing_enabled),
+            accounts=PgAccountService(
+                database,
+                system,
+                clock=clock,
+                billing_enabled=config.billing_enabled,
+                billing_provider=provider.name if provider is not None else None,
+            ),
             audit=PgAuditLog(system),
-            admin=PgAdminService(system, store, clock=clock) if config.admin_database_url else None,
+            admin=PgAdminService(system, store, clock=clock, billing=provider, billing_enabled=config.billing_enabled)
+            if config.admin_database_url
+            else None,
             beta=PgBetaService(system),
             billing=billing_service,
         )

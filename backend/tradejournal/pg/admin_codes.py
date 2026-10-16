@@ -13,6 +13,8 @@ from datetime import UTC, datetime
 
 import psycopg
 
+from .discounts import USED as DISCOUNT_USED
+
 PAGE_MAX = 100
 
 
@@ -46,13 +48,22 @@ class GrantRow:
     kind: str
     label: str
     plan: str
-    days: int
+    days: int | None  # None for a discount code (it gives no days)
     max_redemptions: int | None
-    used: int
+    used: int  # people who redeemed it; for a discount, people who subscribed with it
     expires_at: datetime | None
     created_by: str
     created_at: datetime
     revoked_at: datetime | None
+    # A discount code's terms and its copy at the payment provider (migration 0022); None for every other kind.
+    percent_off: int | None = None
+    duration: str | None = None
+    duration_months: int | None = None
+    provider: str | None = None
+    provider_discount_id: str | None = None
+    sync_status: str | None = None
+    sync_error: str | None = None
+    synced_at: datetime | None = None
 
     def status(self, now: datetime) -> str:
         if self.revoked_at is not None:
@@ -68,15 +79,17 @@ def _page(limit: int, offset: int) -> tuple[int, int]:
     return max(1, min(limit, PAGE_MAX)), max(0, offset)
 
 
-_GRANT_COLUMNS = """g.id, g.code, g.kind, g.label, g.plan, g.days, g.max_redemptions, g.expires_at, g.created_by,
-                  g.created_at, g.revoked_at,
-                  (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) AS used"""
+# A free-days code is used when someone redeems it; a discount code when someone subscribes with it (migration 0022).
+_USED = f"""(CASE WHEN g.kind = 'discount' THEN {DISCOUNT_USED}
+                 ELSE (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) END)"""  # noqa: S608
+_GRANT_COLUMNS = f"""g.id, g.code, g.kind, g.label, g.plan, g.days, g.max_redemptions, g.expires_at, g.created_by,
+                  g.created_at, g.revoked_at, g.percent_off, g.duration, g.duration_months, g.provider,
+                  g.provider_discount_id, g.sync_status, g.sync_error, g.synced_at, {_USED} AS used"""
 
 # What "works" means for a code, in SQL (the same rule as `GrantRow.status`): not revoked, not expired, a use left. The
 # operator's "Show" filter is one of these, so a page of 25 is 25 rows of the kind asked for.
-_WORKS = """g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > %(now)s)
-            AND (g.max_redemptions IS NULL
-                 OR (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) < g.max_redemptions)"""
+_WORKS = f"""g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > %(now)s)
+            AND (g.max_redemptions IS NULL OR {_USED} < g.max_redemptions)"""
 GRANT_FILTERS = {
     "works": _WORKS,
     "ended": f"g.revoked_at IS NULL AND NOT ({_WORKS})",  # used up or expired
@@ -198,6 +211,59 @@ def create_grant_code(
         (code_hash, code, label, plan, days, max_redemptions, expires_at, created_by),
     ).fetchone()
     return row["id"]
+
+
+def create_discount_code(
+    conn: psycopg.Connection,
+    *,
+    code_hash: bytes,
+    code: str,
+    label: str,
+    percent_off: int,
+    duration: str,
+    duration_months: int | None,
+    max_redemptions: int | None,
+    expires_at: datetime | None,
+    created_by: str,
+) -> int:
+    """A discount code, saved first and pushed to the provider after (`set_sync`): it starts `pending`. A taken code raises
+    `psycopg.errors.UniqueViolation`, as for any typed code."""
+    row = conn.execute(
+        """INSERT INTO grant_codes (code_hash, code, kind, label, plan, days, percent_off, duration, duration_months,
+                                    max_redemptions, expires_at, created_by, sync_status)
+           VALUES (%s, %s, 'discount', %s, 'pro', NULL, %s, %s, %s, %s, %s, %s, 'pending') RETURNING id""",
+        (code_hash, code, label, percent_off, duration, duration_months, max_redemptions, expires_at, created_by),
+    ).fetchone()
+    return row["id"]
+
+
+def set_sync(
+    conn: psycopg.Connection,
+    grant_id: int,
+    *,
+    status: str,
+    provider: str | None = None,
+    provider_discount_id: str | None = None,
+    error: str | None = None,
+    now: datetime | None = None,
+) -> None:
+    """What the provider did with a discount code: `synced` (with its id the first time), `failed` (with a short reason
+    code, never a provider message or a secret), or `pending`. A provider id once recorded is never lost."""
+    conn.execute(
+        """UPDATE grant_codes SET sync_status = %s, provider = coalesce(%s, provider),
+                  provider_discount_id = coalesce(provider_discount_id, %s), sync_error = %s,
+                  synced_at = CASE WHEN %s = 'synced' THEN %s ELSE synced_at END
+           WHERE id = %s AND kind = 'discount'""",
+        (
+            status,
+            provider,
+            provider_discount_id,
+            (error or "")[:200] or None,
+            status,
+            now or datetime.now(UTC),
+            grant_id,
+        ),
+    )
 
 
 def revoke_grant_code(conn: psycopg.Connection, grant_id: int, *, now: datetime | None = None) -> bool:

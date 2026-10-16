@@ -848,4 +848,54 @@ Billing off: unchanged. 52 new front-end tests; 10 of 10 mutations caught.
   then refuse. Now the guards come first whatever the switch says, and the limit counts only after the CSRF check
   (`limited_per_person(..., after_csrf=True)`); 2 tests. Three lists the tests keep on purpose (write routes that take no id,
   routes left out of the API description, the operator's overview fields) gained the billing entries.
-- **Not done yet:** the Paddle adapter and the payment page (`/billing/pay`), discount codes, and switching on anywhere.
+- **Not done yet** (after slice 3): see slices 4 and 5.
+
+**Slice 4 (2026-10-16): the Paddle connector and the payment page** (`billing/paddle.py`, `api/routers/pay.py`,
+`api/security.py`, `frontend/pay.html` and `src/pay/`; the Paddle guide, sections 4 to 7; facts checked against Paddle's docs
+through the paddle-docs server on 2026-10-16).
+
+- **The connector.** `PaddleBilling` speaks Paddle's API with `httpx` (no SDK, no new dependency): one customer per address
+  (Paddle's 409 names the one it has, else a lookup), transactions made on the server with the person's id in custom data,
+  and with free days a price of the same product whose trial is those days, so the first charge waits (card asked for now;
+  over a year of free days is refused); portal sessions; cancel at the period's end; resume (remove the scheduled change);
+  cancel now (one already ended counts as done); fetch. Paddle's notifications (`Paddle-Signature`) are read into the
+  connector's own types: subscriptions (a scheduled cancel ends at its effective time), adjustments as refunds, transactions
+  as payments, keeping ids, statuses, dates and amounts only. Timeouts of 5 and 10 seconds; two retries only for 429, 5xx or
+  a request that never left (a read that timed out is not repeated: Paddle may have acted). Logs name the call, the status
+  and Paddle's request id, never the key, a body or an email.
+- **Settings.** The six `TJ_PADDLE_*`; a sandbox key with live settings, a token of the other environment or a mistyped id
+  stops the server. The sweep needs only the environment and the key.
+- **The payment page** `/billing/pay`: the only page that loads Paddle.js (from Paddle's address), under a Content-Security-
+  Policy of its own and a Cross-Origin-Opener-Policy that allows a bank's 3-D Secure popup; every other page keeps the strict
+  policy. A second Vite entry under 1 KB, filled by the server with the public client token and the environment. Card only,
+  overlay, Paddle's discount box hidden. 404 unless billing is on with Paddle.
+- **Tests.** A stand-in for Paddle's API (`tests/paddle_world.py`, shapes from Paddle's docs, no personal data) behind
+  `httpx.MockTransport`: 52 connector tests, 7 through the whole app on Postgres (the trial checkout, cancel and resume with
+  Paddle's notification confirming each, the portal, a failed payment to read-only, a refund, a subscription naming someone
+  else, deletion and the sweep's final cancel), 9 for the page, 6 front-end tests for its script. To verify in the sandbox:
+  the CSP origins, that "3 months" means three payments, and the discount list's `code` filter.
+
+**Slice 5 (2026-10-16): discount codes** (migration 0022; `pg/discounts.py`, `pg/admin_codes.py`, `api/admin_service.py`,
+`api/billing_service.py`, `auth/flow.py`; promo spec section 6 for Paddle, guide section 5.8).
+
+- **The table.** A discount code is a `grant_codes` row of kind `discount`: always typed, a percentage (1 to 100) for the
+  first payment, the first 1 to 24 months, or every payment, no days; one CHECK holds each kind to its own columns. Its copy
+  at the provider is `sync_status` (`pending`, `synced`, `failed` with a short reason). `pending_promos` saves a person's
+  code for their next checkout; `billing_checkouts.grant_code_id` records the checkout that carried one. The sign-in role
+  reads a discount's terms and never a code; the operator writes the sync columns only.
+- **The operator** makes one with Type "Discount" (a preview says what people get); it is saved first, then made at the
+  provider as a percentage off the Pro product, usable at checkout with the same code. A provider that fails leaves it
+  `failed` with Retry (`POST /api/admin/v1/grant-codes/{id}/sync`), which finds and adopts a copy the provider made but never
+  confirmed rather than making a second. Revoking archives the provider's copy. **Used** counts people who subscribed with
+  it. An invite never carries one.
+- **People** type it in the usual box (Settings, or the sign-up form): it is saved ("Saved: 20% off your first 3 months. It
+  is applied when you subscribe."), shown beside Subscribe, put on the next checkout, and forgotten once a subscription comes
+  of that checkout. One that stops working is dropped quietly. With billing off it is the one refusal; at sign-up it is
+  caught before the identity provider, and a newcomer who brings one lands on `/settings/plan?promo=saved`.
+- **Tests.** 26 on Postgres (each kind's columns, every grant, made and synced, no provider, provider down then retried, made
+  but unconfirmed then adopted, revoked and archived with a failed archive retried, a person saving, seeing and spending one,
+  billing off, not yet synced or used up, a code that stops working, a newer code, sign-up with one on and off), 5 Paddle
+  calls, 15 for the operator route's validation, and front-end tests for the form, the table's sync state and Retry, the
+  Settings answer, the saved line and the sign-up notice.
+- **Not done here:** a nightly comparison of discount codes with the provider's copies (the operator's Retry covers a
+  failure; a change made in Paddle's dashboard is not seen), and switching on anywhere.

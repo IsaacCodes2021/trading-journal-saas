@@ -370,3 +370,37 @@ describe('back from the checkout', () => {
     expect(sent('/api/v1/billing')).toHaveLength(reads)
   })
 })
+
+describe('a discount code', () => {
+  const DISCOUNT = { percent_off: 20, duration: 'repeating', duration_months: 3, words: '20% off your first 3 months' }
+
+  it('says a saved code is applied at checkout, beside Subscribe', async () => {
+    await open({ billing: { ...TRIAL, discount: DISCOUNT } })
+    expect(await plan()).toHaveTextContent(
+      'Your discount code is saved: 20% off your first 3 months, applied at checkout.',
+    )
+  })
+
+  it('says nothing of a discount when none is saved', async () => {
+    await open({ billing: TRIAL })
+    expect(await plan()).not.toHaveTextContent('discount code')
+  })
+
+  it('tells someone who typed one in the box that it is saved for when they subscribe', async () => {
+    const user = await open({
+      billing: TRIAL,
+      redeem: { status: 200, body: { effective: 'pro', source: 'grant', expires_at: null, discount: DISCOUNT } },
+    })
+    const box = screen.getByRole('region', { name: 'Redeem a promo code' })
+    await user.type(within(box).getByLabelText('Promo code'), 'LAUNCH20')
+    await user.click(within(box).getByRole('button', { name: 'Redeem' }))
+    expect(await within(box).findByRole('status')).toHaveTextContent(
+      'Saved: 20% off your first 3 months. It is applied when you subscribe.',
+    )
+  })
+
+  it('says once, on the way in from sign-up, that the code it was made with is saved', async () => {
+    await open({ billing: TRIAL }, '?promo=saved')
+    expect(screen.getByText(/your discount code is saved/)).toBeInTheDocument()
+  })
+})

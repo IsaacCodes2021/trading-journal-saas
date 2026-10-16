@@ -50,6 +50,20 @@ class BillingEvent:
 
 
 @dataclass(frozen=True)
+class DiscountSpec:
+    """A discount code as the provider is asked to hold it: a percentage off Roundturn Pro, for the first payment
+    (`once`), the first `months` (`repeating`) or every payment (`forever`), at most `max_uses` people, until `expires_at`."""
+
+    code: str
+    percent_off: int
+    duration: Literal["once", "repeating", "forever"]
+    months: int | None = None
+    max_uses: int | None = None
+    expires_at: datetime | None = None
+    note: str = ""
+
+
+@dataclass(frozen=True)
 class Checkout:
     """A checkout the server opened for a person. `pay_url` is where the browser goes to pay."""
 

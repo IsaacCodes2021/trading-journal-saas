@@ -1769,6 +1769,17 @@
             "title": "Currency",
             "type": "string"
           },
+          "discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A discount code saved for the next checkout, while Subscribe is offered"
+          },
           "ends_at": {
             "anyOf": [
               {
@@ -1858,7 +1869,8 @@
           "can_subscribe",
           "billing_starts_at",
           "can_manage",
-          "reason"
+          "reason",
+          "discount"
         ],
         "title": "BillingOut",
         "type": "object"
@@ -2281,6 +2293,50 @@
         "title": "DeletionRequest",
         "type": "object"
       },
+      "DiscountOut": {
+        "description": "A discount code a person has saved for their next checkout (migration 0022). What it gives, not its name: the sign-in\nrole cannot read codes, and the person knows what they typed.",
+        "properties": {
+          "duration": {
+            "enum": [
+              "once",
+              "repeating",
+              "forever"
+            ],
+            "title": "Duration",
+            "type": "string"
+          },
+          "duration_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration Months"
+          },
+          "percent_off": {
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Percent Off",
+            "type": "integer"
+          },
+          "words": {
+            "description": "What it gives, as the page says it: \"20% off your first 3 months\"",
+            "title": "Words",
+            "type": "string"
+          }
+        },
+        "required": [
+          "percent_off",
+          "duration",
+          "duration_months",
+          "words"
+        ],
+        "title": "DiscountOut",
+        "type": "object"
+      },
       "EndedOut": {
         "properties": {
           "ended": {
@@ -2601,11 +2657,49 @@
             "title": "Code"
           },
           "days": {
-            "description": "How long the plan lasts once it is redeemed (30 at most)",
-            "maximum": 30.0,
-            "minimum": 1.0,
-            "title": "Days",
-            "type": "integer"
+            "anyOf": [
+              {
+                "maximum": 30.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Free days: how long the plan lasts once it is redeemed (30 at most)",
+            "title": "Days"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "enum": [
+                  "once",
+                  "repeating",
+                  "forever"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Discount: the first payment, the first months (with duration_months), or every payment",
+            "title": "Duration"
+          },
+          "duration_months": {
+            "anyOf": [
+              {
+                "maximum": 24.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Discount repeating: how many months",
+            "title": "Duration Months"
           },
           "expires_in_days": {
             "anyOf": [
@@ -2635,8 +2729,11 @@
             "title": "Expires On"
           },
           "kind": {
-            "const": "free_days",
             "default": "free_days",
+            "enum": [
+              "free_days",
+              "discount"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -2661,6 +2758,20 @@
             "description": "How many people may use it; none means any number",
             "title": "Max Redemptions"
           },
+          "percent_off": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Discount: the percentage off Pro",
+            "title": "Percent Off"
+          },
           "plan": {
             "const": "pro",
             "default": "pro",
@@ -2668,14 +2779,17 @@
             "type": "string"
           }
         },
-        "required": [
-          "days"
-        ],
         "title": "GrantCodeIn",
         "type": "object"
       },
       "GrantCodeListOut": {
         "properties": {
+          "discounts_live": {
+            "default": false,
+            "description": "Whether people can use discount codes now: billing is on and a provider is set",
+            "title": "Discounts Live",
+            "type": "boolean"
+          },
           "grant_codes": {
             "items": {
               "$ref": "#/components/schemas/GrantCodeOut"
@@ -2698,6 +2812,7 @@
         },
         "required": [
           "grant_codes",
+          "discounts_live",
           "total",
           "limit",
           "offset"
@@ -2729,8 +2844,45 @@
             "type": "string"
           },
           "days": {
-            "title": "Days",
-            "type": "integer"
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Days of Pro (free_days); none for a discount",
+            "title": "Days"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "enum": [
+                  "once",
+                  "repeating",
+                  "forever"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A discount's reach: the first payment, the first months, or every payment",
+            "title": "Duration"
+          },
+          "duration_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "With duration repeating: how many months",
+            "title": "Duration Months"
           },
           "expires_at": {
             "anyOf": [
@@ -2749,8 +2901,11 @@
             "type": "integer"
           },
           "kind": {
-            "const": "free_days",
-            "description": "What it gives: free_days is days of Pro",
+            "description": "What it gives: free_days is days of Pro; discount is a percentage off Pro",
+            "enum": [
+              "free_days",
+              "discount"
+            ],
             "title": "Kind",
             "type": "string"
           },
@@ -2769,6 +2924,18 @@
               }
             ],
             "title": "Max Redemptions"
+          },
+          "percent_off": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A discount's percentage",
+            "title": "Percent Off"
           },
           "plan": {
             "const": "pro",
@@ -2797,9 +2964,51 @@
             "title": "Status",
             "type": "string"
           },
+          "sync_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the last push or archive failed, as a short code",
+            "title": "Sync Error"
+          },
+          "sync_status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "pending",
+                  "synced",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A discount's copy at the payment provider: pending (not there yet), synced, or failed (retry it)",
+            "title": "Sync Status"
+          },
           "used": {
+            "description": "People who used it: redeemed it (free_days), or subscribed with it (discount)",
             "title": "Used",
             "type": "integer"
+          },
+          "words": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A discount as people read it: \"20% off your first 3 months\"",
+            "title": "Words"
           }
         },
         "required": [
@@ -2811,6 +3020,12 @@
           "days",
           "max_redemptions",
           "used",
+          "percent_off",
+          "duration",
+          "duration_months",
+          "words",
+          "sync_status",
+          "sync_error",
           "expires_at",
           "created_by",
           "created_at",
@@ -4200,6 +4415,56 @@
           "reason"
         ],
         "title": "ReasonIn",
+        "type": "object"
+      },
+      "RedeemOut": {
+        "description": "What using a code did: the person's plan afterwards and, for a discount code, the discount saved for their next\ncheckout (their plan does not change until they subscribe).",
+        "properties": {
+          "discount": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscountOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the code was a discount code"
+          },
+          "effective": {
+            "title": "Effective",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "source": {
+            "enum": [
+              "override",
+              "grant",
+              "subscription",
+              "free"
+            ],
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "effective",
+          "source",
+          "expires_at",
+          "discount"
+        ],
+        "title": "RedeemOut",
         "type": "object"
       },
       "RedeemRequest": {
@@ -6954,6 +7219,101 @@
           }
         },
         "summary": "Revoke Grant Code",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/v1/grant-codes/{grant_id}/sync": {
+      "post": {
+        "description": "Try again to give the payment provider its copy of a discount code, or to archive it once revoked.",
+        "operationId": "sync_grant_code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "grant_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Grant Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrantCodeOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Sync Grant Code",
         "tags": [
           "admin"
         ]
@@ -11863,7 +12223,7 @@
     },
     "/api/v1/grants/redeem": {
       "post": {
-        "description": "Use a plan code. Answers the plan the person is on afterwards.",
+        "description": "Use a promo code. Answers the plan the person is on afterwards, and for a discount code (billing on) the discount\nsaved for their next checkout.",
         "operationId": "redeem",
         "requestBody": {
           "content": {
@@ -11880,7 +12240,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PlanOut"
+                  "$ref": "#/components/schemas/RedeemOut"
                 }
               }
             },

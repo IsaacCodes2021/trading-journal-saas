@@ -23,7 +23,7 @@ from tradejournal.pg.session import Database
 # row-level policy because no tenant session ever reads them. A new table with a user_id must be listed here or below.
 SYSTEM_TABLES = [
     "sessions", "audit_log", "invite_redemptions", "grant_redemptions", "plan_overrides",
-    "subscriptions", "billing_customers", "billing_checkouts", "billing_events",
+    "subscriptions", "billing_customers", "billing_checkouts", "billing_events", "pending_promos",
 ]  # fmt: skip
 
 TENANT_TABLES = [

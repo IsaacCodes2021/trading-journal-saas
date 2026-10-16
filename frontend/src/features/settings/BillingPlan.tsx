@@ -16,7 +16,7 @@ import { EXPORT_URL } from '../../lib/exportData'
 import { daysLeft, pluralize } from '../../lib/format'
 import { messageOf } from '../tags/messages'
 import { DANGER } from './DeleteAccount'
-import { PromoNotApplied, RedeemCode } from './PromoCode'
+import { PromoNotApplied, PromoSaved, RedeemCode } from './PromoCode'
 import { SectionHeader } from './SettingsLayout'
 
 type PlanSource = components['schemas']['PlanOut']['source']
@@ -67,6 +67,11 @@ function SubscribeOffer({ billing, title, note }: { billing: Billing; title: str
         </Button>
       </div>
       {subscribe.isError ? <Problem error={subscribe.error} /> : null}
+      {billing.discount ? (
+        <p className="m-0 text-[13px] text-pos" role="note">
+          Your discount code is saved: {billing.discount.words}, applied at checkout.
+        </p>
+      ) : null}
       <p className="m-0 text-[13px] text-muted">
         {note} {TAX} {NO_REFUNDS}
       </p>
@@ -355,11 +360,13 @@ export function BillingPlan({
   billing,
   source,
   promoMissed,
+  promoSaved = false,
   checkout,
 }: {
   billing: Billing
   source: PlanSource
   promoMissed: boolean
+  promoSaved?: boolean
   checkout: CheckoutReturn
 }) {
   const subscribed = isSubscribed(billing)
@@ -368,6 +375,7 @@ export function BillingPlan({
     <>
       <SectionHeader title="Plan & billing">What you have, and what you pay.</SectionHeader>
       {promoMissed ? <PromoNotApplied /> : null}
+      {promoSaved ? <PromoSaved /> : null}
       {checkout !== null && subscribed ? (
         <p role="status" className="m-0 rounded-[10px] border border-line bg-raised px-4 py-3 text-[13px] text-pos">
           <strong>Payment confirmed.</strong> Thank you for subscribing to Roundturn Pro.

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Card, Spinner } from '../../components/ui/primitives'
-import { useGrantCodes, useInvites, useOverview, type CodeShow } from '../../lib/adminCodes'
+import { useGrantCodes, useInvites, useOverview, useSyncGrantCode, type CodeShow } from '../../lib/adminCodes'
 import { messageOf } from '../tags/messages'
 import { AuditLog } from './AuditLog'
 import { CreateGrantCode, CreateInvite, NewCode, RevokeDialog, type Dialog } from './CodeForms'
@@ -102,7 +102,9 @@ export function CodesPage({ search, onSearch }: { search: CodesSearch; onSearch:
   const audit = auditQueryOf(search)
   const invites = useInvites(tab === 'invites' ? page : 1)
   const grants = useGrantCodes(tab === 'codes' ? page : 1, show)
-  const working = useGrantCodes(1, 'works').data?.grant_codes ?? []
+  // An invite can carry free days, never a discount (a discount is applied at checkout, not given at sign-up).
+  const working = (useGrantCodes(1, 'works').data?.grant_codes ?? []).filter((code) => code.kind === 'free_days')
+  const sync = useSyncGrantCode()
   const [fresh, setFresh] = useState<{ code: string; what: string; kept: boolean } | null>(null)
   const [revoking, setRevoking] = useState<Dialog | null>(null)
 
@@ -174,7 +176,15 @@ export function CodesPage({ search, onSearch }: { search: CodesSearch; onSearch:
                 loading={grants.isPending}
                 onPage={(next) => go({ tab: 'codes', page: next, ...(show ? { show } : {}) })}
                 onRevoke={(code) => setRevoking({ kind: 'grant-code', id: code.id, label: code.code ?? code.label })}
+                discountsLive={grants.data?.discounts_live ?? false}
+                onSync={(code) => sync.mutate(code.id)}
+                syncing={sync.isPending ? (sync.variables ?? null) : null}
               />
+              {sync.isError ? (
+                <p role="alert" className="m-0 px-4 py-3 text-[13px] text-neg">
+                  {messageOf(sync.error)}
+                </p>
+              ) : null}
             </>
           )}
         </Card>

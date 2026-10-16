@@ -94,11 +94,24 @@ export interface NewInvite {
   grantCodeId: number | null
 }
 
+export type Duration = 'once' | 'repeating' | 'forever'
+
+/** A discount code's terms (it gives no days; the payment provider applies it at checkout). */
+export interface DiscountTerms {
+  percentOff: number
+  duration: Duration
+  /** With `repeating`: how many months. */
+  months: number | null
+}
+
 export interface NewGrantCode {
-  /** The promo code to type (FREE30), or null for a random one shown once. */
+  /** The promo code to type (FREE30), or null for a random one shown once. A discount code is always typed. */
   code: string | null
   label: string
-  days: number
+  /** Days of Pro, for a free-days code; null for a discount. */
+  days: number | null
+  /** A discount code's terms, or null for a free-days code. */
+  discount?: DiscountTerms | null
   maxRedemptions: number | null
   /** The last day it works, as YYYY-MM-DD (it stops at the end of that day, UTC), or null for never. */
   expiresOn: string | null
@@ -133,7 +146,14 @@ export function useCreateGrantCode() {
           body: {
             ...(code.code ? { code: code.code } : {}),
             label: code.label,
-            days: code.days,
+            ...(code.discount
+              ? {
+                  kind: 'discount' as const,
+                  percent_off: code.discount.percentOff,
+                  duration: code.discount.duration,
+                  ...(code.discount.duration === 'repeating' ? { duration_months: code.discount.months } : {}),
+                }
+              : { days: code.days }),
             max_redemptions: code.maxRedemptions,
             ...(code.expiresOn ? { expires_on: code.expiresOn } : {}),
           },
@@ -141,6 +161,26 @@ export function useCreateGrantCode() {
       ),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: KEY }),
   })
+}
+
+/** Try again to give the payment provider its copy of a discount code (or to archive it, once revoked). */
+export function useSyncGrantCode() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) =>
+      unwrap(api.POST('/api/admin/v1/grant-codes/{grant_id}/sync', { params: { path: { grant_id: id } } })),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: KEY }),
+  })
+}
+
+/** "20% off your first 3 months": what a discount code gives, as people read it (the server says the same). */
+export function discountWords(terms: DiscountTerms): string {
+  if (terms.duration === 'once') return `${terms.percentOff}% off your first payment`
+  if (terms.duration === 'forever') return `${terms.percentOff}% off every payment`
+  const months = terms.months ?? 1
+  return months === 1
+    ? `${terms.percentOff}% off your first month`
+    : `${terms.percentOff}% off your first ${months} months`
 }
 
 export type Revoke = { kind: 'invite' | 'grant-code'; id: number; reason: string }
@@ -185,8 +225,20 @@ export function promoPreview(code: {
   days: number
   people: number | null
   endsOn: string | null
+  discount?: DiscountTerms | null
 }) {
   const who = code.code ? `Anyone who enters ${code.code}` : 'Anyone with this code'
+  if (code.discount) {
+    const limits = [
+      code.people === null
+        ? null
+        : `the first ${code.people.toLocaleString('en-US')} ${code.people === 1 ? 'person' : 'people'} to subscribe`,
+      code.endsOn ? `until the end of ${dayText(code.endsOn)}` : null,
+    ].filter((part): part is string => part !== null)
+    return `${who} gets ${discountWords(code.discount)} of Roundturn Pro when they subscribe${
+      limits.length ? ` (${limits.join(', ')})` : ''
+    }. It is saved on their account and applied at checkout.`
+  }
   const limits = [
     code.people === null
       ? null

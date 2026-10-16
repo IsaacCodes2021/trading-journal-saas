@@ -41,9 +41,11 @@ function valueText(value: number | boolean): string {
  */
 export function PlanPage({
   promoMissed = false,
+  promoSaved = false,
   checkoutDone = false,
 }: {
   promoMissed?: boolean
+  promoSaved?: boolean
   checkoutDone?: boolean
 }) {
   const session = useSession()
@@ -69,6 +71,7 @@ export function PlanPage({
         billing={billing.data}
         source={session.data.plan.source}
         promoMissed={promoMissed}
+        promoSaved={promoSaved}
         checkout={checkoutDone ? (late ? 'late' : 'waiting') : null}
       />
     )

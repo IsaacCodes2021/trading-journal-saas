@@ -52,13 +52,27 @@ export function RedeemCode() {
           {messageOf(redeem.error)}
         </p>
       ) : null}
-      {redeem.isSuccess ? (
+      {redeem.isSuccess && redeem.data.discount ? (
+        <p role="status" className="m-0 text-[13px] text-pos">
+          Saved: {redeem.data.discount.words}. It is applied when you subscribe.
+        </p>
+      ) : redeem.isSuccess ? (
         <p role="status" className="m-0 text-[13px] text-pos">
           Done. You are on the {redeem.data.effective} plan
           {redeem.data.expires_at ? ` until ${when(redeem.data.expires_at)}` : ''}.
         </p>
       ) : null}
     </Card>
+  )
+}
+
+/** Said once, on the way in from sign-up, when the account was made with a discount code: it waits for the checkout. */
+export function PromoSaved() {
+  return (
+    <div role="status" className="rounded-[10px] border border-line bg-raised px-4 py-3 text-[13px]">
+      <strong>Your account is ready, and your discount code is saved.</strong> It is applied when you subscribe; until
+      then, enjoy your free days.
+    </div>
   )
 }
 

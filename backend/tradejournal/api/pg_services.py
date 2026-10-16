@@ -11,15 +11,25 @@ import psycopg
 from ..entitlements import limits_for
 from ..pg import audit as pg_audit
 from ..pg import deletion as pg_deletion
+from ..pg import discounts as pg_discounts
 from ..pg import plans as pg_plans
 from ..pg import settings as pg_settings
 from ..pg import store as pg_store
 from ..pg.session import HEAVY_STATEMENT_TIMEOUT_MS, Database
 from ..pg.system import SystemDatabase
 from .ports import Account, GrantResult
-from .schemas import AccessOut, PlanOut, SettingsOut, SettingsPatch, UserOut
+from .schemas import AccessOut, DiscountOut, PlanOut, SettingsOut, SettingsPatch, UserOut
 
 _DAY_SETTINGS = ("trading_day_timezone", "trading_day_start")
+
+
+def discount_out(terms: pg_discounts.Terms) -> DiscountOut:
+    return DiscountOut(
+        percent_off=terms.percent_off,
+        duration=terms.duration,
+        duration_months=terms.duration_months,
+        words=terms.words,
+    )
 
 
 class PgAccountService:
@@ -35,11 +45,14 @@ class PgAccountService:
         *,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         billing_enabled: bool = False,
+        billing_provider: str | None = None,
     ) -> None:
         self._database = database
         self._system = system
         self._clock = clock
         self._billing = billing_enabled  # on: nothing live means read-only (entitlements.access_of)
+        # The provider whose discount codes work here ("fake" or "paddle"); None while billing is off: no discount works.
+        self._provider = billing_provider if billing_enabled else None
 
     def load(self, user_id: UUID) -> Account | None:
         with self._system.system_session("login") as conn:
@@ -81,6 +94,23 @@ class PgAccountService:
                 return GrantResult(
                     "ok", plan=PlanOut(effective=plan.plan, source=plan.source, expires_at=plan.expires_at)
                 )
+            if isinstance(outcome, pg_plans.Refused):
+                # Not a free-days code that works: perhaps a discount code, saved for the next checkout.
+                terms = pg_discounts.remember(conn, user_id, code, provider=self._provider, now=now)
+                if terms is not None:
+                    pg_audit.record(
+                        conn,
+                        "discount_saved",
+                        user_id=user_id,
+                        ip_hash=ip_hash,
+                        meta={"via": "settings"},
+                    )
+                    plan = pg_plans.effective(conn, user_id, now)
+                    return GrantResult(
+                        "discount",
+                        plan=PlanOut(effective=plan.plan, source=plan.source, expires_at=plan.expires_at),
+                        discount=discount_out(terms),
+                    )
             # A refusal is worth a row (many in a row is a guesser), but never the code.
             reason = "active" if isinstance(outcome, pg_plans.AlreadyHave) else "refused"
             pg_audit.record(conn, "grant_refused", user_id=user_id, ip_hash=ip_hash, meta={"reason": reason})

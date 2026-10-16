@@ -104,13 +104,32 @@ class FakeAdminCodes:
         return GrantCodeListOut(grant_codes=[grant()], total=1, limit=limit, offset=offset)
 
     def create_grant_code(
-        self, actor, *, label, plan, days, max_redemptions, expires_in_days, code=None, expires_on=None, ip_hash=None
+        self,
+        actor,
+        *,
+        label,
+        plan,
+        days,
+        max_redemptions,
+        expires_in_days,
+        code=None,
+        expires_on=None,
+        ip_hash=None,
+        kind="free_days",
+        percent_off=None,
+        duration=None,
+        duration_months=None,
     ):
+        discount = {"kind": kind, "percent_off": percent_off, "duration": duration, "duration_months": duration_months}
         self._do(
             "create_grant_code", actor, label, plan, days, max_redemptions, expires_in_days, code, expires_on,
-            ip_hash=ip_hash,
+            ip_hash=ip_hash, **({"discount": discount} if kind == "discount" else {}),
         )  # fmt: skip
         return CreatedGrantCodeOut(grant_code=grant(), code="GR-ABCD-EFGH")
+
+    def sync_grant_code(self, actor, grant_id, *, ip_hash=None):
+        self._do("sync_grant_code", actor, grant_id, ip_hash=ip_hash)
+        return grant()
 
     def revoke_grant_code(self, actor, grant_id, reason, *, ip_hash=None):
         self._do("revoke_grant_code", actor, grant_id, reason, ip_hash=ip_hash)

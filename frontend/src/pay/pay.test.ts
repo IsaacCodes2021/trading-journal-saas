@@ -70,6 +70,7 @@ describe('startPayment', () => {
       theme: 'dark',
       locale: 'en',
       allowedPaymentMethods: ['card'],
+      showAddDiscounts: false,
       successUrl: 'https://app.example.test/settings/plan?checkout=done',
     })
     expect(say).toHaveBeenLastCalledWith(MESSAGES.open)
