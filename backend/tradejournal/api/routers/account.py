@@ -8,6 +8,8 @@ account is marked, every session ends (this one too), and the account is deleted
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -23,6 +25,8 @@ from ..deps import (
 )
 from ..schemas.deletion import DeletionOut, DeletionRequest
 from ..schemas.problem import Problem
+
+logger = logging.getLogger("tj.account")
 
 router = APIRouter(
     prefix="/api/v1/account",
@@ -52,6 +56,12 @@ def request_deletion(
     when = services.accounts.schedule_deletion(session.user_id, ip_hash=ip_hash)
     if when is None:
         raise HTTPException(409, "This account cannot be scheduled for deletion.")
+    if services.billing is not None:
+        # Stop the next renewal now; signing in again within the 7 days resumes it, and the deletion itself ends it for good.
+        try:
+            services.billing.stop_renewal_for_deletion(session.user_id)  # type: ignore[attr-defined]
+        except Exception:  # noqa: BLE001 - never stand in the way of a deletion; the sweep's final cancel is the backstop
+            logger.exception("stopping the renewal at a deletion request failed")
     services.sessions.revoke_all(session.user_id)
     response = JSONResponse(DeletionOut(scheduled_for=when).model_dump(mode="json"))
     response.set_cookie(SESSION_COOKIE, "", max_age=0, secure=True, httponly=True, samesite="lax", path="/")

@@ -61,6 +61,7 @@ describe('the overview', () => {
     expect(tiles).toHaveTextContent('Signups, last 7 days18')
     expect(tiles).toHaveTextContent('Signed in, last 7 days41')
     expect(tiles).toHaveTextContent('57 Free · 7 Pro')
+    expect(tiles).toHaveTextContent('Paying · on trial5 · 9')
     expect(tiles).toHaveTextContent('2 · 2')
     expect(tiles).toHaveTextContent('3 · 1')
     expect(tiles).toHaveTextContent('Free days ending, next 7 days4')

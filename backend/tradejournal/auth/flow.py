@@ -29,6 +29,7 @@ import psycopg
 
 from ..api.sessions import PgSessionStore
 from ..pg import audit, deletion, invites, plans, users
+from ..pg import billing as pg_billing
 from ..pg import sessions as pg_sessions
 from ..pg.defaults import provision_defaults
 from ..pg.session import Database
@@ -105,9 +106,13 @@ class AuthFlow:
         secret: bytes,
         app_origin: str,
         invite_only: bool = True,
+        trial: bool = False,
+        billing=None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         wall: Callable[[], float] = time.time,
     ) -> None:
+        """`trial`: billing is on, so a new account starts on the 7-day trial (unless its invite brings its own free days).
+        `billing` is the billing service, which undoes a deletion's cancel when a person comes back within the 7 days."""
         self._idp = idp
         self._system = system
         self._database = database
@@ -115,6 +120,8 @@ class AuthFlow:
         self._secret = secret
         self._origin = app_origin.rstrip("/")
         self._invite_only = invite_only
+        self._trial = trial
+        self._billing = billing
         self._clock = clock
         self._wall = wall
 
@@ -255,6 +262,8 @@ class AuthFlow:
         # every sign-in repairs a first sign-in that was cut short.
         with self._database.tenant_session(outcome.user_id) as conn:
             provision_defaults(conn)
+        if outcome.restored and self._billing is not None:
+            self._billing.resume_after_restore(outcome.user_id)  # best effort; the person can also press Resume
         target = RESTORED_PATH if outcome.restored else PROMO_MISSED_PATH if outcome.promo_missed else next_url
         return LoginResult(target, outcome.token, None, restored=outcome.restored)
 
@@ -362,6 +371,7 @@ class AuthFlow:
             if invite is None:
                 audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "invite"})
                 return ERR_INVITE
+        given = None
         try:
             with conn.transaction():  # undone together if the invite turns out to be used up in the meantime
                 user = users.create(conn, identity.subject, identity.email, now=now)
@@ -390,6 +400,13 @@ class AuthFlow:
         if invite is not None and users.find_by_subject(conn, identity.subject) is None:
             audit.record(conn, "login_failed", ip_hash=ip_hash, meta={"reason": "invite"})
             return ERR_INVITE
+        if self._trial and given is None:
+            # Billing is on: a new account starts on the 7-day trial, unless its invite brought free days of its own (a
+            # beta code keeps its 30 days, with no extra trial). A promo code given at sign-up is applied after this, and
+            # replaces the trial when it runs longer.
+            trial = pg_billing.give_trial(conn, user.id, now=now)
+            if trial is not None:
+                audit.record(conn, "trial_started", user_id=user.id, ip_hash=ip_hash, meta={"days": trial.days})
         return user
 
     def _fail(self, error: str, reason: str, ip_hash: str | None) -> LoginResult:

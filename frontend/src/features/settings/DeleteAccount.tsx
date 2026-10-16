@@ -11,7 +11,8 @@ import { messageOf } from '../tags/messages'
 /** Where signing in again brings the person back to, with the dialog already open. */
 export const DELETE_RETURN = '/settings/privacy?delete=1'
 
-const DANGER = 'border-neg bg-neg! font-semibold text-accent-on! hover:opacity-90 disabled:hover:opacity-50'
+/** A button that ends or deletes something: red, so it is not pressed by habit. */
+export const DANGER = 'border-neg bg-neg! font-semibold text-accent-on! hover:opacity-90 disabled:hover:opacity-50'
 
 const sameEmail = (typed: string, email: string) => typed.trim().toLowerCase() === email.trim().toLowerCase()
 

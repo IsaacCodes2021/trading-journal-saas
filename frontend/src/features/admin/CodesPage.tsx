@@ -33,7 +33,7 @@ function Overview() {
   const o = overview.data
   const n = (value: number) => value.toLocaleString('en-US')
   return (
-    <section aria-label="Overview" className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+    <section aria-label="Overview" className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
       <Tile label="Accounts">{n(o.accounts)}</Tile>
       <Tile label="Signups, last 7 days">{n(o.signups_7d)}</Tile>
       <Tile label="Signed in, last 7 days">{n(o.active_7d)}</Tile>
@@ -43,6 +43,11 @@ function Overview() {
         {dot}
         {n(o.pro)}
         {unit('Pro')}
+      </Tile>
+      <Tile label="Paying · on trial">
+        {n(o.paying)}
+        {dot}
+        {n(o.on_trial)}
       </Tile>
       <Tile label="Suspended · being deleted">
         {n(o.suspended)}

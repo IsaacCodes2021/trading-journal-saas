@@ -33,6 +33,8 @@ from .ports import AdminRefusal, BetaRevoked, SessionStore
 from .rules_view import admin_template_out, template_key
 from .schemas import PlanOut
 from .schemas.admin import (
+    AdminBillingEventOut,
+    AdminSubscriptionOut,
     AdminUserDetailOut,
     AdminUserListOut,
     AdminUserOut,
@@ -184,6 +186,8 @@ class PgAdminService:
             events=[
                 EventOut(id=e.id, at=e.at, actor=e.actor, action=e.action, by=e.by, meta=e.meta) for e in detail.events
             ],
+            subscription=AdminSubscriptionOut(**detail.subscription) if detail.subscription else None,
+            billing_events=[AdminBillingEventOut(**b) for b in detail.billing_events],
         )
 
     # ---- changing ----------------------------------------------------------------------------------------------------

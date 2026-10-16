@@ -82,6 +82,11 @@ NAMES_NOTHING = {
     ("DELETE", "/api/v1/sessions"),
     ("PATCH", "/api/v1/settings"),
     ("PUT", "/api/v1/day-notes/{day}"),  # keyed by the person and the date: tested by name below
+    # Billing acts on the person signed in and takes no id at all (test_pg_billing_app.py covers two people).
+    ("POST", "/api/v1/billing/checkout"),
+    ("POST", "/api/v1/billing/cancel"),
+    ("POST", "/api/v1/billing/resume"),
+    ("POST", "/api/v1/billing/portal"),
 }
 # Routes that name a session, which is not a journal row (see NOT_JOURNAL_ROWS).
 SESSION_ROUTES = {("DELETE", "/api/v1/sessions/{session_id}")}

@@ -17,7 +17,7 @@ def test_ready_when_the_database_is_migrated_to_what_this_image_ships(db):
 
 def test_the_schema_version_is_the_newest_migration_file(db):
     assert db.schema_version() == migrate.latest_version()
-    assert migrate.latest_version().startswith("0020_")
+    assert migrate.latest_version().startswith("0021_")
 
 
 def test_not_ready_when_the_image_expects_a_newer_schema_than_the_database_has(db):

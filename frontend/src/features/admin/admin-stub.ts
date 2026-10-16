@@ -30,6 +30,8 @@ export const detail = (u: AdminUser, over: Partial<AdminUserDetail> = {}): Admin
   overrides: [],
   redemptions: [],
   events: [],
+  subscription: null,
+  billing_events: [],
   ...over,
 })
 
@@ -133,6 +135,8 @@ export const OVERVIEW: Overview = {
   open_invites: 3,
   open_grant_codes: 1,
   grants_ending_7d: 4,
+  paying: 5,
+  on_trial: 9,
 }
 
 export interface Call {

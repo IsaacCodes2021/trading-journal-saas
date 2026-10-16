@@ -81,12 +81,15 @@ class FlagsOut(ApiModel):
 
 
 class AccessOut(ApiModel):
-    """May the person change things? "ended" means their time-limited full access (a beta code, a promo code) ran out or was
-    ended by an operator: they can still look at everything and download it, and cannot create, change or delete."""
+    """May the person change things? "ended" means their time-limited full access (a beta code, a promo code, the trial) ran
+    out or was ended by an operator, or (with billing on) their subscription ended: they can still look at everything and
+    download it, and cannot create, change or delete."""
 
     state: Literal["active", "ended"]
     ends_at: datetime | None  # when time-limited access ends (active) or ended (ended); none: it has no end date
-    reason: Literal["expired", "revoked"] | None  # why, once ended
+    reason: (
+        Literal["expired", "revoked", "lapsed"] | None
+    )  # why, once ended ("lapsed": a subscription, billing on only)
 
 
 class SessionOut(ApiModel):

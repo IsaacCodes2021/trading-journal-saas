@@ -144,10 +144,9 @@ def test_the_operator_reads_the_typed_code_but_still_never_a_hash(system):
 
 
 def test_the_sign_in_role_has_no_need_to_read_the_code(owner):
-    for column in ("code", "kind"):
-        assert not owner.execute(
-            "SELECT has_column_privilege('app_login', 'grant_codes', %s, 'SELECT') AS ok", (column,)
-        ).fetchone()["ok"]
+    assert not owner.execute(
+        "SELECT has_column_privilege('app_login', 'grant_codes', 'code', 'SELECT') AS ok"
+    ).fetchone()["ok"]  # it looks codes up by hash; since migration 0021 it reads `kind`, to tell the trial apart
     for column in ("code", "kind"):
         assert owner.execute(
             "SELECT has_column_privilege('app_admin', 'grant_codes', %s, 'INSERT') AS ok", (column,)

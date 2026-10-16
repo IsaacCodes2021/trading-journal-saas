@@ -311,3 +311,5 @@ class Services:
     audit: AuditLog
     admin: AdminService | None = None  # the operator's tools; routes answer 503 where there are none
     beta: BetaService | None = None  # joining the beta; the route answers 503 where there is none
+    # The person's billing and the provider's webhook (`api/billing_service.py`); none where no provider is configured.
+    billing: object | None = None

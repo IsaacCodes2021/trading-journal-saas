@@ -10,6 +10,10 @@ operator (FREE30: 3 to 20 capital letters and digits) and is also kept readable,
 
     TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --label "Beta testers" --days 30
     TJ_OWNER_URL=postgresql://tj_owner:...@host/db python -m tradejournal.pg.plans create-grant --code FREE30 --days 30
+
+`start-trials` is for the day billing is switched on (`docs/runbooks/billing.md`): it gives the 7-day trial to every account
+that has never had free days, no override and no subscription, which billing on would otherwise make read-only at once.
+Without `--apply` it only counts.
 """
 
 from __future__ import annotations
@@ -25,7 +29,17 @@ from uuid import UUID
 
 import psycopg
 
-from ..entitlements import Access, EffectivePlan, EndedGrant, Grant, Override, access_of, effective_plan
+from ..entitlements import (
+    Access,
+    EffectivePlan,
+    EndedGrant,
+    Grant,
+    Override,
+    SubscriptionState,
+    access_of,
+    effective_plan,
+    subscription_lapsed_at,
+)
 from .invites import ALPHABET, hash_code, normalize
 
 _SHAPE = re.compile(r"^[A-Z0-9]{2,}(?:-[A-Z0-9]{2,})+$")  # a random code: GR-XXXX-XXXX
@@ -76,9 +90,28 @@ def find_code(conn: psycopg.Connection, code: str | None) -> int | None:
 # ---- a person's plan -----------------------------------------------------------------------------------------------
 
 
+def subscription_state(conn: psycopg.Connection, user_id: UUID) -> SubscriptionState | None:
+    """The person's subscription as the plan rule reads it (migration 0021), or None."""
+    row = conn.execute(
+        """SELECT plan, status, current_period_end, cancel_at_period_end, past_due_since, ended_at
+           FROM subscriptions WHERE user_id = %s""",
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    return SubscriptionState(
+        row["plan"],
+        row["status"],
+        row["current_period_end"],
+        cancel_at_period_end=row["cancel_at_period_end"],
+        past_due_since=row["past_due_since"],
+        ended_at=row["ended_at"],
+    )
+
+
 def effective(conn: psycopg.Connection, user_id: UUID, now: datetime | None = None) -> EffectivePlan:
-    """The plan this person is on now: the active override, else the higher of the active grant and the subscription (the
-    subscription mirror arrives with billing), else free."""
+    """The plan this person is on now: the active override, else the higher of the active grant and a live subscription,
+    else free."""
     moment = now or datetime.now(UTC)
     row = conn.execute(
         "SELECT plan, expires_at, revoked_at FROM plan_overrides WHERE user_id = %s AND revoked_at IS NULL", (user_id,)
@@ -92,17 +125,24 @@ def effective(conn: psycopg.Connection, user_id: UUID, now: datetime | None = No
             (user_id, moment),
         ).fetchall()
     ]
-    return effective_plan(moment, override=override, grants=grants)
+    return effective_plan(moment, override=override, grants=grants, subscription=subscription_state(conn, user_id))
 
 
 def access(
-    conn: psycopg.Connection, user_id: UUID, now: datetime | None = None, *, plan: EffectivePlan | None = None
+    conn: psycopg.Connection,
+    user_id: UUID,
+    now: datetime | None = None,
+    *,
+    plan: EffectivePlan | None = None,
+    billing: bool = False,
 ) -> Access:
-    """May this person change things now? Read-only only for someone whose time-limited access ran out or was ended (see
-    `entitlements.access_of`); nobody else is ever affected. Pass `plan` when it has just been worked out."""
+    """May this person change things now? With billing off: read-only only for someone whose time-limited access ran out or
+    was ended (see `entitlements.access_of`); nobody else is ever affected. With `billing` on, anyone with nothing live is
+    read-only. Pass `plan` when it has just been worked out."""
     moment = now or datetime.now(UTC)
     plan = plan or effective(conn, user_id, moment)
     last = None
+    lapsed = None
     if plan.source == "free":  # only worth a second query when it could matter
         row = conn.execute(
             """SELECT least(ends_at, coalesce(revoked_at, ends_at)) AS ended_at, revoked_at IS NOT NULL AS revoked
@@ -112,7 +152,9 @@ def access(
         ).fetchone()
         if row is not None:
             last = EndedGrant(row["ended_at"], bool(row["revoked"]))
-    return access_of(plan, last)
+        if billing:
+            lapsed = subscription_lapsed_at(subscription_state(conn, user_id), moment)
+    return access_of(plan, last, billing=billing, lapsed_at=lapsed)
 
 
 # ---- redeeming ---------------------------------------------------------------------------------------------------
@@ -140,7 +182,7 @@ class AlreadyHave:
 def _usable(conn: psycopg.Connection, grant_id: int, user_id: UUID, moment: datetime) -> dict | None:
     """The code's row if it can be redeemed by this person now (call it with the code's lock held)."""
     row = conn.execute(
-        """SELECT g.id, g.plan, g.days, g.max_redemptions, g.expires_at, g.revoked_at,
+        """SELECT g.id, g.kind, g.plan, g.days, g.max_redemptions, g.expires_at, g.revoked_at,
                   (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) AS used,
                   EXISTS (SELECT 1 FROM grant_redemptions r WHERE r.grant_code_id = g.id AND r.user_id = %s) AS mine
            FROM grant_codes g WHERE g.id = %s""",
@@ -177,11 +219,12 @@ def redeem(
         return Refused()
     conn.execute("SELECT pg_advisory_xact_lock(%s, %s)", (LOCK_CLASS, found))
     row = _usable(conn, found, user_id, moment)
-    if row is None:
+    if row is None or row["kind"] != "free_days":
         return Refused()
+    # One code at a time, but a trial never blocks one (the billing design, question 5): a promo that runs longer replaces it.
     active = conn.execute(
-        "SELECT max(ends_at) AS ends_at FROM grant_redemptions"
-        " WHERE user_id = %s AND starts_at <= %s AND ends_at > %s AND revoked_at IS NULL",
+        """SELECT max(r.ends_at) AS ends_at FROM grant_redemptions r JOIN grant_codes g ON g.id = r.grant_code_id
+           WHERE r.user_id = %s AND r.starts_at <= %s AND r.ends_at > %s AND r.revoked_at IS NULL AND g.kind <> 'trial'""",
         (user_id, moment, moment),
     ).fetchone()
     if active["ends_at"] is not None:
@@ -299,6 +342,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("list-grants", help="every code, how many people used it, and whether it still works")
     revoke = sub.add_parser("revoke-grant", help="stop a code being used (people who used it keep their plan)")
     revoke.add_argument("--id", type=int, required=True)
+    trials = sub.add_parser(
+        "start-trials", help="switch-on day: a 7-day trial for every account with no code, override or subscription"
+    )
+    trials.add_argument("--apply", action="store_true", help="give them (the default only counts)")
     args = parser.parse_args(argv)
     url = os.environ.get("TJ_OWNER_URL")
     if not url:
@@ -328,6 +375,22 @@ def main(argv: list[str] | None = None) -> int:
                 state = "revoked" if g["revoked_at"] else "works"
                 name = g["code"] or g["label"] or "(no label)"
                 print(f"#{g['id']} {name}: {g['days']} days of {g['plan']}, used {g['used']} ({limit}), {state}")
+        elif args.command == "start-trials":
+            from .billing import start_trials  # billing builds on this module
+
+            done = start_trials(conn, apply=args.apply)
+            if done.no_trial_code:
+                print(
+                    "The trial's code is missing or revoked (migration 0021 makes it): no trial can be given.",
+                    file=sys.stderr,
+                )
+                return 1
+            mode = "applied" if args.apply else "dry run: nothing changed"
+            print(f"{mode}; accounts with nothing that gives Pro: {done.due}, trials started: {done.started}")
+            if done.operators:
+                print(
+                    f"{done.operators} operator account(s) also have nothing: give each an override (Pro, no end) instead."
+                )
         else:
             print("revoked" if revoke_grant(conn, args.id) else "no such code, or it was already revoked")
     return 0

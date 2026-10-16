@@ -96,15 +96,29 @@ def require_csrf(request: Request, session: SessionDep, config: ConfigDep) -> Au
 WriteSessionDep = Annotated[AuthSession, Depends(require_csrf)]
 
 
-def require_writable(session: WriteSessionDep, services: ServicesDep) -> AuthSession:
+# With billing on, the refusal says why and what to do; with it off, the sentence is the one people see today.
+READ_ONLY_BILLING = {
+    "expired": "Your free days have ended, so your journal is read-only. Subscribe in Settings, Plan & billing, to keep "
+    "importing and editing. Everything is still here to look at and download.",
+    "revoked": "Your access was ended, so your journal is read-only. You can still look at everything and download it. "
+    "Subscribe in Settings, Plan & billing, to keep importing and editing.",
+    "lapsed": "Your subscription has ended, so your journal is read-only. Subscribe in Settings, Plan & billing, to keep "
+    "importing and editing. Everything is still here to look at and download.",
+}
+READ_ONLY = (
+    "Your beta access has ended, so your journal is read-only. You can still look at everything and download it."
+)
+
+
+def require_writable(session: WriteSessionDep, services: ServicesDep, config: ConfigDep) -> AuthSession:
     """`require_csrf` for a route that creates, changes or deletes the person's data. Once their time-limited access has ended
     (a beta code, a promo code) the journal is read-only: they can look at all of it and download it, and this refuses the rest.
-    The routes a person needs to leave, to come back or to sign out use `WriteSessionDep` and are never refused for this."""
-    if services.accounts.access(session.user_id).state == "ended":
-        raise HTTPException(
-            403,
-            "Your beta access has ended, so your journal is read-only. You can still look at everything and download it.",
-        )
+    The routes a person needs to leave, to come back, to pay or to sign out use `WriteSessionDep` and are never refused for
+    this."""
+    access = services.accounts.access(session.user_id)
+    if access.state == "ended":
+        detail = READ_ONLY_BILLING.get(access.reason or "lapsed", READ_ONLY) if config.billing_enabled else READ_ONLY
+        raise HTTPException(403, detail)
     return session
 
 
@@ -151,14 +165,18 @@ def get_admin_service(services: ServicesDep) -> AdminService:
 AdminServiceDep = Annotated[AdminService, Depends(get_admin_service)]
 
 
-def limited_per_person(pick: Callable[[RateLimits], Rule]):
+def limited_per_person(pick: Callable[[RateLimits], Rule], *, after_csrf: bool = False):
     """A route dependency: this person may do this only so often. It runs after sign-in, so a stranger cannot use up
-    anyone's allowance."""
+    anyone's allowance. `after_csrf` (a write route): it counts only once the CSRF check has passed too, so a request that
+    check refuses uses up nothing."""
 
     def dependency(request: Request, session: SessionDep) -> None:
         take_place(request, pick(request.app.state.config.rate_limits), str(session.user_id))
 
-    return Depends(dependency)
+    def checked(request: Request, session: WriteSessionDep) -> None:
+        take_place(request, pick(request.app.state.config.rate_limits), str(session.user_id))
+
+    return Depends(checked if after_csrf else dependency)
 
 
 HEAVY = (

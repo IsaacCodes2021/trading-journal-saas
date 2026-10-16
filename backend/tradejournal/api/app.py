@@ -18,6 +18,8 @@ from fastapi.responses import JSONResponse
 from ..auth.flow import AuthFlow
 from ..auth.idp import IdentityProvider
 from ..auth.kinde import KindeProvider
+from ..billing.factory import provider_for
+from ..billing.provider import BillingProvider
 from ..bucketstore import BucketFileStore
 from ..filestore import FileStore, LocalFileStore
 from ..pg.readiness import DatabaseReadiness
@@ -25,6 +27,7 @@ from ..pg.session import Database
 from ..pg.system import SystemDatabase
 from .admin_service import PgAdminService
 from .audit import PgAuditLog
+from .billing_service import PgBillingService
 from .config import ApiConfig
 from .deps import utc_now
 from .dev import dev_services
@@ -46,6 +49,7 @@ from .routers import (
     admin_users,
     auth,
     beta,
+    billing,
     day_notes,
     export,
     grants,
@@ -58,6 +62,7 @@ from .routers import (
     stats,
     tags,
     trades,
+    webhooks,
 )
 from .security import SecurityHeadersMiddleware
 from .sessions import PgSessionStore
@@ -93,6 +98,7 @@ def create_app(
     limiter: RateLimiter | None = None,
     files: FileStore | None = None,
     mailer: Mailer | None = None,
+    billing_provider: BillingProvider | None = None,
 ) -> FastAPI:
     """`services` is where sessions and accounts come from. Without it the routes that need them answer 503, which is
     what a deployment looks like until sign-in is built (M5), except in development with `TJ_DEV_USER_ID` set, where
@@ -110,7 +116,10 @@ def create_app(
     `idp` is the identity provider for sign-in (Kinde, built from the configuration when left out; tests pass a fake). `limiter`
     keeps the rate limits' counts (one per process; tests pass one with their own clock). `files` is where screenshot
     files are kept; left out, it is the bucket in `config.bucket`, or a folder at `config.files_dir`, or nothing (the screenshot
-    routes then answer 503)."""
+    routes then answer 503).
+
+    `billing_provider` is the payment provider (tests pass a `FakeBilling` whose clock they move). Left out, it is the one
+    `TJ_BILLING_PROVIDER` names, if any; with none, the billing routes answer 404 whatever the switch says."""
     config = config or ApiConfig.from_env()
     owned = database is None and config.database_url is not None
     if owned:
@@ -127,14 +136,19 @@ def create_app(
         urls = {"login": config.login_database_url}
         if config.admin_database_url:  # the operator's tools exist only where their database role does
             urls["admin"] = config.admin_database_url
+        if config.webhook_database_url:  # the billing webhook writes as its own role
+            urls["webhook"] = config.webhook_database_url
         system = SystemDatabase(urls)
         store = PgSessionStore(system)
+        provider = billing_provider if billing_provider is not None else provider_for(config, clock=clock)
+        billing_service = PgBillingService(system, provider, clock=clock) if provider is not None else None
         services = Services(
             sessions=store,
-            accounts=PgAccountService(database, system),
+            accounts=PgAccountService(database, system, clock=clock, billing_enabled=config.billing_enabled),
             audit=PgAuditLog(system),
             admin=PgAdminService(system, store, clock=clock) if config.admin_database_url else None,
             beta=PgBetaService(system),
+            billing=billing_service,
         )
         if idp is None and config.kinde_domain and config.kinde_client_id and config.kinde_client_secret:
             idp = KindeProvider(
@@ -149,6 +163,8 @@ def create_app(
                 secret=config.session_secret,
                 app_origin=config.app_origin,
                 invite_only=config.signup_mode == "invite",
+                trial=config.billing_enabled,
+                billing=billing_service,
             )
 
     @asynccontextmanager
@@ -221,6 +237,8 @@ def create_app(
     app.include_router(admin_rules.router)
     app.include_router(activity.router)
     app.include_router(grants.router)
+    app.include_router(billing.router)
+    app.include_router(webhooks.router)
     app.include_router(export.router)
     app.include_router(rules.router)  # before accounts: /accounts/overview is not an account id
     app.include_router(accounts.router)

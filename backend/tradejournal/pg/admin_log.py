@@ -45,6 +45,8 @@ class Overview:
     open_invites: int
     open_grant_codes: int
     grants_ending_7d: int
+    paying: int = 0
+    on_trial: int = 0
 
 
 def _like(text: str) -> str:
@@ -123,7 +125,7 @@ def overview(conn: psycopg.Connection, *, now: datetime | None = None) -> Overvi
     open_invites = sum(1 for r in invites if InviteRow(**r).status(moment) == "works")
     open_grants = conn.execute(
         """SELECT count(*) AS n FROM grant_codes g
-           WHERE g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > %s)
+           WHERE g.kind <> 'trial' AND g.revoked_at IS NULL AND (g.expires_at IS NULL OR g.expires_at > %s)
              AND (g.max_redemptions IS NULL
                   OR (SELECT count(*) FROM grant_redemptions r WHERE r.grant_code_id = g.id) < g.max_redemptions)""",
         (moment,),
@@ -140,6 +142,12 @@ def overview(conn: psycopg.Connection, *, now: datetime | None = None) -> Overvi
                                AND (p.expires_at IS NULL OR p.expires_at > %(now)s))""",
         {"now": moment, "week": moment + timedelta(days=7)},
     ).fetchone()["n"]
+    paying = sum(1 for plan in plans.values() if plan.source == "subscription")
+    on_trial = conn.execute(
+        """SELECT count(DISTINCT r.user_id) AS n FROM grant_redemptions r JOIN grant_codes g ON g.id = r.grant_code_id
+           WHERE g.kind = 'trial' AND r.revoked_at IS NULL AND r.starts_at <= %s AND r.ends_at > %s""",
+        (moment, moment),
+    ).fetchone()["n"]
     return Overview(
         accounts=counts["accounts"],
         signups_7d=counts["signups_7d"],
@@ -152,4 +160,6 @@ def overview(conn: psycopg.Connection, *, now: datetime | None = None) -> Overvi
         open_invites=open_invites,
         open_grant_codes=open_grants,
         grants_ending_7d=ending,
+        paying=paying,
+        on_trial=on_trial,
     )

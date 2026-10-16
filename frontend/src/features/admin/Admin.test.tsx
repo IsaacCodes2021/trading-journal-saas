@@ -368,6 +368,72 @@ describe('one account', () => {
     expect(within(await panel()).getByRole('region', { name: 'Recent events' })).toHaveTextContent('Nothing yet.')
   })
 
+  it('says when the person never subscribed', async () => {
+    await open({}, { user: LEO.id })
+    expect(await within(await panel()).findByRole('region', { name: 'Subscription' })).toHaveTextContent(
+      'Never subscribed.',
+    )
+  })
+
+  it('shows the subscription as the provider last told us, and its latest events without what they carried', async () => {
+    const subscribed = detail(DANA, {
+      subscription: {
+        provider: 'paddle',
+        provider_subscription_id: 'sub_01abc',
+        provider_customer_id: 'ctm_01xyz',
+        status: 'active',
+        current_period_end: '2026-11-14T09:00:00Z',
+        cancel_at_period_end: true,
+        cancel_requested_by: 'deletion',
+        past_due_since: null,
+        ended_at: null,
+      },
+      billing_events: [
+        { type: 'subscription.updated', outcome: 'applied', received_at: '2026-10-15T08:00:00Z' },
+        { type: 'transaction.completed', outcome: 'duplicate', received_at: '2026-10-14T08:00:00Z' },
+      ],
+    })
+    await open({ details: { [DANA.id]: subscribed } }, { user: DANA.id })
+    const card = await within(await panel()).findByRole('region', { name: 'Subscription' })
+    expect(card).toHaveTextContent('Paying · cancelled by the account deletion, ends Nov 14, 2026')
+    expect(card).toHaveTextContent('paddle: sub_01abc · customer ctm_01xyz')
+    expect(
+      within(within(card).getByRole('list', { name: 'Billing events' }))
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
+      'subscription.updated · appliedOct 15, 2026 · 08:00 UTC',
+      'transaction.completed · duplicateOct 14, 2026 · 08:00 UTC',
+    ])
+  })
+
+  it('says since when a payment has been failing, and when a subscription ended', async () => {
+    const sub = {
+      provider: 'paddle',
+      provider_subscription_id: 'sub_1',
+      provider_customer_id: null,
+      current_period_end: '2026-10-14T09:00:00Z',
+      cancel_at_period_end: false,
+      cancel_requested_by: null,
+      ended_at: null,
+    } as const
+    await open(
+      {
+        details: {
+          [DANA.id]: detail(DANA, {
+            subscription: { ...sub, status: 'past_due', past_due_since: '2026-10-14T09:05:00Z' },
+          }),
+        },
+      },
+      { user: DANA.id },
+    )
+    const failing = await within(await panel()).findByRole('region', { name: 'Subscription' })
+    expect(failing).toHaveTextContent('Payment failed · renews Oct 14, 2026')
+    expect(failing).toHaveTextContent('Payment failing since Oct 14, 2026')
+    expect(failing).toHaveTextContent('paddle: sub_1')
+    expect(failing).not.toHaveTextContent('customer')
+  })
+
   it('says why when the account cannot be shown', async () => {
     await open({ detailFails: { status: 404, detail: 'There is no such account.' } }, { user: DANA.id })
     expect(await within(await panel()).findByRole('alert')).toHaveTextContent('There is no such account.')
