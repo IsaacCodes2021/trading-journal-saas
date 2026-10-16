@@ -53,6 +53,13 @@ class DevServerError(Exception):
 
 
 class _ScrubbedLine(logging.Formatter):
+    def formatMessage(self, record: logging.LogRecord) -> str:
+        line = super().formatMessage(record)
+        fields = getattr(record, "fields", None)  # what production writes as JSON (a request: method, path, status)
+        if isinstance(fields, dict):
+            line += "".join(f" {key}={value}" for key, value in fields.items())
+        return line
+
     def format(self, record: logging.LogRecord) -> str:
         return scrub(super().format(record))
 
@@ -266,7 +273,8 @@ def main(argv: list[str] | None = None) -> int:
             )
     else:
         print(f"Development sign-in: every request is user {str(config.dev_user_id)[:8]}... on {config.app_origin}")
-    uvicorn.run(create_app(config), host="127.0.0.1", port=args.port)
+    # No access log, as in production (Dockerfile): the app's own request lines say the same, without query strings.
+    uvicorn.run(create_app(config), host="127.0.0.1", port=args.port, access_log=False)
     return 0
 
 

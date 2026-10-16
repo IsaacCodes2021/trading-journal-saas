@@ -285,3 +285,41 @@ def test_the_apps_own_log_lines_are_printed_and_scrubbed():
     printed = out.getvalue()
     assert "WARNING:     tj.billing: checkout refused: paddle_create_transaction_bad_request" in printed
     assert "tj.auth" in printed and "one-time-secret" not in printed
+
+
+def test_a_request_line_prints_its_fields_scrubbed():
+    import io
+    import logging
+
+    from tradejournal.api.devserver import show_log_lines
+
+    out = io.StringIO()
+    handler = show_log_lines(out)
+    try:
+        fields = {"method": "POST", "path": "/webhooks/billing", "status": 200, "duration_ms": 12.5}
+        logging.getLogger("tj.request").info("request", extra={"fields": fields})
+        logging.getLogger("tj.request").warning("request", extra={"fields": {"path": "/x?code=one-time-secret"}})
+    finally:
+        logging.getLogger("tj").removeHandler(handler)
+    printed = out.getvalue()
+    assert "tj.request: request method=POST path=/webhooks/billing status=200 duration_ms=12.5\n" in printed
+    assert "tj.request: request path=/x" in printed and "one-time-secret" not in printed
+
+
+def test_the_server_runs_without_uvicorns_access_log_as_in_production(tmp_path, monkeypatch, app_url, login_url):
+    """Its lines would repeat the app's own request lines, with the query strings (a sign-in's one-time code) left in."""
+    import logging
+
+    import uvicorn
+
+    seen = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **options: seen.update(options))
+    env, kinde = env_files(tmp_path, app_url, login_url)
+    ours = logging.getLogger("tj")
+    before = list(ours.handlers)
+    try:
+        assert main(["--env-file", str(env), "--real-sign-in", "--kinde-env-file", str(kinde)]) == 0
+    finally:
+        for handler in [h for h in ours.handlers if h not in before]:
+            ours.removeHandler(handler)
+    assert seen["access_log"] is False and seen["host"] == "127.0.0.1"
