@@ -433,9 +433,21 @@ export function devSessionStub(enabled: boolean): Plugin {
           // Nothing is deleted in the stub: it only answers with the date a real server would give.
           return send(200, { scheduled_for: new Date(now + 7 * 86_400_000).toISOString() })
         }
+        if (path.startsWith('/__dev/billing/')) {
+          // Open /__dev/billing/<state> (trial, covered, active, cancelling, past_due, read_only, or off) to see that
+          // state: it sets the cookie below and goes to Plan & billing.
+          const state = path.slice('/__dev/billing/'.length)
+          response.statusCode = 302
+          response.setHeader(
+            'set-cookie',
+            devBilling(state, now) ? `tj-dev-billing=${state}; path=/` : 'tj-dev-billing=; path=/; max-age=0',
+          )
+          response.setHeader('location', '/settings/plan')
+          return response.end()
+        }
         if (path === '/api/v1/billing' || path.startsWith('/api/v1/billing/')) {
           // Off (a 404, as in production today) unless the browser has a `tj-dev-billing` cookie naming a state, so each
-          // Plan & billing screen can be seen with no backend: document.cookie = 'tj-dev-billing=past_due; path=/'.
+          // Plan & billing screen can be seen with no backend (set by /__dev/billing/<state>, above).
           const state = /(?:^|;\s*)tj-dev-billing=(\w+)/.exec(request.headers.cookie ?? '')?.[1] ?? ''
           const body = devBilling(state, now)
           if (!body) return send(404, { title: 'Not Found', status: 404, detail: 'Not Found', errors: null })
