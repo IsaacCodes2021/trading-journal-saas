@@ -58,11 +58,15 @@ describe('signing in', () => {
     expect(link).toHaveAttribute('href', '/signup?next=%2Ftrades')
   })
 
-  it('points people without a code at the beta form, and at the terms and the privacy policy', async () => {
+  it('points people without a code at the beta form, and at the terms, the refund policy and the privacy policy', async () => {
     open('/signin')
     await screen.findByRole('heading', signInHeading)
     expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', '/join')
     expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', 'https://roundturn.app/terms/')
+    expect(screen.getByRole('link', { name: 'Refund Policy' })).toHaveAttribute(
+      'href',
+      'https://roundturn.app/refunds/',
+    )
     expect(screen.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
       'href',
       'https://roundturn.app/privacy/',
