@@ -15,9 +15,9 @@ export function AuthFrame({ children }: { children: ReactNode }) {
       </main>
 
       <p className="mt-6 mb-0 max-w-[440px] text-center text-xs text-muted">
-        By continuing you agree to the <a href={`${SITE}/terms/`}>Terms</a> and{' '}
-        <a href={`${SITE}/privacy/`}>Privacy Policy</a>. Roundturn analyzes data you upload and is not investment
-        advice.
+        By continuing you agree to the <a href={`${SITE}/terms/`}>Terms</a>,{' '}
+        <a href={`${SITE}/refunds/`}>Refund Policy</a> and <a href={`${SITE}/privacy/`}>Privacy Policy</a>. Roundturn
+        analyzes data you upload and is not investment advice.
       </p>
     </div>
   )

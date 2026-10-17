@@ -223,7 +223,28 @@ test("every page links to the terms, privacy and refund pages in its footer", ()
 
 test("the privacy page covers payments without claiming the site stores anything", () => {
   const privacy = pageNamed("/privacy/index.html").toLowerCase();
-  assert.ok(privacy.includes("lemon squeezy"));
+  assert.ok(privacy.includes("payment is taken by paddle, which acts as the seller of record"));
   assert.ok(privacy.includes("never sees or stores your card number"));
+  assert.ok(privacy.includes("we give paddle your email address"));
+  assert.ok(privacy.includes('href="https://www.paddle.com/legal/privacy"'));
   assert.ok(privacy.includes("billing records"));
+});
+
+test("the terms, privacy and refund pages name Paddle as the seller of record, and no page names another provider", () => {
+  for (const name of ["/terms/index.html", "/privacy/index.html", "/refunds/index.html"]) {
+    const text = pageNamed(name).toLowerCase();
+    assert.ok(/paddle[^.]*seller of record/.test(text), `${name} does not name Paddle as the seller of record`);
+  }
+  const terms = pageNamed("/terms/index.html").toLowerCase();
+  for (const entity of ["paddle.com inc.", "paddle.com (canada) ltd.", "paddle.com market limited"]) {
+    assert.ok(terms.includes(entity), `the terms do not name ${entity}`);
+  }
+  assert.ok(terms.includes('href="https://www.paddle.com/legal/buyer-terms"'), "the terms do not link Paddle's buyer terms");
+  assert.ok(
+    pageNamed("/refunds/index.html").includes('href="https://www.paddle.com/legal/refund-policy"'),
+    "the refund page does not link Paddle's refund policy",
+  );
+  for (const page of pages) {
+    assert.ok(!/lemon squeezy|planned\)/i.test(read(page)), `${urlOf(page)} still names a planned provider`);
+  }
 });
