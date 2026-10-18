@@ -66,8 +66,11 @@ export function Popover({
           id={panelId}
           role="group"
           aria-label={label}
+          // Focusable by a press only: pressing a choice's words (a label, which cannot take focus) then focuses the
+          // panel rather than the page, so the blur above does not close it before the click arrives.
+          tabIndex={-1}
           className={cx(
-            'absolute z-20 mt-1.5 min-w-[200px] rounded-[10px] border border-line bg-panel p-2 shadow-lg',
+            'absolute z-20 mt-1.5 min-w-[200px] rounded-[10px] border border-line bg-panel p-2 shadow-lg outline-none',
             align === 'right' ? 'right-0' : 'left-0',
           )}
         >

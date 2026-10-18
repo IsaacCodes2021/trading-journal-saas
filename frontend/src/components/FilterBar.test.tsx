@@ -58,6 +58,13 @@ describe('FilterBar', () => {
     expect(onChange).toHaveBeenLastCalledWith({ preset: '30d', account_type: 'funded' })
   })
 
+  it('takes a choice clicked on its words, not only on its round button', async () => {
+    const { onChange, user } = setup()
+    await user.click(screen.getByRole('button', { name: /All account types/ }))
+    await user.click(within(screen.getByRole('group', { name: 'Account type' })).getByText('Funded'))
+    expect(onChange).toHaveBeenLastCalledWith({ preset: '30d', account_type: 'funded' })
+  })
+
   it('clears a choice without leaving an undefined key behind', async () => {
     const { onChange, user } = setup({ preset: '30d', account_type: 'funded' })
     await user.click(screen.getByRole('button', { name: /Funded/ }))
@@ -74,6 +81,14 @@ describe('FilterBar', () => {
     expect(screen.getByRole('checkbox', { name: 'Apex' })).toBeChecked()
     await user.click(screen.getByRole('checkbox', { name: 'Lucid' }))
     expect(onChange).toHaveBeenLastCalledWith({ preset: '30d', firms: ['Apex', 'Lucid'] })
+  })
+
+  it('ticks a box clicked on its words, and keeps the panel open for the next one', async () => {
+    const { onChange, user } = setup()
+    await user.click(screen.getByRole('button', { name: /All firms/ }))
+    await user.click(within(screen.getByRole('group', { name: 'Firms' })).getByText('Lucid'))
+    expect(onChange).toHaveBeenLastCalledWith({ preset: '30d', firms: ['Lucid'] })
+    expect(screen.getByRole('group', { name: 'Firms' })).toBeInTheDocument()
   })
 
   it('drops the key when the last box is unticked', async () => {
