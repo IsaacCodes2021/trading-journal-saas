@@ -35,6 +35,7 @@ const CSS = `
   --rt-text: #e8edf3;
   --rt-muted: #93a0b2;
   --rt-accent: #6ea8fe;
+  --rt-pos: #34d399;
   --kinde-base-font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --kinde-base-letter-spacing: 0;
   --kinde-base-background-color: var(--rt-bg);
@@ -55,6 +56,7 @@ const CSS = `
     --rt-text: #17202b;
     --rt-muted: #566476;
     --rt-accent: #1f5fd1;
+    --rt-pos: #0b7d55;
   }
 }
 
@@ -78,12 +80,57 @@ body.rt-page {
   font-weight: 600;
 }
 
+/* The bite mark, as in the app (frontend/src/components/BiteMark.tsx and styles.css): two bites, then still. */
 .rt-mark {
-  display: inline-block;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  background: var(--rt-accent);
+  flex: none;
+  width: 30px;
+  height: 30px;
+}
+
+.rt-mark .rt-ring {
+  fill: none;
+  stroke: var(--rt-accent);
+  stroke-width: 11;
+  stroke-dasharray: 111.7 13.96;
+}
+
+.rt-mark .rt-head {
+  fill: var(--rt-accent);
+  transform-origin: 32px 32px;
+}
+
+.rt-mark .rt-dot {
+  fill: var(--rt-pos);
+  transform-origin: 32px 32px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rt-mark .rt-ring {
+    animation: rt-bite-ring 2s cubic-bezier(0.6, 0, 0.2, 1) 2;
+  }
+
+  .rt-mark .rt-head {
+    animation: rt-bite-head 2s cubic-bezier(0.6, 0, 0.2, 1) 2;
+  }
+
+  .rt-mark .rt-dot {
+    animation: rt-bite-dot 2s cubic-bezier(0.3, 1.6, 0.5, 1) 2;
+  }
+}
+
+@keyframes rt-bite-ring {
+  0%, 18%, 82%, 100% { stroke-dasharray: 111.7 13.96; }
+  44%, 56% { stroke-dasharray: 114.84 10.82; }
+}
+
+@keyframes rt-bite-head {
+  0%, 18%, 82%, 100% { transform: rotate(0deg); }
+  44%, 56% { transform: rotate(9deg); }
+}
+
+@keyframes rt-bite-dot {
+  0%, 42%, 68%, 100% { transform: scale(1); }
+  52% { transform: scale(1.55); }
 }
 
 .rt-card {
@@ -149,7 +196,11 @@ const Page = async ({ request, context }: KindePageEvent) => {
       </head>
       <body className="rt-page">
         <div className="rt-brand">
-          <span className="rt-mark" aria-hidden="true" />
+          <svg className="rt-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <circle className="rt-ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)" />
+            <polygon className="rt-head" points="39.36,10.39 30.26,22.15 26.79,2.46" />
+            <circle className="rt-dot" cx="32" cy="32" r="6" />
+          </svg>
           Roundturn
         </div>
         <main className="rt-card">

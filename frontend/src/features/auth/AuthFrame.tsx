@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { BiteMark } from '../../components/BiteMark'
 import { SITE } from '../../lib/auth'
 
 /** The page around the way-in cards: the name, one card, and what continuing means. Needs no session. */
@@ -6,7 +7,7 @@ export function AuthFrame({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col items-center bg-bg px-6 pt-14 pb-8 text-ink">
       <div className="flex items-center gap-2.5 text-[19px] font-semibold">
-        <span aria-hidden="true" className="inline-block size-[26px] rounded-lg bg-accent" />
+        <BiteMark size={30} />
         Roundturn
       </div>
 
