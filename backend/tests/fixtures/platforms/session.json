@@ -1,0 +1,71 @@
+{
+  "about": "One made-up trading session, Wednesday 14 October 2026, written by hand. Every file in this folder describes exactly this session in one platform's export layout (see README.md). Times are UTC. P&L is gross: the price move times the contract's point value, before any fee.",
+  "account": "DEMO0001",
+  "contracts": {
+    "NQZ6": {"root": "NQ", "month": "2026-12", "tick": "0.25", "point_value": "20", "exchange": "CME", "description": "E-mini Nasdaq-100", "last_trade": "2026-12-18"},
+    "MNQZ6": {"root": "MNQ", "month": "2026-12", "tick": "0.25", "point_value": "2", "exchange": "CME", "description": "Micro E-mini Nasdaq-100", "last_trade": "2026-12-18"},
+    "ESZ6": {"root": "ES", "month": "2026-12", "tick": "0.25", "point_value": "50", "exchange": "CME", "description": "E-mini S&P 500", "last_trade": "2026-12-18"},
+    "MESZ6": {"root": "MES", "month": "2026-12", "tick": "0.25", "point_value": "5", "exchange": "CME", "description": "Micro E-mini S&P 500", "last_trade": "2026-12-18"},
+    "CLX6": {"root": "CL", "month": "2026-11", "tick": "0.01", "point_value": "1000", "exchange": "NYMEX", "description": "Crude Oil", "last_trade": "2026-10-20"},
+    "GCZ6": {"root": "GC", "month": "2026-12", "tick": "0.1", "point_value": "100", "exchange": "COMEX", "description": "Gold", "last_trade": "2026-12-29"}
+  },
+  "orders": [
+    {"id": "O1", "contract": "NQZ6", "side": "buy", "qty": 2, "type": "market", "limit": null, "stop": null, "role": "entry", "created_at": "2026-10-14T13:31:05Z", "status": "filled", "ended_at": "2026-10-14T13:31:05Z"},
+    {"id": "O2", "contract": "NQZ6", "side": "sell", "qty": 1, "type": "limit", "limit": "25020.50", "stop": null, "role": "target", "created_at": "2026-10-14T13:31:06Z", "status": "filled", "ended_at": "2026-10-14T13:33:12Z"},
+    {"id": "O3", "contract": "NQZ6", "side": "sell", "qty": 1, "type": "stop", "limit": null, "stop": "25005.00", "role": "stop", "created_at": "2026-10-14T13:31:06Z", "status": "filled", "ended_at": "2026-10-14T13:35:40Z"},
+    {"id": "O4", "contract": "MNQZ6", "side": "sell", "qty": 1, "type": "market", "limit": null, "stop": null, "role": "entry", "created_at": "2026-10-14T14:02:00Z", "status": "filled", "ended_at": "2026-10-14T14:02:00Z"},
+    {"id": "O5", "contract": "MNQZ6", "side": "sell", "qty": 2, "type": "limit", "limit": "25036.50", "stop": null, "role": "entry", "created_at": "2026-10-14T14:02:10Z", "status": "filled", "ended_at": "2026-10-14T14:02:30Z"},
+    {"id": "O6", "contract": "MNQZ6", "side": "buy", "qty": 3, "type": "limit", "limit": "25021.25", "stop": null, "role": "target", "created_at": "2026-10-14T14:02:31Z", "status": "filled", "ended_at": "2026-10-14T14:06:15Z"},
+    {"id": "O7", "contract": "ESZ6", "side": "buy", "qty": 4, "type": "market", "limit": null, "stop": null, "role": "entry", "created_at": "2026-10-14T15:15:20Z", "status": "filled", "ended_at": "2026-10-14T15:15:20Z"},
+    {"id": "O8", "contract": "ESZ6", "side": "sell", "qty": 4, "type": "stop", "limit": null, "stop": "6715.00", "role": "stop", "created_at": "2026-10-14T15:15:21Z", "status": "filled", "ended_at": "2026-10-14T15:40:02Z"},
+    {"id": "O9", "contract": "ESZ6", "side": "sell", "qty": 4, "type": "limit", "limit": "6735.00", "stop": null, "role": "target", "created_at": "2026-10-14T15:15:21Z", "status": "cancelled", "ended_at": "2026-10-14T15:40:02Z"},
+    {"id": "O10", "contract": "CLX6", "side": "sell", "qty": 1, "type": "market", "limit": null, "stop": null, "role": "entry", "created_at": "2026-10-14T17:05:00Z", "status": "filled", "ended_at": "2026-10-14T17:05:00Z"},
+    {"id": "O11", "contract": "CLX6", "side": "buy", "qty": 1, "type": "limit", "limit": "58.17", "stop": null, "role": "target", "created_at": "2026-10-14T17:05:01Z", "status": "filled", "ended_at": "2026-10-14T17:20:30Z"},
+    {"id": "O12", "contract": "MESZ6", "side": "buy", "qty": 1, "type": "market", "limit": null, "stop": null, "role": "entry", "created_at": "2026-10-14T18:10:00Z", "status": "filled", "ended_at": "2026-10-14T18:10:00Z"},
+    {"id": "O13", "contract": "MESZ6", "side": "sell", "qty": 2, "type": "market", "limit": null, "stop": null, "role": "reversal", "created_at": "2026-10-14T18:12:30Z", "status": "filled", "ended_at": "2026-10-14T18:12:30Z"},
+    {"id": "O14", "contract": "MESZ6", "side": "buy", "qty": 1, "type": "limit", "limit": "6726.00", "stop": null, "role": "target", "created_at": "2026-10-14T18:12:31Z", "status": "filled", "ended_at": "2026-10-14T18:15:45Z"},
+    {"id": "O15", "contract": "GCZ6", "side": "buy", "qty": 1, "type": "market", "limit": null, "stop": null, "role": "entry", "created_at": "2026-10-14T22:30:10Z", "status": "filled", "ended_at": "2026-10-14T22:30:10Z"},
+    {"id": "O16", "contract": "GCZ6", "side": "sell", "qty": 1, "type": "limit", "limit": "4103.10", "stop": null, "role": "target", "created_at": "2026-10-14T22:30:11Z", "status": "filled", "ended_at": "2026-10-14T22:41:55Z"},
+    {"id": "O17", "contract": "GCZ6", "side": "sell", "qty": 1, "type": "stop", "limit": null, "stop": "4095.00", "role": "stop", "created_at": "2026-10-14T22:30:11Z", "status": "cancelled", "ended_at": "2026-10-14T22:41:55Z"}
+  ],
+  "fills": [
+    {"id": "F1", "order": "O1", "at": "2026-10-14T13:31:05Z", "contract": "NQZ6", "side": "buy", "qty": 2, "price": "25012.25"},
+    {"id": "F2", "order": "O2", "at": "2026-10-14T13:33:12Z", "contract": "NQZ6", "side": "sell", "qty": 1, "price": "25020.50"},
+    {"id": "F3", "order": "O3", "at": "2026-10-14T13:35:40Z", "contract": "NQZ6", "side": "sell", "qty": 1, "price": "25004.75"},
+    {"id": "F4", "order": "O4", "at": "2026-10-14T14:02:00Z", "contract": "MNQZ6", "side": "sell", "qty": 1, "price": "25030.00"},
+    {"id": "F5", "order": "O5", "at": "2026-10-14T14:02:30Z", "contract": "MNQZ6", "side": "sell", "qty": 2, "price": "25036.50"},
+    {"id": "F6", "order": "O6", "at": "2026-10-14T14:06:15Z", "contract": "MNQZ6", "side": "buy", "qty": 3, "price": "25021.25"},
+    {"id": "F7", "order": "O7", "at": "2026-10-14T15:15:20Z", "contract": "ESZ6", "side": "buy", "qty": 2, "price": "6720.25"},
+    {"id": "F8", "order": "O7", "at": "2026-10-14T15:15:20Z", "contract": "ESZ6", "side": "buy", "qty": 2, "price": "6720.75"},
+    {"id": "F9", "order": "O8", "at": "2026-10-14T15:40:02Z", "contract": "ESZ6", "side": "sell", "qty": 4, "price": "6714.75"},
+    {"id": "F10", "order": "O10", "at": "2026-10-14T17:05:00Z", "contract": "CLX6", "side": "sell", "qty": 1, "price": "58.42"},
+    {"id": "F11", "order": "O11", "at": "2026-10-14T17:20:30Z", "contract": "CLX6", "side": "buy", "qty": 1, "price": "58.17"},
+    {"id": "F12", "order": "O12", "at": "2026-10-14T18:10:00Z", "contract": "MESZ6", "side": "buy", "qty": 1, "price": "6725.00"},
+    {"id": "F13", "order": "O13", "at": "2026-10-14T18:12:30Z", "contract": "MESZ6", "side": "sell", "qty": 2, "price": "6728.50"},
+    {"id": "F14", "order": "O14", "at": "2026-10-14T18:15:45Z", "contract": "MESZ6", "side": "buy", "qty": 1, "price": "6726.00"},
+    {"id": "F15", "order": "O15", "at": "2026-10-14T22:30:10Z", "contract": "GCZ6", "side": "buy", "qty": 1, "price": "4102.30"},
+    {"id": "F16", "order": "O16", "at": "2026-10-14T22:41:55Z", "contract": "GCZ6", "side": "sell", "qty": 1, "price": "4103.10"}
+  ],
+  "fill_pairs": [
+    {"id": "P1", "contract": "NQZ6", "direction": "long", "qty": 1, "entry_fill": "F1", "exit_fill": "F2", "entry_price": "25012.25", "exit_price": "25020.50", "gross_pnl": "165.00"},
+    {"id": "P2", "contract": "NQZ6", "direction": "long", "qty": 1, "entry_fill": "F1", "exit_fill": "F3", "entry_price": "25012.25", "exit_price": "25004.75", "gross_pnl": "-150.00"},
+    {"id": "P3", "contract": "MNQZ6", "direction": "short", "qty": 1, "entry_fill": "F4", "exit_fill": "F6", "entry_price": "25030.00", "exit_price": "25021.25", "gross_pnl": "17.50"},
+    {"id": "P4", "contract": "MNQZ6", "direction": "short", "qty": 2, "entry_fill": "F5", "exit_fill": "F6", "entry_price": "25036.50", "exit_price": "25021.25", "gross_pnl": "61.00"},
+    {"id": "P5", "contract": "ESZ6", "direction": "long", "qty": 2, "entry_fill": "F7", "exit_fill": "F9", "entry_price": "6720.25", "exit_price": "6714.75", "gross_pnl": "-550.00"},
+    {"id": "P6", "contract": "ESZ6", "direction": "long", "qty": 2, "entry_fill": "F8", "exit_fill": "F9", "entry_price": "6720.75", "exit_price": "6714.75", "gross_pnl": "-600.00"},
+    {"id": "P7", "contract": "CLX6", "direction": "short", "qty": 1, "entry_fill": "F10", "exit_fill": "F11", "entry_price": "58.42", "exit_price": "58.17", "gross_pnl": "250.00"},
+    {"id": "P8", "contract": "MESZ6", "direction": "long", "qty": 1, "entry_fill": "F12", "exit_fill": "F13", "entry_price": "6725.00", "exit_price": "6728.50", "gross_pnl": "17.50"},
+    {"id": "P9", "contract": "MESZ6", "direction": "short", "qty": 1, "entry_fill": "F13", "exit_fill": "F14", "entry_price": "6728.50", "exit_price": "6726.00", "gross_pnl": "12.50"},
+    {"id": "P10", "contract": "GCZ6", "direction": "long", "qty": 1, "entry_fill": "F15", "exit_fill": "F16", "entry_price": "4102.30", "exit_price": "4103.10", "gross_pnl": "80.00"}
+  ],
+  "trades": [
+    {"id": "T1", "contract": "NQZ6", "direction": "long", "pairs": ["P1", "P2"], "total_qty": 2, "max_position": 2, "entry_at": "2026-10-14T13:31:05Z", "exit_at": "2026-10-14T13:35:40Z", "trade_date": "2026-10-14", "gross_pnl": "15.00", "note": "one entry, scaled out at a target and a stop"},
+    {"id": "T2", "contract": "MNQZ6", "direction": "short", "pairs": ["P3", "P4"], "total_qty": 3, "max_position": 3, "entry_at": "2026-10-14T14:02:00Z", "exit_at": "2026-10-14T14:06:15Z", "trade_date": "2026-10-14", "gross_pnl": "78.50", "note": "scaled in, one exit"},
+    {"id": "T3", "contract": "ESZ6", "direction": "long", "pairs": ["P5", "P6"], "total_qty": 4, "max_position": 4, "entry_at": "2026-10-14T15:15:20Z", "exit_at": "2026-10-14T15:40:02Z", "trade_date": "2026-10-14", "gross_pnl": "-1150.00", "note": "one order filled in two parts in the same second; its target was cancelled when the stop filled"},
+    {"id": "T4", "contract": "CLX6", "direction": "short", "pairs": ["P7"], "total_qty": 1, "max_position": 1, "entry_at": "2026-10-14T17:05:00Z", "exit_at": "2026-10-14T17:20:30Z", "trade_date": "2026-10-14", "gross_pnl": "250.00", "note": "a contract with a different tick and point value"},
+    {"id": "T5", "contract": "MESZ6", "direction": "long", "pairs": ["P8"], "total_qty": 1, "max_position": 1, "entry_at": "2026-10-14T18:10:00Z", "exit_at": "2026-10-14T18:12:30Z", "trade_date": "2026-10-14", "gross_pnl": "17.50", "note": "closed by a reversal: one sell of 2 while long 1"},
+    {"id": "T6", "contract": "MESZ6", "direction": "short", "pairs": ["P9"], "total_qty": 1, "max_position": 1, "entry_at": "2026-10-14T18:12:30Z", "exit_at": "2026-10-14T18:15:45Z", "trade_date": "2026-10-14", "gross_pnl": "12.50", "note": "opened by that same reversal fill"},
+    {"id": "T7", "contract": "GCZ6", "direction": "long", "pairs": ["P10"], "total_qty": 1, "max_position": 1, "entry_at": "2026-10-14T22:30:10Z", "exit_at": "2026-10-14T22:41:55Z", "trade_date": "2026-10-15", "gross_pnl": "80.00", "note": "after 18:00 New York time, so it counts toward the next trading day; its stop was cancelled"}
+  ],
+  "total_gross_pnl": "-696.50"
+}
