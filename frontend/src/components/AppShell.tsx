@@ -19,6 +19,7 @@ import { filtersOf, parseFilters } from '../lib/filters'
 import { daysLeft, pluralize } from '../lib/format'
 import { useSaveTheme, useSession } from '../lib/session'
 import { applyTheme, otherTheme, type Theme } from '../lib/theme'
+import { BiteMark } from './BiteMark'
 import { Popover } from './ui/Popover'
 import { Button, Spinner } from './ui/primitives'
 import { cx } from './ui/cx'
@@ -294,7 +295,7 @@ export function AppShell({
         <header className="border-b border-line bg-panel">
           <div className="mx-auto flex min-h-14 max-w-[1100px] items-center gap-4 px-4 sm:px-8">
             <div className="flex grow items-center gap-2.5 text-base font-semibold">
-              <span aria-hidden="true" className="inline-block size-[22px] rounded-md bg-accent" />
+              <BiteMark size={26} />
               Roundturn
             </div>
             {action}
@@ -311,7 +312,7 @@ export function AppShell({
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex min-h-14 max-w-[1360px] flex-wrap items-center gap-x-6 gap-y-1 px-4 sm:px-8">
           <div className="flex items-center gap-2.5 text-base font-semibold">
-            <span aria-hidden="true" className="inline-block size-[22px] rounded-md bg-accent" />
+            <BiteMark size={26} />
             Roundturn
           </div>
           <nav

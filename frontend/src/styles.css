@@ -90,3 +90,83 @@
     text-decoration: underline;
   }
 }
+
+/*
+ * The mark (components/BiteMark.tsx), with the design's colours and easing. It bites twice when it appears (4 seconds,
+ * inside the 5 that WCAG allows moving content without a pause control) and keeps biting while the name beside it is
+ * pointed at. No motion at all when the person asks for reduced motion.
+ */
+@layer components {
+  .bite-mark .bite-ring {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 11;
+    stroke-dasharray: 111.7 13.96;
+  }
+
+  .bite-mark .bite-head {
+    fill: var(--accent);
+    transform-origin: 32px 32px;
+  }
+
+  .bite-mark .bite-dot {
+    fill: var(--pos);
+    transform-origin: 32px 32px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .bite-mark .bite-ring {
+      animation: bite-ring 2s cubic-bezier(0.6, 0, 0.2, 1) 2;
+    }
+
+    .bite-mark .bite-head {
+      animation: bite-head 2s cubic-bezier(0.6, 0, 0.2, 1) 2;
+    }
+
+    .bite-mark .bite-dot {
+      animation: bite-dot 2s cubic-bezier(0.3, 1.6, 0.5, 1) 2;
+    }
+
+    :hover > .bite-mark * {
+      animation-iteration-count: infinite;
+    }
+  }
+}
+
+@keyframes bite-ring {
+  0%,
+  18%,
+  82%,
+  100% {
+    stroke-dasharray: 111.7 13.96;
+  }
+  44%,
+  56% {
+    stroke-dasharray: 114.84 10.82;
+  }
+}
+
+@keyframes bite-head {
+  0%,
+  18%,
+  82%,
+  100% {
+    transform: rotate(0deg);
+  }
+  44%,
+  56% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes bite-dot {
+  0%,
+  42%,
+  68%,
+  100% {
+    transform: scale(1);
+  }
+  52% {
+    transform: scale(1.55);
+  }
+}
