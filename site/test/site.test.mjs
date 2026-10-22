@@ -221,6 +221,22 @@ test("every page links to the terms, privacy and refund pages in its footer", ()
   }
 });
 
+test("every page's top menu and footer link the refund policy by that name", () => {
+  for (const page of pages) {
+    const name = urlOf(page);
+    const html = read(page);
+    const menu = html.match(/<nav class="menu" aria-label="Main">([\s\S]*?)<\/nav>/);
+    assert.ok(menu, `${name} has no main menu`);
+    assert.match(menu[1], /<a href="\/refunds\/"(?: aria-current="page")?>Refund Policy<\/a>/, `${name} menu does not link the refund policy`);
+    if (name !== "/404.html") {
+      const footer = html.slice(html.indexOf("<footer"));
+      assert.ok(footer.includes('<a href="/refunds/">Refund Policy</a>'), `${name} footer does not name the refund policy`);
+    }
+    assert.ok(!html.includes(">Billing and refunds</a>"), `${name} still has a link named "Billing and refunds"`);
+  }
+  assert.ok(pageNamed("/refunds/index.html").includes('<a href="/refunds/" aria-current="page">Refund Policy</a>'));
+});
+
 test("the privacy page covers payments without claiming the site stores anything", () => {
   const privacy = pageNamed("/privacy/index.html").toLowerCase();
   assert.ok(privacy.includes("payment is taken by paddle, which acts as the seller of record"));
