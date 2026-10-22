@@ -158,12 +158,79 @@ p {
   color: var(--text);
 }
 
+/*
+ * The mark is the bite from the "Roundturn Motion Ads" design (artboard "Logo anim 03 · Bite"): same shapes, colours and
+ * easing. In the header it bites twice on load (4 seconds, inside the 5 that WCAG allows moving content without a pause
+ * control) and keeps biting while pointed at or focused. No motion at all when the visitor asks for reduced motion.
+ */
+
 .mark {
-  display: inline-block;
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  background: var(--accent);
+  flex: none;
+  width: 28px;
+  height: 28px;
+}
+
+.mark .ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 11;
+  stroke-dasharray: 111.7 13.96;
+}
+
+.mark .head {
+  fill: var(--accent);
+  transform-origin: 32px 32px;
+}
+
+.mark .dot {
+  fill: var(--pos);
+  transform-origin: 32px 32px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .top .mark .ring {
+    animation: bite-ring 2s cubic-bezier(0.6, 0, 0.2, 1) 2;
+  }
+
+  .top .mark .head {
+    animation: bite-head 2s cubic-bezier(0.6, 0, 0.2, 1) 2;
+  }
+
+  .top .mark .dot {
+    animation: bite-dot 2s cubic-bezier(0.3, 1.6, 0.5, 1) 2;
+  }
+
+  .top .brand:hover .mark *,
+  .top .brand:focus-visible .mark * {
+    animation-iteration-count: infinite;
+  }
+}
+
+@keyframes bite-ring {
+  0%, 18%, 82%, 100% {
+    stroke-dasharray: 111.7 13.96;
+  }
+  44%, 56% {
+    stroke-dasharray: 114.84 10.82;
+  }
+}
+
+@keyframes bite-head {
+  0%, 18%, 82%, 100% {
+    transform: rotate(0deg);
+  }
+  44%, 56% {
+    transform: rotate(9deg);
+  }
+}
+
+@keyframes bite-dot {
+  0%, 42%, 68%, 100% {
+    transform: scale(1);
+  }
+  52% {
+    transform: scale(1.55);
+  }
 }
 
 .menu {
@@ -305,10 +372,8 @@ p {
 }
 
 .window .bar .mark {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  flex: none;
+  width: 22px;
+  height: 22px;
 }
 
 .window .bar .on {
@@ -624,9 +689,8 @@ footer .brand {
 }
 
 footer .brand .mark {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
 }
 
 footer nav {
