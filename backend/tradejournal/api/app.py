@@ -61,6 +61,7 @@ from .routers import (
     session,
     sessions,
     stats,
+    stripe_pay,
     tags,
     trades,
     webhooks,
@@ -249,6 +250,7 @@ def create_app(
     app.include_router(billing.router)
     app.include_router(webhooks.router)
     app.include_router(pay.router)
+    app.include_router(stripe_pay.router)
     app.include_router(export.router)
     app.include_router(rules.router)  # before accounts: /accounts/overview is not an account id
     app.include_router(accounts.router)

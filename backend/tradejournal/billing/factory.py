@@ -8,6 +8,7 @@ from datetime import datetime
 from .fake import FakeBilling
 from .paddle import PaddleBilling, PaddleSettings
 from .provider import BillingProvider
+from .stripe import StripeBilling, StripeSettings
 
 
 def provider_for(config, *, clock: Callable[[], datetime]) -> BillingProvider | None:
@@ -19,6 +20,10 @@ def provider_for(config, *, clock: Callable[[], datetime]) -> BillingProvider | 
         if config.paddle is None:  # the configuration refuses this; a guard for a hand-made one
             raise ValueError("TJ_BILLING_PROVIDER=paddle needs the TJ_PADDLE_* settings")
         return PaddleBilling(config.paddle)
+    if config.billing_provider == "stripe":
+        if config.stripe is None:  # the configuration refuses this; a guard for a hand-made one
+            raise ValueError("TJ_BILLING_PROVIDER=stripe needs the TJ_STRIPE_* settings")
+        return StripeBilling(config.stripe, app_origin=config.app_origin)
     return None
 
 
@@ -35,4 +40,9 @@ def provider_from_env(env) -> BillingProvider | None:
         if settings is None:
             raise ValueError("TJ_BILLING_PROVIDER=paddle needs TJ_PADDLE_ENV and TJ_PADDLE_API_KEY")
         return PaddleBilling(settings)
-    raise ValueError("TJ_BILLING_PROVIDER must be 'fake' or 'paddle'")
+    if name == "stripe":
+        stripe = StripeSettings.from_env(env)  # a job needs only TJ_STRIPE_ENV and TJ_STRIPE_API_KEY
+        if stripe is None:
+            raise ValueError("TJ_BILLING_PROVIDER=stripe needs TJ_STRIPE_ENV and TJ_STRIPE_API_KEY")
+        return StripeBilling(stripe)
+    raise ValueError("TJ_BILLING_PROVIDER must be 'fake', 'paddle' or 'stripe'")

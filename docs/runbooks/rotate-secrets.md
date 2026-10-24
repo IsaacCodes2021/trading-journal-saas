@@ -28,6 +28,8 @@ Never put a secret in this repository, a chat, a ticket or a log. The continuous
 | Cloudflare API tokens, GitHub tokens, deploy keys | Deploying and the site | The tool that uses them | Deploy code or change DNS. Critical | |
 | `TJ_PADDLE_API_KEY` | Paddle's API for this account: customers, checkouts, subscriptions (cancel), discounts, portal links | The web service's environment **and** the sweep's; Paddle dashboard (Developer tools > Authentication) | Cancel or change anyone's subscription, make discounts, read customers' details at Paddle. **Critical** | |
 | `TJ_PADDLE_WEBHOOK_SECRET` | The signature on Paddle's notifications | The web service's environment; Paddle dashboard (Developer tools > Notifications) | Forge notifications: give someone Pro, or end a subscription in our records (Paddle's own state is untouched; the nightly check corrects it). High | |
+| `TJ_STRIPE_API_KEY` | Stripe's API for this account (a restricted key): customers, checkouts, subscriptions (cancel), coupons and promotion codes, portal links | The web service's environment **and** the sweep's (when Stripe is the provider); Stripe dashboard (Developers > API keys) | Cancel or change anyone's subscription, make discounts, read customers' details at Stripe. **Critical** | |
+| `TJ_STRIPE_WEBHOOK_SECRET` | The signature on Stripe's events | The web service's environment; Stripe dashboard (Developers > Webhooks, the endpoint) | Forge events: give someone Pro, or end a subscription in our records (Stripe's own state is untouched; the nightly check corrects it). High | |
 | `TJ_S3_ACCESS_KEY_ID` and `TJ_S3_SECRET_ACCESS_KEY` (the R2 API token) | Reading, writing and deleting every person's screenshot files | The web service's environment **and** the sweep's | Read, overwrite or delete anyone's pictures. **Critical** (the files are the only content a person cannot re-import) | |
 
 **Not secrets, so there is nothing to rotate:** invite codes and plan codes (only their hashes are stored; to take one away, revoke it in the operator tools, Codes & audit); the Kinde client *id* and *domain*; the public site's D1 database id.
@@ -94,6 +96,19 @@ The token is limited to the one bucket, so a leak is limited to the pictures (ne
    nightly check corrects anything missed.
 3. Never paste either value in chat, a ticket or the repository. The client-side token (`TJ_PADDLE_CLIENT_TOKEN`) is public
    by design and needs no rotation unless it is revoked.
+
+## Stripe keys (`TJ_STRIPE_API_KEY`, `TJ_STRIPE_WEBHOOK_SECRET`)
+
+1. **API key:** in Stripe (Developers > API keys) make a new restricted key with the same permissions (the billing runbook,
+   "Switching from Paddle to Stripe"), put it on both Render services (or in their shared Environment Group), let them
+   redeploy, then delete the old key in Stripe. Check with `python -m tradejournal.billing.stripe_check` (read-only) or the
+   next sweep run's billing line.
+2. **Webhook secret:** roll it on the endpoint in Stripe (Developers > Webhooks, the endpoint, Roll secret, keeping the old
+   one valid for a while), put the new value on the Web Service, and redeploy. While both are valid Stripe signs with both,
+   and the app accepts any one signature that matches its own secret. Check the endpoint's log for `200`. Failed deliveries
+   are retried by Stripe for up to three days, and the nightly check corrects anything missed.
+3. Never paste either value in chat, a ticket or the repository. A test-mode key and a live key are separate; rotate the one
+   that leaked.
 
 ## Database role passwords
 

@@ -6,6 +6,11 @@ owner said in chat through 2026-10-14. Anything marked *owner-reported* was not 
 
 Read this file first, then `CLAUDE.md` (the rules, short), then the runbook or design doc for the task at hand (index at the end).
 
+**Billing since then (short):** Paddle's connector, the payment page and discount codes were merged on 2026-10-16 (PRs 148 to
+150, migrations 0020 to 0022), switched off in production. On 2026-10-23 a **Stripe connector was built beside Paddle's**
+(migration 0023, `/billing/stripe/pay`, `python -m tradejournal.billing.stripe_check`): `TJ_BILLING_PROVIDER` picks one.
+How to operate either, and how to switch: `docs/runbooks/billing.md`.
+
 ## 1. What this is
 
 **Roundturn** (roundturn.app) is a hosted, multi-user trading journal for futures prop-firm traders: import Tradovate

@@ -67,6 +67,12 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
   against Paddle itself **(you for the sandbox settings and the webhook address; then me)**
 - [ ] Switch-on day: an override for your own account, then `python -m tradejournal.pg.plans start-trials --apply` (built
   2026-10-16), then the Cron Job's and the Web Service's billing settings **(you)**; [billing.md](billing.md)
+- [ ] If Stripe instead of Paddle: Stripe's written answer on eligibility (its restricted list names "funded prop trading")
+  **(you)**; the Stripe connector is built beside Paddle's (2026-10-23) and tested against a stand-in for Stripe's API and
+  calls in Stripe's test mode; migration 0023 applied before its merge **(you, as the schema owner)**; a Stripe test payment
+  and the lifecycle ([billing.md](billing.md), "Stripe test mode") **(you for the key and the webhook endpoint; then me)**;
+  then `stripe_check` passing against the live settings and `TJ_BILLING_PROVIDER=stripe` ([billing.md](billing.md),
+  "Switching from Paddle to Stripe") **(you)**
 - [ ] Cookie and consent wording confirmed for the regions served **(you, a professional)**
 - [ ] Retire the old random `GR-` plan codes once none is outstanding (promo codes replace them; nothing is deleted, the blank-code
   form can still make one)

@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from ..billing.paddle import PaddleSettings
+from ..billing.stripe import StripeSettings
 from ..bucketstore import BucketSettings
 from .ratelimit import RateLimits
 
@@ -81,7 +82,7 @@ class ApiConfig:
     # Billing (the billing design; docs/design/paddle-integration.md). Off: sign-up, access and every page are exactly as they
     # were, and the billing routes, the webhook and the payment page answer 404. On: a 7-day trial at sign-up, nothing live
     # means read-only, and the provider below is used. `billing_provider` is "fake" (tests and local clicking-through; refused
-    # in production) or "paddle". The webhook writes as its own database role (`TJ_WEBHOOK_DATABASE_URL`).
+    # in production), "paddle" or "stripe". The webhook writes as its own database role (`TJ_WEBHOOK_DATABASE_URL`).
     billing_enabled: bool = False
     billing_provider: str | None = None
     webhook_database_url: str | None = field(default=None, repr=False)
@@ -90,6 +91,9 @@ class ApiConfig:
     # Paddle (`TJ_PADDLE_*`, billing/paddle.py): all six with TJ_BILLING_PROVIDER=paddle. The key and the webhook secret are
     # secrets; a sandbox key with live settings, or the reverse, stops the server at start-up.
     paddle: PaddleSettings | None = field(default=None, repr=False)
+    # Stripe (`TJ_STRIPE_*`, billing/stripe.py), beside Paddle: the environment, the key, the webhook secret and the catalog
+    # ids with TJ_BILLING_PROVIDER=stripe. A test key with live settings, or the reverse, stops the server at start-up.
+    stripe: StripeSettings | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         if self.max_json_bytes < 1 or self.max_upload_bytes < 1:
@@ -131,8 +135,8 @@ class ApiConfig:
             raise ConfigError("TJ_CLIENT_IP_HEADER must be a header name such as CF-Connecting-IP")
         if self.signup_mode not in ("invite", "open"):
             raise ConfigError("TJ_SIGNUP_MODE must be 'invite' or 'open'")
-        if self.billing_provider is not None and self.billing_provider not in ("fake", "paddle"):
-            raise ConfigError("TJ_BILLING_PROVIDER must be 'fake' or 'paddle'")
+        if self.billing_provider is not None and self.billing_provider not in ("fake", "paddle", "stripe"):
+            raise ConfigError("TJ_BILLING_PROVIDER must be 'fake', 'paddle' or 'stripe'")
         if self.billing_enabled and self.billing_provider is None:
             raise ConfigError("TJ_BILLING_ENABLED needs TJ_BILLING_PROVIDER")
         if self.production and self.billing_provider == "fake":
@@ -143,6 +147,11 @@ class ApiConfig:
             raise ConfigError(
                 "TJ_BILLING_PROVIDER=paddle needs TJ_PADDLE_ENV, TJ_PADDLE_API_KEY, TJ_PADDLE_WEBHOOK_SECRET, "
                 "TJ_PADDLE_CLIENT_TOKEN, TJ_PADDLE_PRODUCT_ID and TJ_PADDLE_PRICE_ID"
+            )
+        if self.billing_provider == "stripe" and (self.stripe is None or not self.stripe.complete_for_web):
+            raise ConfigError(
+                "TJ_BILLING_PROVIDER=stripe needs TJ_STRIPE_ENV, TJ_STRIPE_API_KEY, TJ_STRIPE_WEBHOOK_SECRET, "
+                "TJ_STRIPE_PRODUCT_ID and TJ_STRIPE_PRICE_ID"
             )
         if self.dev_user_id is not None:
             if self.production:
@@ -193,6 +202,12 @@ class ApiConfig:
             raise ConfigError(str(problem)) from None
         if paddle is not None:
             values["paddle"] = paddle
+        try:
+            stripe = StripeSettings.from_env(env)
+        except ValueError as problem:  # names the setting, never its value
+            raise ConfigError(str(problem)) from None
+        if stripe is not None:
+            values["stripe"] = stripe
         for key, name in (
             ("TJ_KINDE_DOMAIN", "kinde_domain"),
             ("TJ_KINDE_CLIENT_ID", "kinde_client_id"),

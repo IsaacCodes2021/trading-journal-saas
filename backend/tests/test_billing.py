@@ -44,7 +44,7 @@ def test_the_switch_reads_the_usual_words_for_on(value):
     [
         ({"TJ_BILLING_ENABLED": "true"}, "needs TJ_BILLING_PROVIDER"),
         ({"TJ_BILLING_ENABLED": "maybe"}, "true or false"),
-        ({"TJ_BILLING_PROVIDER": "stripe"}, "'fake' or 'paddle'"),
+        ({"TJ_BILLING_PROVIDER": "lemonsqueezy"}, "'fake', 'paddle' or 'stripe'"),
         ({"TJ_WEBHOOK_DATABASE_URL": "mysql://x"}, "postgresql://"),
     ],
 )

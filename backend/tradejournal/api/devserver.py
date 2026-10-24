@@ -16,6 +16,10 @@ uses the local database.
 `--billing` (with `--real-sign-in`) turns billing on with the Paddle sandbox, to take a test payment on this machine: the
 six `TJ_PADDLE_*` settings come from the gitignored `backend/.env.paddle`, and only a sandbox is accepted. Paddle's webhooks
 reach this server through a tunnel (docs/runbooks/billing.md, "Paddle sandbox").
+
+`--billing --stripe` uses Stripe's test mode instead, beside Paddle (docs/design/stripe-plan.md): the `TJ_STRIPE_*`
+settings come from the gitignored `backend/.env.stripe`, only test keys are accepted, and Stripe's webhooks come through
+the same kind of tunnel. Plain `--billing` stays the Paddle sandbox.
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ from uuid import UUID
 import psycopg
 
 from ..billing.paddle import PaddleSettings
+from ..billing.stripe import StripeSettings
 from ..pg.invites import create_invite
 from ..pg.migrate import latest_version, migrate
 from ..pg.provision import read_env_file
@@ -45,6 +50,10 @@ PADDLE_ENV_FILE = Path(__file__).resolve().parents[2] / ".env.paddle"
 PADDLE_KEYS = (
     "TJ_PADDLE_ENV", "TJ_PADDLE_API_KEY", "TJ_PADDLE_CLIENT_TOKEN", "TJ_PADDLE_WEBHOOK_SECRET",
     "TJ_PADDLE_PRODUCT_ID", "TJ_PADDLE_PRICE_ID",
+)  # fmt: skip
+STRIPE_ENV_FILE = Path(__file__).resolve().parents[2] / ".env.stripe"
+STRIPE_KEYS = (
+    "TJ_STRIPE_ENV", "TJ_STRIPE_API_KEY", "TJ_STRIPE_WEBHOOK_SECRET", "TJ_STRIPE_PRODUCT_ID", "TJ_STRIPE_PRICE_ID",
 )  # fmt: skip
 
 
@@ -148,6 +157,32 @@ def billing_settings(env: dict[str, str], env_file: Path, paddle_env_file: Path)
     }
 
 
+def stripe_billing_settings(env: dict[str, str], env_file: Path, stripe_env_file: Path) -> dict[str, object]:
+    """Billing on with Stripe's test mode, as `billing_settings` does for the Paddle sandbox. A live key or
+    `TJ_STRIPE_ENV=live` is refused: a test payment here takes no money."""
+    if not stripe_env_file.exists():
+        raise DevServerError(f"{stripe_env_file.name} does not exist: it holds {', '.join(STRIPE_KEYS)}")
+    stripe_env = read_env_file(stripe_env_file)
+    missing = [key for key in STRIPE_KEYS if not stripe_env.get(key, "").strip()]
+    if missing:
+        raise DevServerError(f"{stripe_env_file.name} has no value for {', '.join(missing)}")
+    if stripe_env["TJ_STRIPE_ENV"].strip().lower() != "test":
+        raise DevServerError("--stripe is for Stripe's test mode only: TJ_STRIPE_ENV must be test")
+    if not env.get("TJ_DEV_WEBHOOK_URL"):
+        raise DevServerError(f"{env_file.name} has no TJ_DEV_WEBHOOK_URL: run the provisioning script")
+    try:
+        stripe = StripeSettings.from_env(stripe_env)
+    except ValueError as problem:  # names the setting, never its value
+        raise DevServerError(str(problem)) from None
+    return {
+        "billing_enabled": True,
+        "billing_provider": "stripe",
+        "stripe": stripe,
+        "webhook_database_url": env["TJ_DEV_WEBHOOK_URL"],
+        "admin_database_url": env.get("TJ_DEV_ADMIN_URL") or None,
+    }
+
+
 def build_config(
     env_file: Path,
     *,
@@ -158,6 +193,8 @@ def build_config(
     kinde_env_file: Path = KINDE_ENV_FILE,
     billing: bool = False,
     paddle_env_file: Path = PADDLE_ENV_FILE,
+    stripe: bool = False,
+    stripe_env_file: Path = STRIPE_ENV_FILE,
 ) -> ApiConfig:
     env = read_env_file(env_file)
     app_url, login_url = env.get("TJ_DEV_APP_URL"), env.get("TJ_DEV_LOGIN_URL")
@@ -169,8 +206,13 @@ def build_config(
         raise DevServerError(
             "--billing needs --real-sign-in: billing runs on real sessions, which the development sign-in has not"
         )
+    if stripe and not billing:
+        raise DevServerError("--stripe goes with --billing: it picks Stripe's test mode instead of the Paddle sandbox")
     kinde = kinde_settings(kinde_env_file) if real_sign_in else None
-    paying = billing_settings(env, env_file, paddle_env_file) if billing else {}
+    if billing and stripe:
+        paying = stripe_billing_settings(env, env_file, stripe_env_file)
+    else:
+        paying = billing_settings(env, env_file, paddle_env_file) if billing else {}
     if applied := check_schema(env, migrate_now=migrate_now):
         print(applied)
     try:
@@ -223,6 +265,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--paddle-env-file", type=Path, default=PADDLE_ENV_FILE, help="with --billing")
     parser.add_argument(
+        "--stripe",
+        action="store_true",
+        help="with --billing: Stripe's test mode instead of the Paddle sandbox (settings from backend/.env.stripe)",
+    )
+    parser.add_argument("--stripe-env-file", type=Path, default=STRIPE_ENV_FILE, help="with --billing --stripe")
+    parser.add_argument(
         "--make-invite",
         action="store_true",
         help="print a single-use invite code (valid 7 days) for the local database, and exit",
@@ -251,6 +299,8 @@ def main(argv: list[str] | None = None) -> int:
             kinde_env_file=args.kinde_env_file,
             billing=args.billing,
             paddle_env_file=args.paddle_env_file,
+            stripe=args.stripe,
+            stripe_env_file=args.stripe_env_file,
         )
     except (DevServerError, psycopg.Error, OSError) as problem:
         print(f"cannot start: {problem}", file=sys.stderr)
@@ -264,7 +314,15 @@ def main(argv: list[str] | None = None) -> int:
             f"  Allowed callback URL in Kinde:  {config.app_origin}/auth/callback\n"
             f"  Allowed logout redirect URL:    {config.app_origin}/invite"
         )
-        if config.billing_enabled:
+        if config.billing_enabled and config.billing_provider == "stripe":
+            print(
+                "Billing on with Stripe's TEST MODE (test cards only, no money moves).\n"
+                f"  Payment link:   {config.app_origin}/billing/stripe/pay (sends the browser to Stripe's checkout)\n"
+                f"  Webhooks:       a tunnel to http://localhost:{args.port}, and in Stripe a webhook endpoint at\n"
+                "                  https://<the tunnel's address>/webhooks/billing (API version "
+                "2026-08-26.dahlia)"
+            )
+        elif config.billing_enabled:
             print(
                 "Billing on with the Paddle SANDBOX (test cards only, no money moves).\n"
                 f"  Payment page:   {config.app_origin}/billing/pay (Paddle's checkout opens there)\n"

@@ -221,4 +221,6 @@ def test_the_routes_that_answer_without_a_session_are_exactly_the_known_ones():
             "GET",
             "/billing/pay",
         ),  # the payment page: Paddle's emails link here; it shows nothing of anyone's (test_api_pay_page.py)
+        # the Stripe payment link: 404 unless Stripe is the provider; signed out, back to Plan & billing (test_api_stripe_pay.py)
+        ("GET", "/billing/stripe/pay"),
     }

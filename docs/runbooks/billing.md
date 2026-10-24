@@ -4,6 +4,10 @@ How Roundturn's billing works and how to operate it. The design is in doc 05 sec
 03, the provider plan in `docs/design/paddle-integration.md` (not committed). **Billing is off in production**, and nothing
 here can charge anyone until a real provider is connected and switched on, each step with the owner's yes.
 
+**Two providers, one at a time.** Paddle and Stripe are both built (Stripe beside Paddle, nothing of Paddle's changed:
+`docs/design/stripe-plan.md`, not committed). `TJ_BILLING_PROVIDER` (`paddle` or `stripe`) picks the one that runs; the
+other's code and settings sit unused. Section "Switching from Paddle to Stripe" says how, and when not to.
+
 ## What is built, and what is not
 
 | Built (2026-10-15 and 16) | Not done yet |
@@ -15,6 +19,7 @@ here can charge anyone until a real provider is connected and switched on, each 
 | Deletion stopping a subscription, the nightly check, the emails | |
 | `start-trials`: the trial for the accounts that exist on switch-on day | |
 | **Discount codes** (migration 0022): made by the operator, given to Paddle, saved by people, applied at checkout | |
+| **The Stripe connector** beside Paddle's (2026-10-23; migration 0023), its payment link `/billing/stripe/pay`, the readiness check `stripe_check` | Stripe's live settings; a Stripe test payment end to end with the owner (section "Stripe test mode") |
 
 ## The rules (what a person gets)
 
@@ -36,13 +41,22 @@ changes no access by itself. Subscribing during free days delays the first charg
 | Setting | Web Service (`roundturn`, shows `app.roundturn.app`) | Cron Job (`roundturn-sweep`, has Trigger Run) |
 |---|---|---|
 | `TJ_BILLING_ENABLED` | `true` turns billing on (the trial, Subscribe, read-only for nothing live) | `true` sends the billing emails and words the "access ended" email for a trial |
-| `TJ_BILLING_PROVIDER` | `paddle` (`fake` is refused in production) | `paddle`, so the job can send cancels and run the nightly check |
+| `TJ_BILLING_PROVIDER` | `paddle` or `stripe` (`fake` is refused in production) | The same, so the job can send cancels and run the nightly check |
 | `TJ_WEBHOOK_DATABASE_URL` | The `app_webhook` role's **private** address. Required with billing on | Not needed |
 | `TJ_PADDLE_ENV` | `sandbox` or `production` | The same |
 | `TJ_PADDLE_API_KEY` (secret) | The server key (sandbox keys contain `_sdbx`) | The same key: the job cancels and checks subscriptions |
 | `TJ_PADDLE_WEBHOOK_SECRET` (secret) | The notification destination's secret key (`pdl_ntfset_...`) | Not needed |
 | `TJ_PADDLE_CLIENT_TOKEN` | The client-side token for the payment page (`test_...` or `live_...`; public by design) | Not needed |
 | `TJ_PADDLE_PRODUCT_ID`, `TJ_PADDLE_PRICE_ID` | Roundturn Pro and its USD 15 monthly price (`pro_...`, `pri_...`; sandbox and live differ) | Not needed |
+| `TJ_STRIPE_ENV` | `test` or `live` | The same |
+| `TJ_STRIPE_API_KEY` (secret) | A restricted key (`rk_test_...`/`rk_live_...`; a secret key `sk_...` also works) | The same key: the job cancels and checks subscriptions |
+| `TJ_STRIPE_WEBHOOK_SECRET` (secret) | The webhook endpoint's signing secret (`whsec_...`) | Not needed |
+| `TJ_STRIPE_PRODUCT_ID`, `TJ_STRIPE_PRICE_ID` | Roundturn Pro and its USD 15 monthly price (`prod_...`, `price_...`; test and live differ) | Not needed |
+| `TJ_STRIPE_MANAGED_PAYMENTS` | `true` (the default): Stripe sells as merchant of record; `false`: Roundturn sells, with Stripe Tax | Not needed |
+
+The `TJ_PADDLE_*` and `TJ_STRIPE_*` settings can all stay on a service at once; only the provider `TJ_BILLING_PROVIDER` names
+is used. With `TJ_BILLING_PROVIDER=stripe` the web service needs `TJ_STRIPE_ENV`, the key, the webhook secret and both ids,
+and refuses a test key with `TJ_STRIPE_ENV=live` (or the reverse) or a mistyped id, naming the setting, never its value.
 
 The web service refuses to start with billing on and no provider, with `fake` in production, or without
 `TJ_WEBHOOK_DATABASE_URL`. With `TJ_BILLING_PROVIDER=paddle` it needs all six `TJ_PADDLE_*` settings, and it refuses a sandbox
@@ -90,6 +104,54 @@ Then:
 **To switch off again:** set `TJ_BILLING_ENABLED` to `false` on both services. Subscriptions keep running at the provider and
 their rows stay; the app simply stops showing billing, and every rule returns to what it was before.
 
+## Switching from Paddle to Stripe (one setting)
+
+**Once, before the first switch (each step with the owner's yes):**
+
+1. **Migration 0023 on production, then the merge** that ships the Stripe code, as for 0020 to 0022 (section "Releasing
+   the code"): the Cron Job runs the new image at the next hour without waiting for `/readyz`. Additive; Paddle's rows stay
+   valid. With billing off or on Paddle, nobody sees a change.
+2. **Stripe's live mode set up** (the plan's Phase 8): the account approved for live payments; Roundturn Pro and its USD 15
+   monthly price (tax code `txcd_10103000`, tax added on top, no trial on the price); the default customer portal settings
+   (cancel at the period's end, no plan changes); a **webhook endpoint** at `https://app.roundturn.app/webhooks/billing`
+   with API version **2026-08-26.dahlia** and the events `checkout.session.completed`, `checkout.session.expired`,
+   `customer.subscription.created`, `.updated`, `.deleted`, `.paused`, `.resumed`, `invoice.paid`,
+   `invoice.payment_failed`, `charge.refunded`, `charge.dispute.created`; and a **restricted key** with write access to
+   Customers, Checkout Sessions, Subscriptions, Coupons, Promotion Codes and Customer portal, and read access to Products,
+   Prices, Invoices, Charges, Events and Webhook Endpoints.
+3. **The settings on Render in one Environment Group** linked to both the Web Service and the Cron Job (Render: Env
+   Groups, New Environment Group, then Link on each service's Environment page): `TJ_BILLING_PROVIDER` and the live
+   `TJ_STRIPE_*` values (and the `TJ_PADDLE_*` ones while Paddle is on). The provider is then one value, in one place, for
+   both services.
+4. **The readiness check**, from a PC, with the live values in a git-ignored file such as `backend/.env.stripe.live`
+   (`TJ_STRIPE_*` and `TJ_APP_ORIGIN=https://app.roundturn.app`; never in the chat or a commit):
+
+   ```
+   .venv\Scripts\python.exe -m tradejournal.billing.stripe_check --env-file .env.stripe.live
+   ```
+
+   It only reads. One line per item, PASS or FAIL with what to fix, and "Ready: TJ_BILLING_PROVIDER=stripe can be switched
+   on." at the end; it never prints a key or a secret.
+
+**The switch:** `TJ_BILLING_PROVIDER=stripe` in the Environment Group (without one: on the Cron Job, then the Web Service).
+Render redeploys both. Nothing else changes: the screens, the rules, the trial, the discount codes in the app and the
+webhook address stay as they are. Subscribe now opens Stripe's checkout through `/billing/stripe/pay`, and Paddle's
+`/billing/pay` answers 404.
+
+**Check after:** `/readyz` 200; Settings > Plan & billing shows Subscribe; Stripe's webhook log (Developers > Webhooks) shows
+200 for the first events; the next Cron Job log's billing step names no failure.
+
+**Discount codes across the switch.** A code that never reached a provider ("Not at the payment provider yet", as every code
+made while billing is off) is made at Stripe by pressing Retry after the switch. A code **already at Paddle** cannot move:
+it keeps Paddle's id, and a Retry under Stripe would mark it synced while holding that id, so checkouts carrying it would
+be refused. Revoke such codes while Paddle is still on (that archives them at Paddle), switch, then make new codes with new
+names. Production has none of these as long as billing has never been on with Paddle there.
+
+**Switching back** (`TJ_BILLING_PROVIDER=paddle`) is as easy **only while nobody has paid through the provider being left.**
+Every billing row records its provider, and the app reads only the rows of the provider that is on: after a switch, the
+other provider's subscribers keep being charged there, unseen by the app (no access from it, no cancels, no nightly check).
+With real subscribers on the old provider, plan their move before switching.
+
 ## The payment page (`/billing/pay`)
 
 Subscribe sends the browser to `/billing/pay?_ptxn=txn_...`, a transaction the server made for the person signed in. The page
@@ -110,6 +172,21 @@ its form refuses any `localhost` address (2026-10-16), and without a saved link 
 (`transaction_default_checkout_url_not_set`, shown as "The payment provider would not open a checkout"). A test on a PC
 still works: Roundturn sends people to its own page (`/billing/pay?_ptxn=...` on the site in use) and never to Paddle's
 link, which only appears in Paddle's emails (a sandbox email's "update card" link opens the real site, where billing is off).
+
+## The Stripe payment link (`/billing/stripe/pay`)
+
+With Stripe, Subscribe sends the browser to `/billing/stripe/pay?cs=cs_...`, a Checkout Session the server made for the
+person signed in, and the server answers with a redirect to Stripe's own page on `checkout.stripe.com`. No Stripe script runs
+on any Roundturn page, so no Content-Security-Policy changes. The link goes to Stripe only for the signed-in person's own
+open checkout; a paid one comes back to Plan & billing with `?checkout=done` (the page waits for Stripe's event), anything
+else (someone else's, expired, not signed in, Stripe away) back to Plan & billing. A new checkout closes the person's
+earlier open one, so two cannot both be paid. It answers 404 unless billing is on with Stripe.
+
+What the checkout asks for (`billing/stripe.py`): the price, the person's id on the session and on the subscription (every
+event about the subscription carries it), free days left as Stripe's trial (Checkout refuses fewer than two, so one day
+left is given as two), the saved discount code, and Managed Payments as `TJ_STRIPE_MANAGED_PAYMENTS` says. With Managed
+Payments (on by default in the account) Stripe picks the payment methods and handles tax; with it off, the checkout adds
+Stripe Tax, the billing address and cards only.
 
 ## Paddle sandbox: from nothing to a test payment (each step needs the owner's yes)
 
@@ -136,7 +213,34 @@ link, which only appears in Paddle's emails (a sandbox email's "update card" lin
 5. Then the rest of the lifecycle in the Paddle guide's section 7.2 (renewal and failed payment through Paddle's
    simulations, cancel, resume, the portal, a refund, deleting the account).
 
+## Stripe test mode: from nothing to a test payment (each step needs the owner's yes)
+
+Already done in Northfield Labs' test mode (2026-10-22): Roundturn Pro (`prod_VUMHS2TtYkM0M8`) and its price
+(`price_1UTNZJBtxB1ZXujG1sQLIXXy`), and the default customer portal settings. Still to do:
+
+1. A restricted test key (Developers > API keys > Create restricted key, the permissions in "Switching from Paddle to
+   Stripe") straight into the git-ignored `backend/.env.stripe` with `TJ_STRIPE_ENV=test` and the two ids. Never in the
+   chat.
+2. The cloudflared tunnel (as for Paddle, above), then a webhook endpoint in test mode (Developers > Webhooks > Add
+   endpoint): the tunnel's address followed by `/webhooks/billing`, API version 2026-08-26.dahlia, the events in "Switching
+   from Paddle to Stripe". Its signing secret (`whsec_...`) into `TJ_STRIPE_WEBHOOK_SECRET` in `backend/.env.stripe`. A new
+   tunnel address means editing the endpoint.
+3. `.venv\Scripts\python.exe -m tradejournal.billing.stripe_check --env-file .env.stripe` with
+   `TJ_APP_ORIGIN=https://<the tunnel's address>` in that file: every line PASS.
+4. `.venv\Scripts\python.exe -m tradejournal.api.devserver --real-sign-in --billing --stripe --migrate` in `backend/`
+   (test keys only; `--migrate` applies 0023 to the local `tj_dev`), and the front end with `TJ_DEV_API=signin`.
+5. Sign up, Plan & billing, Subscribe, pay on Stripe's page with `4242 4242 4242 4242` (any future date, any security code).
+   Stripe's webhook log must show 200 and the page "Payment confirmed". Then the rest of the lifecycle with a **test clock**
+   (Billing > Test clocks, Advance time): a renewal, a failed payment with `4000 0000 0000 0341`, cancel, resume, the
+   portal, a refund, deleting the account (the plan's Phase 5).
+
 ## Discount codes
+
+**With Stripe**, a code is two things at Stripe: a coupon (the terms; its id is `rt-` and the code in lower case) limited to
+Roundturn Pro, and a promotion code (the code people type), which the checkout carries. Revoking switches the promotion
+code off; people already subscribed keep the discount. Stripe counts a coupon's months from the day it is applied, free
+days included: "3 months" gives three discounted payments when the free days are under a month, fewer when they are longer.
+The rest of this section reads the same for both providers.
 
 **Making one (Operator tools > Codes > Promo codes).** Type a code (LAUNCH20), choose Type "Discount", the percent off and
 for how long (the first payment, the first months, or every payment), and optionally how many people and the last day.
@@ -162,8 +266,8 @@ A discount over free days starts after them (Paddle applies a recurring discount
 ## The webhook (`https://app.roundturn.app/webhooks/billing`)
 
 The provider's only way in. No cookie and no CSRF (cross-site request forgery) token: the signature over the raw body is the
-lock. Answers: **404** billing off; **415** not JSON; **413** over 64 KB; **401** signature missing, wrong or more than 5
-seconds old (nothing is stored); **503** the database is away (the provider retries); **200** everything else, so the
+lock. Answers: **404** billing off; **415** not JSON; **413** over 64 KB; **401** signature missing, wrong or too old (more
+than 5 seconds with Paddle, 5 minutes with Stripe, as each provider's own libraries allow; nothing is stored); **503** the database is away (the provider retries); **200** everything else, so the
 provider stops retrying an event that was received, even one that was not applied.
 
 Each event is stored once by the provider's id in `billing_events` (no name, email or card), with an `outcome`:
@@ -210,6 +314,7 @@ Each needs `TJ_EMAIL_API_KEY` and `TJ_EMAIL_FROM` on the Cron Job (already there
 | "Cancel my subscription" (by email, as the Terms allow) | The same card | Cancel it in the provider's dashboard (at period end). The webhook updates the row, and the page shows "Ends …" |
 | "I want a refund" | The billing and refund policy (`roundturn.app/refunds/`): payments are not refunded, except billing mistakes and legal rights | A refund is made in the provider's dashboard; Roundturn records it and changes no access. To end access too, cancel the subscription now in the dashboard |
 | A chargeback | The log line `billing event needs a look: refund` | Recorded only. Decide with the provider; an operator override can end access if needed |
+| (Stripe) a refund or chargeback event with no person on it | Stripe's refund events name the payment and the customer, not the subscription, so the stored event has no person | Find the customer (`cus_...` in the event) in Stripe's dashboard; the app's Operator tools show the person's subscription |
 | (nobody says it) The log line `billing event needs a look: second_subscription` | The person has two live subscriptions and is charged twice; the first one is kept | Cancel and refund the second in the provider's dashboard |
 | "Delete my account" with a subscription | Nothing to do | Deletion stops the renewal, and the final cancel follows the deletion |
 
