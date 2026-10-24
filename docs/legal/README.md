@@ -13,7 +13,7 @@ Both end with a list of questions for the reviewing professional.
 
 1. **Operator's legal name and address** (the "operated by" line). Done 2026-10-10: Northfield Labs, LLC, a California limited liability company.
 2. **Governing law and venue** for the Terms. Assumed California on 2026-10-14 (the operator is a California LLC); a professional should confirm.
-3. **Plans and payment wording** (Terms section 7 on the site, section 8 here). Done 2026-10-14: USD 15 per month, no free plan, 7-day trial, no refunds. Done 2026-10-16: the pages name Paddle as seller of record (needed before Paddle's website review). Still to do: drop "Paid plans are not open yet" when billing goes live.
+3. **Plans and payment wording** (Terms section 7 on the site, section 8 here). Done 2026-10-14: USD 15 per month, no free plan, 7-day trial, no refunds. Done 2026-10-16: the pages name Paddle as seller of record (needed before Paddle's website review). Drafted 2026-10-24 on branch `site/legal-pages-stripe`, not published: the pages name Stripe through Link (Managed Payments, "Sold through Link") instead. Still to do: drop "Paid plans are not open yet" when billing goes live.
 4. **Retention periods**: deletion grace period, backup retention, security-record retention (set by the backup and deletion design).
 5. **Subprocessor choices**: host, database, email-sending provider, payment provider, error tracking (the Privacy Policy table marks each *in use*, *planned* or *undecided*).
 6. **Postal address**: none is published, by the owner's choice (email contact only); the reviewing professional says whether that suffices.

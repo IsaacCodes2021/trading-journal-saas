@@ -239,28 +239,26 @@ test("every page's top menu and footer link the refund policy by that name", () 
 
 test("the privacy page covers payments without claiming the site stores anything", () => {
   const privacy = pageNamed("/privacy/index.html").toLowerCase();
-  assert.ok(privacy.includes("payment is taken by paddle, which acts as the seller of record"));
+  assert.ok(privacy.includes("payment is taken by stripe through link, which acts as the seller of record"));
   assert.ok(privacy.includes("never sees or stores your card number"));
-  assert.ok(privacy.includes("we give paddle your email address"));
-  assert.ok(privacy.includes('href="https://www.paddle.com/legal/privacy"'));
+  assert.ok(privacy.includes("we give stripe your email address"));
+  assert.ok(privacy.includes('href="https://stripe.com/privacy"'));
+  assert.ok(privacy.includes('href="https://link.com/privacy"'));
   assert.ok(privacy.includes("billing records"));
 });
 
-test("the terms, privacy and refund pages name Paddle as the seller of record, and no page names another provider", () => {
+test("the terms, privacy and refund pages name Stripe, through Link, as the seller of record, and no page names another provider", () => {
   for (const name of ["/terms/index.html", "/privacy/index.html", "/refunds/index.html"]) {
     const text = pageNamed(name).toLowerCase();
-    assert.ok(/paddle[^.]*seller of record/.test(text), `${name} does not name Paddle as the seller of record`);
+    assert.ok(/stripe through link[^.]*seller of record/.test(text), `${name} does not name Stripe, through Link, as the seller of record`);
   }
   const terms = pageNamed("/terms/index.html").toLowerCase();
-  for (const entity of ["paddle.com inc.", "paddle.com (canada) ltd.", "paddle.com market limited"]) {
-    assert.ok(terms.includes(entity), `the terms do not name ${entity}`);
-  }
-  assert.ok(terms.includes('href="https://www.paddle.com/legal/buyer-terms"'), "the terms do not link Paddle's buyer terms");
+  assert.ok(terms.includes('href="https://link.com/terms#purchase-terms"'), "the terms do not link Link's purchase terms");
   assert.ok(
-    pageNamed("/refunds/index.html").includes('href="https://www.paddle.com/legal/refund-policy"'),
-    "the refund page does not link Paddle's refund policy",
+    pageNamed("/refunds/index.html").includes('href="https://support.link.com/questions/requesting-a-refund-for-a-sold-through-link-payment"'),
+    "the refund page does not link Link's refund policy",
   );
   for (const page of pages) {
-    assert.ok(!/lemon squeezy|planned\)/i.test(read(page)), `${urlOf(page)} still names a planned provider`);
+    assert.ok(!/lemon squeezy|paddle|fastspring|planned\)/i.test(read(page)), `${urlOf(page)} still names another provider`);
   }
 });
