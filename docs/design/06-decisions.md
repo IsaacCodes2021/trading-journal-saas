@@ -168,6 +168,17 @@ provider-neutral behind `TJ_BILLING_ENABLED` (off in production): a connector wi
 trial as a grant, the access rules and the screens (doc 05 section 16, `docs/runbooks/billing.md`). Only the adapter depends
 on the provider.
 
+**Amendment (2026-10-23): Stripe beside Paddle.** Paddle's website review was pending, and its acceptable-use policy is close
+to "trading", so on 2026-10-21 the owner asked for Stripe to be built **beside** Paddle, with nothing of Paddle's changed, and
+on 2026-10-23 for the code to be ready to switch with one setting. Built: `billing/stripe.py` (Stripe Checkout and Billing,
+API version 2026-08-26.dahlia, checked against Northfield Labs' test mode), the payment link `/billing/stripe/pay` (a redirect
+to Stripe's hosted page, so no Stripe script on any Roundturn page), migration 0023 (the billing tables accept `stripe`), the
+read-only `stripe_check`, and `--billing --stripe` on the dev server. `TJ_BILLING_PROVIDER` (`paddle` or `stripe`) picks one
+provider at a time; switching is free only before anyone has paid through the provider being left. Managed Payments (Stripe
+as merchant of record) is the default, as the account's own; `TJ_STRIPE_MANAGED_PAYMENTS=false` makes Roundturn the seller
+with Stripe Tax. Stripe's restricted list names "funded prop trading": its written answer on eligibility is still the gate
+before live use. Plan and decisions: `docs/design/stripe-plan.md` (not committed).
+
 ---
 
 ## ADR-008: Retire local-first mode; freeze it as a tag

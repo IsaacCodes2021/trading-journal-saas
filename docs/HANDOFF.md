@@ -6,6 +6,11 @@ owner said in chat through 2026-10-14. Anything marked *owner-reported* was not 
 
 Read this file first, then `CLAUDE.md` (the rules, short), then the runbook or design doc for the task at hand (index at the end).
 
+**Billing since then (short):** Paddle's connector, the payment page and discount codes were merged on 2026-10-16 (PRs 148 to
+150, migrations 0020 to 0022), switched off in production. On 2026-10-23 a **Stripe connector was built beside Paddle's**
+(migration 0023, `/billing/stripe/pay`, `python -m tradejournal.billing.stripe_check`): `TJ_BILLING_PROVIDER` picks one.
+How to operate either, and how to switch: `docs/runbooks/billing.md`.
+
 ## 1. What this is
 
 **Roundturn** (roundturn.app) is a hosted, multi-user trading journal for futures prop-firm traders: import Tradovate
@@ -24,7 +29,7 @@ home or postal address published anywhere.
 | Piece | Where | Notes |
 |---|---|---|
 | App (API and React front end, one container) | https://app.roundturn.app, Render web service `roundturn` | Oregon, plan `0.5c-512mb`, deploys every commit to `main`, health check `/readyz` |
-| Database | Render Postgres 18 `roundturn-db`, Oregon | forced row-level security, six roles, migrations 0001 to 0022 applied (0020 to 0022, promo codes and billing, on 2026-10-16) |
+| Database | Render Postgres 18 `roundturn-db`, Oregon | forced row-level security, six roles, migrations 0001 to 0023 applied (0020 to 0022, promo codes and billing, on 2026-10-16; 0023, the Stripe provider, on 2026-10-24) |
 | Sign-in | Kinde, custom domain `auth.roundturn.app` | OIDC with PKCE; custom screens come from `kinde/` in this repo |
 | Screenshots | Cloudflare R2 bucket `roundturn-screenshots` (private) | read back through the server; no versioning |
 | Screenshot copy | R2 bucket `roundturn-screenshots-backup` | daily job, keeps a deleted picture 30 days |
@@ -108,7 +113,7 @@ reading source (you would be reading the mutant).
 **Deploy path:** a merge to `main` deploys the web service on its own. The new image stays **out of traffic until the database
 has its migrations** (the health check is `/readyz`, which compares the schema version). Migrations are never run by the app:
 the owner or a session runs `python -m tradejournal.pg.migrate` as the schema owner (`TJ_OWNER_URL`, from the git-ignored
-`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0023**. In
+`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0024**. In
 `.env.hosted` the owner, admin, sweep and webhook addresses are **commented-out lines** (`# TJ_OWNER_URL=...`), so a search for
 `^TJ_` misses them: load the value in a small script that sets the environment and runs the module, never on a command line
 or printed.
