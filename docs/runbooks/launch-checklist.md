@@ -73,6 +73,20 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
   and the lifecycle ([billing.md](billing.md), "Stripe test mode") **(you for the key and the webhook endpoint; then me)**;
   then `stripe_check` passing against the live settings and `TJ_BILLING_PROVIDER=stripe` ([billing.md](billing.md),
   "Switching from Paddle to Stripe") **(you)**
+- [ ] **Open sign-up** (decided 2026-10-24: the beta is over, anyone may make an account): the sign-up page that needs no
+  code merged and live **(me, on your word)**; then `TJ_SIGNUP_MODE=open` on the Web Service (Render, the one that shows
+  app.roundturn.app; the Cron Job does not read it) **(you)**; then one sign-up with a brand-new email in a private window, all
+  the way through Kinde's registration screen and the first sign-in **(you, with me watching the log)**; then the site's launch
+  pull request **(me, on your word)**. Before the setting is changed, a person with no code is turned away with "That sign-up
+  code did not work": do not publish the site's new sign-up links before it is. Rollback: `TJ_SIGNUP_MODE=invite`. Anyone with
+  an email can then start a trial, so watch the number of new accounts per day for the first weeks
+  ([support.md](support.md)); the sign-up routes are rate-limited per address (`login`, and 10 code or promo guesses in 15
+  minutes).
+- [ ] **The launch offer** on the home page: the code `LAUNCH10` made in the operator tools, Codes (10% off, 3 months, only
+  Roundturn Pro; billing must be on and the payment provider's settings live, because the code is made at the provider too)
+  **(you)**, because until it exists the pop-up's "Sign up now" ends on a promo-code error; the counts of what visitors do
+  with the pop-up are read with `npm run popup-stats` in `site/` (an API token that can only read Cloudflare analytics, in a
+  git-ignored file; never in the chat) **(you for the token; then me)**
 - [ ] Cookie and consent wording confirmed for the regions served **(you, a professional)**
 - [ ] Retire the old random `GR-` plan codes once none is outstanding (promo codes replace them; nothing is deleted, the blank-code
   form can still make one)

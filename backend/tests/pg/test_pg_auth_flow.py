@@ -115,6 +115,38 @@ def test_while_sign_up_is_open_a_new_person_needs_no_invite(world, owner):
     assert owner.execute("SELECT count(*) AS n FROM invite_redemptions").fetchone()["n"] == 0
 
 
+def test_while_sign_up_is_open_asking_to_sign_up_needs_no_code_and_opens_the_registration_screen(world, owner):
+    browser = world(signup_mode="open")
+    url, _state = browser.start(signup="1")
+    assert browser.idp.attempt_from(url).create is True  # a person making an account, not signing in
+    plain = world(signup_mode="open")
+    url, _state = plain.start()
+    assert plain.idp.attempt_from(url).create is False  # an ordinary sign-in still opens the sign-in screen
+    reauth = world(signup_mode="open")
+    url, _state = reauth.start(signup="1", reauth="1")
+    assert reauth.idp.attempt_from(url).create is False  # proving who you are is never a sign-up
+    newcomer = world(signup_mode="open")
+    assert newcomer.sign_in(NEWCOMER, signup="1").status_code == 303 and newcomer.token
+    assert len(users_with_subject(owner, "kp_newcomer")) == 1
+    assert owner.execute("SELECT count(*) AS n FROM invite_redemptions").fetchone()["n"] == 0
+
+
+def test_while_sign_up_is_by_invitation_asking_to_sign_up_with_no_code_is_turned_away_before_the_provider(world, owner):
+    browser = world()
+    response = browser.client.get("/auth/login", params={"signup": "1"})
+    assert response.status_code == 302 and response.headers["location"] == "/invite?error=invite_invalid"
+    assert browser.token is None and users_with_subject(owner, "kp_newcomer") == []
+    reasons = [r["meta"].get("reason") for r in audit_rows(owner) if r["action"] == "login_failed"]
+    assert reasons == ["invite_required"]  # the log says why; the page never does
+    code = invites.create_invite(owner)
+    other = world()
+    url, _state = other.start(signup="1", invite=code)
+    assert other.idp.attempt_from(url).create is True  # with a valid code it goes on, as before
+    signed_in = world()
+    url, _state = signed_in.start(signup="1", reauth="1")  # not a sign-up, so not refused for want of a code
+    assert signed_in.idp.attempt_from(url).create is False
+
+
 def test_a_sign_up_that_loses_the_race_for_the_last_use_is_undone_whole(world, owner, monkeypatch):
     code = invites.create_invite(owner)
     browser = world()

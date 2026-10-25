@@ -58,14 +58,17 @@ def login(
     promo: str | None = None,
     stepup: bool = False,
     reauth: bool = False,
+    signup: bool = False,
 ) -> RedirectResponse:
-    """Start signing in (or up, with `invite` and an optional `promo` code). `next` is a path on this site to land on
-    afterwards."""
+    """Start signing in, or up: `signup=1` makes an account (no code while sign-up is open; a valid `invite` while it is by
+    invitation), with an optional `promo` code. `next` is a path on this site to land on afterwards."""
     if (
         invite or promo
     ):  # guessing codes is slower than signing in, but it is the one thing worth a stricter limit of its own
         take_place(request, request.app.state.config.rate_limits.invite_attempts, client_key(request))
-    start = flow_of(request).begin(next_url=next, invite=invite, promo=promo, step_up=stepup, reauth=reauth)
+    start = flow_of(request).begin(
+        next_url=next, invite=invite, promo=promo, step_up=stepup, reauth=reauth, signup=signup
+    )
     response = RedirectResponse(start.redirect_url, status_code=302)
     if start.state_cookie is not None:  # none when the code was refused and the person is sent to our own page
         _cookie(response, LOGIN_COOKIE, start.state_cookie, LOGIN_COOKIE_SECONDS)

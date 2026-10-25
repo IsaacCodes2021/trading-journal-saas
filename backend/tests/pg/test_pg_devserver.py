@@ -101,6 +101,20 @@ def test_real_sign_in_needs_no_development_user_and_takes_its_settings_from_the_
     assert HIDDEN_TEXT not in repr(config) and "m2m" not in repr(config)  # the secret never shows; M2M is not used
 
 
+def test_sign_up_is_by_invitation_unless_open_sign_up_is_asked_for_and_that_needs_real_sign_in(
+    tmp_path, alice, app_url, login_url
+):
+    env, kinde = env_files(tmp_path, app_url, login_url)
+    shut = build_config(env, origin="http://localhost:5173", user_id=None, real_sign_in=True, kinde_env_file=kinde)
+    assert shut.signup_mode == "invite"
+    opened = build_config(
+        env, origin="http://localhost:5173", user_id=None, real_sign_in=True, kinde_env_file=kinde, open_signup=True
+    )
+    assert opened.signup_mode == "open"
+    with pytest.raises(DevServerError, match="--open-signup needs --real-sign-in"):
+        build_config(env, origin="http://localhost:5173", user_id=str(alice), open_signup=True)
+
+
 def test_the_app_built_from_it_has_the_real_flow_and_the_development_one_does_not(tmp_path, alice, app_url, login_url):
     from tradejournal.api.app import create_app
 

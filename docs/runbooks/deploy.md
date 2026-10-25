@@ -64,7 +64,7 @@ Build from the repository root: `docker build -f backend/Dockerfile -t roundturn
 | `TJ_LOGIN_DATABASE_URL` | the `app_login` connection string | **yes** |
 | `TJ_ADMIN_DATABASE_URL` | the `app_admin` connection string; leave out until you have made yourself an operator | **yes** |
 | `TJ_KINDE_DOMAIN`, `TJ_KINDE_CLIENT_ID`, `TJ_KINDE_CLIENT_SECRET` | from the Kinde web application (all three, or sign-in answers 503) | the last one |
-| `TJ_SIGNUP_MODE` | `invite` for the private beta (the default) | no |
+| `TJ_SIGNUP_MODE` | `invite` for a private beta (the default); `open` when anyone may make an account, no code needed (the launch checklist, section B, says the order of the steps) | no |
 | `TJ_S3_ENDPOINT`, `TJ_S3_BUCKET`, `TJ_S3_ACCESS_KEY_ID`, `TJ_S3_SECRET_ACCESS_KEY` | from section 2 | the last two |
 | `TJ_EMAIL_API_KEY`, `TJ_EMAIL_FROM` | the email service's key (Resend) and the address mail comes from, like `Roundturn <beta@roundturn.app>` (the domain must be verified at the provider). Both or neither: with neither, the form that joins the beta answers 503 and no code can be sent | the first |
 | `TJ_EMAIL_API_URL` | leave out (the default is `https://api.resend.com`); it exists for tests | no |

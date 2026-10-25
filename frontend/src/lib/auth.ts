@@ -89,11 +89,14 @@ export function looksLikePromoCode(text: string): boolean {
   return code.length <= 40 && (/^[A-Z0-9]{3,20}$/.test(compact) || looksLikeInviteCode(normalizeInviteCode(code)))
 }
 
-/** Where the sign-up code (and a promo code, if one was typed) is sent to the server, which checks both before anyone is
- * sent to the identity provider. */
-export function signUpUrl(code: string, promo = ''): string {
-  const typed = promo.trim()
-  return `/auth/login?invite=${encodeURIComponent(code)}${typed ? `&promo=${encodeURIComponent(typed)}` : ''}`
+/** Where signing up is sent to the server, which checks the codes before anyone is sent to the identity provider. `signup=1`
+ * says an account is being made (no code is needed while sign-up is open); a sign-up code and a promo code go beside it
+ * when they were typed. */
+export function signUpUrl(code = '', promo = ''): string {
+  const parts = ['signup=1']
+  if (code.trim()) parts.push(`invite=${encodeURIComponent(code.trim())}`)
+  if (promo.trim()) parts.push(`promo=${encodeURIComponent(promo.trim())}`)
+  return `/auth/login?${parts.join('&')}`
 }
 
 export function signInUrl(next = '/'): string {

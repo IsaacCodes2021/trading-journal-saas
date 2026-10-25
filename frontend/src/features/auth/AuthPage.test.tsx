@@ -52,16 +52,16 @@ describe('signing in', () => {
     },
   )
 
-  it('points people with a sign-up code at the sign-up form, keeping the place they were going', async () => {
+  it('points new people at the sign-up form, keeping the place they were going', async () => {
     open('/signin', { next: '/trades' })
-    const link = await screen.findByRole('link', { name: 'Have a sign-up code? Sign up here' })
+    const link = await screen.findByRole('link', { name: 'New to Roundturn? Create an account' })
     expect(link).toHaveAttribute('href', '/signup?next=%2Ftrades')
   })
 
-  it('points people without a code at the beta form, and at the terms, the refund policy and the privacy policy', async () => {
+  it('points at the terms, the refund policy and the privacy policy, and no longer at the beta form', async () => {
     open('/signin')
     await screen.findByRole('heading', signInHeading)
-    expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', '/join')
+    expect(screen.queryByRole('link', { name: 'Join the beta' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Terms' })).toHaveAttribute('href', 'https://roundturn.app/terms/')
     expect(screen.getByRole('link', { name: 'Refund Policy' })).toHaveAttribute(
       'href',
@@ -99,13 +99,39 @@ describe('signing in', () => {
 })
 
 describe('signing up', () => {
-  it('says what it is: the beta, and what to do with the code', async () => {
+  it('says what it is: a free trial with no card, no code needed, and a promo box', async () => {
     open('/signup')
     expect(await screen.findByRole('heading', signUpHeading)).toBeInTheDocument()
-    expect(screen.getByText('INVITE-ONLY BETA')).toBeInTheDocument()
-    expect(screen.getByText('It works once and is tied to the email address we sent it to.')).toBeInTheDocument()
-    expect(screen.getByText(/30 days of full access, counted from the day you create your account/)).toBeInTheDocument()
+    expect(screen.getByText('7-DAY FREE TRIAL')).toBeInTheDocument()
+    expect(screen.getByText(/Try Roundturn free for 7 days. No card needed./)).toBeInTheDocument()
+    expect(screen.getByText(/After the 7 days you choose whether to subscribe/)).toBeInTheDocument()
+    expect(screen.queryByText('INVITE-ONLY BETA')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Promo code/)).toHaveValue('')
     expect(screen.getByLabelText('Sign-up code')).toHaveValue('')
+  })
+
+  it('keeps the sign-up code from the beta out of the way, tucked under the button, unless there is one to show', async () => {
+    const first = open('/signup')
+    await screen.findByRole('heading', signUpHeading)
+    expect(screen.getByText('Have a sign-up code from the beta?').closest('details')).not.toHaveAttribute('open')
+    first.unmount()
+    open('/signup', { code: 'TJ-7KQ2-M9XA' })
+    await screen.findByRole('heading', signUpHeading)
+    expect(screen.getByText('Have a sign-up code from the beta?').closest('details')).toHaveAttribute('open')
+  })
+
+  it('goes ahead with no code at all: anyone can make an account', async () => {
+    const { user, leave } = open('/signup')
+    await user.click(await screen.findByRole('button', { name: 'Continue to create account' }))
+    expect(leave).toHaveBeenCalledExactlyOnceWith('/auth/login?signup=1')
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('has the promo code from the launch offer link already in its box, and sends it', async () => {
+    const { user, leave } = open('/signup', { promo: 'LAUNCH10' })
+    expect(await screen.findByLabelText(/Promo code/)).toHaveValue('LAUNCH10')
+    await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
+    expect(leave).toHaveBeenCalledExactlyOnceWith('/auth/login?signup=1&promo=LAUNCH10')
   })
 
   it('works before sign-in: no session is asked for, and the app menu is not shown', async () => {
@@ -124,7 +150,7 @@ describe('signing up', () => {
     const { user, leave } = open('/signup')
     await user.type(await screen.findByLabelText('Sign-up code'), '  tj 7kq2 m9xa ')
     await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
-    expect(leave).toHaveBeenCalledExactlyOnceWith('/auth/login?invite=TJ-7KQ2-M9XA')
+    expect(leave).toHaveBeenCalledExactlyOnceWith('/auth/login?signup=1&invite=TJ-7KQ2-M9XA')
   })
 
   it('says what a code looks like when what was typed does not, and goes nowhere', async () => {
@@ -137,6 +163,7 @@ describe('signing up', () => {
     )
     expect(box).toHaveAttribute('aria-invalid', 'true')
     expect(leave).not.toHaveBeenCalled()
+    expect(screen.getByText('Have a sign-up code from the beta?').closest('details')).toHaveAttribute('open')
     await user.type(box, '1') // typing again clears the complaint
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(box).toHaveAttribute('aria-invalid', 'false')
@@ -145,37 +172,37 @@ describe('signing up', () => {
   it('submits with the Enter key', async () => {
     const { user, leave } = open('/signup', { code: 'TJ-7KQ2-M9XA' })
     await user.type(await screen.findByLabelText('Sign-up code'), '{Enter}')
-    expect(leave).toHaveBeenCalledWith('/auth/login?invite=TJ-7KQ2-M9XA')
+    expect(leave).toHaveBeenCalledWith('/auth/login?signup=1&invite=TJ-7KQ2-M9XA')
   })
 
-  it('points people without a code at the beta form', async () => {
+  it('no longer points anyone at the beta form', async () => {
     open('/signup')
     await screen.findByRole('heading', signUpHeading)
-    expect(screen.getByRole('link', { name: 'Join the beta' })).toHaveAttribute('href', '/join')
+    expect(screen.queryByRole('link', { name: 'Join the beta' })).not.toBeInTheDocument()
   })
 
   it('keeps the page reachable by keyboard in a sensible order', async () => {
     const { user } = open('/signup')
-    const box = await screen.findByLabelText('Sign-up code')
-    await user.click(box)
-    await user.tab()
-    expect(screen.getByLabelText(/Promo code/)).toHaveFocus()
+    const promo = await screen.findByLabelText(/Promo code/)
+    await user.click(promo)
     await user.tab()
     expect(screen.getByRole('button', { name: 'Continue to create account' })).toHaveFocus()
     await user.tab()
-    expect(within(screen.getByRole('main')).getByRole('link', { name: 'Join the beta' })).toHaveFocus()
+    expect(screen.getByText('Have a sign-up code from the beta?')).toHaveFocus()
   })
 
-  it('says the code did not work, on the box and in words, and keeps the way to get another', async () => {
+  it('says the code did not work, on the box and in words, shows the box, and says it can be left empty', async () => {
     open('/signup', { error: 'invite_invalid' })
     expect(await screen.findByRole('alert')).toHaveTextContent(SIGN_IN_ERRORS.invite_invalid)
     expect(screen.getByLabelText('Sign-up code')).toHaveAttribute('aria-invalid', 'true')
-    expect(screen.getByRole('link', { name: 'join the beta again' })).toHaveAttribute('href', '/join')
+    expect(screen.getByText('Have a sign-up code from the beta?').closest('details')).toHaveAttribute('open')
+    expect(screen.getByText(/leave this box empty to sign up without one/)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'join the beta again' })).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'hello@roundturn.app' })).toHaveAttribute(
       'href',
       'mailto:hello@roundturn.app',
     )
-    expect(screen.queryByText(/30 days of full access/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/No card is needed to start/)).not.toBeInTheDocument()
   })
 })
 
@@ -265,7 +292,7 @@ describe('a promo code at sign-up', () => {
     const { user, leave } = open('/signup')
     await user.type(await screen.findByLabelText('Sign-up code'), 'TJ-7KQ2-M9XA')
     await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
-    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?invite=TJ-7KQ2-M9XA'))
+    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?signup=1&invite=TJ-7KQ2-M9XA'))
   })
 
   it('goes to the server beside the sign-up code, as typed', async () => {
@@ -273,7 +300,7 @@ describe('a promo code at sign-up', () => {
     await user.type(await screen.findByLabelText('Sign-up code'), 'TJ-7KQ2-M9XA')
     await user.type(screen.getByLabelText(/Promo code/), 'free30')
     await user.click(screen.getByRole('button', { name: 'Continue to create account' }))
-    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?invite=TJ-7KQ2-M9XA&promo=free30'))
+    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?signup=1&invite=TJ-7KQ2-M9XA&promo=free30'))
   })
 
   it('is checked for its shape first, and nothing is sent while it cannot be a code', async () => {
@@ -290,6 +317,6 @@ describe('an old address', () => {
   it('still reaches the sign-up form from /invite with a code, and signs up with it', async () => {
     const { user, leave } = open('/invite', { code: 'tj-7kq2-m9xa' })
     await user.click(await screen.findByRole('button', { name: 'Continue to create account' }))
-    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?invite=TJ-7KQ2-M9XA'))
+    await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?signup=1&invite=TJ-7KQ2-M9XA'))
   })
 })
