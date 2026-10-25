@@ -37,7 +37,6 @@ const lazyNamed = <T extends Record<string, ComponentType<never>>, K extends key
 ) => lazy(() => load().then((m) => ({ default: m[name] as unknown as ComponentType })))
 
 const AuthPage = lazy(() => import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })))
-const JoinPage = lazy(() => import('./features/auth/JoinPage').then((m) => ({ default: m.JoinPage })))
 const AdminShell = lazy(() => import('./features/admin/AdminShell').then((m) => ({ default: m.AdminShell })))
 const CodesPage = lazy(() => import('./features/admin/CodesPage').then((m) => ({ default: m.CodesPage })))
 const UsersPage = lazy(() => import('./features/admin/UsersPage').then((m) => ({ default: m.UsersPage })))
@@ -385,15 +384,13 @@ const signupRoute = createRoute({
   },
 })
 
+// The beta is over and anyone can make an account, so the old beta form (and the site's earlier links to it) lands on the
+// sign-up form instead.
 const joinRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/join',
-  component: function JoinRoute() {
-    return (
-      <Suspense fallback={<Spinner label="Loading" />}>
-        <JoinPage />
-      </Suspense>
-    )
+  beforeLoad: () => {
+    throw redirect({ to: '/signup' })
   },
 })
 
