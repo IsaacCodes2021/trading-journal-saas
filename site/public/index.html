@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Roundturn: a trading journal for prop-firm futures traders</title>
-<meta name="description" content="Roundturn is a journal and analytics tool for prop-firm futures traders. Upload your Tradovate trade history, review every round turn, and keep notes and screenshots. Free during the invite-only beta.">
+<meta name="description" content="Roundturn is a journal and analytics tool for prop-firm futures traders. Upload your Tradovate trade history, review every round turn, and keep notes and screenshots. Try it free for 7 days, then USD 15 per month.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
+<script src="/popup.js" defer></script>
 </head>
 <body>
 <header class="top">
@@ -15,23 +16,24 @@
     <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
     <nav class="menu" aria-label="Main">
       <a href="#what">What it does</a>
+      <a href="#pricing">Pricing</a>
       <a href="#limits">Limitations</a>
       <a href="#goals">Goals</a>
       <a href="/refunds/">Refund Policy</a>
       <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
-      <a class="btn" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
     </nav>
   </div>
 </header>
 
 <main>
   <section class="wrap hero">
-    <span class="chip">INVITE-ONLY BETA · 30 DAYS OF FULL ACCESS</span>
+    <span class="chip">7-DAY FREE TRIAL · USD 15 PER MONTH AFTER</span>
     <h1>Review every round&nbsp;turn.</h1>
     <p class="lead">A journal and analytics tool for prop-firm futures traders. Upload your Tradovate trade history, see what it says, and keep notes and screenshots on every trade.</p>
     <div class="actions">
-      <a class="btn btn-big" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
-      <span class="aside">Have a sign-up code? <a href="https://app.roundturn.app/signup" rel="noopener noreferrer">Sign up here</a></span>
+      <a class="btn btn-big" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start your 7-day free trial</a>
+      <span class="aside">No card needed. Then USD 15 per month; cancel any time.</span>
     </div>
     <p class="already">Already have an account? <a href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a></p>
   </section>
@@ -122,11 +124,33 @@
     </div>
   </section>
 
+  <section class="band" id="pricing" aria-labelledby="price">
+    <div class="wrap split">
+      <div>
+        <h2 id="price">Pricing</h2>
+        <p class="intro">One plan, with everything in it. Try it free for 7 days first.</p>
+      </div>
+      <div class="plan">
+        <h3>Roundturn Pro</h3>
+        <p class="amount">USD 15 <span>per month</span></p>
+        <ul>
+          <li>A 7-day free trial of the full app. No card is needed to start.</li>
+          <li>Import with a preview, the dashboard, the trade log, the calendar, reports, prop accounts, notes, tags and screenshots.</li>
+          <li>Cancel any time. You keep access to the end of the month you have already paid for.</li>
+          <li>Prices are in US dollars. Taxes, where they apply, are added at checkout.</li>
+          <li>Payment is taken by Stripe through Link. Roundturn never sees your card number.</li>
+          <li>Roundturn does not issue refunds itself. The <a href="/refunds/">Refund Policy</a> says what Link, as merchant of record, may refund.</li>
+        </ul>
+        <a class="btn btn-big" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start your 7-day free trial</a>
+      </div>
+    </div>
+  </section>
+
   <section class="band" id="limits" aria-labelledby="short">
     <div class="wrap split">
       <div>
         <h2 id="short">Where it falls short today</h2>
-        <p class="intro">Status: in development. We would rather tell you now.</p>
+        <p class="intro">Roundturn is young, and these are its limits today. We would rather tell you now.</p>
       </div>
       <div class="limits">
         <div>
@@ -147,7 +171,7 @@
         </div>
         <div>
           <div class="tag">Rough edges</div>
-          <p>Expect some while the beta runs. Support is by email, on a best-effort basis.</p>
+          <p>Expect some as Roundturn keeps improving. Support is by email, on a best-effort basis.</p>
         </div>
         <div>
           <div class="tag">Not a trading tool</div>
@@ -180,13 +204,13 @@
     </div>
   </section>
 
-  <section class="band join" id="join" aria-labelledby="beta">
+  <section class="band join" id="start" aria-labelledby="start-title">
     <div class="wrap">
-      <h2 id="beta">Join the beta.</h2>
-      <p>Tell us who you are and we will email you a sign-up code. It gives you 30 days of full access from the day you create your account. Free during the invite-only beta. Paid plans are not open yet: when they open, Roundturn Pro will cost USD 15 per month, with a 7-day trial (see the <a href="/terms/">terms</a> and the <a href="/refunds/">billing and refund policy</a>).</p>
+      <h2 id="start-title">Start your free trial.</h2>
+      <p>Create an account and try the full app with a 7-day trial: no card needed. After that, Roundturn Pro is USD 15 per month, and you can cancel any time (see the <a href="/terms/">terms</a> and the <a href="/refunds/">billing and refund policy</a>).</p>
       <div class="actions">
-        <a class="btn btn-big" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
-        <span class="aside">Have a sign-up code? <a href="https://app.roundturn.app/signup" rel="noopener noreferrer">Sign up here</a></span>
+        <a class="btn btn-big" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start your 7-day free trial</a>
+        <span class="aside">Already have an account? <a href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a></span>
       </div>
     </div>
   </section>
@@ -208,5 +232,19 @@
     <p class="legal">Roundturn is not affiliated with Tradovate or any broker, exchange or prop firm.</p>
   </div>
 </footer>
+<dialog class="offer" id="offer" aria-labelledby="offer-title" aria-describedby="offer-text">
+  <div class="offer-body">
+    <button type="button" class="offer-x" data-offer="x" aria-label="Close this offer">&times;</button>
+    <span class="chip">LAUNCH OFFER</span>
+    <h2 id="offer-title">Join today and get 10% off.</h2>
+    <p id="offer-text">Use code <strong class="code">LAUNCH10</strong> for 10% off Roundturn Pro for your first 3 months. Start with a 7-day trial that needs no card.</p>
+    <div class="actions">
+      <a class="btn btn-big" data-offer="signup" href="https://app.roundturn.app/signup?promo=LAUNCH10" rel="noopener noreferrer" autofocus>Sign up now</a>
+      <button type="button" class="btn btn-big btn-quiet" data-offer="copy">Copy link</button>
+    </div>
+    <p class="fine" role="status" data-offer-status></p>
+    <p class="fine">New accounts only. See the <a href="/terms/">terms</a> and the <a href="/refunds/">Refund Policy</a>.</p>
+  </div>
+</dialog>
 </body>
 </html>

@@ -2,8 +2,9 @@
   "name": "roundturn-site",
   "private": true,
   "type": "module",
-  "description": "The Roundturn marketing site. Static pages in public/, one Worker in src/ that answers 404 for /api/*. It stores nothing; the beta form is in the app. No dependencies.",
+  "description": "The Roundturn marketing site. Static pages in public/, one script (the launch offer pop-up), one Worker in src/ that answers 404 for /api/* except the pop-up's event tallies. Sign-up and sign-in are in the app. No dependencies.",
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "popup-stats": "node scripts/popup-stats.mjs"
   }
 }
