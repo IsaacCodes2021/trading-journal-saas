@@ -205,6 +205,7 @@ test("the terms and refund pages state the same price, trial and no-refund rule,
   }
   assert.ok(refunds.includes("we do not issue refunds"));
   assert.ok(refunds.includes("cannot be waived"), "the refund page does not keep legally required rights");
+  assert.ok(refunds.includes("within 60 days") && refunds.includes("merchant of record"), "the refund page does not say what Link may refund");
   assert.ok(terms.includes("northfield labs, llc, a california limited liability company"));
   assert.ok(terms.includes("not investment advice") && terms.includes("substantial risk of loss"));
   assert.ok(terms.includes("not affiliated with"));
@@ -239,7 +240,7 @@ test("every page's top menu and footer link the refund policy by that name", () 
 
 test("the privacy page covers payments without claiming the site stores anything", () => {
   const privacy = pageNamed("/privacy/index.html").toLowerCase();
-  assert.ok(privacy.includes("payment is taken by stripe through link, which acts as the seller of record"));
+  assert.ok(privacy.includes("payment is taken by stripe through link. sold through link, llc, an affiliate of stripe, is the merchant of record"));
   assert.ok(privacy.includes("never sees or stores your card number"));
   assert.ok(privacy.includes("we give stripe your email address"));
   assert.ok(privacy.includes('href="https://stripe.com/privacy"'));
@@ -247,10 +248,11 @@ test("the privacy page covers payments without claiming the site stores anything
   assert.ok(privacy.includes("billing records"));
 });
 
-test("the terms, privacy and refund pages name Stripe, through Link, as the seller of record, and no page names another provider", () => {
+test("the terms, privacy and refund pages name Sold through Link, LLC as the merchant of record, never as the seller of record, and no page names another provider", () => {
   for (const name of ["/terms/index.html", "/privacy/index.html", "/refunds/index.html"]) {
     const text = pageNamed(name).toLowerCase();
-    assert.ok(/stripe through link[^.]*seller of record/.test(text), `${name} does not name Stripe, through Link, as the seller of record`);
+    assert.ok(text.includes("sold through link, llc, an affiliate of stripe, is the merchant of record"), `${name} does not name Sold through Link, LLC as the merchant of record`);
+    assert.ok(!text.includes("seller of record"), `${name} calls the merchant of record the seller of record (Roundturn stays the seller)`);
   }
   const terms = pageNamed("/terms/index.html").toLowerCase();
   assert.ok(terms.includes('href="https://link.com/terms#purchase-terms"'), "the terms do not link Link's purchase terms");
