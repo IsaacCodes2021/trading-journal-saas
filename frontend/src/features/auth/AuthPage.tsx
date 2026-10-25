@@ -18,10 +18,11 @@ import { AuthFrame } from './AuthFrame'
 export type AuthMode = 'signin' | 'signup'
 
 /**
- * The front door: sign in, or sign up with a code. It needs no session. The password and the one-time codes are asked
- * for on the identity provider's page (it is restyled to match), so this page only decides where to send the person.
- * The sign-up code is checked here for its shape only; the server decides whether it is real and unused, and says so,
- * as a short code in `error`, when the person comes back.
+ * The front door: sign in, or sign up. It needs no session. The password and the one-time codes are asked for on the
+ * identity provider's page (it is restyled to match), so this page only decides where to send the person. Sign-up needs
+ * no code while the server is open; a promo code and a sign-up code from the beta are optional. Codes are checked here
+ * for their shape only; the server decides whether they are real and unused, and says so, as a short code in `error`,
+ * when the person comes back.
  */
 export function AuthPage({
   mode,
@@ -127,17 +128,6 @@ function Heading({ children, chip }: { children: ReactNode; chip?: string }) {
   )
 }
 
-function JoinTheBeta({ children = 'No code yet?' }: { children?: string }) {
-  return (
-    <p className="m-0 text-center text-sm text-muted">
-      {children}{' '}
-      <Link to="/join" className="font-medium">
-        Join the beta
-      </Link>
-    </p>
-  )
-}
-
 function SignIn({ error, next }: { error: keyof typeof SIGN_IN_ERRORS | null; next: string | undefined }) {
   return (
     <>
@@ -166,11 +156,8 @@ function SignIn({ error, next }: { error: keyof typeof SIGN_IN_ERRORS | null; ne
         search={next ? { next } : {}}
         className="flex h-[50px] items-center justify-center rounded-xl border border-line bg-raised text-[15px] font-medium text-ink no-underline hover:border-line-strong hover:text-ink"
       >
-        Have a sign-up code? Sign up here
+        New to Roundturn? Create an account
       </Link>
-      <div className="mt-5">
-        <JoinTheBeta />
-      </div>
     </>
   )
 }
@@ -191,8 +178,8 @@ function SignUp({
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    const normalized = normalizeInviteCode(code)
-    const badCode = !looksLikeInviteCode(normalized)
+    const normalized = code.trim() === '' ? '' : normalizeInviteCode(code)
+    const badCode = normalized !== '' && !looksLikeInviteCode(normalized)
     const badPromo = promo.trim() !== '' && !looksLikePromoCode(promo)
     setProblem(badCode ? `That does not look like a sign-up code. It looks like ${EXAMPLE_INVITE}.` : null)
     setPromoProblem(badPromo ? `That does not look like a promo code. It looks like ${EXAMPLE_PROMO}.` : null)
@@ -208,56 +195,15 @@ function SignUp({
 
   return (
     <>
-      <Heading chip={error ? undefined : 'INVITE-ONLY BETA'}>Create your account</Heading>
+      <Heading chip={error ? undefined : '7-DAY FREE TRIAL'}>Create your account</Heading>
       <Problem error={error} />
       {error ? null : (
         <p className="mt-2 mb-0 text-[15px] text-muted">
-          Enter the sign-up code from your email. You will then choose a password on our sign-in service.
+          Try Roundturn free for 7 days. No card needed. You will then choose a password on our sign-in service.
         </p>
       )}
 
       <form onSubmit={submit} className="mt-6 flex flex-col gap-[18px]">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="signup-code" className="text-[13px] font-medium">
-            Sign-up code
-          </label>
-          <input
-            id="signup-code"
-            value={code}
-            onChange={(e) => {
-              setCode(e.target.value)
-              setProblem(null)
-            }}
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            placeholder={EXAMPLE_INVITE}
-            aria-describedby={problem ? 'signup-problem' : 'signup-hint'}
-            aria-invalid={flagged}
-            className={`num h-12 w-full rounded-[10px] border bg-bg px-3.5 font-mono text-base tracking-[0.04em] text-ink ${
-              flagged ? 'border-neg' : 'border-line-strong'
-            }`}
-          />
-          {problem ? (
-            <div id="signup-problem" role="alert" className="text-xs text-neg">
-              {problem}
-            </div>
-          ) : (
-            <div id="signup-hint" className="text-xs text-muted">
-              {refused ? (
-                <>
-                  Check the code in your email, or{' '}
-                  <Link to="/join" className="font-medium">
-                    join the beta again
-                  </Link>{' '}
-                  for a new one.
-                </>
-              ) : (
-                'It works once and is tied to the email address we sent it to.'
-              )}
-            </div>
-          )}
-        </div>
         <div className="flex flex-col gap-1.5">
           <label htmlFor="signup-promo" className="text-[13px] font-medium">
             Promo code <span className="font-normal text-muted">(optional)</span>
@@ -298,26 +244,59 @@ function SignUp({
         >
           Continue to create account
         </button>
+
+        <details open={initial !== '' || flagged} className="text-sm">
+          <summary className="cursor-pointer text-muted hover:text-ink">Have a sign-up code from the beta?</summary>
+          <div className="mt-3 flex flex-col gap-1.5">
+            <label htmlFor="signup-code" className="text-[13px] font-medium">
+              Sign-up code
+            </label>
+            <input
+              id="signup-code"
+              value={code}
+              onChange={(e) => {
+                setCode(e.target.value)
+                setProblem(null)
+              }}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              placeholder={EXAMPLE_INVITE}
+              aria-describedby={problem ? 'signup-problem' : 'signup-hint'}
+              aria-invalid={flagged}
+              className={`num h-12 w-full rounded-[10px] border bg-bg px-3.5 font-mono text-base tracking-[0.04em] text-ink ${
+                flagged ? 'border-neg' : 'border-line-strong'
+              }`}
+            />
+            {problem ? (
+              <div id="signup-problem" role="alert" className="text-xs text-neg">
+                {problem}
+              </div>
+            ) : (
+              <div id="signup-hint" className="text-xs text-muted">
+                {refused
+                  ? 'Check the code in your email, or leave this box empty to sign up without one.'
+                  : 'It works once and is tied to the email address we sent it to. Most people need none.'}
+              </div>
+            )}
+          </div>
+        </details>
       </form>
 
       {refused ? null : (
         <div className="mt-5 rounded-[10px] border border-line bg-bg px-4 py-3.5 text-[13px] text-muted">
-          Beta codes give 30 days of full access, counted from the day you create your account.
+          No card is needed to start. After the 7 days you choose whether to subscribe.
         </div>
       )}
 
-      <div className="mt-6">
-        {refused ? (
-          <p className="m-0 text-center text-sm text-muted">
-            Still stuck? Write to{' '}
-            <a href="mailto:hello@roundturn.app" className="font-medium">
-              hello@roundturn.app
-            </a>
-          </p>
-        ) : (
-          <JoinTheBeta />
-        )}
-      </div>
+      {refused ? (
+        <p className="mt-6 mb-0 text-center text-sm text-muted">
+          Still stuck? Write to{' '}
+          <a href="mailto:hello@roundturn.app" className="font-medium">
+            hello@roundturn.app
+          </a>
+        </p>
+      ) : null}
     </>
   )
 }

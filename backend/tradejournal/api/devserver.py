@@ -195,6 +195,7 @@ def build_config(
     paddle_env_file: Path = PADDLE_ENV_FILE,
     stripe: bool = False,
     stripe_env_file: Path = STRIPE_ENV_FILE,
+    open_signup: bool = False,
 ) -> ApiConfig:
     env = read_env_file(env_file)
     app_url, login_url = env.get("TJ_DEV_APP_URL"), env.get("TJ_DEV_LOGIN_URL")
@@ -206,6 +207,8 @@ def build_config(
         raise DevServerError(
             "--billing needs --real-sign-in: billing runs on real sessions, which the development sign-in has not"
         )
+    if open_signup and not real_sign_in:
+        raise DevServerError("--open-signup needs --real-sign-in: it is about who may make an account at Kinde")
     if stripe and not billing:
         raise DevServerError("--stripe goes with --billing: it picks Stripe's test mode instead of the Paddle sandbox")
     kinde = kinde_settings(kinde_env_file) if real_sign_in else None
@@ -224,7 +227,7 @@ def build_config(
                 kinde_domain=kinde["KINDE_DOMAIN"],
                 kinde_client_id=kinde["KINDE_CLIENT_ID"],
                 kinde_client_secret=kinde["KINDE_CLIENT_SECRET"],
-                signup_mode="invite",
+                signup_mode="open" if open_signup else "invite",
                 **paying,  # type: ignore[arg-type]  # the billing fields, with their types (billing_settings)
             )
         return ApiConfig(
@@ -271,6 +274,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--stripe-env-file", type=Path, default=STRIPE_ENV_FILE, help="with --billing --stripe")
     parser.add_argument(
+        "--open-signup",
+        action="store_true",
+        help="with --real-sign-in: anyone may make an account, no code needed (TJ_SIGNUP_MODE=open); the default is by invitation",
+    )
+    parser.add_argument(
         "--make-invite",
         action="store_true",
         help="print a single-use invite code (valid 7 days) for the local database, and exit",
@@ -301,6 +309,7 @@ def main(argv: list[str] | None = None) -> int:
             paddle_env_file=args.paddle_env_file,
             stripe=args.stripe,
             stripe_env_file=args.stripe_env_file,
+            open_signup=args.open_signup,
         )
     except (DevServerError, psycopg.Error, OSError) as problem:
         print(f"cannot start: {problem}", file=sys.stderr)
@@ -309,8 +318,13 @@ def main(argv: list[str] | None = None) -> int:
 
     show_log_lines()
     if config.dev_user_id is None:
+        who = (
+            "sign-up is OPEN: anyone may make an account"
+            if config.signup_mode == "open"
+            else "new people need an invite: --make-invite"
+        )
         print(
-            f"Real sign-in through Kinde on {config.app_origin} (new people need an invite: --make-invite).\n"
+            f"Real sign-in through Kinde on {config.app_origin} ({who}).\n"
             f"  Allowed callback URL in Kinde:  {config.app_origin}/auth/callback\n"
             f"  Allowed logout redirect URL:    {config.app_origin}/invite"
         )

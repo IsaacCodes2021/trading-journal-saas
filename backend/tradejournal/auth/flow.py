@@ -147,6 +147,7 @@ class AuthFlow:
         promo: str | None = None,
         step_up: bool = False,
         reauth: bool = False,
+        signup: bool = False,
     ) -> LoginStart:
         code = invites.normalize(invite) if invite and len(invite) <= 60 else None
         promo_code = promo.strip() if promo and len(promo) <= 60 and promo.strip() else None
@@ -161,6 +162,12 @@ class AuthFlow:
             if usable is None:
                 return LoginStart(f"/invite?error={ERR_INVITE}", None)
             hint = usable.email
+        elif signup and self._invite_only and not step_up and not reauth:
+            # Asked to make an account with no code while sign-up is by invitation: turned away before the provider, in the
+            # same words as a wrong code, so no identity is made there. (Open sign-up needs no code: see TJ_SIGNUP_MODE.)
+            with self._system.system_session("login") as conn:
+                audit.record(conn, "login_failed", actor=audit.ACTOR_SYSTEM, meta={"reason": "invite_required"})
+            return LoginStart(f"/invite?error={ERR_INVITE}", None)
         if promo_code is not None and not step_up and not reauth:
             # A promo code is checked up front too, so a mistyped one is caught while the person is still on our page. They
             # are sent back with what they typed in both boxes, so only the promo needs fixing (or emptying).
@@ -199,9 +206,10 @@ class AuthFlow:
             step_up=step_up,
             reauth=reauth,
             login_hint=hint,
-            # Someone with a valid sign-up code is making an account: open the provider's registration screen, so its
-            # sign-in screen does not have to offer "create an account" to everyone who reaches it.
-            create=code is not None and not step_up and not reauth,
+            # Someone with a valid sign-up code, or who asked to sign up (open sign-up needs no code), is making an account:
+            # open the provider's registration screen, so its sign-in screen does not have to offer "create an account" to
+            # everyone who reaches it.
+            create=(code is not None or signup) and not step_up and not reauth,
         )
         return LoginStart(url, cookie)
 

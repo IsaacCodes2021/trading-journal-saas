@@ -47,15 +47,17 @@ describe('looksLikeInviteCode', () => {
 })
 
 describe('the addresses the browser goes to', () => {
-  it('sends the code to the server, encoded', () => {
-    expect(signUpUrl('TJ-7KQ2-M9XA')).toBe('/auth/login?invite=TJ-7KQ2-M9XA')
-    expect(signUpUrl('A&B=C')).toBe('/auth/login?invite=A%26B%3DC')
+  it('says an account is being made, with no code needed, and sends a sign-up code beside it, encoded, when one was typed', () => {
+    expect(signUpUrl()).toBe('/auth/login?signup=1')
+    expect(signUpUrl('TJ-7KQ2-M9XA')).toBe('/auth/login?signup=1&invite=TJ-7KQ2-M9XA')
+    expect(signUpUrl('A&B=C')).toBe('/auth/login?signup=1&invite=A%26B%3DC')
   })
 
-  it('sends a promo code beside it when one was typed, as typed, and leaves it out when the box is empty', () => {
-    expect(signUpUrl('TJ-7KQ2-M9XA', ' free 30 ')).toBe('/auth/login?invite=TJ-7KQ2-M9XA&promo=free%2030')
-    expect(signUpUrl('TJ-7KQ2-M9XA', '   ')).toBe('/auth/login?invite=TJ-7KQ2-M9XA')
-    expect(signUpUrl('TJ-7KQ2-M9XA', 'A&B')).toBe('/auth/login?invite=TJ-7KQ2-M9XA&promo=A%26B')
+  it('sends a promo code too when one was typed, as typed, and leaves it out when the box is empty', () => {
+    expect(signUpUrl('', 'LAUNCH10')).toBe('/auth/login?signup=1&promo=LAUNCH10')
+    expect(signUpUrl('TJ-7KQ2-M9XA', ' free 30 ')).toBe('/auth/login?signup=1&invite=TJ-7KQ2-M9XA&promo=free%2030')
+    expect(signUpUrl('TJ-7KQ2-M9XA', '   ')).toBe('/auth/login?signup=1&invite=TJ-7KQ2-M9XA')
+    expect(signUpUrl('', 'A&B')).toBe('/auth/login?signup=1&promo=A%26B')
   })
 
   it('remembers where to return to after signing in', () => {
