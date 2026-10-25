@@ -319,4 +319,11 @@ describe('an old address', () => {
     await user.click(await screen.findByRole('button', { name: 'Continue to create account' }))
     await waitFor(() => expect(leave).toHaveBeenCalledWith('/auth/login?signup=1&invite=TJ-7KQ2-M9XA'))
   })
+
+  it('sends the old beta form address to the sign-up form, without asking the API for anything', async () => {
+    const { router, fetched } = open('/join')
+    expect(await screen.findByRole('heading', signUpHeading)).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/signup')
+    expect(fetched).not.toHaveBeenCalled()
+  })
 })
