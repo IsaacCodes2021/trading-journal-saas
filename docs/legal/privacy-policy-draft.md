@@ -26,7 +26,7 @@
 
 **Accounts and money you record.** The accounts you create (name, firm, size, stage, rules and fees) and the costs and payouts you enter in the ledger.
 
-**Plan and billing.** Which plan you have and until when, and codes you redeem. [When paid plans open: payment details are handled by Paddle as seller of record; we give it your email address and our account number for you, and receive a customer reference, the plan, the status and the dates and amounts of payments, not your card number.]
+**Plan and billing.** Which plan you have and until when, and codes you redeem. [When paid plans open: payment details are handled by Stripe through Link (Sold through Link, LLC, a Stripe affiliate, is the merchant of record); we give Stripe your email address and our account number for you, and receive a customer reference, the plan, the status and the dates and amounts of payments, not your card number; the order details you give at checkout (name, billing country, any tax number) can be seen by us in our Stripe account.]
 
 **Security and operations.** Records that keep the Service safe and working: sign-in and security events, import and export events, actions taken by an administrator on your account (with their reason), error reports, and server logs. We keep IP addresses only as a keyed hash (HMAC-SHA-256 with a secret key; the address itself is not stored). Each sign-in record also keeps the browser description that your browser sends, cut to 300 characters. We **do not** put your trades, notes or screenshot names in logs or error reports.
 
