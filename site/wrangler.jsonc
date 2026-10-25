@@ -19,5 +19,10 @@
     // Only /api/* runs code (and only to answer 404: the site has no API). Pages, the stylesheet and the fonts
     // are served straight from the assets.
     "run_worker_first": ["/api/*"]
-  }
+  },
+
+  // The launch offer pop-up reports what a visitor did with it (shown, closed, copied, sign-up pressed) as the name of an
+  // event and nothing else; src/worker.js writes each one as a tally here. Cloudflare makes the dataset the first time it
+  // is written to. Read it back with `npm run popup-stats` (needs an API token that can read analytics).
+  "analytics_engine_datasets": [{ "binding": "POPUP_EVENTS", "dataset": "roundturn_popup" }]
 }
