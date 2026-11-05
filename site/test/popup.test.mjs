@@ -51,7 +51,7 @@ function element(extra = {}) {
   return { listeners, addEventListener: (type, fn) => (listeners[type] ??= []).push(fn), ...extra };
 }
 
-function page({ seen = false, beacon = true, storage = true, clipboard = "works", showModal = true } = {}) {
+function page({ seen = false, beacon = true, storage = true, clipboard = "works", showModal = true, paused = false } = {}) {
   const sent = [];
   const fetched = [];
   const timers = [];
@@ -62,6 +62,7 @@ function page({ seen = false, beacon = true, storage = true, clipboard = "works"
   const status = { textContent: "" };
   const dialog = element({
     open: false,
+    hasAttribute: (name) => paused && name === "data-paused",
     close() {
       this.open = false;
     },
@@ -107,6 +108,17 @@ test("it waits 8 seconds, then shows once and counts one 'shown', and remembers 
   assert.equal(p.dialog.open, true);
   assert.deepEqual(p.sent, ["/api/e/shown"]);
   assert.equal(p.kept.get("launch-offer-seen"), "1");
+});
+
+test("while the <dialog> carries data-paused it never shows: no timer, nothing counted, nothing kept", () => {
+  const p = page({ paused: true });
+  assert.deepEqual(p.timers, []);
+  p.show();
+  assert.equal(p.dialog.open, false);
+  assert.deepEqual(p.sent, []);
+  assert.deepEqual(p.fetched, []);
+  assert.equal(p.kept.size, 0);
+  assert.deepEqual(Object.keys(p.dialog.listeners), []);
 });
 
 test("the X counts 'x' and closes it; a second way of closing it counts nothing more", () => {

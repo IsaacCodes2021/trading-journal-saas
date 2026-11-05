@@ -13,6 +13,7 @@
 
   var dialog = document.getElementById("offer");
   if (!dialog || typeof dialog.showModal !== "function") return; // no <dialog>: the page is simply without the pop-up
+  if (dialog.hasAttribute("data-paused")) return; // switched off on the page: no pop-up, no timer, nothing counted
 
   var signup = dialog.querySelector('[data-offer="signup"]');
   var copy = dialog.querySelector('[data-offer="copy"]');

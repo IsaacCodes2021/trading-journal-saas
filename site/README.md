@@ -29,6 +29,8 @@ Payment providers will read this site, and so will users. Every claim has to be 
 
 ## The launch offer pop-up and its counts
 
+**Switched off for now (2026-11-04).** The `<dialog id="offer">` in `public/index.html` carries `data-paused`, so `popup.js` stops at once: no pop-up, no timer, nothing counted. To switch it on, first make the code `LAUNCH10` in the operator tools (Codes: 10% off, 3 months, Roundturn Pro only; billing must be on), then delete `data-paused` from that tag in a pull request.
+
 `public/popup.js` shows the offer (`<dialog id="offer">` on the home page) once per visit, 8 seconds after the page opens. It sends the name of what the visitor did to `POST /api/e/<name>`, where the Worker writes one tally to the Analytics Engine dataset `roundturn_popup`: `shown`, then at most one of `x` (the X), `away` (a click outside it) or `esc` (the Escape key); `copy` (Copy link) and `signup` (Sign up now) can come on top. Nothing else is sent or read: no cookie, IP address, browser details or referrer. The only thing kept in the browser is a note in session storage that the pop-up was shown, so it does not appear twice in one visit. The privacy page says all of this, and a test pins it.
 
 **Reading the numbers** needs two values that never go in the chat or in git: your Cloudflare account id and an API token with the single permission *Account Analytics: Read* (dashboard, My Profile, API Tokens). Put them in a git-ignored file, e.g. `site/.env.cloudflare` (`CLOUDFLARE_ACCOUNT_ID=...`, `CLOUDFLARE_API_TOKEN=...`), then:
