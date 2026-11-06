@@ -96,7 +96,9 @@ describe('on the trial', () => {
     expect(card).toHaveTextContent('USD 15 a month')
     expect(card).toHaveTextContent('Billing starts on Oct 21, when your trial ends.')
     expect(card).toHaveTextContent('Taxes, where they apply, are added at checkout.')
-    expect(card).toHaveTextContent('Cancel any time on this page. Payments are not refunded.')
+    expect(card).toHaveTextContent(
+      'Cancel any time on this page. Roundturn does not issue refunds itself; the billing and refund policy below says what our payment provider may refund.',
+    )
     expect(screen.getByText('What you have, and what you pay.')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'What your plan includes' })).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Redeem a promo code' })).toBeInTheDocument()
@@ -235,13 +237,13 @@ describe('paying', () => {
 describe('cancelling', () => {
   const dialog = () => screen.findByRole('dialog', { name: 'Cancel your subscription' })
 
-  it('asks first, saying what stays and that nothing is refunded', async () => {
+  it('asks first, saying what stays and that Roundturn issues no refunds itself', async () => {
     const user = await open({ billing: ACTIVE })
     await user.click(within(await plan()).getByRole('button', { name: 'Cancel subscription' }))
     const ask = await dialog()
     expect(within(ask).getByRole('heading', { name: 'Cancel your subscription?' })).toBeInTheDocument()
     expect(ask).toHaveTextContent('You keep full access until Nov 14.')
-    expect(ask).toHaveTextContent('Your subscription will not renew, and payments are not refunded.')
+    expect(ask).toHaveTextContent('Your subscription will not renew, and Roundturn does not issue refunds itself.')
     expect(ask).toHaveTextContent('After Nov 14 your journal is read-only: everything stays, to look at and download.')
     expect(within(ask).getByRole('button', { name: 'Keep subscription' })).toHaveFocus() // the safe choice is the default
   })

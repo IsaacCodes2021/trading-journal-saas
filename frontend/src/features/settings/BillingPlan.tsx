@@ -27,7 +27,8 @@ export const REFUNDS_URL = 'https://roundturn.app/refunds/'
 /** Back from the checkout: still waiting for the provider to confirm, or a minute has passed without word. */
 export type CheckoutReturn = 'waiting' | 'late' | null
 
-const NO_REFUNDS = 'Cancel any time on this page. Payments are not refunded.'
+const NO_REFUNDS =
+  'Cancel any time on this page. Roundturn does not issue refunds itself; the billing and refund policy below says what our payment provider may refund.'
 const TAX = 'Taxes, where they apply, are added at checkout.'
 
 /** "Oct 21", or the words given when the server sent no date (it always should). */
@@ -111,7 +112,7 @@ function CancelDialog({ billing, onClose }: { billing: Billing; onClose: () => v
         You keep full access until <strong>{until}</strong>.{' '}
         {billing.first_charge_pending
           ? 'Your subscription will not start, and nothing is charged.'
-          : 'Your subscription will not renew, and payments are not refunded.'}
+          : 'Your subscription will not renew, and Roundturn does not issue refunds itself.'}
       </p>
       <p className="m-0 text-muted">
         After {until} your journal is read-only: everything stays, to look at and download. You can subscribe again at
