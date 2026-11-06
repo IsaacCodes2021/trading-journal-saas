@@ -14,10 +14,12 @@ How to operate either, and how to switch: `docs/runbooks/billing.md`.
 **Since 2026-10-24:** the Stripe connector is merged (PR 158; migration 0023 is applied in production, so the schema is at
 0023 and the next number is 0024), Paddle is sidelined (nothing removed), and billing is still **off** in production. A
 first Stripe **test-mode** payment went through end to end on 2026-10-24 (checkout, four webhooks, the rows, Plan page).
-The owner decided on 2026-10-24 that the beta is over and sign-up is open to everyone. The launch is open pull requests,
-none merged: 164 (the app can make an account with no code; safe to merge first, nothing changes until `TJ_SIGNUP_MODE` is
-`open`), 162 (the Plan page's refund wording), 161 (the site names Stripe through Link, Sold through Link, LLC, as merchant
-of record) and 163 (the paid-launch site: Pricing, open sign-up, a launch offer pop-up with its own counts, stacked on 161).
+The owner decided on 2026-10-24 that the beta is over and sign-up is open to everyone. PR 164 (the app can make an account
+with no code) was merged on 2026-10-25 and `TJ_SIGNUP_MODE` is `open` in production; the old beta form address `/join` now
+sends people to `/signup` (the page itself is gone; the server's `POST /api/v1/beta/join` and the operator's Beta testers
+screen are still there). The rest of the launch is open pull requests, none merged: 162 (the Plan page's refund wording),
+161 (the site names Stripe through Link, Sold through Link, LLC, as merchant of record) and 163 (the paid-launch site:
+Pricing, open sign-up, a launch offer pop-up with its own counts, stacked on 161).
 The order, and what is waiting on the owner (Stripe's eligibility answer, live activation, the LAUNCH10 code, switching
 billing on): `docs/runbooks/launch-checklist.md`, section B.
 
