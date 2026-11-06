@@ -107,12 +107,13 @@ test("only /api/* runs code; pages are served straight from the assets", () => {
   assert.ok(existsSync(SITE + "public/404.html"));
 });
 
-test("the site stores no personal data: no database, key-value store or bucket is bound, only the pop-up's tally dataset", () => {
+test("the site stores no personal data: no database, key-value store or bucket is bound, and no tally dataset while the pop-up is paused", () => {
   const config = readConfig();
   for (const binding of ["d1_databases", "kv_namespaces", "r2_buckets", "durable_objects", "queues", "services"]) {
     assert.equal(config[binding], undefined, `${binding} is bound`);
   }
-  assert.deepEqual(config.analytics_engine_datasets, [{ binding: "POPUP_EVENTS", dataset: "roundturn_popup" }]);
+  // When the pop-up is switched on, this becomes [{ binding: "POPUP_EVENTS", dataset: "roundturn_popup" }] (site/README.md).
+  assert.equal(config.analytics_engine_datasets, undefined, "a tally dataset is bound while the pop-up is paused");
 });
 
 test("the config holds no secret: no token, key or password", () => {
