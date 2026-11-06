@@ -69,16 +69,16 @@ for (const page of pages) {
   });
 }
 
-test("the home page has no form of its own: it sends people to the app for the beta form, sign-in and sign-up", () => {
+test("the home page has no form of its own: it sends people to the app for sign-in and sign-up", () => {
   const html = pageNamed("/index.html");
   assert.ok(!/<form[\s>]/i.test(html), "the site has a form");
   assert.ok(!/<input[\s>]/i.test(html), "the site has an input");
   // Each link is an anchor to the app's address whose visible text starts with the words people look for.
   const anchors = [...html.matchAll(/<a\b([^>]*)>([^<]*)<\/a>/g)].map((m) => ({ attrs: m[1], text: m[2] }));
   for (const [target, text] of [
-    ["https://app.roundturn.app/join", "Sign up for the beta"],
+    ["https://app.roundturn.app/signup", "Start your 7-day free trial"],
+    ["https://app.roundturn.app/signup", "Start free trial"],
     ["https://app.roundturn.app/signin", "Sign in"],
-    ["https://app.roundturn.app/signup", "Sign up here"],
   ]) {
     const found = anchors.find((a) => a.attrs.includes(`href="${target}"`) && a.text.trim() === text);
     assert.ok(found, `no "${text}" link to ${target}`);
@@ -98,7 +98,7 @@ test("the home page tells people who it is for, what it does, where it falls sho
 test("every page links to the app only at its own address, over https", () => {
   for (const page of pages) {
     for (const [, url] of read(page).matchAll(/href="(https?:\/\/[^"]*roundturn[^"]*)"/g)) {
-      assert.match(url, /^https:\/\/app\.roundturn\.app\/(?:join|signin|signup)$/, `${urlOf(page)} links to ${url}`);
+      assert.match(url, /^https:\/\/app\.roundturn\.app\/(?:signin|signup(?:\?promo=LAUNCH10)?)$/, `${urlOf(page)} links to ${url}`);
     }
   }
 });
@@ -106,7 +106,7 @@ test("every page links to the app only at its own address, over https", () => {
 test("the pages say what the payment providers and visitors need to be told", () => {
   const home = pageNamed("/index.html").toLowerCase();
   const about = pageNamed("/about/index.html").toLowerCase();
-  for (const text of ["not investment advice", "substantial risk of loss", "not affiliated with tradovate", "free during the invite-only beta", "in development"]) {
+  for (const text of ["not investment advice", "substantial risk of loss", "not affiliated with tradovate", "7-day free trial", "usd 15 per month"]) {
     assert.ok(home.includes(text), `home page is missing: ${text}`);
   }
   for (const text of [
@@ -133,7 +133,10 @@ test("nothing on the site promises what the product does not do", () => {
 
 test("the privacy page matches what the code does", () => {
   const privacy = pageNamed("/privacy/index.html").toLowerCase();
-  assert.ok(privacy.includes("sets no cookies") && privacy.includes("no analytics, advertising or tracking scripts"));
+  assert.ok(privacy.includes("sets no cookies, runs no advertising or tracking scripts, and loads nothing from other websites"));
+  assert.ok(privacy.includes("one small script of its own, for the launch offer pop-up"));
+  assert.ok(privacy.includes("only the name of the event: no cookie, no ip address, no browser details"));
+  assert.ok(privacy.includes("session storage"));
   for (const text of [
     "your first name, your email address, the prop firm you named, and when you joined",
     "one-way hash",
@@ -155,9 +158,16 @@ test("the privacy page matches what the code does", () => {
   ]) {
     assert.ok(privacy.includes(text), `the privacy page is missing: ${text}`);
   }
-  // The site itself runs no script and stores nothing, so what it says about cookies and tracking holds.
-  for (const page of pages) assert.ok(!/<script/i.test(read(page)), `${urlOf(page)} loads a script`);
-  assert.ok(!files.some((f) => f.endsWith(".js")), "there is a script in public/");
+  // The one script is the pop-up, on the home page only, from the site's own address; the privacy page says so (checked above).
+  for (const page of pages) {
+    const scripts = [...read(page).matchAll(/<script\b[^>]*>/gi)].map((m) => m[0]);
+    const expected = urlOf(page) === "/index.html" ? ["<script src=\"/popup.js\" defer>"] : [];
+    assert.deepEqual(scripts, expected, `${urlOf(page)} loads a script it should not`);
+  }
+  assert.deepEqual(files.filter((f) => f.endsWith(".js")).map(urlOf), ["/popup.js"], "there is a script in public/ besides popup.js");
+  const popup = read(join(PUBLIC, "popup.js"));
+  assert.ok(!/document\.cookie|localStorage|indexedDB|https?:|\beval\b|new Function|XMLHttpRequest|WebSocket|import\(/.test(popup), "popup.js stores or fetches something the page says it does not");
+  assert.deepEqual([...new Set([...popup.matchAll(/"(\/[a-z/]+)"/g)].map((m) => m[1]))], ["/api/e/"], "popup.js talks to something other than the site's own counter");
   const worker = readFileSync(new URL("../src/worker.js", import.meta.url), "utf8");
   assert.ok(!/set-cookie|env\.DB|\.prepare\(|cf-connecting-ip|user-agent|referer/i.test(worker.replace(/\/\/.*$/gm, "")), "the Worker stores or reads something the page says it does not");
 });
@@ -191,14 +201,14 @@ test("the contact address is the one the site says it uses", () => {
   assert.deepEqual([...addresses], ["hello@roundturn.app"]);
 });
 
-test("the terms and refund pages state the same price, trial and no-refund rule, and say paid plans are not open yet", () => {
+test("the terms and refund pages state the same price, trial and no-refund rule, and no longer say paid plans are not open yet", () => {
   const terms = pageNamed("/terms/index.html").toLowerCase();
   const refunds = pageNamed("/refunds/index.html").toLowerCase();
   const home = pageNamed("/index.html").toLowerCase();
   for (const [name, text] of [["terms", terms], ["refunds", refunds], ["home", home]]) {
     assert.ok(text.includes("usd 15 per month"), `${name} does not give the price`);
     assert.ok(text.includes("7-day trial"), `${name} does not mention the trial`);
-    assert.ok(text.includes("paid plans are not open yet"), `${name} does not say paid plans are not open`);
+    assert.ok(!text.includes("not open yet"), `${name} still says paid plans are not open`);
   }
   for (const text of ["payments are final and non-refundable", "we do not issue refunds", "there is no free plan"]) {
     assert.ok(terms.includes(text) || refunds.includes(text), `neither page says: ${text}`);
@@ -209,6 +219,28 @@ test("the terms and refund pages state the same price, trial and no-refund rule,
   assert.ok(terms.includes("northfield labs, llc, a california limited liability company"));
   assert.ok(terms.includes("not investment advice") && terms.includes("substantial risk of loss"));
   assert.ok(terms.includes("not affiliated with"));
+});
+
+test("the home page has a pricing section: the price, the free trial, how to cancel, the refund policy and a way to start", () => {
+  const html = pageNamed("/index.html");
+  const section = html.match(/<section[^>]*id="pricing"[\s\S]*?<\/section>/)?.[0] ?? "";
+  assert.ok(section, "no pricing section");
+  const text = section.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
+  for (const needed of ["pricing", "roundturn pro", "usd 15 per month", "7-day free trial", "no card", "cancel any time", "us dollars", "taxes", "stripe through link", "never sees your card number", "does not issue refunds itself"]) {
+    assert.ok(text.includes(needed), `the pricing section does not say: ${needed}`);
+  }
+  assert.ok(section.includes('href="/refunds/"'), "the pricing section does not link the refund policy");
+  assert.ok(section.includes('href="https://app.roundturn.app/signup"'), "the pricing section has no way to start");
+});
+
+test("no page still talks of an invite-only beta, a sign-up code to ask for, or paid plans that are not open", () => {
+  for (const page of pages) {
+    const text = read(page).toLowerCase();
+    for (const old of ["invite-only", "sign up for the beta", "join the beta.", "not open yet", "after the free beta", "private beta"]) {
+      assert.ok(!text.includes(old), `${urlOf(page)} still says "${old}"`);
+    }
+    assert.ok(!text.includes('href="https://app.roundturn.app/join"'), `${urlOf(page)} still links the beta form`);
+  }
 });
 
 test("every page links to the terms, privacy and refund pages in its footer", () => {

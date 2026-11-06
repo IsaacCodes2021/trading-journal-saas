@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Privacy: how Roundturn handles your details</title>
-<meta name="description" content="What Roundturn collects when you join the beta and when you make an account, why, where it is stored, how long it is kept, and how to have it removed.">
+<meta name="description" content="What Roundturn collects when you sign up, make an account and pay, why, where it is stored, how long it is kept, and how to have it removed.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
@@ -19,7 +19,7 @@
       <a href="/terms/">Terms</a>
       <a href="/refunds/">Refund Policy</a>
       <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
-      <a class="btn" href="https://app.roundturn.app/join" rel="noopener noreferrer">Sign up for the beta</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
     </nav>
   </div>
 </header>
@@ -27,7 +27,7 @@
 <main>
 <article class="wrap">
   <h1>Privacy</h1>
-  <p class="draft">This page covers the beta sign-up form, Roundturn accounts and, once paid plans open, payments. It is a draft and not legal advice: it will be reviewed by a professional before the app opens widely. Last updated 2026-10-24.</p>
+  <p class="fine">This page covers the sign-up form, Roundturn accounts and payments. Last updated 2026-10-24.</p>
 
   <h2>Who is responsible</h2>
   <p>Roundturn is run by Northfield Labs, LLC, a California limited liability company. For anything on this page, email <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>.</p>
@@ -41,27 +41,28 @@
     <li><strong>Your sign-in.</strong> Roundturn uses Kinde as its sign-in provider. Kinde holds the details you sign in with, such as your email address, your name, how you sign in and whether you use a second step. Roundturn never sees or stores your password.</li>
     <li><strong>Your journal.</strong> What you import and write: the trades in the files you upload (contracts, quantities, prices, times and results), a record of each import so it can be undone, your notes, tags and screenshots, the accounts and fees you enter, and your settings (time zone, start of the trading day, theme).</li>
     <li><strong>Your plan.</strong> Which plan or code gives you access, and until when.</li>
-    <li><strong>Your payments (when paid plans open).</strong> Payment is taken by Stripe through Link. Sold through Link, LLC, an affiliate of Stripe, is the merchant of record. It collects your card or other payment details, billing name, country and tax details on its own checkout, keeps its own records of the payment, and lets you make a Link account. Roundturn never sees or stores your card number. We give Stripe your email address and an account number of ours, so the checkout knows who is paying. We receive back a customer reference, your plan, the subscription status, and the dates and amounts of payments. The order details you give at checkout, such as your name, billing country and any tax number, can also be seen by Roundturn in its Stripe account.</li>
+    <li><strong>Your payments.</strong> Payment is taken by Stripe through Link. Sold through Link, LLC, an affiliate of Stripe, is the merchant of record. It collects your card or other payment details, billing name, country and tax details on its own checkout, keeps its own records of the payment, and lets you make a Link account. Roundturn never sees or stores your card number. We give Stripe your email address and an account number of ours, so the checkout knows who is paying. We receive back a customer reference, your plan, the subscription status, and the dates and amounts of payments. The order details you give at checkout, such as your name, billing country and any tax number, can also be seen by Roundturn in its Stripe account.</li>
     <li><strong>Sign-in records.</strong> For each sign-in, when it started, the description of your browser that your browser sends (cut to 300 characters), and a keyed hash of your IP address. This is so that you can see where you are signed in (in Settings, Security) and so that security problems can be investigated. The hash is made with a secret key held by Roundturn, so the address cannot be recovered from it without that key.</li>
     <li><strong>A security log.</strong> Sign-ins, sign-outs, imports, exports and anything the operator does to your account, with the reason, are recorded in a log that is only ever added to. It holds the same keyed IP hash, and never the content of your trades, notes or screenshots.</li>
   </ul>
   <p>Roundturn does not collect your broker or prop-firm passwords or keys, and it does not connect to your trading accounts.</p>
 
   <h2>Why</h2>
-  <p>To email you your sign-up code, to run the beta (who has a code and whose 30 days are running), to give you the journal you asked for, and to keep the service secure. You may get one more email when your access ends. Your data is not sold, not rented and not used for advertising. It is shared only with the providers named below, to run the service.</p>
+  <p>To email you your sign-up code, to run the beta (who has a code and whose 30 days are running), to give you the journal you asked for, to take payment if you subscribe, and to keep the service secure. You may get one more email when your access ends. Your data is not sold, not rented and not used for advertising. It is shared only with the providers named below, to run the service.</p>
 
   <h2>Who can see it</h2>
   <p>The operator's tools in the app show account details, plan, status and usage counts, not your trades, notes or screenshots, and opening a person's page there is recorded in the log. Northfield Labs also administers the hosting accounts and the database, and uses that access only to run, secure and repair the service.</p>
 
-  <h2>What this site does not do</h2>
+  <h2>What this site does, and does not do</h2>
   <ul>
-    <li>It sets no cookies.</li>
-    <li>It runs no analytics, advertising or tracking scripts, and loads nothing from other websites.</li>
+    <li>It sets no cookies, runs no advertising or tracking scripts, and loads nothing from other websites.</li>
+    <li>The home page runs one small script of its own, for the launch offer pop-up. It counts how often the pop-up is shown, closed with the X, clicked away from, closed with Escape, copied or used to start signing up. Each count is only the name of the event: no cookie, no IP address, no browser details and nothing that says who you are.</li>
+    <li>So that you are not shown the pop-up twice in one visit, your browser keeps a note that you have seen it, in session storage. It is not sent to us, and it goes when you close the tab.</li>
   </ul>
-  <p>The same holds for the sign-up and sign-in pages before you sign in. Signing in sets a session cookie, which keeps you signed in (scripts cannot read it, and it is sent only to Roundturn), and a short-lived cookie that is used only during the sign-in. The app keeps a few preferences, such as your theme, in your browser. There are no advertising or analytics cookies.</p>
+  <p>The sign-up and sign-in pages before you sign in set no cookies and run no analytics, advertising or tracking scripts. Signing in sets a session cookie, which keeps you signed in (scripts cannot read it, and it is sent only to Roundturn), and a short-lived cookie that is used only during the sign-in. The app keeps a few preferences, such as your theme, in your browser. There are no advertising or analytics cookies.</p>
 
   <h2>Where it is stored</h2>
-  <p>This website runs on Cloudflare, which also forwards email sent to Roundturn and holds screenshots in private buckets (the originals and a daily copy). The app and its database run on Render in the United States. Sign-in is handled by Kinde, which stores that data in Oregon, in the United States. The emails (your sign-up code, and the notice that your access has ended) are sent through Resend, so Resend handles your address and first name to deliver them. When paid plans open, payments will be handled by Stripe through Link (Sold through Link, LLC, an affiliate of Stripe, is the merchant of record), whose checkout is run by them and covered by their own privacy policies. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a>, <a href="https://www.kinde.com/privacy-policy/" rel="noopener noreferrer">Kinde</a>, <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>, <a href="https://stripe.com/privacy" rel="noopener noreferrer">Stripe</a> and <a href="https://link.com/privacy" rel="noopener noreferrer">Link</a>.</p>
+  <p>This website runs on Cloudflare, which also forwards email sent to Roundturn and holds screenshots in private buckets (the originals and a daily copy). The app and its database run on Render in the United States. Sign-in is handled by Kinde, which stores that data in Oregon, in the United States. The emails (your sign-up code, and the notice that your access has ended) are sent through Resend, so Resend handles your address and first name to deliver them. Payments are handled by Stripe through Link (Sold through Link, LLC, an affiliate of Stripe, is the merchant of record), whose checkout is run by them and covered by their own privacy policies. Like any web host, these services can see technical request data such as IP addresses while they serve a page or deliver a message. See the privacy policies of <a href="https://www.cloudflare.com/privacypolicy/" rel="noopener noreferrer">Cloudflare</a>, <a href="https://render.com/privacy" rel="noopener noreferrer">Render</a>, <a href="https://www.kinde.com/privacy-policy/" rel="noopener noreferrer">Kinde</a>, <a href="https://resend.com/legal/privacy-policy" rel="noopener noreferrer">Resend</a>, <a href="https://stripe.com/privacy" rel="noopener noreferrer">Stripe</a> and <a href="https://link.com/privacy" rel="noopener noreferrer">Link</a>.</p>
 
   <h2>How long</h2>
   <ul>
@@ -70,7 +71,7 @@
     <li><strong>Sign-in sessions</strong> end after 14 days without use, or after 90 days in all.</li>
     <li><strong>The security log</strong> is kept after an account is deleted. Its entries are then no longer linked to your account, but they still show the kind of event, its date and the keyed IP hash. No period for deleting them has been set yet.</li>
     <li><strong>Backups.</strong> The database host keeps recovery copies for up to 7 days, so deleted data can remain in them until they age out. Screenshots are copied once a day to a second private bucket, and a screenshot that is deleted stays in that copy for up to 30 days before it is removed.</li>
-    <li><strong>Billing records.</strong> When paid plans open, Stripe and Link keep payment and tax records for as long as the law requires, and Roundturn keeps the plan, status and payment records it receives for the same reason. Deleting your account does not remove records that tax law requires to be kept.</li>
+    <li><strong>Billing records.</strong> Stripe and Link keep payment and tax records for as long as the law requires, and Roundturn keeps the plan, status and payment records it receives for the same reason. Deleting your account does not remove records that tax law requires to be kept.</li>
     <li><strong>Email provider.</strong> Resend keeps its own record of messages it delivers, under its own policy.</li>
     <li><strong>Unfinished sign-ups.</strong> If someone starts to create an account at Kinde and never finishes, a sign-in record can remain there. Ask and it will be removed.</li>
   </ul>

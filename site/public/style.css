@@ -636,6 +636,39 @@ h3 {
   font-size: 17px;
 }
 
+.plan {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 32px;
+}
+
+.plan h3 {
+  font-size: 20px;
+}
+
+.plan .amount {
+  margin-top: 10px;
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.plan .amount span {
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+
+.plan ul {
+  margin: 22px 0 28px;
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+}
+
 .join {
   text-align: center;
 }
@@ -753,6 +786,82 @@ article li {
 .draft {
   color: var(--warn);
   font-size: 15px;
+}
+
+/* ---- the launch offer pop-up (popup.js) ---- */
+
+.offer {
+  width: min(30rem, calc(100% - 32px));
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.offer::backdrop {
+  background: rgb(5 8 12 / 72%);
+}
+
+.offer-body {
+  position: relative;
+  padding: 32px;
+}
+
+.offer h2 {
+  margin-top: 18px;
+  font-size: clamp(1.5rem, 5vw, 1.9rem);
+}
+
+.offer p {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.offer .code {
+  padding: 2px 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  color: var(--text);
+  font: 600 15px var(--mono);
+}
+
+.offer .actions {
+  margin-top: 24px;
+  gap: 12px;
+}
+
+.offer-x {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: 400 26px/1 var(--sans);
+  cursor: pointer;
+}
+
+.offer-x:hover {
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.btn.btn-quiet {
+  border-color: var(--line-strong);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn.btn-quiet:hover {
+  background: var(--raised);
+  border-color: var(--line-strong);
+  color: var(--text);
 }
 
 /* ---- narrow screens ---- */

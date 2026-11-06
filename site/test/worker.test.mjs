@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import worker from "../src/worker.js";
+import worker, { POPUP_EVENTS } from "../src/worker.js";
 
 const ORIGIN = "https://roundturn.app";
 const SITE = fileURLToPath(new URL("../", import.meta.url));
@@ -26,6 +26,42 @@ test("the site has no API: every /api path is a 404, whatever the method, and ne
     }
   }
   assert.equal(env.served.length, 0);
+});
+
+function countingEnv() {
+  const written = [];
+  return { ...envWith(), POPUP_EVENTS: { writeDataPoint: (point) => written.push(point) }, written };
+}
+
+test("the pop-up reports an event: one tally per POST to /api/e/<name>, and the request is never read", async () => {
+  const env = countingEnv();
+  for (const name of POPUP_EVENTS) {
+    const response = await worker.fetch(request(`/api/e/${name}`, { method: "POST", body: "ignored", headers: { cookie: "a=b", "user-agent": "x" } }), env);
+    assert.equal(response.status, 204, name);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.equal(await response.text(), "");
+  }
+  assert.deepEqual(env.written, POPUP_EVENTS.map((name) => ({ indexes: [name], blobs: [name], doubles: [1] })));
+  assert.equal(env.served.length, 0);
+});
+
+test("only the six event names, only by POST, only at that exact path, are counted: everything else under /api is 404", async () => {
+  const env = countingEnv();
+  const refused = [
+    ["GET", "/api/e/shown"], ["PUT", "/api/e/shown"], ["DELETE", "/api/e/shown"], ["HEAD", "/api/e/shown"],
+    ["POST", "/api/e/other"], ["POST", "/api/e/SHOWN"], ["POST", "/api/e/shown/"], ["POST", "/api/e/"], ["POST", "/api/e"],
+    ["POST", "/api/e/shown/extra"], ["POST", "/api/x/shown"], ["POST", "/api/e/shown%2F"],
+  ];
+  for (const [method, path] of refused) {
+    const response = await worker.fetch(request(path, { method }), env);
+    assert.equal(response.status, 404, `${method} ${path}`);
+  }
+  assert.deepEqual(env.written, []);
+});
+
+test("without the binding (a test, a local run) an event is still answered 204 and nothing breaks", async () => {
+  const response = await worker.fetch(request("/api/e/shown", { method: "POST" }), envWith());
+  assert.equal(response.status, 204);
 });
 
 test("everything else is handed to the static assets untouched", async () => {
@@ -71,11 +107,12 @@ test("only /api/* runs code; pages are served straight from the assets", () => {
   assert.ok(existsSync(SITE + "public/404.html"));
 });
 
-test("the site stores nothing: no database, key-value store or bucket is bound to it", () => {
+test("the site stores no personal data: no database, key-value store or bucket is bound, only the pop-up's tally dataset", () => {
   const config = readConfig();
   for (const binding of ["d1_databases", "kv_namespaces", "r2_buckets", "durable_objects", "queues", "services"]) {
     assert.equal(config[binding], undefined, `${binding} is bound`);
   }
+  assert.deepEqual(config.analytics_engine_datasets, [{ binding: "POPUP_EVENTS", dataset: "roundturn_popup" }]);
 });
 
 test("the config holds no secret: no token, key or password", () => {
