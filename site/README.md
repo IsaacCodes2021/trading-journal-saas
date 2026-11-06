@@ -11,7 +11,7 @@ public/            what is served: index, about, privacy, terms, refunds, 404, s
 public/fonts/      IBM Plex Sans and Mono (latin, five weights), the same files the app uses; the CSP allows only this folder
 public/popup.js   the launch offer pop-up, the only script on the site (home page only)
 src/worker.js      runs only for /api/*: answers 404, except POST /api/e/<event>, which writes one tally; everything else is served straight from public/
-wrangler.jsonc     what Cloudflare reads at deploy: the Worker's name, the assets folder and one Analytics Engine dataset for the tallies
+wrangler.jsonc     what Cloudflare reads at deploy: the Worker's name and the assets folder (the tally dataset comes back with the pop-up)
 scripts/           popup-stats.mjs, which reads the tallies back from Cloudflare
 test/              node:test checks, no dependencies
 ```
@@ -21,7 +21,7 @@ cd site
 node --test "test/*.test.mjs"
 ```
 
-CI runs the same command (job "Marketing site"). The tests check that nothing loads from another origin, nothing is inline (the CSP forbids it), every link resolves, the home page has no form of its own and links to the app's three entry points over https, the disclaimers are present, nothing promises what the product does not do, the privacy page matches what the code does (one script of the site's own, no cookies, no personal data stored here), the pop-up's behaviour (what is counted and how often), the stylesheet loads only fonts from `/fonts/`, the Worker's routing, and that `wrangler.jsonc` points at things that exist and binds only the tally dataset.
+CI runs the same command (job "Marketing site"). The tests check that nothing loads from another origin, nothing is inline (the CSP forbids it), every link resolves, the home page has no form of its own and links to the app's three entry points over https, the disclaimers are present, nothing promises what the product does not do, the privacy page matches what the code does (one script of the site's own, no cookies, no personal data stored here), the pop-up's behaviour (what is counted and how often), the stylesheet loads only fonts from `/fonts/`, the Worker's routing, and that `wrangler.jsonc` points at things that exist and binds no storage (and, while the pop-up is paused, no tally dataset).
 
 ## What the page says matters
 
@@ -29,7 +29,7 @@ Payment providers will read this site, and so will users. Every claim has to be 
 
 ## The launch offer pop-up and its counts
 
-**Switched off for now (2026-11-04).** The `<dialog id="offer">` in `public/index.html` carries `data-paused`, so `popup.js` stops at once: no pop-up, no timer, nothing counted. To switch it on, first make the code `LAUNCH10` in the operator tools (Codes: 10% off, 3 months, Roundturn Pro only; billing must be on), then delete `data-paused` from that tag in a pull request.
+**Switched off for now (2026-11-04).** The `<dialog id="offer">` in `public/index.html` carries `data-paused`, so `popup.js` stops at once: no pop-up, no timer, nothing counted. To switch it on, first make the code `LAUNCH10` in the operator tools (Codes: 10% off, 3 months, Roundturn Pro only; billing must be on), then delete `data-paused` from that tag in a pull request. In the same pull request, put the tally dataset back in `wrangler.jsonc` (`"analytics_engine_datasets": [{ "binding": "POPUP_EVENTS", "dataset": "roundturn_popup" }]`) and its test in `test/worker.test.mjs`: it was taken out on 2026-11-06 because the first deploy with it failed in Workers Builds. Before that pull request, read that build's log in the Cloudflare dashboard and set up Workers Analytics Engine there if the log asks for it. Until then the Worker answers `POST /api/e/<name>` and records nothing.
 
 `public/popup.js` shows the offer (`<dialog id="offer">` on the home page) once per visit, 8 seconds after the page opens. It sends the name of what the visitor did to `POST /api/e/<name>`, where the Worker writes one tally to the Analytics Engine dataset `roundturn_popup`: `shown`, then at most one of `x` (the X), `away` (a click outside it) or `esc` (the Escape key); `copy` (Copy link) and `signup` (Sign up now) can come on top. Nothing else is sent or read: no cookie, IP address, browser details or referrer. The only thing kept in the browser is a note in session storage that the pop-up was shown, so it does not appear twice in one visit. The privacy page says all of this, and a test pins it.
 

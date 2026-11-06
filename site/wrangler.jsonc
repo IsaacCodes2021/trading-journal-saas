@@ -19,10 +19,10 @@
     // Only /api/* runs code (and only to answer 404: the site has no API). Pages, the stylesheet and the fonts
     // are served straight from the assets.
     "run_worker_first": ["/api/*"]
-  },
+  }
 
-  // The launch offer pop-up reports what a visitor did with it (shown, closed, copied, sign-up pressed) as the name of an
-  // event and nothing else; src/worker.js writes each one as a tally here. Cloudflare makes the dataset the first time it
-  // is written to. Read it back with `npm run popup-stats` (needs an API token that can read analytics).
-  "analytics_engine_datasets": [{ "binding": "POPUP_EVENTS", "dataset": "roundturn_popup" }]
+  // No Analytics Engine binding while the launch offer pop-up is paused: the deploy of 2026-11-06 with
+  // `"analytics_engine_datasets": [{ "binding": "POPUP_EVENTS", "dataset": "roundturn_popup" }]` failed in Workers Builds,
+  // and src/worker.js already does nothing without it. Put that line back when the pop-up is switched on, after Workers
+  // Analytics Engine is set up in the Cloudflare dashboard (site/README.md, "The launch offer pop-up and its counts").
 }
