@@ -78,7 +78,16 @@ key with `TJ_PADDLE_ENV=production`, a live key with `sandbox`, a client token o
 **Before switching on,** every account that exists needs something that gives full access, or it becomes read-only the
 moment billing is on (no free plan):
 
-1. The owner's own account: an operator override, Pro, no end date (Operator tools, the account, Plan override).
+1. The owner's own account: an override, Pro, no end date. The operator tools refuse an operator's own account (and another
+   operator's), so this is the owner's command, as the schema owner (`TJ_OWNER_URL`):
+
+   ```
+   python -m tradejournal.pg.plans set-override --email <your sign-in email> --reason "The owner's own account"
+   ```
+
+   It writes the same row and audit action as the tools (`admin_plan_override_set`, recorded as `cli:owner`); `--days N`
+   gives an end date, and `revoke-override --email ... --reason ...` ends it. (Done for the owner on 2026-11-08, before this
+   command existed, by a one-off script doing the same.) Other people's accounts: Operator tools, the account, Plan override.
 2. Everyone else with nothing (accounts from a plain invite, an override that ended): a 7-day trial from that day, as the
    schema owner, counting first:
 

@@ -65,8 +65,8 @@ Related: [deploy.md](deploy.md), [restore.md](restore.md), [incident.md](inciden
 - [ ] A test payment in Paddle's sandbox, and the rest of the lifecycle ([billing.md](billing.md), "Paddle sandbox"): the
   connector, the payment page and discount codes are built (2026-10-16) and tested against a stand-in for Paddle's API, never
   against Paddle itself **(you for the sandbox settings and the webhook address; then me)**
-- [ ] Switch-on day: an override for your own account, then `python -m tradejournal.pg.plans start-trials --apply` (built
-  2026-10-16), then the Cron Job's and the Web Service's billing settings **(you)**; [billing.md](billing.md)
+- [x] Switch-on day (done 2026-11-08, with Stripe): an override for your own account (`plans set-override`; the tools refuse your own), then `python -m tradejournal.pg.plans start-trials --apply` (built
+  2026-10-16; its count was 0 that day, so there was nothing to apply), then the Cron Job's and the Web Service's billing settings **(you)**; [billing.md](billing.md)
 - [ ] If Stripe instead of Paddle: Stripe's written answer on eligibility (its restricted list names "funded prop trading")
   **(you)**; the Stripe connector is built beside Paddle's (2026-10-23) and tested against a stand-in for Stripe's API and
   calls in Stripe's test mode; migration 0023 applied before its merge **(you, as the schema owner)**; a Stripe test payment

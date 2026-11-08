@@ -61,7 +61,7 @@ cd backend
 
 3. Give the API the operator's database role: `TJ_ADMIN_DATABASE_URL` (the `app_admin` role, created with the others; on this machine the `TJ_DEV_ADMIN_URL` line of `backend/.env.test`). Without it the tools answer 503.
 
-An operator cannot change their own account or another operator's (use the command above), and there is no way to see a person's trades, notes or screenshots from here, by design.
+An operator cannot change their own account or another operator's (use the command above; for a plan override, `python -m tradejournal.pg.plans set-override`), and there is no way to see a person's trades, notes or screenshots from here, by design.
 
 **Codes & audit** (`/admin/codes`, next to Users) shows the numbers (accounts, sign-ups and sign-ins this week, Free and Pro, the invites and plan codes that still work), makes and revokes **invites** and **plan codes**, and reads the audit log. A new code is shown **once**, in a banner with a Copy button: only its hash is stored, so a lost code cannot be looked up, only revoked and made again. A plan code gives Pro for some days, but what Pro includes is not decided yet, so it unlocks nothing yet. The log filters by what happened, who did it and how far back, and searches by part of an address or an exact account id; revoking something always asks why, and the reason is kept in the log.
 

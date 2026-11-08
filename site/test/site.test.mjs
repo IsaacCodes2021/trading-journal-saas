@@ -137,6 +137,9 @@ test("the privacy page matches what the code does", () => {
   assert.ok(privacy.includes("one small script of its own, for the launch offer pop-up"));
   assert.ok(privacy.includes("only the name of the event: no cookie, no ip address, no browser details"));
   assert.ok(privacy.includes("session storage"));
+  // The page says the pop-up is off exactly while the home page's <dialog> carries data-paused (popup.js then stops at once).
+  const paused = /<dialog\b[^>]*\bid="offer"[^>]*\bdata-paused\b/i.test(pageNamed("/index.html"));
+  assert.equal(privacy.includes("the pop-up is switched off for now"), paused, "the privacy page and the pop-up's switch disagree");
   for (const text of [
     "your first name, your email address, the prop firm you named, and when you joined",
     "one-way hash",
