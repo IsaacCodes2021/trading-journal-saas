@@ -31,6 +31,17 @@ test("the home page carries the launch offer: the code, the discount and its len
   assert.ok(!/<form[\s>]|<input[\s>]/i.test(dialog), "the pop-up has a form or an input");
 });
 
+test("the pop-up's price breakdown adds up: USD 15 less 10% is USD 13.50 for 3 months, then USD 15, with the trial and taxes said", () => {
+  const dialog = home.match(/<dialog class="offer" id="offer"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+  const text = dialog.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const full = 15;
+  const discounted = (full * 0.9).toFixed(2);
+  for (const needed of ["7-day free trial", "USD 0", "Months 1 to 3", `USD ${full.toFixed(2)}`, `USD ${discounted}`, "From month 4", "cancel any time", "US dollars", "Taxes, where they apply, are added at checkout"]) {
+    assert.ok(text.includes(needed), `the price breakdown does not say: ${needed}`);
+  }
+  assert.ok(/<s>[^<]*<span class="sr">was <\/span>USD 15\.00<\/s>/.test(dialog), "the old price is not marked as the old price for screen readers");
+});
+
 test("the script is loaded by the home page only, from the site's own address, deferred", () => {
   assert.equal([...home.matchAll(/<script\b[^>]*>/gi)].map((m) => m[0]).join(""), '<script src="/popup.js" defer>');
 });

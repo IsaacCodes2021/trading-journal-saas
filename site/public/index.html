@@ -372,16 +372,29 @@
 </footer>
 <dialog class="offer" id="offer" data-paused aria-labelledby="offer-title" aria-describedby="offer-text">
   <div class="offer-body">
-    <button type="button" class="offer-x" data-offer="x" aria-label="Close this offer">&times;</button>
-    <span class="chip">LAUNCH OFFER</span>
-    <h2 id="offer-title">Join today and get 10% off.</h2>
-    <p id="offer-text">Use code <strong class="code">LAUNCH10</strong> for 10% off Roundturn Pro for your first 3 months. Start with a 7-day trial that needs no card.</p>
-    <div class="actions">
-      <a class="btn btn-big" data-offer="signup" href="https://app.roundturn.app/signup?promo=LAUNCH10" rel="noopener noreferrer" autofocus>Sign up now</a>
-      <button type="button" class="btn btn-big btn-quiet" data-offer="copy">Copy link</button>
+    <button type="button" class="offer-x" data-offer="x" aria-label="Close this offer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="offer-main">
+      <span class="chip"><span class="live-dot" aria-hidden="true"></span>LAUNCH OFFER</span>
+      <h2 id="offer-title">Join today and get 10% off.</h2>
+      <p id="offer-text">Use code <strong class="code">LAUNCH10</strong> for 10% off Roundturn Pro for your first 3 months. Start with a 7-day trial that needs no card.</p>
     </div>
-    <p class="fine" role="status" data-offer-status></p>
-    <p class="fine">New accounts only. See the <a href="/terms/">terms</a> and the <a href="/refunds/">Refund Policy</a>.</p>
+    <div class="offer-price">
+      <p class="price-head"><span>Roundturn Pro</span><span class="label">With LAUNCH10</span></p>
+      <dl>
+        <div><dt>7-day free trial<span>No card needed to start</span></dt><dd>USD 0</dd></div>
+        <div class="saving"><dt>Months 1 to 3 <span class="off-tag">−10%</span><span>per month</span></dt><dd><s><span class="sr">was </span>USD 15.00</s> <span class="sr">now </span>USD 13.50</dd></div>
+        <div><dt>From month 4<span>per month · cancel any time</span></dt><dd>USD 15.00</dd></div>
+      </dl>
+      <p class="fine">Prices are in US dollars. Taxes, where they apply, are added at checkout.</p>
+    </div>
+    <div class="offer-foot">
+      <div class="actions">
+        <a class="btn btn-big" data-offer="signup" href="https://app.roundturn.app/signup?promo=LAUNCH10" rel="noopener noreferrer" autofocus>Sign up now</a>
+        <button type="button" class="btn btn-big btn-quiet" data-offer="copy">Copy link</button>
+      </div>
+      <p class="fine" role="status" data-offer-status></p>
+      <p class="fine">New accounts only. See the <a href="/terms/">terms</a> and the <a href="/refunds/">Refund Policy</a>.</p>
+    </div>
   </div>
 </dialog>
 </body>

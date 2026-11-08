@@ -1562,15 +1562,22 @@ article li {
   font-size: 15px;
 }
 
-/* ---- the launch offer pop-up (popup.js) ---- */
+/*
+ * ---- the launch offer pop-up (popup.js) ----
+ * Design D from the November 2026 canvas: the offer on the left, what you pay with the code on the right; on a phone the
+ * price sits between the offer and the buttons. The <dialog> itself has no padding (popup.js reads a click on it as a
+ * click on the dimmed area), so all spacing is on the parts inside.
+ */
 
 .offer {
-  width: min(30rem, calc(100% - 32px));
+  width: min(56rem, calc(100% - 32px));
+  max-height: calc(100% - 32px);
   padding: 0;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
+  border-radius: 18px;
   background: var(--panel);
   color: var(--text);
+  box-shadow: 0 40px 80px -30px rgb(0 0 0 / 90%);
 }
 
 .offer::backdrop {
@@ -1579,52 +1586,227 @@ article li {
 
 .offer-body {
   position: relative;
-  padding: 32px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-areas:
+    "main price"
+    "foot price";
+  grid-template-rows: auto 1fr;
+  background: radial-gradient(460px 220px at 0% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+}
+
+.offer-main {
+  grid-area: main;
+  padding: 40px 36px 0;
 }
 
 .offer h2 {
   margin-top: 18px;
-  font-size: clamp(1.5rem, 5vw, 1.9rem);
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: clamp(1.6rem, 4vw, 2.125rem);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
   font-weight: 600;
+  text-wrap: balance;
 }
 
-.offer p {
-  margin-top: 12px;
+.offer-main p {
+  margin-top: 14px;
   color: var(--muted);
 }
 
 .offer .code {
-  padding: 2px 8px;
+  padding: 1px 7px;
   border: 1px dashed var(--line-strong);
   border-radius: 6px;
+  background: var(--bg);
   color: var(--text);
   font: 500 15px var(--mono);
 }
 
+.offer-foot {
+  grid-area: foot;
+  align-self: end;
+  padding: 26px 36px 34px;
+}
+
 .offer .actions {
-  margin-top: 24px;
+  margin-top: 0;
   gap: 12px;
+}
+
+.offer-foot .fine {
+  margin-top: 14px;
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.offer-foot .fine:empty {
+  display: none;
+}
+
+.offer-price {
+  grid-area: price;
+  padding: 40px 32px 30px;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.price-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line-strong);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.offer-price dl {
+  margin: 0;
+}
+
+.offer-price dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-block: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.offer-price dl > div.saving {
+  margin-inline: -12px;
+  padding-inline: 12px;
+  border-bottom: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--pos) 8%, transparent);
+}
+
+.offer-price dt {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.offer-price dt > span:last-child {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dim);
+}
+
+.off-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pos) 16%, transparent);
+  color: var(--pos);
+  font: 500 10.5px/1.5 var(--mono);
+  letter-spacing: 0.06em;
+  vertical-align: 2px;
+}
+
+.offer-price dd {
+  margin: 0;
+  text-align: right;
+  font: 500 16px/1.4 var(--mono);
+  white-space: nowrap;
+}
+
+.offer-price .saving dd {
+  color: var(--pos);
+}
+
+.offer-price s {
+  display: block;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.offer-price .fine {
+  margin-top: 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--dim);
 }
 
 .offer-x {
   position: absolute;
   top: 12px;
   right: 12px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 40px;
   height: 40px;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
   color: var(--muted);
-  font: 400 26px/1 var(--sans);
   cursor: pointer;
+}
+
+.offer-x svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 .offer-x:hover {
   border-color: var(--line);
   color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .offer {
+    max-height: calc(100% - 24px);
+  }
+
+  .offer-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "main"
+      "price"
+      "foot";
+    grid-template-rows: auto;
+  }
+
+  .offer-main {
+    padding: 26px 20px 20px;
+  }
+
+  .offer h2 {
+    padding-right: 32px;
+  }
+
+  .offer-price {
+    padding: 18px 20px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .offer-price .price-head {
+    display: none;
+  }
+
+  .offer-price dl > div {
+    padding-block: 11px;
+  }
+
+  .offer-foot {
+    padding: 18px 20px 22px;
+  }
+
+  .offer .actions .btn {
+    width: 100%;
+  }
 }
 
 .btn.btn-quiet {
