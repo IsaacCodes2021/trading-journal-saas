@@ -86,13 +86,34 @@ test("the home page has no form of its own: it sends people to the app for sign-
   }
 });
 
-test("the home page tells people who it is for, what it does, where it falls short and where it is going", () => {
+test("the home page tells people who it is for, what it does and where it is going", () => {
   const html = pageNamed("/index.html");
-  for (const heading of ["Who it is for", "What it does", "Where it falls short today", "Where it is going"]) {
+  for (const heading of ["Who it is for", "What it does", "Where it is going"]) {
     assert.ok(html.includes(`>${heading}</h2>`), `no "${heading}" section`);
   }
   assert.match(html, /Tradovate auto-sync/);
   assert.match(html, /not built yet, and there is no date/);
+});
+
+test("the home page still says what Roundturn does not do, now that it has no limitations section (removed November 2026)", () => {
+  const text = pageNamed("/index.html").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
+  for (const needed of [
+    "does not watch your accounts while you trade or warn you before a rule is hit",
+    "rule progress is informational, and your firm's numbers are the ones that count",
+    "does not place, route or execute trades",
+  ]) {
+    assert.ok(text.includes(needed), `the home page no longer says: ${needed}`);
+  }
+});
+
+test("the moving trades strip can be paused without a script, stops for reduced motion, and is marked as sample data", () => {
+  const html = pageNamed("/index.html");
+  const css = read(join(PUBLIC, "style.css"));
+  assert.match(html, /Your recent trades · Sample/);
+  assert.match(html, /<details class="tape-pause">/);
+  assert.match(html, /<ul class="tape-run" aria-hidden="true">/, "the copy of the list used for the loop is read out twice");
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*\.tape-run \{\s*animation:/, "the strip moves even when reduced motion is asked for");
+  assert.match(css, /\.tape:has\(\.tape-pause\[open\]\) \.tape-run/, "the Pause control does not stop the strip");
 });
 
 test("every page links to the app only at its own address, over https", () => {
