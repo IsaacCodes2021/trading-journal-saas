@@ -107,13 +107,15 @@ test("only /api/* runs code; pages are served straight from the assets", () => {
   assert.ok(existsSync(SITE + "public/404.html"));
 });
 
-test("the site stores no personal data: no database, key-value store or bucket is bound, and no tally dataset while the pop-up is paused", () => {
+test("the site stores no personal data: no database, key-value store or bucket is bound, and no tally dataset until Analytics Engine is set up", () => {
   const config = readConfig();
   for (const binding of ["d1_databases", "kv_namespaces", "r2_buckets", "durable_objects", "queues", "services"]) {
     assert.equal(config[binding], undefined, `${binding} is bound`);
   }
-  // When the pop-up is switched on, this becomes [{ binding: "POPUP_EVENTS", dataset: "roundturn_popup" }] (site/README.md).
-  assert.equal(config.analytics_engine_datasets, undefined, "a tally dataset is bound while the pop-up is paused");
+  // The pop-up is on (2026-11-08) but its tallies are not kept yet: the deploy of 2026-11-06 with the dataset failed. Once
+  // Workers Analytics Engine is set up in the Cloudflare dashboard, this becomes
+  // [{ binding: "POPUP_EVENTS", dataset: "roundturn_popup" }] (site/README.md).
+  assert.equal(config.analytics_engine_datasets, undefined, "a tally dataset is bound before Analytics Engine is set up");
 });
 
 test("the config holds no secret: no token, key or password", () => {

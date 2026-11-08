@@ -18,7 +18,7 @@ test("the home page carries the launch offer: the code, the discount and its len
   const dialog = home.match(/<dialog class="offer" id="offer"[\s\S]*?<\/dialog>/)?.[0] ?? "";
   assert.ok(dialog, "no pop-up on the home page");
   const text = dialog.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-  for (const needed of ["Join today and get 10% off.", "LAUNCH10", "10% off Roundturn Pro for your first 3 months", "7-day trial", "no card", "New accounts only", "Sign up now", "Copy link"]) {
+  for (const needed of ["Join today and get 10% off.", "LAUNCH10", "10% off Roundturn Pro for your first 2 months", "7-day trial", "no card", "New accounts only", "Sign up now", "Copy link"]) {
     assert.ok(text.includes(needed), `the pop-up does not say: ${needed}`);
   }
   assert.ok(dialog.includes(`data-offer="signup" href="${SIGNUP}" rel="noopener noreferrer"`), "the sign-up link is wrong");
@@ -29,6 +29,18 @@ test("the home page carries the launch offer: the code, the discount and its len
   for (const id of ["offer-title", "offer-text"]) assert.ok(dialog.includes(`id="${id}"`), `${id} is missing`);
   assert.ok(dialog.includes('aria-labelledby="offer-title"') && dialog.includes('aria-describedby="offer-text"'));
   assert.ok(!/<form[\s>]|<input[\s>]/i.test(dialog), "the pop-up has a form or an input");
+});
+
+// LAUNCH10 in Stripe (coupon rt-launch10, made 2026-11-08) is 10% off for 2 months; the pop-up must say the same.
+test("the pop-up's price breakdown adds up: USD 15 less 10% is USD 13.50 for 2 months, then USD 15, with the trial and taxes said", () => {
+  const dialog = home.match(/<dialog class="offer" id="offer"[\s\S]*?<\/dialog>/)?.[0] ?? "";
+  const text = dialog.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const full = 15;
+  const discounted = (full * 0.9).toFixed(2);
+  for (const needed of ["7-day free trial", "USD 0", "Months 1 and 2", `USD ${full.toFixed(2)}`, `USD ${discounted}`, "From month 3", "cancel any time", "US dollars", "Taxes, where they apply, are added at checkout"]) {
+    assert.ok(text.includes(needed), `the price breakdown does not say: ${needed}`);
+  }
+  assert.ok(/<s>[^<]*<span class="sr">was <\/span>USD 15\.00<\/s>/.test(dialog), "the old price is not marked as the old price for screen readers");
 });
 
 test("the script is loaded by the home page only, from the site's own address, deferred", () => {
