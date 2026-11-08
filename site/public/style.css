@@ -1383,7 +1383,7 @@ details[open] > summary.day::after {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
   gap: 32px;
-  align-items: start;
+  align-items: center;
   margin-top: 40px;
   padding: 32px;
   border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line));
@@ -1421,6 +1421,12 @@ details[open] > summary.day::after {
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
+}
+
+.planned .card .label {
+  margin-top: 0;
+  font-size: 11px;
+  color: var(--dim);
 }
 
 .planned .card h3 {
