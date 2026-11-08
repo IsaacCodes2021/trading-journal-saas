@@ -14,6 +14,13 @@ operator (FREE30: 3 to 20 capital letters and digits) and is also kept readable,
 `start-trials` is for the day billing is switched on (`docs/runbooks/billing.md`): it gives the 7-day trial to every account
 that has never had free days, no override and no subscription, which billing on would otherwise make read-only at once.
 Without `--apply` it only counts.
+
+`set-override` and `revoke-override` give an account a plan whatever else it has, or end that, by email. The operator's tools
+do the same for other people's accounts, but refuse an operator's own account and another operator's, so this is the way for
+those (the owner's own account before billing is switched on, above all). The row and the audit action are the tools' own
+(`admin_plan_override_set`, `admin_plan_override_revoked`), recorded as `cli:owner`:
+
+    TJ_OWNER_URL=... python -m tradejournal.pg.plans set-override --email you@example.com --reason "The owner's own account"
 """
 
 from __future__ import annotations
@@ -40,6 +47,7 @@ from ..entitlements import (
     effective_plan,
     subscription_lapsed_at,
 )
+from . import admin, audit
 from .invites import ALPHABET, hash_code, normalize
 
 _SHAPE = re.compile(r"^[A-Z0-9]{2,}(?:-[A-Z0-9]{2,})+$")  # a random code: GR-XXXX-XXXX
@@ -325,8 +333,84 @@ def revoke_grant(owner_conn: psycopg.Connection, grant_id: int, *, now: datetime
     return row is not None
 
 
+CLI_OWNER = "cli:owner"  # who made an override from the command line, in the history and the audit log
+MAX_OVERRIDE_DAYS = 3650
+
+
+def _account_by_email(owner_conn: psycopg.Connection, email: str) -> UUID | None:
+    row = owner_conn.execute("SELECT id FROM users WHERE lower(email) = lower(%s)", (email.strip(),)).fetchone()
+    return row["id"] if row else None
+
+
+def set_override_by_email(
+    owner_conn: psycopg.Connection,
+    email: str,
+    *,
+    plan: str,
+    days: int | None,
+    reason: str,
+    now: datetime | None = None,
+) -> tuple[UUID, bool] | None:
+    """Give the account with this email `plan` whatever else it has, for `days` (None: no end), as the schema owner.
+    Replaces an active override, as the operator's tools do. Returns the account's id and whether one was replaced, or None
+    when there is no such account (nothing is written). One transaction: the row and its audit entry, or neither."""
+    if plan not in ("free", "pro"):
+        raise ValueError("the plan must be free or pro")
+    if days is not None and not 1 <= days <= MAX_OVERRIDE_DAYS:
+        raise ValueError(f"days must be between 1 and {MAX_OVERRIDE_DAYS}")
+    if not reason.strip():
+        raise ValueError("a reason is needed")
+    moment = now or datetime.now(UTC)
+    ends = moment + timedelta(days=days) if days is not None else None
+    with owner_conn.transaction():
+        user_id = _account_by_email(owner_conn, email)
+        if user_id is None:
+            return None
+        replaced = admin.set_override(
+            owner_conn, user_id, plan=plan, expires_at=ends, reason=reason.strip(), by=CLI_OWNER, now=moment
+        )
+        audit.record(
+            owner_conn,
+            "admin_plan_override_set",
+            user_id=user_id,
+            actor=CLI_OWNER,
+            meta={
+                "reason": reason.strip(),
+                "plan": plan,
+                "ends": ends.isoformat() if ends else None,
+                "replaced": replaced,
+            },
+        )
+    return user_id, replaced
+
+
+def revoke_override_by_email(
+    owner_conn: psycopg.Connection, email: str, *, reason: str, now: datetime | None = None
+) -> bool | None:
+    """End the active override of the account with this email. True if one was ended, False if it had none, None when there
+    is no such account."""
+    if not reason.strip():
+        raise ValueError("a reason is needed")
+    with owner_conn.transaction():
+        user_id = _account_by_email(owner_conn, email)
+        if user_id is None:
+            return None
+        if not admin.revoke_override(owner_conn, user_id, reason=reason.strip(), by=CLI_OWNER, now=now):
+            return False
+        audit.record(
+            owner_conn,
+            "admin_plan_override_revoked",
+            user_id=user_id,
+            actor=CLI_OWNER,
+            meta={"reason": reason.strip()},
+        )
+    return True
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Make, list and revoke plan codes (as the schema owner).")
+    parser = argparse.ArgumentParser(
+        description="Make, list and revoke plan codes and overrides (as the schema owner)."
+    )
     sub = parser.add_subparsers(dest="command", required=True)
     create = sub.add_parser("create-grant", help="make a code that gives a plan for some days")
     create.add_argument(
@@ -346,6 +430,19 @@ def main(argv: list[str] | None = None) -> int:
         "start-trials", help="switch-on day: a 7-day trial for every account with no code, override or subscription"
     )
     trials.add_argument("--apply", action="store_true", help="give them (the default only counts)")
+    over = sub.add_parser(
+        "set-override",
+        help="give an account a plan whatever else it has (the way for an operator's own account, which the tools refuse)",
+    )
+    over.add_argument("--email", required=True, help="the account's sign-in email")
+    over.add_argument("--plan", default="pro", choices=["pro", "free"])
+    over.add_argument("--days", type=int, help="how long it lasts (leave out for no end date)")
+    over.add_argument(
+        "--reason", required=True, help="why, in your words: kept in the history and the audit log, never shown to them"
+    )
+    unover = sub.add_parser("revoke-override", help="end an account's override")
+    unover.add_argument("--email", required=True, help="the account's sign-in email")
+    unover.add_argument("--reason", required=True, help="why, in your words")
     args = parser.parse_args(argv)
     url = os.environ.get("TJ_OWNER_URL")
     if not url:
@@ -391,6 +488,29 @@ def main(argv: list[str] | None = None) -> int:
                 print(
                     f"{done.operators} operator account(s) also have nothing: give each an override (Pro, no end) instead."
                 )
+        elif args.command in ("set-override", "revoke-override"):
+            try:
+                if args.command == "set-override":
+                    done = set_override_by_email(conn, args.email, plan=args.plan, days=args.days, reason=args.reason)
+                else:
+                    ended = revoke_override_by_email(conn, args.email, reason=args.reason)
+            except ValueError as problem:
+                print(f"Nothing changed: {problem}.", file=sys.stderr)
+                return 2
+            if args.command == "set-override":
+                if done is None:
+                    print("No account has that email: nothing changed.", file=sys.stderr)
+                    return 1
+                length = f"for {args.days} days" if args.days else "with no end date"
+                print(f"Override set: {args.plan} {length}" + (" (it replaced the one before)." if done[1] else "."))
+            elif ended is None:
+                print("No account has that email: nothing changed.", file=sys.stderr)
+                return 1
+            elif not ended:
+                print("That account has no override to end: nothing changed.", file=sys.stderr)
+                return 1
+            else:
+                print("Override ended.")
         else:
             print("revoked" if revoke_grant(conn, args.id) else "no such code, or it was already revoked")
     return 0

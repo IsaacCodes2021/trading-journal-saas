@@ -31,9 +31,14 @@ services:
     dockerContext: .
     healthCheckPath: /readyz # not /healthz: a new instance whose database is missing a migration stays out of traffic and the old one keeps serving
     envVars:
-      # A new person needs an invitation code. "open" lets anyone sign up.
+      # "open" (since 2026-10-25): anyone may make an account. "invite" would make a new person need an invitation code
+      # again. Production has run with "open" since then; this line says the same, so a Blueprint sync cannot close sign-up.
       - key: TJ_SIGNUP_MODE
-        value: invite
+        value: open
+      # Billing (since 2026-11-08): the Environment Group `roundturn-billing`, made in the dashboard, holds
+      # TJ_BILLING_PROVIDER=stripe and the live TJ_STRIPE_* values (docs/runbooks/billing.md). Linked here so a sync keeps it.
+      # TJ_BILLING_ENABLED and TJ_WEBHOOK_DATABASE_URL are set on the service itself, in its Environment page.
+      - fromGroup: roundturn-billing
 
   # The sweep, three steps in one run (`sweep all --apply`): finishes account deletions (rows, picture files, the person at
   # Kinde); sends the "your access has ended" email once; and removes beta sign-ups that have no account 24 hours after their
@@ -58,6 +63,10 @@ services:
     dockerfilePath: ./backend/Dockerfile
     dockerContext: .
     dockerCommand: python -m tradejournal.pg.sweep all --apply
+    envVars:
+      # The same billing group as the web service (the job cancels and checks subscriptions); TJ_BILLING_ENABLED is set on
+      # the job itself, in its Environment page.
+      - fromGroup: roundturn-billing
 
   # The second copy of the screenshot bucket (`python -m tradejournal.filebackup`; docs/runbooks/deploy.md, section 2,
   # step 4). R2 keeps no old versions, so a deleted or overwritten picture is otherwise gone for good. The job copies what

@@ -402,6 +402,80 @@ def test_the_command_makes_lists_and_revokes_codes_and_needs_the_owners_connecti
     assert plans.main(["list-grants"]) == 0 and "revoked" in capsys.readouterr().out.splitlines()[0]
 
 
+def overrides_of(owner, user):
+    return owner.execute(
+        "SELECT plan, expires_at, reason, created_by, revoked_at, revoked_by, revoke_reason FROM plan_overrides"
+        " WHERE user_id = %s ORDER BY id",
+        (user,),
+    ).fetchall()
+
+
+def test_the_override_command_gives_an_operators_own_account_pro_with_no_end_and_records_it(
+    owner_url, monkeypatch, owner, op, capsys
+):
+    """The operator's tools refuse an operator's own account; the owner's command is the way, with the tools' audit action."""
+    monkeypatch.setenv("TJ_OWNER_URL", owner_url)
+    assert plans.main(["set-override", "--email", " OP@Example.test ", "--reason", "The owner's own account"]) == 0
+    assert "Override set: pro with no end date." in capsys.readouterr().out
+    [row] = overrides_of(owner, op)
+    assert (row["plan"], row["expires_at"], row["reason"], row["created_by"]) == (
+        "pro",
+        None,
+        "The owner's own account",
+        "cli:owner",
+    )
+    plan = plans.effective(owner, op, NOW + 3650 * DAY)
+    assert (plan.plan, plan.source) == ("pro", "override")
+    last = audit_rows(owner)[-1]
+    assert (last["action"], last["actor"], last["user_id"]) == ("admin_plan_override_set", "cli:owner", op)
+    assert last["meta"] == {"reason": "The owner's own account", "plan": "pro", "ends": None, "replaced": False}
+
+
+def test_a_new_override_from_the_command_replaces_the_active_one_and_can_end(
+    owner_url, monkeypatch, owner, alice, capsys
+):
+    monkeypatch.setenv("TJ_OWNER_URL", owner_url)
+    assert plans.main(["set-override", "--email", "alice@example.test", "--reason", "First"]) == 0
+    before = datetime.now(UTC)
+    assert plans.main(["set-override", "--email", "alice@example.test", "--days", "30", "--reason", "Second"]) == 0
+    assert "for 30 days (it replaced the one before)." in capsys.readouterr().out
+    first, second = overrides_of(owner, alice)
+    assert first["revoked_by"] == "cli:owner" and first["revoke_reason"] == "replaced by a new override"
+    assert second["revoked_at"] is None and before + 30 * DAY <= second["expires_at"] <= datetime.now(UTC) + 30 * DAY
+    assert audit_rows(owner)[-1]["meta"]["replaced"] is True
+    assert plans.main(["revoke-override", "--email", "alice@example.test", "--reason", "Done"]) == 0
+    assert "Override ended." in capsys.readouterr().out
+    assert overrides_of(owner, alice)[-1]["revoke_reason"] == "Done"
+    last = audit_rows(owner)[-1]
+    assert (last["action"], last["actor"], last["meta"]) == (
+        "admin_plan_override_revoked",
+        "cli:owner",
+        {"reason": "Done"},
+    )
+    assert plans.main(["revoke-override", "--email", "alice@example.test", "--reason", "Again"]) == 1
+    assert "no override to end" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["set-override", "--email", "nobody@example.test", "--reason", "Why"],
+        ["revoke-override", "--email", "nobody@example.test", "--reason", "Why"],
+        ["set-override", "--email", "alice@example.test", "--reason", "   "],
+        ["set-override", "--email", "alice@example.test", "--days", "0", "--reason", "Why"],
+        ["set-override", "--email", "alice@example.test", "--days", "3651", "--reason", "Why"],
+    ],
+)
+def test_the_override_command_changes_nothing_when_it_cannot_do_what_was_asked(
+    owner_url, monkeypatch, owner, alice, capsys, argv
+):
+    monkeypatch.setenv("TJ_OWNER_URL", owner_url)
+    audited = len(audit_rows(owner))
+    assert plans.main(argv) in (1, 2)
+    assert "nothing changed" in capsys.readouterr().err.lower()
+    assert overrides_of(owner, alice) == [] and len(audit_rows(owner)) == audited
+
+
 def test_the_invite_command_can_attach_a_plan_code(owner_url, monkeypatch, owner, capsys):
     grant_id, _ = code_for(owner)
     monkeypatch.setenv("TJ_OWNER_URL", owner_url)
