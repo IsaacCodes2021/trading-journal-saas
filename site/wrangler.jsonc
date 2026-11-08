@@ -21,8 +21,8 @@
     "run_worker_first": ["/api/*"]
   }
 
-  // No Analytics Engine binding while the launch offer pop-up is paused: the deploy of 2026-11-06 with
-  // `"analytics_engine_datasets": [{ "binding": "POPUP_EVENTS", "dataset": "roundturn_popup" }]` failed in Workers Builds,
-  // and src/worker.js already does nothing without it. Put that line back when the pop-up is switched on, after Workers
-  // Analytics Engine is set up in the Cloudflare dashboard (site/README.md, "The launch offer pop-up and its counts").
+  // No Analytics Engine binding yet, so the launch offer pop-up's tallies are answered but not kept: the deploy of
+  // 2026-11-06 with `"analytics_engine_datasets": [{ "binding": "POPUP_EVENTS", "dataset": "roundturn_popup" }]` failed
+  // in Workers Builds, and src/worker.js does nothing without it. Put that line back after Workers Analytics Engine is
+  // set up in the Cloudflare dashboard (site/README.md, "The launch offer pop-up and its counts").
 }
