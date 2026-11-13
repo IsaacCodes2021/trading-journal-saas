@@ -23,7 +23,7 @@ COPY frontend/ ./
 RUN pnpm build
 
 # ---- stage 2: the API image --------------------------------------------------------------------------------------
-FROM python:3.12-slim@sha256:dddfd7e07f9d15aeeca61529320492139d21cac7f0070c00609243e51e4e0016
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 # uv installs exactly what uv.lock says, and verifies the hashes recorded there.
 COPY --from=ghcr.io/astral-sh/uv:0.12.22@sha256:f513a91fc62fe7c17567eee97230dd198e43edb8a9fbecca843714a4358fe1bc /uv /usr/local/bin/uv
