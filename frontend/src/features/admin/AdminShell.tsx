@@ -78,7 +78,7 @@ export function AdminShell({ children }: { children: ReactNode }) {
               </span>
             ) : null}
             <ThemeButton theme={settings.theme} />
-            <AccountMenu email={user.email} />
+            <AccountMenu email={user.email} username={user.username} />
           </div>
         </div>
       </header>

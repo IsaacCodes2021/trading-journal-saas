@@ -37,7 +37,10 @@ def get_session(session: SessionDep, services: ServicesDep, config: ConfigDep, c
         access=account.access,
         entitlements=account.entitlements,
         flags=FlagsOut(
-            is_admin=account.is_admin, mfa_fresh=mfa_fresh, recently_authenticated=recently_authenticated(session, now)
+            is_admin=account.is_admin,
+            mfa_fresh=mfa_fresh,
+            recently_authenticated=recently_authenticated(session, now),
+            ask_username=account.ask_username,
         ),
         csrf_token=csrf_token(config.session_secret, session.id),
         app_version=config.app_version,

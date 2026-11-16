@@ -9,6 +9,7 @@ import { isClockTime, timeZones } from '../../lib/timezones'
 import { CsvZoneChoice } from './CsvZoneChoice'
 import { ZoneSelect } from './ZoneSelect'
 import { SectionHeader } from './SettingsLayout'
+import { UsernameCard } from './UsernameCard'
 
 type Settings = components['schemas']['SettingsOut']
 
@@ -190,7 +191,7 @@ function ThemeCard({ theme }: { theme: Theme }) {
   )
 }
 
-/** Time zones, the trading day and the theme: the only settings the API stores for a person today. */
+/** The username, time zones, the trading day and the theme: the only settings the API stores for a person today. */
 export function PreferencesPage() {
   const session = useSession()
   if (session.isPending) return <Spinner label="Loading your settings" />
@@ -198,7 +199,10 @@ export function PreferencesPage() {
   const settings = session.data.settings
   return (
     <>
-      <SectionHeader title="Preferences">How times are read and shown, and how the app looks.</SectionHeader>
+      <SectionHeader title="Preferences">
+        Your username, how times are read and shown, and how the app looks.
+      </SectionHeader>
+      <UsernameCard saved={session.data.user.username} />
       <Form saved={settings} />
       <ThemeCard theme={settings.theme} />
     </>

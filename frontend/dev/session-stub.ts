@@ -43,6 +43,9 @@ export function devSessionStub(enabled: boolean): Plugin {
     trading_day_start: '18:00',
     theme: 'dark',
   }
+  // The username prompt shows until a name is picked or "not now" is said; /__dev/username/ask shows it again.
+  let username: string | null = null
+  let askUsername = true
   const now = Date.now()
   const ago = (hours: number) => new Date(now - hours * 3_600_000).toISOString()
   const place = (id: string, device: string, current: boolean, hours: number, mfa: boolean) => ({
@@ -73,7 +76,7 @@ export function devSessionStub(enabled: boolean): Plugin {
         }
         if (path === '/api/v1/session' && request.method === 'GET') {
           return send(200, {
-            user: { id: ID, email: 'trader@example.test' },
+            user: { id: ID, email: 'trader@example.test', username },
             settings,
             plan: {
               effective: 'pro',
@@ -86,7 +89,7 @@ export function devSessionStub(enabled: boolean): Plugin {
               reason: null,
             },
             entitlements: {},
-            flags: { is_admin: true, mfa_fresh: true, recently_authenticated: true },
+            flags: { is_admin: true, mfa_fresh: true, recently_authenticated: true, ask_username: askUsername },
             csrf_token: 'dev-token',
             app_version: 'dev',
           })
@@ -428,6 +431,49 @@ export function devSessionStub(enabled: boolean): Plugin {
               event(200, 'sign_up', { mfa: false }),
             ],
           })
+        }
+        if (path === '/api/v1/account/username' && request.method === 'PUT') {
+          // "taken_name" (any capitals) is held by someone else in the stub; the shape rules are the server's.
+          let raw = ''
+          request.on('data', (chunk: Buffer) => (raw += chunk.toString()))
+          request.on('end', () => {
+            const name = ((JSON.parse(raw || '{}') as { username?: string }).username ?? '').trim()
+            const problem = (message: string) =>
+              send(422, {
+                type: 'about:blank',
+                title: 'Unprocessable Entity',
+                status: 422,
+                detail: 'The request has invalid fields.',
+                errors: [{ field: 'username', message }],
+              })
+            if (name.length < 3) return problem('Use at least 3 characters.')
+            if (name.length > 20) return problem('Use at most 20 characters.')
+            if (!/^[A-Za-z0-9_]+$/.test(name)) return problem('Use only letters, numbers and underscores.')
+            if (name.toLowerCase() === 'taken_name') {
+              return send(409, {
+                type: 'about:blank',
+                title: 'Conflict',
+                status: 409,
+                detail: 'That username is taken. Try another.',
+              })
+            }
+            username = name
+            askUsername = false
+            send(200, { username })
+          })
+          return
+        }
+        if (path === '/api/v1/account/username/skip' && request.method === 'POST') {
+          askUsername = false
+          return send(200, { ask_username: false })
+        }
+        if (path === '/__dev/username/ask') {
+          // Back to an account from before usernames: no name, and the prompt shows on the next page.
+          username = null
+          askUsername = true
+          response.statusCode = 302
+          response.setHeader('location', '/')
+          return response.end()
         }
         if (path === '/api/v1/account/deletion' && request.method === 'POST') {
           // Nothing is deleted in the stub: it only answers with the date a real server would give.

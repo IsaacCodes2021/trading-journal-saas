@@ -33,7 +33,7 @@ def discount_out(terms: pg_discounts.Terms) -> DiscountOut:
 
 
 class PgAccountService:
-    """`load` and `update_settings` for the signed-in user (`ports.AccountService`).
+    """`load`, `update_settings` and the username for the signed-in user (`ports.AccountService`).
 
     Who the user is comes through the `login` system role (the request role cannot read the users table); their
     settings come through a tenant session like everything else of theirs."""
@@ -56,7 +56,10 @@ class PgAccountService:
 
     def load(self, user_id: UUID) -> Account | None:
         with self._system.system_session("login") as conn:
-            row = conn.execute("SELECT id, email, status, is_admin FROM users WHERE id = %s", (user_id,)).fetchone()
+            row = conn.execute(
+                "SELECT id, email, username, username_prompt_skipped_at, status, is_admin FROM users WHERE id = %s",
+                (user_id,),
+            ).fetchone()
             now = self._clock()
             plan = pg_plans.effective(conn, user_id, now) if row is not None else None
             access = pg_plans.access(conn, user_id, now, plan=plan, billing=self._billing) if plan is not None else None
@@ -65,13 +68,30 @@ class PgAccountService:
         with self._database.tenant_session(user_id) as conn:
             settings = _settings(conn)
         return Account(
-            user=UserOut(id=row["id"], email=row["email"]),
+            user=UserOut(id=row["id"], email=row["email"], username=row["username"]),
             settings=settings,
             plan=PlanOut(effective=plan.plan, source=plan.source, expires_at=plan.expires_at),
             entitlements=limits_for(plan.plan),
             is_admin=row["is_admin"],
             access=AccessOut(state=access.state, ends_at=access.ends_at, reason=access.reason),
+            ask_username=row["username"] is None and row["username_prompt_skipped_at"] is None,
         )
+
+    def set_username(self, user_id: UUID, username: str) -> bool:
+        with self._system.system_session("login") as conn:
+            try:
+                with conn.transaction():  # a savepoint: a name already held ends only this statement, not the session
+                    conn.execute("UPDATE users SET username = %s WHERE id = %s", (username, user_id))
+            except psycopg.errors.UniqueViolation:
+                return False
+        return True
+
+    def skip_username(self, user_id: UUID) -> None:
+        with self._system.system_session("login") as conn:
+            conn.execute(
+                "UPDATE users SET username_prompt_skipped_at = %s WHERE id = %s AND username_prompt_skipped_at IS NULL",
+                (self._clock(), user_id),
+            )
 
     def access(self, user_id: UUID) -> AccessOut:
         with self._system.system_session("login") as conn:

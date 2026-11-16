@@ -64,6 +64,7 @@ from .routers import (
     stripe_pay,
     tags,
     trades,
+    username,
     webhooks,
 )
 from .security import SecurityHeadersMiddleware
@@ -242,6 +243,7 @@ def create_app(
     app.include_router(session.router)
     app.include_router(sessions.router)
     app.include_router(account.router)
+    app.include_router(username.router)
     app.include_router(admin_users.router)
     app.include_router(admin_codes.router)
     app.include_router(admin_rules.router)

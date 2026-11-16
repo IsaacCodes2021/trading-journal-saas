@@ -21,11 +21,14 @@ SECRET = b"k" * 32
 WRITES = {"post", "put", "patch", "delete"}
 READ_ONLY = "read-only"  # what the refusal says
 
-# The writes an ended account may still make, each for a reason: leaving (delete the account, sign out, end other sessions)
-# and coming back (redeem a code, subscribe, and manage a subscription: the billing design). Operator routes are the
+# The writes an ended account may still make, each for a reason: leaving (delete the account, sign out, end other sessions),
+# coming back (redeem a code, subscribe, and manage a subscription: the billing design) and the account's own name (pick or
+# change a username, or say "not now" to being asked: it is about the account, not the journal). Operator routes are the
 # operator's own, not the person's journal. Everything else is refused.
 EXEMPT = {
     ("post", "/api/v1/account/deletion"),
+    ("put", "/api/v1/account/username"),
+    ("post", "/api/v1/account/username/skip"),
     ("post", "/api/v1/grants/redeem"),
     ("post", "/api/v1/billing/checkout"),
     ("post", "/api/v1/billing/cancel"),

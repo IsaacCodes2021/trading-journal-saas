@@ -67,6 +67,8 @@ class Account:
     is_admin: bool
     # Read-only once time-limited access has ended. Default: full access (an account with no end date).
     access: AccessOut = field(default_factory=lambda: AccessOut(state="active", ends_at=None, reason=None))
+    # No username yet, and the person has not said "not now" to being asked for one.
+    ask_username: bool = False
 
 
 @dataclass(frozen=True)
@@ -118,6 +120,15 @@ class AccountService(Protocol):
     def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
         """Mark the account for deletion a grace period from now and record it. Returns when it will be deleted, or None
         if the account is not active (already scheduled, or suspended). Ending the sessions is the caller's job."""
+        ...
+
+    def set_username(self, user_id: UUID, username: str) -> bool:
+        """Give this person the username (already checked for shape), replacing any they had. False if another account
+        holds it, whatever the capitals; the person's own name with different capitals is theirs to change."""
+        ...
+
+    def skip_username(self, user_id: UUID) -> None:
+        """The person said "not now" to the username prompt: do not ask again. Settings still lets them pick one."""
         ...
 
     def redeem_grant(self, user_id: UUID, code: str, *, ip_hash: str | None = None) -> GrantResult:

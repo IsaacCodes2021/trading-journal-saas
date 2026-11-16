@@ -36,7 +36,9 @@ def test_a_returning_person_signs_in_and_lands_where_they_were_going(world, owne
         "is_admin": False,
         "mfa_fresh": False,
         "recently_authenticated": True,
+        "ask_username": True,  # no username yet
     }
+    assert body["user"]["username"] is None
     [row] = [r for r in audit_rows(owner) if r["action"] == "login"]
     assert (
         row["user_id"] == alice
