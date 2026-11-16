@@ -149,7 +149,64 @@ function loadImage(url: string): Promise<HTMLImageElement> {
 // A short timer, not an animation frame: a page in a background tab gets no frames, and the image must still finish.
 const aMoment = () => new Promise((resolve) => window.setTimeout(resolve, 30))
 
-/** The still card as a 1080 x 1350 PNG. */
+/*
+ * Ways to blow the 520 x 650 card up to 1080 x 1350, tried in order until one fills the image. Safari does not scale the
+ * card's HTML by the SVG's viewBox: it draws it at 520 x 650 in the top-left corner of an otherwise see-through image.
+ * - zoom: CSS zoom lays the card out at full size, with no scaling by the SVG or the canvas.
+ * - viewBox: the SVG scales the card (Firefox before version 126 has no zoom).
+ * - canvas: the SVG stays card-sized and the canvas scales it while drawing (a last resort; can come out softer).
+ */
+type Way = 'zoom' | 'viewBox' | 'canvas'
+const WAYS: readonly Way[] = ['zoom', 'viewBox', 'canvas']
+const ZOOM = IMAGE_W / CARD_W
+
+function svgMarkup(copy: Node, css: string, way: Way): string {
+  const [width, height] = way === 'zoom' ? [IMAGE_W, IMAGE_H] : [CARD_W, CARD_H]
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('width', String(way === 'canvas' ? CARD_W : IMAGE_W))
+  svg.setAttribute('height', String(way === 'canvas' ? CARD_H : IMAGE_H))
+  svg.setAttribute('viewBox', `0 0 ${width} ${height}`)
+  const holder = document.createElementNS(SVG_NS, 'foreignObject')
+  holder.setAttribute('x', '0')
+  holder.setAttribute('y', '0')
+  holder.setAttribute('width', String(width))
+  holder.setAttribute('height', String(height))
+  const page = document.createElementNS(XHTML_NS, 'div')
+  if (way === 'zoom') page.style.setProperty('zoom', String(ZOOM))
+  const style = document.createElementNS(XHTML_NS, 'style')
+  style.textContent = css
+  page.append(style, copy)
+  holder.append(page)
+  svg.append(holder)
+  return new XMLSerializer().serializeToString(svg)
+}
+
+/*
+ * Points inside the card at full size but outside it at 520 x 650, away from the rounded corners: they are solid only
+ * when the card was drawn whole and at full size.
+ */
+const CHECK_POINTS: readonly (readonly [number, number])[] = [
+  [IMAGE_W - 40, IMAGE_H / 2],
+  [IMAGE_W / 2, IMAGE_H - 40],
+]
+
+function fillsTheImage(context: CanvasRenderingContext2D): boolean {
+  return CHECK_POINTS.every(([x, y]) => context.getImageData(x, y, 1, 1).data[3] === 255)
+}
+
+async function draw(context: CanvasRenderingContext2D, markup: string): Promise<boolean> {
+  const picture = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`)
+  await atMost(picture.decode(), 2_000)
+  context.clearRect(0, 0, IMAGE_W, IMAGE_H)
+  context.drawImage(picture, 0, 0, IMAGE_W, IMAGE_H)
+  // Safari can draw an SVG with inlined pictures and fonts blank the first time; a second draw a moment later is whole.
+  await aMoment()
+  context.clearRect(0, 0, IMAGE_W, IMAGE_H)
+  context.drawImage(picture, 0, 0, IMAGE_W, IMAGE_H)
+  return fillsTheImage(context)
+}
+
+/** The still card as a 1080 x 1350 PNG. Refuses rather than save a card drawn small or not at all. */
 export async function cardToBlob(card: HTMLElement): Promise<Blob> {
   await atMost(document.fonts.ready, 5_000)
   const images = [...card.querySelectorAll('img')]
@@ -160,41 +217,25 @@ export async function cardToBlob(card: HTMLElement): Promise<Blob> {
   const rules: string[] = []
   const copy = copyNode(card, rules, pictures)
   if (!copy) throw new Error('Nothing to draw.')
-
-  const svg = document.createElementNS(SVG_NS, 'svg')
-  svg.setAttribute('width', String(IMAGE_W))
-  svg.setAttribute('height', String(IMAGE_H))
-  svg.setAttribute('viewBox', `0 0 ${CARD_W} ${CARD_H}`)
-  const holder = document.createElementNS(SVG_NS, 'foreignObject')
-  holder.setAttribute('x', '0')
-  holder.setAttribute('y', '0')
-  holder.setAttribute('width', String(CARD_W))
-  holder.setAttribute('height', String(CARD_H))
-  const page = document.createElementNS(XHTML_NS, 'div')
-  const css = document.createElementNS(XHTML_NS, 'style')
-  css.textContent = `${fonts}\n${rules.join('\n')}`
-  page.append(css, copy)
-  holder.append(page)
-  svg.append(holder)
-
-  const markup = new XMLSerializer().serializeToString(svg)
-  const picture = await loadImage(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`)
-  await atMost(picture.decode(), 2_000)
+  const css = `${fonts}\n${rules.join('\n')}`
 
   const canvas = document.createElement('canvas')
   canvas.width = IMAGE_W
   canvas.height = IMAGE_H
-  const context = canvas.getContext('2d')
+  const context = canvas.getContext('2d', { willReadFrequently: true })
   if (!context) throw new Error('This browser cannot draw the image.')
-  context.drawImage(picture, 0, 0, IMAGE_W, IMAGE_H)
-  // Safari can draw an SVG with inlined pictures and fonts blank the first time; a second draw a moment later is whole.
-  await aMoment()
-  context.clearRect(0, 0, IMAGE_W, IMAGE_H)
-  context.drawImage(picture, 0, 0, IMAGE_W, IMAGE_H)
 
-  return new Promise((resolve, reject) =>
-    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('The image could not be made.'))), 'image/png'),
-  )
+  for (const way of WAYS) {
+    if (await draw(context, svgMarkup(copy, css, way))) {
+      return new Promise((resolve, reject) =>
+        canvas.toBlob(
+          (blob) => (blob ? resolve(blob) : reject(new Error('The image could not be made.'))),
+          'image/png',
+        ),
+      )
+    }
+  }
+  throw new Error('This browser drew the card at the wrong size.')
 }
 
 /** Save through the browser's own download: an `<a download>` on an object URL, let go of afterwards. */
