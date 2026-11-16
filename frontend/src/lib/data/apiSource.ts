@@ -136,7 +136,14 @@ export const apiSource: DataSource = {
 
   tagCatalog: (signal) => unwrap(api.GET('/api/v1/tags', { signal })),
 
-  accounts: (signal) => unwrap(api.GET('/api/v1/accounts', { signal })),
+  // The server lists archived accounts too unless told not to; an archived account is finished, so by default leave it out.
+  accounts: (signal, options) =>
+    unwrap(
+      api.GET('/api/v1/accounts', {
+        params: { query: { include_archived: options?.includeArchived ?? false } },
+        signal,
+      }),
+    ),
 
   async saveNotes(id, html) {
     await unwrap(api.PUT('/api/v1/trades/{trade_id}/notes', { params: { path: { trade_id: id } }, body: { html } }))

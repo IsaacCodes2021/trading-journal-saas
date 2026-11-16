@@ -35,7 +35,7 @@ const dayLink = (day: string) => screen.getByRole('link', { name: new RegExp(`^$
 const location = (app: Awaited<ReturnType<typeof openCalendar>>) => app.router.state.location
 
 describe('the month', () => {
-  it('names the month, the weekdays from Monday, and a column for each week', async () => {
+  it('names the month, the weekdays from Sunday, and a column for each week', async () => {
     await openCalendar()
     expect(await screen.findByRole('heading', { name: 'September 2026' })).toBeInTheDocument()
     const table = screen.getByRole('table')
@@ -43,7 +43,7 @@ describe('the month', () => {
       within(table)
         .getAllByRole('columnheader')
         .map((h) => h.textContent),
-    ).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', 'Week'])
+    ).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Week'])
   })
 
   it('has a link for every day of the month, and only for them', async () => {
@@ -80,8 +80,8 @@ describe('the month', () => {
     await screen.findByRole('region', { name: 'Calendar' })
     const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1) // after the header
     const firstWeek = tradesOn(FIRST).concat(
-      days.filter((d) => d > FIRST && d <= '2026-09-06').flatMap((d) => tradesOn(d)),
-    ) // Tue 1 to Sun 6 September
+      days.filter((d) => d > FIRST && d <= '2026-09-05').flatMap((d) => tradesOn(d)),
+    ) // Tue 1 to Sat 5 September: the week ends on Saturday
     const weekCell = within(rows[0] as HTMLElement)
       .getAllByRole('cell')
       .at(-1) as HTMLElement

@@ -1,12 +1,12 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { AccountRow, AccountsOverview } from '../../lib/data/model'
+import type { AccountRow, AccountsOverview, Spectrum } from '../../lib/data/model'
 import { resetDemoAccounts } from '../../lib/demo/accounts'
 import { resetDemoRules } from '../../lib/demo/rules'
 import { demoSource } from '../../lib/demo/source'
 import { openApp, stubApi } from '../../test-utils'
-import { spectrumText } from './AccountsOverviewPage'
+import { profitToGoal, spectrumText } from './AccountsOverviewPage'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -81,6 +81,36 @@ describe('the Accounts tab', () => {
         position: 1,
       }),
     ).toBe('$5,200.00 above the drawdown floor · at the profit target')
+  })
+
+  it('shows a profit-to-goal bar where the inactivity column was', async () => {
+    const { table } = await open()
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((h) => h.textContent)
+    expect(headers).toContain('Profit → goal')
+    expect(headers).not.toContain('Inactivity')
+    const bar = within(rowOf(table, 'Lucid 100K')).getByRole('progressbar', { name: 'Lucid 100K profit to goal' })
+    expect(bar).toHaveAttribute('aria-valuetext', '$2,564.10 profit of the $6,000.00 profit target')
+    expect(bar).toHaveAttribute('aria-valuenow', '43')
+    expect(within(rowOf(table, 'Apex 50K #2')).queryByRole('progressbar')).not.toBeInTheDocument() // no rules, no goal
+  })
+
+  it('keeps the profit bar at zero on a loss, full past the goal, and names a funded account’s payout goal', async () => {
+    const row = (await demoSource.accountsOverview()).accounts[0] as AccountRow
+    const at = (balance: string, target_kind: Spectrum['target_kind'] = 'profit_target') =>
+      profitToGoal({
+        ...row,
+        account: { ...row.account, starting_balance: '50000.00' },
+        spectrum: { ...(row.spectrum as Spectrum), target_level: '53000.00', target_kind, balance },
+      })
+    expect(at('49200.00')).toEqual({ fraction: 0, text: 'No profit yet toward the $3,000.00 profit target' })
+    expect(at('50000.00')?.fraction).toBe(0)
+    expect(at('51500.00')).toEqual({ fraction: 0.5, text: '$1,500.00 profit of the $3,000.00 profit target' })
+    expect(at('54000.00')?.fraction).toBe(1)
+    expect(at('51500.00', 'payout')?.text).toBe('$1,500.00 profit of the $3,000.00 profit a payout needs')
+    expect(profitToGoal({ ...row, spectrum: { ...(row.spectrum as Spectrum), target_level: null } })).toBeNull()
+    expect(profitToGoal({ ...row, spectrum: null })).toBeNull()
   })
 
   it('adds up the balances, the withdrawable payouts and what was withdrawn', async () => {

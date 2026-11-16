@@ -182,7 +182,8 @@ export const demoSource: DataSource = {
   deleteTag: (id) => run(() => (journal.deleteTag(id), journal.tagCatalog())),
   addScreenshots: (id, files) => run(() => journal.addScreenshots(target(id), files)),
   deleteScreenshot: (id, screenshotId) => run(() => journal.deleteScreenshot(target(id), screenshotId)),
-  accounts: () => Promise.resolve(accounts.activeAccountRefs()),
+  accounts: (_signal, options) =>
+    Promise.resolve(options?.includeArchived ? accounts.allAccountRefs() : accounts.activeAccountRefs()),
   previewImport: (accountId, file) => imports.previewImport(accountId, file),
   commitImport: (accountId, file) => imports.commitImport(accountId, file),
   imports: () => Promise.resolve(imports.listImports()),

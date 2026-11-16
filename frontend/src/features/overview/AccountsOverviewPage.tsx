@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Modal } from '../../components/ui/Modal'
@@ -119,13 +120,54 @@ function PayoutText({ row }: { row: AccountRow }) {
   return <span className="text-muted">{row.progress || '—'}</span>
 }
 
-function Inactivity({ row }: { row: AccountRow }) {
-  const inactivity = row.inactivity
-  if (!inactivity) return null
+/**
+ * How far the account's profit has come toward its goal: the goal at the right end of the breach bar (an evaluation's
+ * profit target; for a funded account, the balance a payout needs), counted from the starting balance. A loss stays at
+ * zero and anything past the goal is a full bar. Null when the rules set no goal.
+ */
+export function profitToGoal(row: AccountRow): { fraction: number; text: string } | null {
+  const spectrum = row.spectrum
+  if (spectrum === null || spectrum.target_level === null) return null
+  const start = new Decimal(row.account.starting_balance)
+  const goal = new Decimal(spectrum.target_level).minus(start)
+  if (goal.lte(0)) return null
+  const profit = new Decimal(spectrum.balance).minus(start)
+  const fraction = Decimal.min(1, Decimal.max(0, profit.div(goal))).toNumber()
+  const target =
+    spectrum.target_kind === 'payout'
+      ? `the ${formatMoney(goal.toFixed(2))} profit a payout needs`
+      : `the ${formatMoney(goal.toFixed(2))} profit target`
+  const text = profit.gt(0) ? `${formatMoney(profit.toFixed(2))} profit of ${target}` : `No profit yet toward ${target}`
+  return { fraction, text }
+}
+
+/** Zero profit on the left, the goal on the right, filled as far as the profit has come. */
+function ProfitBar({ row }: { row: AccountRow }) {
+  const progress = profitToGoal(row)
+  if (progress === null) return <span className="text-muted">—</span>
+  const percent = Math.round(progress.fraction * 100)
   return (
-    <span className={cx('text-[13px]', inactivity.days_left !== null && inactivity.days_left <= 7 && 'text-warn')}>
-      {inactivity.message}
-    </span>
+    <div
+      role="progressbar"
+      aria-label={`${row.account.name} profit to goal`}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={percent}
+      aria-valuetext={progress.text}
+      title={progress.text}
+      className="relative h-2.5 w-32 rounded-full bg-line"
+    >
+      <span
+        aria-hidden="true"
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ width: `${percent}%`, background: 'linear-gradient(to right, var(--gold), var(--pos))' }}
+      />
+      <span
+        aria-hidden="true"
+        className="absolute top-1/2 h-4 w-1 -translate-x-1/2 -translate-y-1/2 rounded bg-ink ring-2 ring-panel"
+        style={{ left: `${percent}%` }}
+      />
+    </div>
   )
 }
 
@@ -293,7 +335,7 @@ function AccountsTable({
                 Consistency room
               </th>
               <th scope="col" className={TH}>
-                Inactivity
+                Profit → goal
               </th>
               <th scope="col" className={TH}>
                 <span className="sr-only">Rules</span>
@@ -338,7 +380,7 @@ function AccountsTable({
                     {row.consistency_headroom ? formatMoney(row.consistency_headroom) : ''}
                   </td>
                   <td className={TD}>
-                    <Inactivity row={row} />
+                    <ProfitBar row={row} />
                   </td>
                   <td className={cx(TD, 'text-right')}>
                     <RulesButton row={row} onOpen={() => onRules(row)} />
@@ -429,7 +471,9 @@ function AccountCards({
               <div className="text-[13px]">
                 <PayoutText row={row} />
               </div>
-              <Inactivity row={row} />
+              <div className="flex items-center gap-2 text-[13px] text-muted">
+                Profit → goal <ProfitBar row={row} />
+              </div>
               {row.rules_set ? (
                 <div>
                   <RulesButton row={row} onOpen={() => onRules(row)} />

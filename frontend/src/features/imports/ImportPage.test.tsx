@@ -1,6 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { activeAccountRefs, resetDemoAccounts } from '../../lib/demo/accounts'
 import { resetDemoImports } from '../../lib/demo/imports'
 import { demoSource } from '../../lib/demo/source'
 import { csv, csvFile, manyRows } from '../../test-csv'
@@ -9,6 +10,7 @@ import { openApp, stubApi } from '../../test-utils'
 afterEach(() => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  resetDemoAccounts()
   resetDemoImports()
   document.documentElement.removeAttribute('data-theme')
 })
@@ -174,6 +176,25 @@ describe('the import page', () => {
   })
 })
 
+describe('the history’s accounts', () => {
+  it('link to each account’s details in Settings, Prop accounts, an archived one too', async () => {
+    await demoSource.archiveAccount(2, { outcome: 'closed', ended_on: '2026-10-02', note: '' }) // Apex 150K
+    const { user, router } = await openImport()
+    const history = await screen.findByRole('region', { name: 'Import history' })
+    const rows = within(history).getAllByRole('row').slice(1)
+    expect(within(rows[0] as HTMLElement).getByRole('link', { name: 'Apex 50K #1' })).toHaveAttribute(
+      'href',
+      '/settings/accounts?account=1&tab=details',
+    )
+    const archived = within(rows[1] as HTMLElement).getByRole('link', { name: 'Apex 150K' })
+    expect(archived).toHaveAttribute('href', '/settings/accounts?account=2&tab=details')
+
+    await user.click(archived)
+    await waitFor(() => expect(router.state.location.pathname).toBe('/settings/accounts'))
+    expect(await screen.findByRole('region', { name: 'Apex 150K settings' })).toBeInTheDocument()
+  })
+})
+
 describe('undoing an import', () => {
   it('shows what would be removed before anything is, and can be told to keep it', async () => {
     const { user } = await openImport()
@@ -234,5 +255,65 @@ describe('the zone the file is read in', () => {
     openApp('/import')
     await screen.findByRole('heading', { name: 'Import trades' })
     expect(await screen.findByText('America/Los_Angeles')).toBeInTheDocument()
+  })
+})
+
+describe('the accounts it offers', () => {
+  const archive = (id: number) => demoSource.archiveAccount(id, { outcome: 'closed', ended_on: '2026-10-02', note: '' })
+
+  it('leaves an archived account out', async () => {
+    await archive(2) // Apex 150K
+    await openImport()
+    const select = await screen.findByLabelText('Import into account')
+    await waitFor(() =>
+      expect(
+        within(select)
+          .getAllByRole('option')
+          .map((o) => o.textContent),
+      ).toEqual(['Apex 50K #1', 'Lucid 100K', 'Apex 50K #2']),
+    )
+  })
+
+  it('says so when no account is active, and still offers to add one', async () => {
+    for (const { id } of activeAccountRefs()) await archive(id)
+    await openImport()
+    expect(await screen.findByText('You have no active accounts. Add one to import into.')).toBeInTheDocument()
+    expect(screen.getByLabelText('Import into account')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Choose a file' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: '+ New account' })).toBeEnabled()
+  })
+
+  it('adds an account without leaving the page, picks it, and imports a chosen file into it', async () => {
+    const { user } = await openImport()
+    await waitFor(() => expect(screen.getByLabelText('Import into account')).toBeEnabled()) // the accounts have loaded
+    await choose(user, csvFile(csv(manyRows(2))))
+    await screen.findByRole('region', { name: 'Preview' })
+
+    await user.click(screen.getByRole('button', { name: '+ New account' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add account' })
+    await user.type(within(dialog).getByLabelText('Account name'), 'Tradeify 100K')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
+    await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    expect(screen.getByText('Added Tradeify 100K. Files you import now go into it.')).toBeInTheDocument()
+    const select = screen.getByLabelText('Import into account')
+    await waitFor(() =>
+      expect(within(select).getByRole('option', { name: 'Tradeify 100K', selected: true })).toBeInTheDocument(),
+    )
+    expect(screen.getByRole('heading', { name: 'Import trades' })).toBeInTheDocument() // still on the import page
+
+    await user.click(await screen.findByRole('button', { name: 'Import 2 fill pairs' }))
+    expect(await screen.findByText(/Imported 2 fill pairs into Tradeify 100K/)).toBeInTheDocument()
+  })
+
+  it('closes the new-account dialog on Cancel without adding anything', async () => {
+    const { user } = await openImport()
+    await waitFor(() => expect(screen.getByLabelText('Import into account')).toBeEnabled())
+    await user.click(screen.getByRole('button', { name: '+ New account' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add account' })
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await demoSource.accounts()).toHaveLength(4)
   })
 })

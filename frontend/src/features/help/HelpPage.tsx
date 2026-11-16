@@ -46,8 +46,8 @@ export function HelpPage() {
             <li>
               <strong>Add your accounts.</strong> In{' '}
               <Link to="/settings/accounts">Settings &rsaquo; Prop accounts</Link>, add each account with its firm and
-              whether it is an evaluation or a funded account. Fees, rules and a ledger of payouts and fees are optional
-              and can be added later.
+              whether it is an evaluation or a funded account. Fees, rules and prop spend (what it cost, and its
+              payouts) are optional and can be added later.
             </li>
             <li>
               <strong>Export from Tradovate.</strong> Export the <em>Performance</em> report as a CSV with all its

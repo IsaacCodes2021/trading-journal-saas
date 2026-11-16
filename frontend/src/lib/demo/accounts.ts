@@ -264,6 +264,11 @@ export function activeAccountRefs(): AccountRef[] {
   return accounts.filter((a) => a.outcome === null).map(refOf)
 }
 
+/** Every account, archived ones too, in the order they were made. */
+export function allAccountRefs(): AccountRef[] {
+  return accounts.map(refOf)
+}
+
 /** One account by id, archived or not (the import history names accounts that have since been archived). */
 export function accountRef(id: number): AccountRef | undefined {
   const found = accounts.find((a) => a.id === id)

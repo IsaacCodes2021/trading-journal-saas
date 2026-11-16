@@ -84,19 +84,19 @@ export interface CalendarCell {
 }
 
 export interface CalendarWeek {
-  /** Monday to Sunday; null for a day that belongs to the month before or after. */
+  /** Sunday to Saturday; null for a day that belongs to the month before or after. */
   cells: (CalendarCell | null)[]
   net: string | null // the week's result within this month; null when nothing traded
   trades: number
 }
 
-/** The weeks of a month, Monday first, each with its own total. */
+/** The weeks of a month, Sunday first, each with its own total. */
 export function buildWeeks(month: string, daily: readonly DailyResult[], noted: readonly string[]): CalendarWeek[] {
   const results = new Map(daily.map((d) => [d.day, d]))
   const notes = new Set(noted)
   const { start, end } = monthRange(month)
   const count = Number(end.slice(8))
-  const offset = (utc(start).getUTCDay() + 6) % 7 // Monday is 0
+  const offset = utc(start).getUTCDay() // Sunday is 0
   const weeks: CalendarWeek[] = []
   for (let first = 1 - offset; first <= count; first += 7) {
     const cells: (CalendarCell | null)[] = []

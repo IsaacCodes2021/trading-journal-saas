@@ -50,8 +50,8 @@ export function BusinessCard() {
             <p className="mt-3 mb-0 text-xs text-muted">
               {pluralize(missing.length, 'account')} {missing.length === 1 ? 'has' : 'have'} no cost recorded (
               {missing.slice(0, 3).join(', ')}
-              {missing.length > 3 ? ` and ${missing.length - 3} more` : ''}). Open one and add its fee in Ledger so the
-              net is true.
+              {missing.length > 3 ? ` and ${missing.length - 3} more` : ''}). Open one and add its fee in Prop spend so
+              the net is true.
             </p>
           ) : null}
         </>

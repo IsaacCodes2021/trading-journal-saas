@@ -19,7 +19,7 @@ const LABELS: Record<Tab, string> = {
   rules: 'Rules',
   'firm-rules': 'Firm rules',
   payouts: 'Payouts',
-  ledger: 'Ledger',
+  ledger: 'Prop spend', // the address keeps "ledger" (tab=ledger), so older links still open it
 }
 
 function messageOf(error: unknown): string {
@@ -156,7 +156,8 @@ export function AccountPanel({
             onClick={() => onTab(t)}
             onKeyDown={onKeyDown}
             className={cx(
-              'h-[38px] cursor-pointer border-0 border-b-2 bg-transparent px-3 font-[inherit]',
+              // Narrow enough for all six on one row in the ~430px panel beside the list.
+              'h-[38px] cursor-pointer border-0 border-b-2 bg-transparent px-2 font-[inherit] whitespace-nowrap',
               tab === t ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink',
             )}
           >

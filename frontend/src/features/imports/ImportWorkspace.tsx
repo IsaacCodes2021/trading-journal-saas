@@ -6,6 +6,7 @@ import type { ImportRecord } from '../../lib/data/model'
 import { useAccounts, useCommitImport, usePreviewImport } from '../../lib/data/queries'
 import { pluralize } from '../../lib/format'
 import { MAX_CSV_MB } from '../../lib/tradovate'
+import { AddAccountDialog } from '../accounts/AccountDialogs'
 import { PreviewSection } from './PreviewSection'
 
 function kilobytes(bytes: number): string {
@@ -20,6 +21,9 @@ function messageOf(error: unknown): string {
  * The working part of importing: choose an account and a Tradovate Performance CSV, see exactly what would happen
  * (nothing is saved yet), and confirm. The preview is re-worked if the account changes, because what counts as
  * "already imported" depends on the account. Used by the Import screen and by the first-run setup.
+ *
+ * Only active accounts are offered (an archived one is finished). A new account can be added from here without
+ * leaving the page; once added, it is the one picked.
  *
  * `notice` is the line shown above the form (what was just imported or undone); the caller owns it so that another part
  * of the page (the history) can set it too. `onImported` is told when a file has been imported.
@@ -41,6 +45,7 @@ export function ImportWorkspace({
   const [pickedAccount, setPickedAccount] = useState<number | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [adding, setAdding] = useState(false)
   const input = useRef<HTMLInputElement>(null)
 
   const accountId = pickedAccount ?? accounts.data?.[0]?.id ?? null
@@ -108,19 +113,29 @@ export function ImportWorkspace({
           <label htmlFor="import-account" className="text-[13px] font-medium">
             Import into account
           </label>
-          <select
-            id="import-account"
-            value={accountId ?? ''}
-            disabled={!accounts.data}
-            onChange={(e) => changeAccount(Number(e.target.value))}
-            className="h-[42px] rounded-lg border border-line bg-raised px-3 font-[inherit] text-ink"
-          >
-            {accounts.data?.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              id="import-account"
+              value={accountId ?? ''}
+              disabled={!accounts.data || accounts.data.length === 0}
+              onChange={(e) => changeAccount(Number(e.target.value))}
+              className="h-[42px] min-w-0 flex-1 rounded-lg border border-line bg-raised px-3 font-[inherit] text-ink"
+            >
+              {accounts.data?.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+            <Button className="h-[42px] shrink-0" disabled={!accounts.data} onClick={() => setAdding(true)}>
+              + New account
+            </Button>
+          </div>
+          {accounts.data?.length === 0 ? (
+            <div role="status" className="text-[13px] text-muted">
+              You have no active accounts. Add one to import into.
+            </div>
+          ) : null}
           <div className="mt-0.5 text-xs text-muted">
             CSV timestamps are read as <span className="num">{timeZone}</span>.{' '}
             <Link to="/settings" search={(prev) => prev}>
@@ -204,6 +219,17 @@ export function ImportWorkspace({
           committing={commit.isPending}
           onCancel={clear}
           onCommit={doCommit}
+        />
+      ) : null}
+
+      {adding ? (
+        <AddAccountDialog
+          onClose={() => setAdding(false)}
+          onCreated={(created) => {
+            setAdding(false)
+            onNotice(`Added ${created.name}. Files you import now go into it.`)
+            changeAccount(created.id)
+          }}
         />
       ) : null}
     </>

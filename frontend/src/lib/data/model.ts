@@ -639,7 +639,8 @@ export interface DataSource {
   deleteTag(id: number): Promise<TagCatalog>
   addScreenshots(id: number, files: readonly File[]): Promise<ScreenshotRef[]>
   deleteScreenshot(id: number, screenshotId: number): Promise<void>
-  accounts(signal?: AbortSignal): Promise<AccountRef[]>
+  /** The active accounts (the ones a file can be imported into); every account, archived ones too, when asked. */
+  accounts(signal?: AbortSignal, options?: { includeArchived?: boolean }): Promise<AccountRef[]>
   previewImport(accountId: number, file: File): Promise<ImportPreview>
   commitImport(accountId: number, file: File): Promise<ImportRecord>
   imports(signal?: AbortSignal): Promise<ImportRecord[]>

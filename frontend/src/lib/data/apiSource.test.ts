@@ -128,6 +128,13 @@ describe('the small reads', () => {
     await apiSource.accounts()
     expect(asked.map((url) => url.pathname)).toEqual(['/api/v1/filter-options', '/api/v1/tags', '/api/v1/accounts'])
   })
+
+  it('asks for the active accounts only, unless every account is wanted', async () => {
+    const asked = serve(() => json([]))
+    await apiSource.accounts()
+    await apiSource.accounts(undefined, { includeArchived: true })
+    expect(asked.map((url) => url.searchParams.get('include_archived'))).toEqual(['false', 'true'])
+  })
 })
 
 describe('the calendar and the day', () => {

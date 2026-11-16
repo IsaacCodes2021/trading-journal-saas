@@ -55,7 +55,7 @@ export function Meter({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={percent}
-        className={cx('h-1.5 overflow-hidden rounded-[3px] bg-line', bare ? 'w-full' : 'w-[120px]')}
+        className={cx('h-1.5 overflow-hidden rounded-[3px] bg-line', bare ? 'w-full' : 'w-20')}
       >
         <div className={cx('h-full', tone === 'pos' ? 'bg-pos' : 'bg-accent')} style={{ width: `${percent}%` }} />
       </div>
@@ -64,8 +64,14 @@ export function Meter({
   )
 }
 
-const th = 'border-b border-line px-3.5 py-2.5 text-xs font-medium whitespace-nowrap text-muted'
-const td = 'border-b border-line-soft px-3.5 py-2.5 whitespace-nowrap'
+/*
+ * The list shares the row with the account's panel, so it has about 620px even on a wide screen. The numbers and pills
+ * stay on one line; the account's name and firm wrap instead (inside a word if they must: a broker's account number
+ * like "LFE05062368660012" has no spaces), so a long name never pushes the table into a scroll.
+ */
+const th = 'border-b border-line px-3 py-2.5 text-xs font-medium whitespace-nowrap text-muted'
+const tdWrap = 'border-b border-line-soft px-3 py-2.5 [overflow-wrap:anywhere]'
+const td = `${tdWrap} whitespace-nowrap`
 
 function money(value: string | null): string {
   return value === null ? '—' : formatAmount(value).replace(/\.00$/, '')
@@ -127,7 +133,7 @@ export function AccountList({
             <tbody>
               {active.map(({ account, progress }) => (
                 <tr key={account.id} className={cx(selected === account.id && 'bg-chip-selected-bg')}>
-                  <td className={td}>
+                  <td className={tdWrap}>
                     <button
                       type="button"
                       aria-pressed={selected === account.id}

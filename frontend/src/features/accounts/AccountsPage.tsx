@@ -91,7 +91,7 @@ export function AccountsPage({
             />
           ) : (
             <p className="m-0 min-w-0 flex-[2_1_340px] rounded-[10px] border border-dashed border-line-strong p-6 text-center text-muted">
-              Choose an account to see and change its details, fees, rules, payouts and ledger.
+              Choose an account to see and change its details, fees, rules, payouts and prop spend.
             </p>
           )}
         </div>

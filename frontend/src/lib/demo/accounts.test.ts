@@ -173,6 +173,12 @@ describe('adding and editing an account', () => {
     expect(accountRef(created.id)?.name).toBe('Tradeify 100K') // still found by id, for the history
     expect(accountRef(12345)).toBeUndefined()
   })
+
+  it('lists every account, archived ones too, when asked', async () => {
+    const all = await demoSource.accounts(undefined, { includeArchived: true })
+    expect(all).toHaveLength(9)
+    expect(all.map((a) => a.name)).toEqual(expect.arrayContaining(activeAccountRefs().map((a) => a.name)))
+  })
 })
 
 describe('rules', () => {
