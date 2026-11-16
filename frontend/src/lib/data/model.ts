@@ -191,6 +191,7 @@ export interface ScreenshotRef {
 
 /** Everything the detail page shows about one trade. */
 export interface TradeDetail extends TradeRow {
+  number: number // the person's own count of trades up to this one (their first is 1): the number on a shared card
   points: string // per contract, positive = favourable
   fill_pairs: FillPairRow[]
   notes_html: string // sanitized again on render, whatever the server did

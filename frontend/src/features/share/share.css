@@ -1,0 +1,1254 @@
+/*
+ * The share card and its pop-up, ported from the design mock (docs/design/share-trade-card.html) with the same values.
+ * Every class carries the `sc-` prefix so nothing here can reach the rest of the app. This file is loaded with the
+ * pop-up only (ShareDialog is a lazy chunk). It is not in a cascade layer, so on the pop-up's own elements it wins over
+ * the Tailwind classes that Modal and Button bring (those are layered).
+ *
+ * The card's colours are fixed: it looks the same in the app's light and dark themes, because a shared image looks
+ * the same whoever opens it. The pop-up around it uses the app's tokens.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  --sc-stage: radial-gradient(circle at 50% 25%, #1c2531, #0d1117);
+}
+
+:root[data-theme='light'] {
+  --sc-stage: radial-gradient(circle at 50% 25%, #ffffff, #e7ecf3);
+}
+
+/* ---------- the preview scales the 520 x 650 card to its column ---------- */
+.sc-fit {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  aspect-ratio: 4 / 5;
+}
+
+.sc-scaler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 520px;
+  height: 650px;
+  transform: scale(var(--s, 1));
+  transform-origin: 0 0;
+}
+
+/* The still copy the image is made from: the card's own size, out of sight. Not `visibility: hidden`, which the copy
+   would inherit and draw as nothing. */
+.sc-offstage {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 520px;
+  height: 650px;
+  pointer-events: none;
+}
+
+/* ======================================================================
+   THE CARD (520 x 650 design size, saved at 1080 x 1350)
+   ====================================================================== */
+@property --ang {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.sc-card {
+  position: relative;
+  width: 520px;
+  height: 650px;
+  border-radius: 18px;
+  overflow: hidden;
+  isolation: isolate;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: #e8edf3;
+  /* The mock's page gives its cards these; the app's body differs a little (line-height 1.45), so they are set here. */
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+  -webkit-font-smoothing: antialiased;
+  transform: perspective(1100px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.25s ease-out;
+  box-shadow: 0 30px 70px -28px rgba(0, 0, 0, 0.55);
+  /* gold foil for a win */
+  --m1: #7a5800;
+  --m2: #e9c46a;
+  --m3: #fff3c4;
+  --m4: #b58b2a;
+  --m5: #5e4510;
+  --ink: #3b2a06;
+  --pnl-a: #a6f7d6;
+  --pnl-b: #34d399;
+  --pnl-c: #149a6c;
+}
+
+/* silver foil for a loss */
+.sc-card.sc-is-loss {
+  --m1: #4d5664;
+  --m2: #c4ccd8;
+  --m3: #ffffff;
+  --m4: #8a95a5;
+  --m5: #3a414c;
+  --ink: #1d232c;
+  --pnl-a: #ffc2c2;
+  --pnl-b: #f87171;
+  --pnl-c: #c4413f;
+}
+
+.sc-metal {
+  background: linear-gradient(
+    118deg,
+    var(--m5) 0%,
+    var(--m2) 14%,
+    var(--m3) 24%,
+    var(--m4) 38%,
+    var(--m1) 50%,
+    var(--m2) 64%,
+    var(--m3) 74%,
+    var(--m4) 88%,
+    var(--m5) 100%
+  );
+  background-size: 260% 260%;
+  animation: sc-foil 8s ease-in-out infinite alternate;
+}
+
+@keyframes sc-foil {
+  from {
+    background-position: 0% 30%;
+  }
+  to {
+    background-position: 100% 70%;
+  }
+}
+
+.sc-inner {
+  position: absolute;
+  inset: 8px;
+  border-radius: 11px;
+  overflow: hidden;
+}
+
+.sc-deco {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sc-guilloche {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.sc-content {
+  position: relative;
+  height: 100%;
+  padding: 24px 28px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sc-content > * {
+  flex-shrink: 0; /* only the screenshot gives way when space is short */
+}
+
+.sc-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sc-sheen::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -60%;
+  width: 46%;
+  background: linear-gradient(
+    100deg,
+    transparent,
+    rgba(255, 255, 255, 0.07) 42%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.07) 58%,
+    transparent
+  );
+  transform: skewX(-14deg);
+  animation: sc-sweep 7s ease-in-out infinite;
+}
+
+@keyframes sc-sweep {
+  0% {
+    left: -60%;
+  }
+  38%,
+  100% {
+    left: 125%;
+  }
+}
+
+.sc-holo-film {
+  display: none;
+}
+
+.sc-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at var(--gx, 50%) var(--gy, 0%),
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0) 42%
+  );
+  mix-blend-mode: overlay;
+  opacity: var(--go, 0);
+  transition: opacity 0.3s;
+}
+
+.sc-frame-line {
+  position: absolute;
+  inset: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--rule-strong);
+  display: none;
+}
+
+.sc-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  display: none;
+  clip-path: polygon(0 0, 100% 0, 100% 2.5px, 2.5px 2.5px, 2.5px 100%, 0 100%);
+}
+
+.sc-corner.sc-tl {
+  top: 14px;
+  left: 14px;
+}
+
+.sc-corner.sc-tr {
+  top: 14px;
+  right: 14px;
+  transform: scaleX(-1);
+}
+
+.sc-corner.sc-bl {
+  bottom: 14px;
+  left: 14px;
+  transform: scaleY(-1);
+}
+
+.sc-corner.sc-br {
+  bottom: 14px;
+  right: 14px;
+  transform: scale(-1, -1);
+}
+
+/* content */
+.sc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sc-wm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.sc-wm svg {
+  flex: none;
+}
+
+.sc-no {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.sc-kicker {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+.sc-orn {
+  display: none;
+}
+
+.sc-instr {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+
+.sc-sym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.01em;
+}
+
+.sc-dir {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.sc-dir--long {
+  background: #0f2a22;
+  color: #34d399;
+}
+
+.sc-dir--short {
+  background: #33191c;
+  color: #f87171;
+}
+
+.sc-meta {
+  font-size: 13px;
+  opacity: 0.72;
+}
+
+.sc-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 92px;
+}
+
+.sc-label {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.sc-pnl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 48px;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin-top: 2px;
+  background: linear-gradient(180deg, var(--pnl-a) 0%, var(--pnl-b) 55%, var(--pnl-c) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px color-mix(in srgb, var(--pnl-b) 35%, transparent));
+}
+
+/* A flat result (zero): the win foil, and plain card ink with no glow. */
+.sc-card.sc-is-flat .sc-pnl {
+  background: none;
+  color: inherit;
+  filter: none;
+}
+
+.sc-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  opacity: 0.72;
+  margin-top: 4px;
+}
+
+.sc-legs {
+  display: grid;
+  grid-template-columns: 1.3fr 1.3fr 0.7fr 1fr;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+.sc-legs.sc-legs-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.sc-leg {
+  padding: 9px 0 9px 12px;
+  border-left: 1px solid var(--rule);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sc-leg:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.sc-leg .sc-v {
+  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.sc-leg .sc-s {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  opacity: 0.68;
+  white-space: nowrap;
+}
+
+.sc-shot {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+}
+
+/* The picture is placed by the crop (a focus point and a zoom), with a computed size and offset, not by object-fit. */
+.sc-shot-win {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.sc-shot-win > img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  display: block;
+}
+
+.sc-notes {
+  margin: 0;
+  padding-left: 14px;
+  border-left: 2px solid var(--rule-strong);
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* No screenshot: bigger result and notes, with the notes and tags centred in the space the picture would take */
+.sc-no-shot .sc-pnl {
+  font-size: 58px;
+}
+
+.sc-no-shot .sc-legs {
+  margin-bottom: auto;
+}
+
+.sc-pnl.sc-is-long {
+  font-size: 40px; /* "+$12,491.60" and up */
+}
+
+.sc-no-shot .sc-pnl.sc-is-long {
+  font-size: 46px;
+}
+
+.sc-no-shot .sc-notes {
+  -webkit-line-clamp: 9;
+  font-size: 19px;
+  line-height: 1.55;
+  padding-left: 18px;
+}
+
+.sc-no-shot .sc-tags .sc-tag {
+  height: 28px;
+  font-size: 13px;
+}
+
+.sc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sc-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--rule-strong);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sc-tag i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.sc-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.sc-sig {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sc-sig .sc-name {
+  font-family: 'IBM Plex Serif', Georgia, serif;
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.1;
+}
+
+.sc-sig .sc-role {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.sc-site {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+/* seal */
+.sc-seal {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  flex: none;
+  color: var(--ink);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+
+.sc-seal-metal {
+  position: absolute;
+  inset: 0;
+}
+
+.sc-seal svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0.6px 0 rgba(255, 255, 255, 0.55));
+}
+
+/* ---------- A: gold foil certificate ---------- */
+.sc-card--gold .sc-inner {
+  background: radial-gradient(120% 80% at 85% 0%, #1e2836 0%, #121922 50%, #0a0f15 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.55),
+    inset 0 0 50px rgba(0, 0, 0, 0.55);
+  --rule: color-mix(in srgb, var(--m2) 22%, transparent);
+  --rule-strong: color-mix(in srgb, var(--m2) 42%, transparent);
+}
+
+.sc-card--gold .sc-guilloche {
+  color: var(--m2);
+  opacity: 0.1;
+}
+
+.sc-card--gold .sc-frame-line:not(.sc-frame-line--2),
+.sc-card--gold .sc-corner {
+  display: block;
+}
+
+.sc-card--gold .sc-kicker,
+.sc-card--gold .sc-no {
+  background: linear-gradient(100deg, var(--m4), var(--m3) 40%, var(--m2) 60%, var(--m4));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  opacity: 1;
+}
+
+.sc-card--gold .sc-label {
+  color: var(--m2);
+  opacity: 0.85;
+}
+
+/* ---------- B: holographic ---------- */
+.sc-card--holo {
+  background: conic-gradient(from var(--ang), #6ea8fe, #34d399, #e9c46a, #f472b6, #a78bfa, #6ea8fe);
+  animation: sc-holo-spin 9s linear infinite;
+  box-shadow: 0 30px 80px -30px rgba(110, 168, 254, 0.55);
+}
+
+@keyframes sc-holo-spin {
+  to {
+    --ang: 360deg;
+  }
+}
+
+.sc-card--holo .sc-inner {
+  inset: 3px;
+  border-radius: 15px;
+  background:
+    radial-gradient(100% 60% at 0% 0%, rgba(110, 168, 254, 0.16), transparent 60%),
+    radial-gradient(90% 60% at 100% 100%, rgba(52, 211, 153, 0.12), transparent 60%), #0b1118;
+  --rule: rgba(255, 255, 255, 0.09);
+  --rule-strong: rgba(255, 255, 255, 0.17);
+}
+
+.sc-card--holo .sc-guilloche {
+  color: #9cc3ff;
+  opacity: 0.07;
+}
+
+.sc-card--holo .sc-holo-film {
+  display: block;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    115deg,
+    transparent 22%,
+    rgba(110, 168, 254, 0.18) 36%,
+    rgba(52, 211, 153, 0.16) 45%,
+    rgba(233, 196, 106, 0.14) 54%,
+    rgba(244, 114, 182, 0.16) 63%,
+    transparent 76%
+  );
+  background-size: 260% 260%;
+  background-position: var(--gx, 30%) var(--gy, 30%);
+  mix-blend-mode: color-dodge;
+  opacity: 0.6;
+  transition: background-position 0.2s;
+}
+
+.sc-card--holo .sc-kicker {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.26em;
+  color: #9cc3ff;
+}
+
+.sc-card--holo .sc-seal {
+  width: 96px;
+  height: 96px;
+  transform: rotate(-10deg);
+  --ink: #0b1118;
+}
+
+.sc-card--holo .sc-seal-metal {
+  background: conic-gradient(from var(--ang), #9cc3ff, #8ff5cc, #ffe9a8, #ffb3d9, #c9b8ff, #9cc3ff);
+  animation: sc-holo-spin 6s linear infinite;
+}
+
+/* ---------- C: engraved paper ---------- */
+.sc-card--paper {
+  background: #14233d;
+  color: #17243b;
+}
+
+.sc-card--paper .sc-inner {
+  background: radial-gradient(130% 90% at 50% 0%, #fffdf7 0%, #f8f2e3 60%, #efe5cc 100%);
+  --rule: rgba(23, 36, 59, 0.16);
+  --rule-strong: rgba(23, 36, 59, 0.32);
+}
+
+.sc-card--paper .sc-guilloche {
+  color: #14233d;
+  opacity: 0.07;
+}
+
+.sc-card--paper .sc-frame-line {
+  display: block;
+  border: 1.5px solid #14233d;
+  border-radius: 3px;
+  opacity: 0.85;
+}
+
+.sc-card--paper .sc-frame-line--2 {
+  inset: 12px;
+  border-width: 0.75px;
+  opacity: 0.45;
+}
+
+.sc-card--paper .sc-sheen::before {
+  display: none;
+}
+
+.sc-card--paper .sc-titleblock {
+  text-align: center;
+}
+
+.sc-card--paper .sc-kicker {
+  font-size: 25px;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  font-variant: small-caps;
+  color: #14233d;
+  line-height: 1.1;
+}
+
+.sc-card--paper .sc-orn {
+  display: block;
+  position: relative;
+  width: 150px;
+  height: 1.5px;
+  margin: 8px auto 2px;
+}
+
+.sc-card--paper .sc-orn::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  background: inherit;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.sc-card--paper .sc-instr {
+  justify-content: center;
+}
+
+.sc-card--paper .sc-dir--long {
+  background: #ddf3e8;
+  color: #0b7d55;
+}
+
+.sc-card--paper .sc-dir--short {
+  background: #fbe3e1;
+  color: #b42318;
+}
+
+.sc-card--paper .sc-hero {
+  justify-content: center;
+  text-align: center;
+  min-height: 80px;
+}
+
+.sc-card--paper .sc-pnl {
+  background: none;
+  color: #0b7d55;
+  filter: none;
+  text-shadow: 0 1px 0 #fff;
+}
+
+.sc-card--paper.sc-is-loss .sc-pnl {
+  color: #b42318;
+}
+
+.sc-card--paper .sc-shot {
+  padding: 5px;
+  background: #fff;
+  border: 0;
+  border-radius: 4px;
+  box-shadow:
+    0 1px 0 rgba(23, 36, 59, 0.18),
+    0 8px 18px -10px rgba(23, 36, 59, 0.5);
+}
+
+.sc-card--paper .sc-shot-win {
+  border-radius: 2px;
+}
+
+.sc-card--paper .sc-tag {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.sc-card--paper .sc-foot {
+  padding-right: 112px;
+  min-height: 40px;
+}
+
+.sc-card--paper .sc-seal {
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  width: 98px;
+  height: 98px;
+  z-index: 2;
+  filter: drop-shadow(0 4px 6px rgba(23, 36, 59, 0.35));
+}
+
+.sc-card--paper .sc-seal::before,
+.sc-card--paper .sc-seal::after {
+  content: '';
+  position: absolute;
+  top: 60%;
+  width: 24px;
+  height: 52px;
+  background: #8b1e2d;
+  z-index: -1;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+}
+
+.sc-card--paper .sc-seal::before {
+  left: 24%;
+  transform: rotate(16deg);
+}
+
+.sc-card--paper .sc-seal::after {
+  right: 24%;
+  transform: rotate(-16deg);
+}
+
+/* ---------- the still copy for the image: the foil at rest, no motion, no light sweep, no glare, no tilt ---------- */
+.sc-still,
+.sc-still * {
+  animation: none !important;
+  transition: none !important;
+}
+
+.sc-still.sc-metal,
+.sc-still .sc-metal {
+  background-position: 50% 50%;
+}
+
+.sc-card.sc-still {
+  transform: none;
+  box-shadow: none;
+}
+
+.sc-still .sc-sheen::before,
+.sc-still .sc-glare {
+  display: none;
+}
+
+/* ======================================================================
+   THE POP-UP (on the app's Modal; these win over its Tailwind classes)
+   ====================================================================== */
+.sc-dialog {
+  max-width: 920px;
+  padding: 0;
+  gap: 0;
+  border-radius: 14px;
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sc-dlg-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sc-dlg-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sc-dlg-body {
+  display: grid;
+  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
+  gap: 24px;
+  padding: 20px;
+}
+
+.sc-dlg-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 22px;
+  border-radius: 10px;
+  background: var(--sc-stage);
+  border: 1px solid var(--line-soft);
+}
+
+.sc-dlg-preview .sc-fit {
+  max-width: 380px;
+}
+
+.sc-dlg-opts fieldset {
+  border: 0;
+  margin: 0 0 18px;
+  padding: 0;
+  min-width: 0;
+}
+
+.sc-dlg-opts legend {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.sc-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.sc-checks label {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.sc-checks label:has(input:disabled) {
+  cursor: default;
+}
+
+.sc-checks input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.sc-checks .sc-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.sc-dlg-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.sc-fine {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+
+.sc-status {
+  min-height: 18px;
+  color: var(--accent);
+}
+
+.sc-status.sc-is-error {
+  color: var(--neg);
+}
+
+.sc-seg {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--raised);
+  padding: 2px;
+  gap: 2px;
+}
+
+.sc-seg button {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 5px 11px;
+  border-radius: 6px;
+}
+
+.sc-seg button[aria-pressed='true'] {
+  background: var(--chip-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--chip-selected-line);
+}
+
+.sc-seg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sc-seg + .sc-fine {
+  margin-top: 6px; /* "Points only hides dollars, quantity and fees." */
+}
+
+@media (max-width: 860px) {
+  .sc-dlg-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  /* 8 px from the screen's edges, as in the mock, inside the modal's 16 px gutter */
+  .sc-dialog {
+    width: calc(100% + 16px);
+    max-width: none;
+    margin: 0 -8px;
+  }
+
+  .sc-dlg-body {
+    padding: 14px;
+  }
+
+  .sc-dlg-preview {
+    padding: 12px;
+  }
+}
+
+/* ---------- the pop-up's steps: 1 Screenshot, 2 Crop, 3 Card ---------- */
+.sc-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 12px 20px 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.sc-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sc-steps li b {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sc-steps li[aria-current='step'] {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.sc-steps li[aria-current='step'] b {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-on);
+}
+
+.sc-steps li.sc-done b {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.sc-step {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sc-step h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sc-step p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.sc-step .sc-error {
+  color: var(--neg);
+  font-size: 12px;
+}
+
+.sc-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sc-thumbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sc-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #0b0f14;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.sc-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.sc-thumb span {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  font-size: 11px;
+  color: #93a0b2;
+}
+
+.sc-thumb[aria-pressed='true'] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--chip-selected-line);
+}
+
+.sc-thumb:focus-visible,
+.sc-linkbtn:focus-visible,
+.sc-crop-stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.sc-drop {
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* While a file is dragged over it, as on the trade page */
+.sc-drop.sc-dragging {
+  border-color: var(--accent);
+  background: var(--raised);
+}
+
+.sc-drop .sc-fine {
+  margin-top: 6px;
+}
+
+.sc-linkbtn {
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  padding: 0 2px;
+  cursor: pointer;
+}
+
+.sc-linkbtn:hover {
+  color: var(--accent-hover);
+}
+
+.sc-cropper {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.sc-crop-stage {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: #0b0f14;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.sc-crop-stage:active {
+  cursor: grabbing;
+}
+
+.sc-crop-stage > img {
+  position: absolute;
+  max-width: none;
+  display: block;
+  pointer-events: none; /* the frame takes the drag, never the browser's own image drag */
+}
+
+.sc-crop-stage::after {
+  /* thirds, to help line the chart up */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    transparent calc(33.33% - 0.5px),
+    rgba(255, 255, 255, 0.2) calc(33.33% - 0.5px),
+    rgba(255, 255, 255, 0.2) calc(33.33% + 0.5px),
+    transparent calc(33.33% + 0.5px),
+    transparent calc(66.66% - 0.5px),
+    rgba(255, 255, 255, 0.2) calc(66.66% - 0.5px),
+    rgba(255, 255, 255, 0.2) calc(66.66% + 0.5px),
+    transparent calc(66.66% + 0.5px)
+  );
+}
+
+.sc-crop-zoom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sc-crop-zoom input {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+
+.sc-opt-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-metal,
+  .sc-card--holo,
+  .sc-seal-metal,
+  .sc-sheen::before {
+    animation: none !important;
+  }
+
+  .sc-card {
+    transition: none;
+  }
+}

@@ -130,6 +130,7 @@ function detail(id: number): TradeDetail | null {
   if (!trade) return null
   return {
     ...journal.withJournal(trade),
+    number: SAMPLE_TRADES.filter((t) => t.id <= trade.id).length, // as the server counts: by id, among this journal's
     points: pointsFor(trade),
     fill_pairs: fillPairsFor(trade),
     notes_html: journal.notesOf(trade),

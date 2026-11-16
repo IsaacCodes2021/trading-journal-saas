@@ -107,6 +107,39 @@ export function formatDay(day: string): string {
   )
 }
 
+/** "Fri, Nov 13, 2026" from a trading day, "2026-11-13". Formatted as UTC, like `formatDay`. */
+export function formatLongDay(day: string): string {
+  return new Intl.DateTimeFormat('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(`${day}T00:00:00Z`))
+}
+
+const zoneName = (timeZone: string, at: Date, style: 'shortGeneric' | 'short'): string | undefined => {
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: style })
+      .formatToParts(at)
+      .find((part) => part.type === 'timeZoneName')?.value
+  } catch {
+    return undefined // a browser that does not know the style
+  }
+}
+
+/**
+ * The zone's short name at a moment (an ISO timestamp, else now), to put beside a time that someone elsewhere reads:
+ * "ET", "CT", "PT". The generic name is used when it is an abbreviation; otherwise the short one ("GMT+1", "UTC"),
+ * because a generic name such as "United Kingdom Time" is too long to sit beside a time.
+ */
+export function formatZone(timeZone: string, iso?: string): string {
+  const at = iso ? new Date(iso) : new Date()
+  const generic = zoneName(timeZone, at, 'shortGeneric')
+  if (generic && /^[A-Z]{1,5}$/.test(generic)) return generic
+  return zoneName(timeZone, at, 'short') ?? generic ?? timeZone
+}
+
 /** "9 days left" until an ISO timestamp, or null when there is no expiry or it has passed. */
 export function daysLeft(expiresAt: string | null, now: Date = new Date()): number | null {
   if (expiresAt === null) return null

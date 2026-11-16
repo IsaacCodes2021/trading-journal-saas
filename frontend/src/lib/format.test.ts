@@ -7,12 +7,14 @@ import {
   formatDay,
   formatDuration,
   formatHourMinute,
+  formatLongDay,
   formatPercent,
   formatPnl,
   formatPoints,
   formatPrice,
   formatRatio,
   formatTradeTime,
+  formatZone,
   pluralize,
   pnlTone,
 } from './format'
@@ -102,6 +104,20 @@ describe('dates', () => {
   it('shows a trading day without shifting it by a time zone', () => {
     expect(formatDay('2026-09-30')).toBe('Sep 30')
     expect(formatDay('2026-01-01')).toBe('Jan 1')
+  })
+
+  it('writes a trading day out in full, with the weekday and year, without shifting it', () => {
+    expect(formatLongDay('2026-11-13')).toBe('Fri, Nov 13, 2026')
+    expect(formatLongDay('2027-01-01')).toBe('Fri, Jan 1, 2027')
+  })
+
+  it('names the time zone briefly: a generic abbreviation where there is one, else the short name', () => {
+    expect(formatZone('America/New_York', '2026-11-13T14:42:18Z')).toBe('ET')
+    expect(formatZone('America/New_York', '2026-07-13T14:42:18Z')).toBe('ET') // the same in summer
+    expect(formatZone('America/Chicago', '2026-11-13T14:42:18Z')).toBe('CT')
+    expect(formatZone('America/Los_Angeles', '2026-11-13T14:42:18Z')).toBe('PT')
+    expect(formatZone('UTC', '2026-11-13T14:42:18Z')).toBe('UTC')
+    expect(formatZone('Europe/Berlin', '2026-11-13T14:42:18Z')).toBe('GMT+1') // never "Germany Time"
   })
 
   it('counts whole days left, rounding up, and says nothing once past or unset', () => {

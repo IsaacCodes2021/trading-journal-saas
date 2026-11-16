@@ -6013,6 +6013,10 @@
             "title": "Notes Html",
             "type": "string"
           },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
           "points": {
             "examples": [
               "-475.00"
@@ -6076,6 +6080,7 @@
           "tags",
           "has_notes",
           "screenshot_count",
+          "number",
           "points",
           "fill_pairs",
           "notes_html",

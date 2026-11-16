@@ -11,7 +11,7 @@ from decimal import Decimal
 import pytest
 from helpers import SAMPLE, fixture_bytes
 from pg_helpers import api_client as api
-from pg_helpers import make_account
+from pg_helpers import make_account, make_trades
 
 from tradejournal.pg import accounts, importer
 from tradejournal.pg import journal as pg_journal
@@ -181,6 +181,42 @@ def test_neighbors_follow_the_order_filters_and_search_of_the_list_the_person_ca
     assert gone == {"previous": None, "next": None}
     only = client.get(f"/api/v1/trades/{imported['journaled']}/neighbors", params={"q": "opening drive"}).json()
     assert only == {"previous": None, "next": None}
+
+
+# ---- the trade's number (the certificate number on a shared card) -----------------------------------------------
+
+
+def number_of(client, trade_id: int):
+    response = client.get(f"/api/v1/trades/{trade_id}")
+    assert response.status_code == 200, response.text
+    return response.json()["number"]
+
+
+def test_a_persons_first_trade_is_number_1_and_the_rest_count_up_in_the_order_they_were_added(db, alice):
+    with db.tenant_session(alice) as conn:
+        ids = make_trades(conn, make_account(conn).id, count=3)
+    client = api(db, alice)
+    assert [number_of(client, trade_id) for trade_id in ids] == [1, 2, 3]
+
+
+def test_the_number_counts_only_the_persons_own_trades_never_someone_elses_older_ones(db, alice, bob):
+    with db.tenant_session(bob) as conn:
+        bobs = make_trades(conn, make_account(conn, "Bob's").id, count=4)
+    with db.tenant_session(alice) as conn:
+        alices = make_trades(conn, make_account(conn).id, count=2)
+    assert min(alices) > max(bobs)  # Bob's trades are older, with lower ids from the shared counter
+    assert [number_of(api(db, alice), trade_id) for trade_id in alices] == [1, 2]
+    assert [number_of(api(db, bob), trade_id) for trade_id in bobs] == [1, 2, 3, 4]
+
+
+def test_deleting_an_earlier_trade_moves_the_later_numbers_down(db, alice):
+    with db.tenant_session(alice) as conn:
+        ids = make_trades(conn, make_account(conn).id, count=3)
+        conn.execute("DELETE FROM trades WHERE id = %s", (ids[0],))
+    client = api(db, alice)
+    assert [number_of(client, trade_id) for trade_id in ids[1:]] == [1, 2]
+    assert client.get(f"/api/v1/trades/{ids[0]}").status_code == 404  # the deleted one, and a missing one, stay a 404
+    assert client.get("/api/v1/trades/999999").status_code == 404
 
 
 # ---- tags -------------------------------------------------------------------------------------------------------

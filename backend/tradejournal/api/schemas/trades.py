@@ -118,6 +118,7 @@ class ScreenshotOut(ApiModel):
 
 
 class TradeDetailOut(TradeOut):
+    number: int  # the person's own count of trades up to this one (their first is 1), the number on a shared card
     points: Price  # per contract, positive = favorable
     fill_pairs: list[FillPairOut]
     notes_html: str  # sanitized again on render, whatever the server did

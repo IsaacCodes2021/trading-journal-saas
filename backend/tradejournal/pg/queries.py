@@ -57,6 +57,15 @@ def load_trade(conn: psycopg.Connection, trade_id: int) -> TradeRecord | None:
     return _record(row) if row else None
 
 
+def trade_number(conn: psycopg.Connection, trade_id: int) -> int:
+    """The trade's place among the person's own trades in the order they were added: their first trade is 1. Trade ids
+    are one counter shared by everyone, so the count, not the id, is the number on a shared card. Row-level security is
+    what keeps other people's trades out of the count. It is counted live, so deleting an earlier trade (undoing an
+    import, or two trades merging) moves the later numbers down."""
+    row = conn.execute("SELECT count(*) AS number FROM trades WHERE id <= %s", (trade_id,)).fetchone()
+    return int(row["number"])
+
+
 def symbol_roots(conn: psycopg.Connection) -> list[str]:
     # COLLATE "C": byte order, as SQLite sorted, instead of whatever locale the server was created with.
     rows = conn.execute(
