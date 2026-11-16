@@ -125,7 +125,7 @@ describe('the picked account', () => {
     const { user, router } = await open({ account: 4 })
     const panel = await screen.findByRole('region', { name: 'Apex 50K #2 settings' })
     const tabs = within(panel).getAllByRole('tab')
-    expect(tabs.map((t) => t.textContent)).toEqual(['Details', 'Fees', 'Rules', 'Firm rules', 'Payouts', 'Ledger'])
+    expect(tabs.map((t) => t.textContent)).toEqual(['Details', 'Fees', 'Rules', 'Firm rules', 'Payouts', 'Prop spend'])
     expect(tabs.filter((t) => t.getAttribute('tabindex') === '0')).toHaveLength(1)
 
     await user.click(within(panel).getByRole('tab', { name: 'Fees' }))
@@ -139,7 +139,7 @@ describe('the picked account', () => {
     expect(within(panel).getByRole('tab', { name: 'Rules' })).toHaveFocus()
     await user.keyboard('{End}')
     await waitFor(() =>
-      expect(within(panel).getByRole('tab', { name: 'Ledger' })).toHaveAttribute('aria-selected', 'true'),
+      expect(within(panel).getByRole('tab', { name: 'Prop spend' })).toHaveAttribute('aria-selected', 'true'),
     )
     await user.keyboard('{ArrowRight}') // wraps to the first
     await waitFor(() =>
@@ -147,9 +147,9 @@ describe('the picked account', () => {
     )
     await user.keyboard('{ArrowLeft}') // and back round to the last
     await waitFor(() =>
-      expect(within(panel).getByRole('tab', { name: 'Ledger' })).toHaveAttribute('aria-selected', 'true'),
+      expect(within(panel).getByRole('tab', { name: 'Prop spend' })).toHaveAttribute('aria-selected', 'true'),
     )
-    expect(within(panel).getByRole('tabpanel')).toHaveAccessibleName('Ledger')
+    expect(within(panel).getByRole('tabpanel')).toHaveAccessibleName('Prop spend')
   })
 })
 
@@ -340,10 +340,10 @@ describe('fees', () => {
   })
 })
 
-describe('ledger', () => {
+describe('prop spend (the ledger)', () => {
   it('lists the money in and out, newest first, with totals', async () => {
     await open({ account: 2, tab: 'ledger' })
-    const table = await screen.findByRole('table', { name: 'Ledger entries' })
+    const table = await screen.findByRole('table', { name: 'Prop spend entries' })
     const rows = within(table).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(3)
     expect(rows[0]).toHaveTextContent('Payout')
@@ -377,12 +377,12 @@ describe('ledger', () => {
 
   it('adds an entry, and the totals and the business follow', async () => {
     const { user } = await open({ account: 4, tab: 'ledger' })
-    await screen.findByRole('table', { name: 'Ledger entries' })
+    await screen.findByRole('table', { name: 'Prop spend entries' })
     await user.type(screen.getByLabelText('Amount ($)'), '80')
     await user.type(screen.getByLabelText('Note (optional)'), 'second reset')
     await user.click(screen.getByRole('button', { name: 'Add entry' }))
     await waitFor(() =>
-      expect(within(screen.getByRole('table', { name: 'Ledger entries' })).getAllByRole('row')).toHaveLength(4),
+      expect(within(screen.getByRole('table', { name: 'Prop spend entries' })).getAllByRole('row')).toHaveLength(4),
     )
     expect(screen.getByText('second reset')).toBeInTheDocument()
     expect(screen.getByLabelText('Amount ($)')).toHaveValue('') // ready for the next
@@ -391,7 +391,7 @@ describe('ledger', () => {
 
   it('asks for an amount, and refuses one that is not', async () => {
     const { user } = await open({ account: 4, tab: 'ledger' })
-    await screen.findByRole('table', { name: 'Ledger entries' })
+    await screen.findByRole('table', { name: 'Prop spend entries' })
     await user.click(screen.getByRole('button', { name: 'Add entry' }))
     expect(await screen.findByText('Type the amount.')).toBeInTheDocument()
     await user.type(screen.getByLabelText('Amount ($)'), '-5')
@@ -401,14 +401,14 @@ describe('ledger', () => {
 
   it('asks before deleting an entry, and can be told to keep it', async () => {
     const { user } = await open({ account: 2, tab: 'ledger' })
-    const table = await screen.findByRole('table', { name: 'Ledger entries' })
+    const table = await screen.findByRole('table', { name: 'Prop spend entries' })
     await user.click(within(table).getByRole('button', { name: 'Delete Payout 2026-09-22' }))
     await user.click(within(table).getByRole('button', { name: 'Keep' }))
     expect(within(table).getAllByRole('row')).toHaveLength(4)
     await user.click(within(table).getByRole('button', { name: 'Delete Payout 2026-09-22' }))
     await user.click(within(table).getByRole('button', { name: 'Confirm delete Payout 2026-09-22' }))
     await waitFor(() =>
-      expect(within(screen.getByRole('table', { name: 'Ledger entries' })).getAllByRole('row')).toHaveLength(3),
+      expect(within(screen.getByRole('table', { name: 'Prop spend entries' })).getAllByRole('row')).toHaveLength(3),
     )
     expect(await demoSource.ledger(2)).toHaveLength(2)
   })
@@ -430,6 +430,64 @@ describe('adding an account', () => {
     expect(await screen.findByRole('region', { name: 'Tradeify 100K settings' })).toBeInTheDocument()
     expect(router.state.location.search).toMatchObject({ account: 10, tab: 'details' })
     expect(await demoSource.accounts()).toContainEqual(expect.objectContaining({ name: 'Tradeify 100K' }))
+    expect(await demoSource.ledger(10)).toEqual([]) // no fee was typed, so nothing is recorded
+  })
+
+  it('asks what the account cost, and records it in Prop spend on the purchase date', async () => {
+    const { user } = await open()
+    await user.click(await screen.findByRole('button', { name: '+ Add account' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add account' })
+    await user.type(within(dialog).getByLabelText('Account name'), 'Tradeify 100K')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
+    expect(within(dialog).getByText(/It goes in Prop spend on the purchase date/)).toBeInTheDocument()
+    await user.type(within(dialog).getByLabelText('Evaluation fee (optional)'), '$167.50')
+    await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+
+    expect(await demoSource.ledger(10)).toEqual([
+      expect.objectContaining({ kind: 'evaluation_fee', amount: '167.50', entry_date: '2026-09-01' }),
+    ])
+    await user.click(await screen.findByRole('tab', { name: 'Prop spend' }))
+    const table = await screen.findByRole('table', { name: 'Prop spend entries' })
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Evaluation fee')
+  })
+
+  it('calls a funded account’s cost its activation fee, and says when the fee is not an amount', async () => {
+    const { user } = await open()
+    await user.click(await screen.findByRole('button', { name: '+ Add account' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add account' })
+    await user.type(within(dialog).getByLabelText('Account name'), 'Tradeify 100K')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
+    await user.click(within(dialog).getByRole('button', { name: 'Funded' }))
+    await user.type(within(dialog).getByLabelText('Activation fee (optional)'), 'abc')
+    await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
+    expect(await within(dialog).findByText('Type an amount like 2500 or 2,500.50.')).toBeInTheDocument()
+    expect(await demoSource.accounts()).not.toContainEqual(expect.objectContaining({ name: 'Tradeify 100K' }))
+
+    await user.clear(within(dialog).getByLabelText('Activation fee (optional)'))
+    await user.type(within(dialog).getByLabelText('Activation fee (optional)'), '130')
+    await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await demoSource.ledger(10)).toEqual([expect.objectContaining({ kind: 'activation_fee', amount: '130.00' })])
+  })
+
+  it('keeps the account and says so when only its fee could not be saved', async () => {
+    const { user } = await open()
+    vi.spyOn(demoSource, 'addLedgerEntry').mockRejectedValue(new Error('The server did not answer.'))
+    await user.click(await screen.findByRole('button', { name: '+ Add account' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Add account' })
+    await user.type(within(dialog).getByLabelText('Account name'), 'Tradeify 100K')
+    await user.type(within(dialog).getByLabelText('Purchase date'), '2026-09-01')
+    await user.type(within(dialog).getByLabelText('Evaluation fee (optional)'), '167')
+    await user.click(within(dialog).getByRole('button', { name: 'Add account' }))
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'Tradeify 100K was added, but its fee could not be saved. Add it in the account’s Prop spend tab.',
+    )
+    expect(within(dialog).queryByRole('button', { name: 'Add account' })).not.toBeInTheDocument() // no second add
+    await user.click(within(dialog).getByRole('button', { name: 'OK' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(await screen.findByRole('region', { name: 'Tradeify 100K settings' })).toBeInTheDocument()
   })
 
   it('says why an account cannot be added, and keeps the dialog open', async () => {

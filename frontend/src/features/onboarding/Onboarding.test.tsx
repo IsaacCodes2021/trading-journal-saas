@@ -230,6 +230,28 @@ describe('step 2: the first account', () => {
     expect(stepOf(router)).toBe(3)
   })
 
+  it('asks what the account cost, records it as its evaluation fee, and says so if that fails', async () => {
+    noAccountsYet()
+    const recorded = vi.spyOn(demoSource, 'addLedgerEntry').mockRejectedValueOnce(new Error('No answer.'))
+    const { user } = await open(2)
+    const region = await step('Add your first account')
+    await user.type(within(region).getByLabelText('Account name'), 'Apex 50K #1')
+    await user.type(within(region).getByLabelText('Purchase date'), '2026-09-01')
+    await user.type(within(region).getByLabelText('Evaluation fee (optional)'), '167')
+    await user.click(within(region).getByRole('button', { name: 'Add account' }))
+
+    expect(await within(region).findByRole('alert')).toHaveTextContent(
+      'Apex 50K #1 was added, but its fee could not be saved.',
+    )
+    expect(recorded).toHaveBeenCalledWith(99, {
+      kind: 'evaluation_fee',
+      amount: '167.00',
+      entry_date: '2026-09-01',
+      note: '',
+    })
+    expect(within(region).getByRole('button', { name: 'Continue' })).toBeEnabled() // the account itself was made
+  })
+
   it('lists the accounts already there and offers to add another, without making anyone', async () => {
     const { user } = await open(2)
     const region = await step('Add your first account')
@@ -375,6 +397,22 @@ describe('where a new person starts', () => {
     stubApi()
     openApp('/')
     expect(await screen.findByRole('group', { name: 'Date range' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Get started' })).not.toBeInTheDocument()
+  })
+
+  it('is not shown to someone whose accounts are all archived: their journal is not empty', async () => {
+    for (const { id } of await demoSource.accounts()) {
+      await demoSource.archiveAccount(id, { outcome: 'closed', ended_on: '2026-10-02', note: '' })
+    }
+    expect(await demoSource.accounts()).toHaveLength(0)
+    const listed = vi.spyOn(demoSource, 'accounts')
+    stubApi()
+    openApp('/')
+    await waitFor(() => expect(listed).toHaveBeenCalled())
+    await Promise.all(listed.mock.results.map((result) => result.value as Promise<unknown>))
+    // The page has settled on the dashboard (the empty-state card would have replaced the filters and the statistics).
+    await screen.findByRole('region', { name: 'Key statistics' })
+    expect(screen.getByRole('group', { name: 'Date range' })).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Get started' })).not.toBeInTheDocument()
   })
 })

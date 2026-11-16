@@ -67,7 +67,8 @@ export interface AccountFormValues {
 
 /** The name, firm, type, money, purchase date and phase of an account, as one form: to add an account or edit one.
  * A new account needs its purchase date (it decides which version of the firm's rules applies); an older one may
- * leave it empty until it is known. */
+ * leave it empty until it is known. With `askCost` (a new account) it also asks what the account cost: the evaluation
+ * fee, or the activation fee for a funded one. That is optional, and `cost` is null when it is left empty. */
 export function AccountForm({
   initial,
   submitLabel,
@@ -76,14 +77,16 @@ export function AccountForm({
   onSubmit,
   onCancel,
   requirePurchaseDate = false,
+  askCost = false,
 }: {
   initial: AccountFormValues
   submitLabel: string
   pending: boolean
   error: string | null
-  onSubmit: (input: AccountDetailsInput) => void
+  onSubmit: (input: AccountDetailsInput, cost: string | null) => void
   onCancel?: () => void
   requirePurchaseDate?: boolean
+  askCost?: boolean
 }) {
   const [name, setName] = useState(initial.name)
   const [firm, setFirm] = useState(initial.firm)
@@ -92,6 +95,7 @@ export function AccountForm({
   const [balance, setBalance] = useState(initial.balance)
   const [purchaseDate, setPurchaseDate] = useState(initial.purchaseDate)
   const [live, setLive] = useState(initial.live)
+  const [cost, setCost] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const submit = (event: FormEvent) => {
@@ -99,20 +103,29 @@ export function AccountForm({
     const amounts = readAmounts(size, balance)
     const problems = 'problem' in amounts ? { ...amounts.problem } : {}
     if (requirePurchaseDate && !purchaseDate) problems['purchase'] = 'Choose the day you bought the account.'
+    let costValue: string | null = null
+    try {
+      costValue = askCost ? parseAmount(cost) : null
+    } catch (problem) {
+      problems['cost'] = messageOf(problem)
+    }
     if ('problem' in amounts || Object.keys(problems).length > 0) {
       setFieldErrors(problems)
       return
     }
     setFieldErrors({})
-    onSubmit({
-      name,
-      firm,
-      account_type: type,
-      account_size: amounts.size,
-      starting_balance: amounts.balance,
-      purchase_date: purchaseDate || null,
-      phase: type === 'funded' && live ? 'live' : null,
-    })
+    onSubmit(
+      {
+        name,
+        firm,
+        account_type: type,
+        account_size: amounts.size,
+        starting_balance: amounts.balance,
+        purchase_date: purchaseDate || null,
+        phase: type === 'funded' && live ? 'live' : null,
+      },
+      costValue === '0.00' ? null : costValue, // a free account has nothing to record
+    )
   }
 
   return (
@@ -190,6 +203,24 @@ export function AccountForm({
           </label>
         ) : null}
       </div>
+      {askCost ? (
+        <div className="max-w-[260px]">
+          <Field
+            id="account-cost"
+            label={type === 'funded' ? 'Activation fee (optional)' : 'Evaluation fee (optional)'}
+            hint="What you paid for it. It goes in Prop spend on the purchase date; leave it empty to add it later."
+            error={fieldErrors['cost']}
+          >
+            <input
+              id="account-cost"
+              inputMode="decimal"
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              className={`${CONTROL} num`}
+            />
+          </Field>
+        </div>
+      ) : null}
       {error ? (
         <p role="alert" className="m-0 text-[13px] text-neg">
           {error}
@@ -220,16 +251,39 @@ export function AddAccountDialog({
   onCreated: (account: AccountDetail) => void
 }) {
   const create = useCreateAccount()
+  const [costUnsaved, setCostUnsaved] = useState<AccountDetail | null>(null) // the account was made, its fee was not
+  if (costUnsaved) {
+    const done = () => onCreated(costUnsaved)
+    return (
+      <Modal label="Add account" onClose={done} className="max-w-[520px]">
+        <h2 className="m-0 text-base font-semibold">Add account</h2>
+        <p role="alert" className="m-0 text-[13px]">
+          {costUnsaved.name} was added, but its fee could not be saved. Add it in the account&rsquo;s Prop spend tab.
+        </p>
+        <div className="flex justify-end">
+          <Button variant="primary" data-autofocus onClick={done}>
+            OK
+          </Button>
+        </div>
+      </Modal>
+    )
+  }
   return (
     <Modal label="Add account" onClose={create.isPending ? () => undefined : onClose} className="max-w-[520px]">
       <h2 className="m-0 text-base font-semibold">Add account</h2>
       <AccountForm
         initial={{ ...BLANK_ACCOUNT, ...start }}
         requirePurchaseDate
+        askCost
         submitLabel="Add account"
         pending={create.isPending}
         error={create.isError ? messageOf(create.error) : null}
-        onSubmit={(input) => create.mutate(input, { onSuccess: onCreated })}
+        onSubmit={(input, cost) =>
+          create.mutate(
+            { ...input, cost },
+            { onSuccess: ({ account, costSaved }) => (costSaved ? onCreated(account) : setCostUnsaved(account)) },
+          )
+        }
         onCancel={onClose}
       />
     </Modal>

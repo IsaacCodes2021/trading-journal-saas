@@ -30,8 +30,9 @@ export function PrivacyPage({
         <h2 className="m-0 text-base font-semibold">Download your data</h2>
         <p className="m-0 text-muted">
           One ZIP file with everything stored for your account: your prop accounts and their fees, every import, your
-          trades and the fills behind them, tags, ledger entries, and your notes (each as a web page and as plain text).
-          A manifest lists every file with its size and checksum. Amounts and prices are exact, and times are in UTC.
+          trades and the fills behind them, tags, prop spend entries, and your notes (each as a web page and as plain
+          text). A manifest lists every file with its size and checksum. Amounts and prices are exact, and times are in
+          UTC.
         </p>
         <p className="m-0 text-muted">
           Your screenshots come with it as image files, named by the id in the screenshots list. If a file could not be

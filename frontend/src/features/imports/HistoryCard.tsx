@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Modal } from '../../components/ui/Modal'
 import { Button, Card, Spinner } from '../../components/ui/primitives'
@@ -65,7 +66,8 @@ function UndoDialog({
   )
 }
 
-/** Past imports, newest first, each with a way to undo it. Undoing always shows what it would remove first. */
+/** Past imports, newest first, each with a way to undo it. Undoing always shows what it would remove first. Each
+ * account's name opens that account in Settings, Prop accounts. */
 export function HistoryCard({ timeZone, onUndone }: { timeZone: string; onUndone: (record: ImportRecord) => void }) {
   const imports = useImports()
   const [undoing, setUndoing] = useState<ImportRecord | null>(null)
@@ -118,7 +120,11 @@ export function HistoryCard({ timeZone, onUndone }: { timeZone: string; onUndone
                   <tr key={record.id}>
                     <td className={`${td} num`}>{formatTradeTime(record.imported_at, timeZone)}</td>
                     <td className={td}>{record.file_name}</td>
-                    <td className={td}>{record.account.name}</td>
+                    <td className={td}>
+                      <Link to="/settings/accounts" search={{ account: record.account.id, tab: 'details' }}>
+                        {record.account.name}
+                      </Link>
+                    </td>
                     <td className={`${td} num text-right`}>{record.rows_added}</td>
                     <td className={`${td} num text-right`}>{record.trades_built}</td>
                     <td className={td}>

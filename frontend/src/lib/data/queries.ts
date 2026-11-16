@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Filters } from '../filters'
 import type {
+  AccountDetail,
   AccountDetailsInput,
   AccountRulesInput,
   ArchiveInput,
@@ -230,12 +231,12 @@ export function useDeleteScreenshot(id: number) {
   return useJournalWrite((screenshotId: number) => source.deleteScreenshot(id, screenshotId))
 }
 
-/** The accounts a person can import into. */
-export function useAccounts() {
+/** The accounts a person can import into: the active ones. With `includeArchived`, every account. */
+export function useAccounts({ includeArchived = false }: { includeArchived?: boolean } = {}) {
   const source = useDataSource()
   return useQuery({
-    queryKey: ['accounts', source.label],
-    queryFn: ({ signal }) => source.accounts(signal),
+    queryKey: ['accounts', source.label, includeArchived],
+    queryFn: ({ signal }) => source.accounts(signal, { includeArchived }),
     staleTime: 5 * 60_000,
   })
 }
@@ -357,9 +358,34 @@ function useAccountWrite<Variables, Result>(
   })
 }
 
+/**
+ * A new account and, when `cost` is given, what it cost: an entry in its prop spend on the purchase date (the
+ * evaluation fee, or the activation fee for a funded account). Two writes, so the account is kept if only the cost
+ * fails; `costSaved` says so, for the form to tell the person to add it in Prop spend.
+ */
 export function useCreateAccount() {
   const source = useDataSource()
-  return useAccountWrite((input: AccountDetailsInput) => source.createAccount(input))
+  return useAccountWrite(
+    async ({
+      cost = null,
+      ...input
+    }: AccountDetailsInput & { cost?: string | null }): Promise<{ account: AccountDetail; costSaved: boolean }> => {
+      const account = await source.createAccount(input)
+      if (cost === null) return { account, costSaved: true }
+      try {
+        await source.addLedgerEntry(account.id, {
+          kind: account.account_type === 'funded' ? 'activation_fee' : 'evaluation_fee',
+          amount: cost,
+          entry_date: input.purchase_date ?? new Date().toISOString().slice(0, 10),
+          note: '',
+        })
+        return { account, costSaved: true }
+      } catch {
+        return { account, costSaved: false }
+      }
+    },
+    ['ledger'],
+  )
 }
 
 export function useUpdateAccount(id: number) {

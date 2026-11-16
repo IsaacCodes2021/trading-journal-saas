@@ -23,7 +23,7 @@ import { formatAmount, formatDay, formatPercent, formatPnl, pluralize } from '..
 /** The page's address: the month (left out for "the latest month with trades") and the filters. */
 export type CalendarSearch = Filters & { month?: string }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 // Whole class names, so the stylesheet builder finds them: a day is shaded by how big it is next to the month's biggest.
 const SHADES = {

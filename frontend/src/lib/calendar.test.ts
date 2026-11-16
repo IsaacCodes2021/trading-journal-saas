@@ -100,8 +100,8 @@ describe('days', () => {
 })
 
 describe('the weeks of a month', () => {
-  it('starts on Monday: a month that begins on one has no blank in its first week', () => {
-    const weeks = buildWeeks('2024-01', [], []) // 1 January 2024 was a Monday
+  it('starts on Sunday: a month that begins on one has no blank in its first week', () => {
+    const weeks = buildWeeks('2023-01', [], []) // 1 January 2023 was a Sunday
     expect(weeks).toHaveLength(5)
     expect(weeks[0]?.cells.map((c) => c?.number)).toEqual([1, 2, 3, 4, 5, 6, 7])
     expect(weeks[4]?.cells.map((c) => c?.number)).toEqual([29, 30, 31, undefined, undefined, undefined, undefined])
@@ -110,12 +110,18 @@ describe('the weeks of a month', () => {
   it('leaves blanks before the first day: September 2026 begins on a Tuesday', () => {
     const [first] = buildWeeks('2026-09', [], [])
     expect(first?.cells[0]).toBeNull()
-    expect(first?.cells[1]?.day).toBe('2026-09-01')
+    expect(first?.cells[1]).toBeNull()
+    expect(first?.cells[2]?.day).toBe('2026-09-01')
+    expect(first?.cells.map((c) => c?.number)).toEqual([undefined, undefined, 1, 2, 3, 4, 5])
+  })
+
+  it('puts a Monday start in the second column', () => {
+    const [first] = buildWeeks('2024-01', [], []) // 1 January 2024 was a Monday
     expect(first?.cells.map((c) => c?.number)).toEqual([undefined, 1, 2, 3, 4, 5, 6])
   })
 
-  it('puts a Sunday start in the last column, and can need six weeks', () => {
-    const weeks = buildWeeks('2023-01', [], []) // 1 January 2023 was a Sunday
+  it('puts a Saturday start in the last column, and can need six weeks', () => {
+    const weeks = buildWeeks('2026-08', [], []) // 1 August 2026 is a Saturday
     expect(weeks).toHaveLength(6)
     expect(weeks[0]?.cells.map((c) => c?.number)).toEqual([
       undefined,

@@ -64,7 +64,7 @@ function EntryRow({ accountId, entry }: { accountId: number; entry: LedgerEntry 
   )
 }
 
-/** The money put into this account and taken out of it. Kept apart from trading results. */
+/** Prop spend: the money put into this account and taken out of it. Kept apart from trading results. */
 export function LedgerTab({ account }: { account: AccountDetail }) {
   const ledger = useLedger(account.id)
   const add = useAddLedgerEntry(account.id)
@@ -121,16 +121,16 @@ export function LedgerTab({ account }: { account: AccountDetail }) {
           </div>
         </div>
       </div>
-      {ledger.isPending ? <Spinner label="Loading the ledger" /> : null}
+      {ledger.isPending ? <Spinner label="Loading the prop spend" /> : null}
       {ledger.isError ? (
         <p role="alert" className="m-0">
-          The ledger could not be loaded.
+          The prop spend could not be loaded.
         </p>
       ) : null}
       {ledger.data && entries.length === 0 ? <p className="m-0 text-muted">Nothing recorded yet.</p> : null}
       {entries.length > 0 ? (
         <div className="scroll-x">
-          <table className="w-full border-collapse text-[13px]" aria-label="Ledger entries">
+          <table className="w-full border-collapse text-[13px]" aria-label="Prop spend entries">
             <thead>
               <tr>
                 <th scope="col" className="border-b border-line px-3 py-2 text-left text-xs font-medium text-muted">

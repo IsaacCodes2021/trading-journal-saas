@@ -263,7 +263,7 @@ function GetStarted() {
 export function DashboardPage({ filters, onFilters }: { filters: Filters; onFilters: (next: Filters) => void }) {
   const dashboard = useDashboard(filters)
   const options = useFilterOptions()
-  const accounts = useAccounts()
+  const accounts = useAccounts({ includeArchived: true }) // "empty" means no account at all, not just no active one
   const data = dashboard.data
   const range = data?.range
   const summary = data
