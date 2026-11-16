@@ -87,6 +87,9 @@ NAMES_NOTHING = {
     ("POST", "/api/v1/billing/cancel"),
     ("POST", "/api/v1/billing/resume"),
     ("POST", "/api/v1/billing/portal"),
+    # The username is the signed-in person's own row in users (test_pg_usernames.py covers two people).
+    ("PUT", "/api/v1/account/username"),
+    ("POST", "/api/v1/account/username/skip"),
 }
 # Routes that name a session, which is not a journal row (see NOT_JOURNAL_ROWS).
 SESSION_ROUTES = {("DELETE", "/api/v1/sessions/{session_id}")}

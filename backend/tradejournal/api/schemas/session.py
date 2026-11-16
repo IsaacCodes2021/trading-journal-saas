@@ -40,6 +40,7 @@ def _hhmm(value: str | None) -> str | None:
 class UserOut(ApiModel):
     id: UUID
     email: str
+    username: str | None = Field(default=None, description="None until the person picks one")
 
 
 class SettingsOut(ApiModel):
@@ -94,6 +95,10 @@ class FlagsOut(ApiModel):
     mfa_fresh: bool  # the identity provider reported MFA within the last 15 minutes
     recently_authenticated: (
         bool  # they authenticated at the provider within the last 10 minutes (needed to delete the account)
+    )
+    ask_username: bool = Field(
+        default=False,
+        description='Show the "pick a username" prompt: the person has none and has not said "not now" to it',
     )
 
 

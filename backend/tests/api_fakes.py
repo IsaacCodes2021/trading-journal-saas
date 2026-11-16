@@ -94,10 +94,11 @@ class FakeAccounts:
         self.codes: dict[str, GrantResult] = {}  # what redeeming each plan code answers; any other code is refused
         self.redeemed: list[tuple[UUID, str, str | None]] = []  # every attempt: (person, code as sent, address hash)
         self.ended: dict[UUID, AccessOut] = {}  # people whose time-limited access has ended (see `end_access`)
+        self.skipped: list[UUID] = []  # who said "not now" to the username prompt
 
-    def add(self, email: str, *, is_admin: bool = False) -> Account:
+    def add(self, email: str, *, is_admin: bool = False, username: str | None = None) -> Account:
         account = Account(
-            user=UserOut(id=uuid4(), email=email),
+            user=UserOut(id=uuid4(), email=email, username=username),
             settings=SettingsOut(
                 timezone="America/Los_Angeles",
                 csv_timezone=None,
@@ -108,6 +109,7 @@ class FakeAccounts:
             plan=PlanOut(effective="free", source="free", expires_at=datetime(2030, 1, 1, tzinfo=UTC)),
             entitlements={"max_accounts": 3, "can_export": True},
             is_admin=is_admin,
+            ask_username=username is None,
         )
         self._accounts[account.user.id] = account
         return account
@@ -132,6 +134,23 @@ class FakeAccounts:
     def schedule_deletion(self, user_id: UUID, *, ip_hash: str | None = None) -> datetime | None:
         self.deletions.append((user_id, ip_hash))
         return None if user_id in self.refuse_deletion else datetime(2026, 10, 11, 12, 0, tzinfo=UTC)
+
+    def set_username(self, user_id: UUID, username: str) -> bool:
+        taken = any(
+            other.user.username is not None and other.user.username.casefold() == username.casefold()
+            for uid, other in self._accounts.items()
+            if uid != user_id
+        )
+        if taken:
+            return False
+        account = self._accounts[user_id]
+        user = account.user.model_copy(update={"username": username})
+        self._accounts[user_id] = replace(account, user=user, ask_username=False)
+        return True
+
+    def skip_username(self, user_id: UUID) -> None:
+        self.skipped.append(user_id)
+        self._accounts[user_id] = replace(self._accounts[user_id], ask_username=False)
 
     def update_settings(self, user_id: UUID, changes: SettingsPatch) -> SettingsOut:
         account = self._accounts[user_id]

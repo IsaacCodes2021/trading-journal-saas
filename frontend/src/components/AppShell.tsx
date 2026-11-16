@@ -20,6 +20,7 @@ import { daysLeft, pluralize } from '../lib/format'
 import { useSaveTheme, useSession } from '../lib/session'
 import { applyTheme, otherTheme, type Theme } from '../lib/theme'
 import { BiteMark } from './BiteMark'
+import { UsernamePrompt } from './UsernamePrompt'
 import { Popover } from './ui/Popover'
 import { Button, Spinner } from './ui/primitives'
 import { cx } from './ui/cx'
@@ -184,7 +185,15 @@ function initialsOf(email: string): string {
   )
 }
 
-export function AccountMenu({ email, operator = false }: { email: string; operator?: boolean }) {
+export function AccountMenu({
+  email,
+  username = null,
+  operator = false,
+}: {
+  email: string
+  username?: string | null
+  operator?: boolean
+}) {
   const [leaving, setLeaving] = useState(false)
   const [failed, setFailed] = useState(false)
   const leave = async () => {
@@ -202,11 +211,16 @@ export function AccountMenu({ email, operator = false }: { email: string; operat
       label="Account"
       align="right"
       buttonClassName="size-9 justify-center rounded-full bg-selected p-0 text-xs font-semibold"
-      button={<span aria-label="Account menu">{initialsOf(email)}</span>}
+      button={<span aria-label="Account menu">{initialsOf(username ?? email)}</span>}
     >
       {() => (
         <div className="flex min-w-[220px] flex-col gap-2 p-1">
           <div className="px-2 pt-1 text-xs text-muted">Signed in as</div>
+          {username ? (
+            <div data-testid="username" className="px-2 text-[13px] font-semibold break-all">
+              {username}
+            </div>
+          ) : null}
           <div data-testid="who" className="px-2 text-[13px] break-all">
             {email}
           </div>
@@ -299,10 +313,11 @@ export function AppShell({
               Roundturn
             </div>
             {action}
-            <AccountMenu email={session.data.user.email} />
+            <AccountMenu email={session.data.user.email} username={session.data.user.username} />
           </div>
         </header>
         <main className="mx-auto flex max-w-[1100px] flex-col gap-4 px-4 pt-8 pb-14 sm:px-8 sm:pt-10">{children}</main>
+        {session.data.flags.ask_username ? <UsernamePrompt /> : null}
       </div>
     )
   }
@@ -334,13 +349,18 @@ export function AppShell({
           <div className="ml-auto flex items-center gap-3 sm:ml-0">
             <PlanChip plan={session.data.plan} billing={billing} />
             <ThemeButton theme={session.data.settings.theme} />
-            <AccountMenu email={session.data.user.email} operator={session.data.flags.is_admin} />
+            <AccountMenu
+              email={session.data.user.email}
+              username={session.data.user.username}
+              operator={session.data.flags.is_admin}
+            />
           </div>
         </div>
       </header>
       <BillingBanner billing={billing} />
       <SampleDataBanner />
       <main className="mx-auto flex max-w-[1360px] flex-col gap-4 px-4 pt-6 pb-12 sm:px-8">{children}</main>
+      {session.data.flags.ask_username ? <UsernamePrompt /> : null}
     </div>
   )
 }

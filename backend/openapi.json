@@ -2619,6 +2619,12 @@
       },
       "FlagsOut": {
         "properties": {
+          "ask_username": {
+            "default": false,
+            "description": "Show the \"pick a username\" prompt: the person has none and has not said \"not now\" to it",
+            "title": "Ask Username",
+            "type": "boolean"
+          },
           "is_admin": {
             "title": "Is Admin",
             "type": "boolean"
@@ -2635,7 +2641,8 @@
         "required": [
           "is_admin",
           "mfa_fresh",
-          "recently_authenticated"
+          "recently_authenticated",
+          "ask_username"
         ],
         "title": "FlagsOut",
         "type": "object"
@@ -6327,13 +6334,72 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None until the person picks one",
+            "title": "Username"
           }
         },
         "required": [
           "id",
-          "email"
+          "email",
+          "username"
         ],
         "title": "UserOut",
+        "type": "object"
+      },
+      "UsernameIn": {
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "description": "3 to 20 letters, digits or underscores. Spaces around it are dropped. Unique whatever the capitals.",
+            "maxLength": 20,
+            "minLength": 3,
+            "pattern": "^[A-Za-z0-9_]+$",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "UsernameIn",
+        "type": "object"
+      },
+      "UsernameOut": {
+        "properties": {
+          "username": {
+            "description": "The username as saved, with the capitals it was typed with",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username"
+        ],
+        "title": "UsernameOut",
+        "type": "object"
+      },
+      "UsernamePromptOut": {
+        "properties": {
+          "ask_username": {
+            "description": "Whether the prompt is still to be shown (false once the person says not now)",
+            "title": "Ask Username",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ask_username"
+        ],
+        "title": "UsernamePromptOut",
         "type": "object"
       }
     }
@@ -9265,6 +9331,160 @@
           }
         },
         "summary": "Request Deletion",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/username": {
+      "put": {
+        "description": "Pick a username, or change the one you have.",
+        "operationId": "set_username",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UsernameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsernameOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Set Username",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/username/skip": {
+      "post": {
+        "description": "Not now: stop asking after sign-in. Settings, Preferences still lets the person pick one.",
+        "operationId": "skip_username",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsernamePromptOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Skip Username",
         "tags": [
           "account"
         ]

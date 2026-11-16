@@ -52,6 +52,12 @@ export interface ApiOptions {
   billing?: object | object[]
   /** Answer a billing action with this instead of what the fake provider would do. */
   billingAnswers?: Partial<Record<'checkout' | 'cancel' | 'resume' | 'portal', { status: number; body: object }>>
+  /** The person's username. Default: none. */
+  username?: string | null
+  /** Show the "pick a username" prompt after sign-in. Default: no, so other tests see the page without it. */
+  askUsername?: boolean
+  /** Answer saving a username with this instead of saving it (a name someone else holds, say). */
+  usernameProblem?: { status: number; body: object }
 }
 
 /** What `GET /api/v1/billing` says: on a trial with 5 days left, unless `changes` say otherwise. */
@@ -78,7 +84,7 @@ const NOT_FOUND = { title: 'Not Found', status: 404, detail: 'Not Found', errors
 
 export function sessionBody(opts: ApiOptions = {}) {
   return {
-    user: { id: '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11', email: 'alice@example.test' },
+    user: { id: '5b1d3a8e-52c4-4a8e-9a53-0d4c3f6e8a11', email: 'alice@example.test', username: opts.username ?? null },
     settings: { ...SETTINGS, ...opts.settings, theme: opts.theme ?? 'dark' },
     plan: opts.plan ?? { effective: 'free', source: 'free', expires_at: null },
     access: { state: 'active', ends_at: null, reason: null },
@@ -87,15 +93,21 @@ export function sessionBody(opts: ApiOptions = {}) {
       is_admin: opts.operator ?? false,
       mfa_fresh: opts.mfaFresh ?? false,
       recently_authenticated: opts.recentlyAuthenticated ?? true,
+      ask_username: opts.askUsername ?? false,
     },
     csrf_token: 'tok',
     app_version: 'test',
   }
 }
 
-/** Replaces `fetch`. Returns the bodies of the theme saves it saw. */
+/**
+ * Replaces `fetch`. Returns the bodies of the settings saves it saw; username saves and "not now" answers are added to the
+ * same list (`{ username }` and `{ skip: true }`), and change what the session reports from then on.
+ */
 export function stubApi(opts: ApiOptions = {}) {
   const saved: unknown[] = []
+  let username = opts.username ?? null
+  let askUsername = opts.askUsername ?? false
   let plan: object | undefined = opts.plan // a redeemed code changes the plan the session reports from then on
   const billingReads = Array.isArray(opts.billing) ? [...opts.billing] : opts.billing ? [opts.billing] : []
   let billing: Record<string, unknown> | undefined // what a cancel or a resume changed
@@ -114,6 +126,19 @@ export function stubApi(opts: ApiOptions = {}) {
         return json(plan)
       }
       const path = new URL(request.url).pathname
+      if (request.method === 'PUT' && path === '/api/v1/account/username') {
+        const body = (await request.clone().json()) as { username: string }
+        saved.push(body)
+        if (opts.usernameProblem) return json(opts.usernameProblem.body, opts.usernameProblem.status)
+        username = body.username
+        askUsername = false
+        return json({ username })
+      }
+      if (request.method === 'POST' && path === '/api/v1/account/username/skip') {
+        saved.push({ skip: true })
+        askUsername = false
+        return json({ ask_username: false })
+      }
       if (path === '/api/v1/billing' || path.startsWith('/api/v1/billing/')) {
         if (billingReads.length === 0) return json(NOT_FOUND, 404)
         const action = path.split('/')[4] as 'checkout' | 'cancel' | 'resume' | 'portal' | undefined
@@ -141,7 +166,7 @@ export function stubApi(opts: ApiOptions = {}) {
         if (body['csv_timezone'] === '') merged.csv_timezone = null // "" goes back to following the own timezone
         return json(merged)
       }
-      return json(sessionBody({ ...opts, ...(plan ? { plan } : {}) }))
+      return json(sessionBody({ ...opts, ...(plan ? { plan } : {}), username, askUsername }))
     }),
   )
   return saved

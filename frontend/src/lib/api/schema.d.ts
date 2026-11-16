@@ -493,6 +493,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/account/username": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Username
+         * @description Pick a username, or change the one you have.
+         */
+        put: operations["set_username"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/account/username/skip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Skip Username
+         * @description Not now: stop asking after sign-in. Settings, Preferences still lets the person pick one.
+         */
+        post: operations["skip_username"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounts": {
         parameters: {
             query?: never;
@@ -2605,6 +2645,12 @@ export interface components {
         };
         /** FlagsOut */
         FlagsOut: {
+            /**
+             * Ask Username
+             * @description Show the "pick a username" prompt: the person has none and has not said "not now" to it
+             * @default false
+             */
+            ask_username: boolean;
             /** Is Admin */
             is_admin: boolean;
             /** Mfa Fresh */
@@ -3955,6 +4001,35 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Username
+             * @description None until the person picks one
+             */
+            username: string | null;
+        };
+        /** UsernameIn */
+        UsernameIn: {
+            /**
+             * Username
+             * @description 3 to 20 letters, digits or underscores. Spaces around it are dropped. Unique whatever the capitals.
+             */
+            username: string;
+        };
+        /** UsernameOut */
+        UsernameOut: {
+            /**
+             * Username
+             * @description The username as saved, with the capitals it was typed with
+             */
+            username: string;
+        };
+        /** UsernamePromptOut */
+        UsernamePromptOut: {
+            /**
+             * Ask Username
+             * @description Whether the prompt is still to be shown (false once the person says not now)
+             */
+            ask_username: boolean;
         };
     };
     responses: never;
@@ -6040,6 +6115,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeletionOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    set_username: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsernameIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsernameOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    skip_username: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsernamePromptOut"];
                 };
             };
             /** @description Unauthorized */

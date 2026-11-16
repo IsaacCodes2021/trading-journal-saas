@@ -610,7 +610,12 @@ def test_an_operator_with_two_step_verification_can_list_look_and_suspend_on_the
     world, admin_url, owner, op, alice
 ):
     browser = operator_browser(world, admin_url, owner)
-    assert browser.session().json()["flags"] == {"is_admin": True, "mfa_fresh": True, "recently_authenticated": True}
+    assert browser.session().json()["flags"] == {
+        "is_admin": True,
+        "mfa_fresh": True,
+        "recently_authenticated": True,
+        "ask_username": True,
+    }
     listing = browser.client.get("/api/admin/v1/users").json()
     assert listing["total"] == 2 and {u["email"] for u in listing["users"]} == {"alice@example.test", "op@example.test"}
     detail = browser.client.get(f"/api/admin/v1/users/{alice}")
