@@ -57,9 +57,11 @@ def get_trade(trade_id: PathId, request: Request, tenant: TenantDep) -> TradeDet
         tags = pg_journal.trade_tags(conn, trade_id)
         pairs = pg_store.trade_fill_pairs(conn, trade_id)
         screenshots = pg_journal.screenshots(conn, trade_id)
+        number = pg_queries.trade_number(conn, trade_id)
     row = trade_out(record, tags, has_notes=record.notes != "", screenshot_count=len(screenshots))
     return TradeDetailOut(
         **row.model_dump(),
+        number=number,
         points=record.points,
         fill_pairs=[
             FillPairOut(

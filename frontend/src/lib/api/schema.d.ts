@@ -3858,6 +3858,8 @@ export interface components {
             net_pnl: string;
             /** Notes Html */
             notes_html: string;
+            /** Number */
+            number: number;
             /**
              * Points
              * @example -475.00
