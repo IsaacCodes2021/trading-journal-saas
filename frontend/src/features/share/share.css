@@ -842,6 +842,28 @@
   display: none;
 }
 
+/*
+ * The holographic film, without a blend mode. Safari makes the image with color-dodge at full strength: a solid blue
+ * band with grain. So the still copy has the film's colours already dodged onto the card's dark ground (#0b1118), each
+ * channel min(1, ground / (1 - colour)), mixed in normally, under the writing (which color-dodge leaves white anyway).
+ */
+.sc-still.sc-card--holo .sc-content {
+  z-index: 1;
+}
+
+.sc-still.sc-card--holo .sc-holo-film {
+  background-image: linear-gradient(
+    115deg,
+    transparent 22%,
+    rgba(19, 50, 255, 0.18) 36%,
+    rgba(14, 99, 60, 0.16) 45%,
+    rgba(127, 73, 41, 0.14) 54%,
+    rgba(255, 31, 84, 0.16) 63%,
+    transparent 76%
+  );
+  mix-blend-mode: normal;
+}
+
 /* ======================================================================
    THE POP-UP (on the app's Modal; these win over its Tailwind classes)
    ====================================================================== */
