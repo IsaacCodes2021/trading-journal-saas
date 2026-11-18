@@ -1,0 +1,5 @@
+"Time","Symbol","Qty","Side","Order Type","Limit Price","Stop Price","Avg Price","Commission","Status"
+"11/16/2026, 9:37:10 AM PST","CME-Delayed:NQ","1","Sell","Market","","","27405","2.5","Filled"
+"11/16/2026, 9:36:54 AM PST","CME-Delayed:NQ","1","Buy","Market","","","27409","2.5","Filled"
+"11/16/2026, 9:36:47 AM PST","CME-Delayed:NQ","1","Buy","Limit","27423.75","","27423.5","2.5","Filled"
+"11/16/2026, 9:34:41 AM PST","CME-Delayed:NQ","1","Sell","Market","","","27440","2.5","Filled"

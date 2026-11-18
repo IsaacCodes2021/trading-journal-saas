@@ -4,7 +4,7 @@
     python -m tradejournal.pg.clear_journal --user-id <uuid> --apply --expect-accounts 1 --expect-trades 8
 
 For the owner, by hand. Nothing in the app does this: a prop account can be archived, never deleted. The command removes the
-person's accounts (and with them, by cascade, their fees, imports, fill pairs, trades, tag links, screenshot rows and ledger),
+person's accounts (and with them, by cascade, their fees, imports, fill pairs, orders, trades, tag links, screenshot rows and ledger),
 their tags and their day notes. It keeps everything else about the person: the sign-in, the settings, the tag groups.
 
 It is built to be hard to point at the wrong journal:
@@ -82,7 +82,9 @@ def clear(conn: psycopg.Connection, *, expect_accounts: int, expect_trades: int)
             f"the journal holds {before.accounts} accounts and {before.trades} trades, "
             f"not the {expect_accounts} and {expect_trades} that were expected"
         )
-    conn.execute("DELETE FROM accounts")  # cascades: fees, imports, fill pairs, trades (and tag links), ledger, rules
+    conn.execute(
+        "DELETE FROM accounts"
+    )  # cascades: fees, imports, fill pairs, orders, trades (and tag links), ledger, rules
     conn.execute("DELETE FROM tags")
     conn.execute("DELETE FROM day_notes")
     usage.refresh(conn)  # the counters are kept by the domain functions; a direct delete has to recount them
