@@ -2,11 +2,14 @@ import { Link } from '@tanstack/react-router'
 import { useRef, useState, type DragEvent } from 'react'
 import { Button, Card, Spinner } from '../../components/ui/primitives'
 import { cx } from '../../components/ui/cx'
-import type { ImportRecord } from '../../lib/data/model'
-import { useAccounts, useCommitImport, usePreviewImport } from '../../lib/data/queries'
+import type { ImportPlatform, ImportRecord, Platform } from '../../lib/data/model'
+import { useAccounts, useCommitImport, useImports, usePreviewImport } from '../../lib/data/queries'
+import { isDemo } from '../../lib/demoMode'
 import { pluralize } from '../../lib/format'
+import { platformInfo } from '../../lib/platforms'
 import { MAX_CSV_MB } from '../../lib/tradovate'
 import { AddAccountDialog } from '../accounts/AccountDialogs'
+import { ImportSourceDialog } from './ImportSourceDialog'
 import { PreviewSection } from './PreviewSection'
 
 function kilobytes(bytes: number): string {
@@ -17,16 +20,35 @@ function messageOf(error: unknown): string {
   return error instanceof Error && error.message ? error.message : 'Something went wrong. Nothing was imported.'
 }
 
+/** The files chosen so far plus the new ones; a file chosen twice (same name, size and time) counts once. */
+function together(chosen: File[], more: File[]): File[] {
+  const key = (file: File) => `${file.name}|${file.size}|${file.lastModified}`
+  const seen = new Set(chosen.map(key))
+  return [...chosen, ...more.filter((file) => !seen.has(key(file)))]
+}
+
+/** What the import added, in words, for the line above the form. */
+function importedText(record: ImportRecord): string {
+  const [one, many] = platformInfo(record.platform).row
+  const rows = pluralize(record.rows_added, one, many)
+  const from = record.platform === 'tradovate' ? '' : ` from ${platformInfo(record.platform).name}`
+  return `Imported ${rows}${from} into ${record.account.name}, making ${pluralize(record.trades_built, 'trade')}.`
+}
+
 /**
- * The working part of importing: choose an account and a Tradovate Performance CSV, see exactly what would happen
- * (nothing is saved yet), and confirm. The preview is re-worked if the account changes, because what counts as
- * "already imported" depends on the account. Used by the Import screen and by the first-run setup.
+ * The working part of importing: choose an account and the export files, see exactly what would happen (nothing is
+ * saved yet), and confirm. Used by the Import screen and by the first-run setup.
+ *
+ * **Choose files** first asks where the files come from (`ImportSourceDialog`), with a reminder of how to export from
+ * that platform, and then opens the computer's file window: one file for Tradovate, several for TradeSea (one per page of
+ * its Orders list). Files dropped onto the page skip the question: the server tells the platform from their header row.
+ * The preview is worked out again if the account changes, because what counts as "already imported" depends on it.
  *
  * Only active accounts are offered (an archived one is finished). A new account can be added from here without
  * leaving the page; once added, it is the one picked.
  *
  * `notice` is the line shown above the form (what was just imported or undone); the caller owns it so that another part
- * of the page (the history) can set it too. `onImported` is told when a file has been imported.
+ * of the page (the history) can set it too. `onImported` is told when files have been imported.
  */
 export function ImportWorkspace({
   timeZone,
@@ -40,47 +62,69 @@ export function ImportWorkspace({
   onImported?: (record: ImportRecord) => void
 }) {
   const accounts = useAccounts()
+  const history = useImports()
   const preview = usePreviewImport()
   const commit = useCommitImport()
   const [pickedAccount, setPickedAccount] = useState<number | null>(null)
-  const [file, setFile] = useState<File | null>(null)
+  const [files, setFiles] = useState<File[]>([])
+  const [sentAs, setSentAs] = useState<ImportPlatform>('auto') // what the chosen files were last read as
+  const [picked, setPicked] = useState<Platform | null>(null) // the dialog's last answer on this page
+  const [asking, setAsking] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [adding, setAdding] = useState(false)
   const input = useRef<HTMLInputElement>(null)
+  const picking = useRef<{ platform: Platform; more: boolean } | null>(null)
 
   const accountId = pickedAccount ?? accounts.data?.[0]?.id ?? null
   const account = accounts.data?.find((a) => a.id === accountId)
+  // The dialog opens on the platform picked here, else the one this account last imported from (newest first).
+  const lastPlatform = history.data?.find((record) => record.account.id === accountId)?.platform ?? null
 
-  const choose = (files: readonly File[]) => {
-    const next = files[0]
-    if (!next || accountId === null) return // the account list is still loading: there is nothing to import into yet
-    onNotice(files.length > 1 ? `One file at a time: using ${next.name}.` : null)
-    setFile(next)
+  const read = (next: File[], platform: ImportPlatform, id: number | null = accountId) => {
+    if (next.length === 0 || id === null) return // the account list is still loading: there is nothing to import into
+    setFiles(next)
+    setSentAs(platform)
     commit.reset()
-    preview.mutate({ accountId, file: next })
+    preview.mutate({ accountId: id, files: next, platform })
+  }
+
+  /** Opens the computer's file window. Called straight from a click: browsers refuse to open it any other way. */
+  const openFileWindow = (platform: Platform, more: boolean) => {
+    const element = input.current
+    if (!element) return
+    picking.current = { platform, more }
+    element.multiple = platformInfo(platform).multiple
+    element.click()
+  }
+
+  const onFilesChosen = (chosen: File[]) => {
+    const pick = picking.current
+    picking.current = null
+    if (!pick || chosen.length === 0) return // the file window was cancelled: nothing changes
+    onNotice(null)
+    read(pick.more ? together(files, chosen) : chosen, pick.platform)
   }
 
   const changeAccount = (id: number) => {
     setPickedAccount(id)
-    if (file) preview.mutate({ accountId: id, file })
+    if (files.length > 0) read(files, sentAs, id)
   }
 
   const clear = () => {
-    setFile(null)
+    setFiles([])
     preview.reset()
     commit.reset()
   }
 
+  const data = preview.data
   const doCommit = () => {
-    if (!file || accountId === null) return
+    if (!data || files.length === 0 || accountId === null) return
     commit.mutate(
-      { accountId, file },
+      { accountId, files, platform: data.platform },
       {
         onSuccess: (record) => {
-          onNotice(
-            `Imported ${pluralize(record.rows_added, 'fill pair')} into ${record.account.name}, making ${pluralize(record.trades_built, 'trade')}.`,
-          )
-          setFile(null)
+          onNotice(importedText(record))
+          setFiles([])
           preview.reset()
           onImported?.(record)
         },
@@ -91,10 +135,11 @@ export function ImportWorkspace({
   const onDrop = (event: DragEvent) => {
     event.preventDefault()
     setDragging(false)
-    choose([...event.dataTransfer.files])
+    onNotice(null)
+    read([...event.dataTransfer.files], 'auto')
   }
 
-  const data = preview.data
+  const totalBytes = files.reduce((sum, file) => sum + file.size, 0)
   return (
     <>
       {notice && !commit.isError ? (
@@ -137,10 +182,7 @@ export function ImportWorkspace({
             </div>
           ) : null}
           <div className="mt-0.5 text-xs text-muted">
-            CSV timestamps are read as <span className="num">{timeZone}</span>.{' '}
-            <Link to="/settings" search={(prev) => prev}>
-              Change
-            </Link>
+            We read Tradovate&rsquo;s Performance report and TradeSea&rsquo;s Orders.
           </div>
         </div>
 
@@ -151,46 +193,50 @@ export function ImportWorkspace({
           onDrop={onDrop}
           className={cx(
             'flex flex-[2_1_420px] flex-col items-center justify-center gap-1.5 rounded-[10px] border border-dashed p-5 text-center',
-            dragging || file ? 'border-chip-selected-line bg-chip-selected-bg' : 'border-line-strong',
+            dragging || files.length > 0 ? 'border-chip-selected-line bg-chip-selected-bg' : 'border-line-strong',
           )}
         >
-          {file ? (
+          {files.length > 0 ? (
             <>
-              <div className="font-medium">{file.name}</div>
+              <div className="font-medium break-all">
+                {files.length === 1 ? files[0]?.name : `${files.length} files`}
+              </div>
               <div className="text-[13px] text-muted">
-                {kilobytes(file.size)}
+                {kilobytes(totalBytes)}
                 {data && !data.fatal
-                  ? ` · ${pluralize(data.rows_parsed + data.errors.length + data.duplicates_in_file, 'row')}`
+                  ? data.platform === 'tradesea'
+                    ? ` · ${pluralize(data.rows_parsed, 'filled order')}`
+                    : ` · ${pluralize(data.rows_parsed + data.errors.length + data.duplicates_in_file, 'row')}`
                   : ''}
               </div>
             </>
           ) : (
             <>
-              <div className="font-medium">Drop a Performance CSV here</div>
+              <div className="font-medium">Drop your export here</div>
               <div className="text-[13px] text-muted">
                 Up to {MAX_CSV_MB} MB. Nothing is saved until you confirm the preview.
               </div>
             </>
           )}
-          <Button className="mt-1.5" disabled={accountId === null} onClick={() => input.current?.click()}>
-            {file ? 'Replace file' : 'Choose a file'}
+          <Button className="mt-1.5" disabled={accountId === null} onClick={() => setAsking(true)}>
+            {files.length > 0 ? 'Replace files' : 'Choose files'}
           </Button>
           <input
             ref={input}
             type="file"
             accept=".csv,text/csv"
             tabIndex={-1}
-            aria-label="Choose a Performance CSV"
+            aria-label="Export files"
             className="sr-only"
             onChange={(event) => {
-              choose([...(event.target.files ?? [])])
+              onFilesChosen([...(event.target.files ?? [])])
               event.target.value = '' // so choosing the same file again still works
             }}
           />
         </div>
       </Card>
 
-      {preview.isPending ? <Spinner label="Reading the file" /> : null}
+      {preview.isPending ? <Spinner label="Reading the files" /> : null}
       {preview.isError ? (
         <Card className="p-5" role="alert">
           <p className="m-0 font-semibold text-neg">{messageOf(preview.error)}</p>
@@ -202,9 +248,21 @@ export function ImportWorkspace({
       {data?.fatal ? (
         <Card className="p-5" role="alert">
           <p className="m-0 font-semibold text-neg">{data.fatal}</p>
-          <Button className="mt-3" onClick={clear}>
-            Choose another file
-          </Button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {data.suggested_platform ? (
+              <Button
+                variant="primary"
+                onClick={() => {
+                  const suggested = data.suggested_platform as Platform
+                  setPicked(suggested)
+                  read(files, suggested)
+                }}
+              >
+                Read {files.length === 1 ? 'it' : 'them'} as {platformInfo(data.suggested_platform).name}
+              </Button>
+            ) : null}
+            <Button onClick={clear}>Choose another file</Button>
+          </div>
         </Card>
       ) : null}
       {commit.isError ? (
@@ -212,16 +270,35 @@ export function ImportWorkspace({
           <p className="m-0 font-semibold text-neg">{messageOf(commit.error)}</p>
         </Card>
       ) : null}
-      {data && !data.fatal && file ? (
+      {data && !data.fatal && files.length > 0 && accountId !== null ? (
         <PreviewSection
           preview={data}
+          accountId={accountId}
           accountName={account?.name ?? 'this account'}
           committing={commit.isPending}
           onCancel={clear}
           onCommit={doCommit}
+          onAddFiles={() => openFileWindow(data.platform, true)}
+          onRecheck={(done) => {
+            onNotice(done)
+            read(files, sentAs)
+          }}
         />
       ) : null}
 
+      {asking ? (
+        <ImportSourceDialog
+          initial={picked ?? lastPlatform}
+          timeZone={timeZone}
+          demo={isDemo()}
+          onClose={() => setAsking(false)}
+          onPick={(platform) => {
+            setPicked(platform)
+            openFileWindow(platform, false)
+            setAsking(false)
+          }}
+        />
+      ) : null}
       {adding ? (
         <AddAccountDialog
           onClose={() => setAdding(false)}

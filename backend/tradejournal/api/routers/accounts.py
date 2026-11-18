@@ -37,7 +37,7 @@ router = APIRouter(
 _DUPLICATE = "You already have an account with that name."
 
 
-def _fee_rate(rate: Decimal) -> Decimal:
+def fee_rate_shown(rate: Decimal) -> Decimal:
     """A fee as it is usually written: at least cents ("4.00"), more only when the rate really has more ("0.625")."""
     plain = rate.normalize()
     return plain.quantize(Decimal("0.01")) if plain.as_tuple().exponent > -2 else plain  # type: ignore[operator]
@@ -153,7 +153,7 @@ def get_fees(account_id: PathId, tenant: TenantDep) -> dict[str, str]:
     with refusals(what="account"), tenant.session() as conn:
         pg_accounts.get_account(conn, account_id)
         schedule = pg_accounts.fee_schedule(conn, account_id)
-    return {root: format(_fee_rate(rate), "f") for root, rate in sorted(schedule.items())}
+    return {root: format(fee_rate_shown(rate), "f") for root, rate in sorted(schedule.items())}
 
 
 @router.put("/accounts/{account_id}/fees/{symbol_root}", response_model=dict[str, str])
@@ -164,7 +164,7 @@ def set_fee(account_id: PathId, symbol_root: SymbolRoot, body: FeeIn, tenant: Wr
         pg_accounts.set_fee(conn, account_id, symbol_root, body.rate)
         pg_store.recalculate_trades(conn, account_id)
         schedule = pg_accounts.fee_schedule(conn, account_id)
-    return {root: format(_fee_rate(rate), "f") for root, rate in sorted(schedule.items())}
+    return {root: format(fee_rate_shown(rate), "f") for root, rate in sorted(schedule.items())}
 
 
 @router.delete("/accounts/{account_id}/fees/{symbol_root}", response_model=dict[str, str])
@@ -175,7 +175,7 @@ def remove_fee(account_id: PathId, symbol_root: SymbolRoot, tenant: WriteTenantD
         pg_accounts.remove_fee(conn, account_id, symbol_root)
         pg_store.recalculate_trades(conn, account_id)
         schedule = pg_accounts.fee_schedule(conn, account_id)
-    return {root: format(_fee_rate(rate), "f") for root, rate in sorted(schedule.items())}
+    return {root: format(fee_rate_shown(rate), "f") for root, rate in sorted(schedule.items())}
 
 
 # ---- ledger ------------------------------------------------------------------------------------------------------

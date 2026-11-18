@@ -445,23 +445,34 @@ describe('importing', () => {
 
   it('sends a preview and an import as multipart with the account and the file, never as JSON', async () => {
     const seen = recordUploads(() => json({ id: 1 }))
-    await apiSource.previewImport(4, csv)
-    await apiSource.commitImport(4, csv)
+    await apiSource.previewImport(4, [csv], 'tradovate')
+    await apiSource.commitImport(4, [csv], 'tradovate')
     expect(seen.map((s) => [s.method, s.path, s.multipart, s.csrf])).toEqual([
       ['POST', '/api/v1/imports/preview', true, 'tok'],
       ['POST', '/api/v1/imports', true, 'tok'],
     ])
     for (const { text } of seen) {
       expect(text).toContain('name="account_id"')
+      expect(text).toMatch(/name="platform"\r?\n\r?\ntradovate/)
       // The file is a part of its own. (The test environment's File is not a browser's, so its bytes and file name are
       // not serialized here; the browser check and the server's tests cover the real upload.)
       expect(text).toContain('name="file"')
     }
   })
 
+  it("sends TradeSea's pages as one part each, under the one name the server reads, with the platform", async () => {
+    const seen = recordUploads(() => json({ id: 1 }))
+    await apiSource.previewImport(4, [csv, csv, csv], 'tradesea')
+    await apiSource.previewImport(4, [csv], 'auto')
+    const [pages, dropped] = seen.map((s) => s.text)
+    expect(pages?.match(/name="file"/g)).toHaveLength(3)
+    expect(pages).toMatch(/name="platform"\r?\n\r?\ntradesea/)
+    expect(dropped).toMatch(/name="platform"\r?\n\r?\nauto/)
+  })
+
   it("shows a refused file as the server's sentence", async () => {
     recordUploads(() => problem(422, 'That is not a Tradovate Performance export.'))
-    await expect(apiSource.commitImport(4, csv)).rejects.toMatchObject({
+    await expect(apiSource.commitImport(4, [csv], 'tradovate')).rejects.toMatchObject({
       message: 'That is not a Tradovate Performance export.',
       status: 422,
     })

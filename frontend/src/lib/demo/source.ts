@@ -185,8 +185,8 @@ export const demoSource: DataSource = {
   deleteScreenshot: (id, screenshotId) => run(() => journal.deleteScreenshot(target(id), screenshotId)),
   accounts: (_signal, options) =>
     Promise.resolve(options?.includeArchived ? accounts.allAccountRefs() : accounts.activeAccountRefs()),
-  previewImport: (accountId, file) => imports.previewImport(accountId, file),
-  commitImport: (accountId, file) => imports.commitImport(accountId, file),
+  previewImport: (accountId, files, platform) => imports.previewImport(accountId, files, platform),
+  commitImport: (accountId, files, platform) => imports.commitImport(accountId, files, platform),
   imports: () => Promise.resolve(imports.listImports()),
   undoPreview: (importId) => run(() => imports.undoPreview(importId)),
   undoImport: (importId) => run(() => imports.undoImport(importId)),

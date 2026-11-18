@@ -25,7 +25,7 @@ import re
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field, replace
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from decimal import Decimal, InvalidOperation
 
 from .. import finance
@@ -183,6 +183,13 @@ def exact_average(shown: Decimal, qty: int, tick: Decimal) -> tuple[Decimal, boo
     if len(fitting) == 1:
         return fitting[0].quantize(PRICE_PLACES), True
     return shown, False
+
+
+def display_zone(name: str) -> tzinfo:
+    """A zone to show times in: an abbreviation TradeSea writes ("PST") as its fixed offset, else a zone name such as
+    America/Los_Angeles (the CSV time zone setting, used when a file's own zone was not understood)."""
+    offset = _zone_offset(name)
+    return timezone(offset, name.upper()) if offset is not None else zone(name)
 
 
 def _zone_offset(abbreviation: str | None) -> timedelta | None:

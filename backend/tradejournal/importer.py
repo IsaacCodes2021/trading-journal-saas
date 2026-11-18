@@ -28,6 +28,15 @@ class OpenPosition:
     since: datetime  # when the oldest of them was opened
 
 
+@dataclass(frozen=True)
+class RootCommission:
+    """A file's own commission for one contract root, to compare with the account's fee schedule."""
+
+    root: str
+    sides: int  # contracts bought plus contracts sold: two per contract round trip
+    commission: Decimal
+
+
 @dataclass
 class FileImportReport:
     filename: str
@@ -50,7 +59,9 @@ class FileImportReport:
     matches_other_accounts: dict[str, int] = field(default_factory=dict)  # also stored here (copy trading), by account
     open_positions: list[OpenPosition] = field(default_factory=list)  # contracts held after the last order
     file_commission: Decimal | None = None  # the file's own commission total for the orders read
+    commissions: list[RootCommission] = field(default_factory=list)  # the same, by contract root
     trades_removed: int = 0  # existing trades left with no fill pair when the orders were paired again
+    time_zone: str = ""  # the zone the times were read in, as stored in `imports.source_timezone`
 
     @property
     def trades_built(self) -> int:

@@ -238,6 +238,29 @@ export interface ImportIssue {
 
 export type PairStatus = 'new' | 'duplicate' | 'other_account'
 
+/** Where an export comes from. `lib/platforms.ts` says how each is exported and read. */
+export type Platform = 'tradovate' | 'tradesea'
+/** What an import is read as: a platform, or `auto`, told by the server from the files' header row (dropped files). */
+export type ImportPlatform = Platform | 'auto'
+
+/** Contracts still held after the last order of a contract: held overnight, or an order the export left out. */
+export interface OpenPosition {
+  symbol: string
+  direction: 'long' | 'short'
+  qty: number
+  since: string // written like the rows' times
+}
+
+/** One contract's commission in the files, beside what the account's own fee setting charges for the same contracts. */
+export interface CommissionCheck {
+  root: string
+  round_trips: string
+  file_total: string
+  file_rate: string // per contract, round trip
+  schedule_rate: string // the account's setting for this contract (or its rate for any other)
+  schedule_total: string
+}
+
 /** One fill pair as the file states it (times as written in the file, in the timezone the settings name). */
 export interface PreviewRow {
   line: number
@@ -253,20 +276,36 @@ export interface PreviewRow {
   pnl: string
 }
 
-/** What importing a file would do, worked out without saving anything (the "dry run"). Mirrors `FileImportReport`. */
+/**
+ * What importing the files would do, worked out without saving anything (the "dry run"). Mirrors `FileImportReport`.
+ * For Tradovate a row is a fill pair; for TradeSea it is a filled order, and the table shows the fill pairs they make.
+ */
 export interface ImportPreview {
-  file_name: string
+  platform: Platform
+  recognised: boolean // the platform was told from the files' header row
+  suggested_platform: Platform | null // refused because the files look like this other platform's
+  file_name: string // the files' names, joined
+  file_count: number
   file_bytes: number
-  /** The whole file was refused (wrong kind of export, empty): a reason in words. */
+  /** The whole import was refused (wrong kind of export, empty): a reason in words. */
   fatal: string | null
-  rows_parsed: number // valid fill pairs read from the file
+  rows_parsed: number // valid rows read from the files
   rows_added: number // of those, new to this account
   duplicates: number // already stored in this account
-  duplicates_in_file: number // repeated within the file
+  duplicates_in_file: number // repeated within the file (TradeSea: on more than one page)
   duplicates_other_accounts: Record<string, number> // stored under another account, by account name
+  matches_other_accounts: Record<string, number> // TradeSea: the same orders in another account (copy trading)
+  skipped_by_status: Record<string, number> // TradeSea: orders that did not fill, by status
+  one_page: boolean // TradeSea: every file is exactly one page of 10 orders
+  open_positions: OpenPosition[]
+  file_commission: string | null // TradeSea: the files' own commission total
+  commissions: CommissionCheck[]
+  time_zone: string // the zone the times were read in
   errors: ImportIssue[]
   warnings: ImportIssue[]
-  trades_built: number // trades the new pairs would create or extend
+  trades_built: number // trades the new rows would create or extend
+  trades_changed: number // trades already stored that would change
+  trades_removed: number // trades already stored that would be left with no fill pair
   rows: PreviewRow[] // the first rows, for the table
   rows_shown_limit: number
 }
@@ -274,6 +313,7 @@ export interface ImportPreview {
 /** One line of the import history. Mirrors the `imports` table. */
 export interface ImportRecord {
   id: number
+  platform: Platform
   imported_at: string // ISO UTC
   file_name: string
   account: AccountRef
@@ -642,8 +682,8 @@ export interface DataSource {
   deleteScreenshot(id: number, screenshotId: number): Promise<void>
   /** The active accounts (the ones a file can be imported into); every account, archived ones too, when asked. */
   accounts(signal?: AbortSignal, options?: { includeArchived?: boolean }): Promise<AccountRef[]>
-  previewImport(accountId: number, file: File): Promise<ImportPreview>
-  commitImport(accountId: number, file: File): Promise<ImportRecord>
+  previewImport(accountId: number, files: File[], platform: ImportPlatform): Promise<ImportPreview>
+  commitImport(accountId: number, files: File[], platform: Platform): Promise<ImportRecord>
   imports(signal?: AbortSignal): Promise<ImportRecord[]>
   undoPreview(importId: number): Promise<UndoPreview>
   undoImport(importId: number): Promise<void>

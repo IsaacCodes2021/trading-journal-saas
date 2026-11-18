@@ -1912,8 +1912,22 @@
             "type": "integer"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "description": "The export; for TradeSea, one file per page of its list",
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
             "title": "File",
+            "type": "array"
+          },
+          "platform": {
+            "default": "tradovate",
+            "enum": [
+              "tradovate",
+              "tradesea",
+              "auto"
+            ],
+            "title": "Platform",
             "type": "string"
           }
         },
@@ -1933,8 +1947,22 @@
             "type": "integer"
           },
           "file": {
-            "contentMediaType": "application/octet-stream",
+            "description": "The export; for TradeSea, one file per page of its list",
+            "items": {
+              "contentMediaType": "application/octet-stream",
+              "type": "string"
+            },
             "title": "File",
+            "type": "array"
+          },
+          "platform": {
+            "default": "tradovate",
+            "enum": [
+              "tradovate",
+              "tradesea",
+              "auto"
+            ],
+            "title": "Platform",
             "type": "string"
           }
         },
@@ -2074,6 +2102,65 @@
           "name"
         ],
         "title": "ColorPresetOut",
+        "type": "object"
+      },
+      "CommissionCheckOut": {
+        "description": "One contract's commission in the files, beside what the account's own fee setting charges for the same\ncontracts. Roundturn uses the setting, so the two should match.",
+        "properties": {
+          "file_rate": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "File Rate",
+            "type": "string"
+          },
+          "file_total": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "File Total",
+            "type": "string"
+          },
+          "root": {
+            "title": "Root",
+            "type": "string"
+          },
+          "round_trips": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Round Trips",
+            "type": "string"
+          },
+          "schedule_rate": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Schedule Rate",
+            "type": "string"
+          },
+          "schedule_total": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Schedule Total",
+            "type": "string"
+          }
+        },
+        "required": [
+          "root",
+          "round_trips",
+          "file_total",
+          "file_rate",
+          "schedule_rate",
+          "schedule_total"
+        ],
+        "title": "CommissionCheckOut",
         "type": "object"
       },
       "CreatedGrantCodeOut": {
@@ -3062,8 +3149,16 @@
         "type": "object"
       },
       "ImportPreviewOut": {
-        "description": "What importing a file would do, worked out without saving anything. Mirrors `FileImportReport`.",
+        "description": "What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.\n\nFor Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; the table\nstill shows the fill pairs the orders make.",
         "properties": {
+          "commissions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/CommissionCheckOut"
+            },
+            "title": "Commissions",
+            "type": "array"
+          },
           "duplicates": {
             "title": "Duplicates",
             "type": "integer"
@@ -3101,9 +3196,63 @@
             "title": "File Bytes",
             "type": "integer"
           },
+          "file_commission": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Commission"
+          },
+          "file_count": {
+            "default": 1,
+            "title": "File Count",
+            "type": "integer"
+          },
           "file_name": {
             "title": "File Name",
             "type": "string"
+          },
+          "matches_other_accounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "Matches Other Accounts",
+            "type": "object"
+          },
+          "one_page": {
+            "default": false,
+            "title": "One Page",
+            "type": "boolean"
+          },
+          "open_positions": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/OpenPositionOut"
+            },
+            "title": "Open Positions",
+            "type": "array"
+          },
+          "platform": {
+            "enum": [
+              "tradovate",
+              "tradesea"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
+          "recognised": {
+            "default": false,
+            "title": "Recognised",
+            "type": "boolean"
           },
           "rows": {
             "items": {
@@ -3124,8 +3273,46 @@
             "title": "Rows Shown Limit",
             "type": "integer"
           },
+          "skipped_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "default": {},
+            "title": "Skipped By Status",
+            "type": "object"
+          },
+          "suggested_platform": {
+            "anyOf": [
+              {
+                "enum": [
+                  "tradovate",
+                  "tradesea"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Platform"
+          },
+          "time_zone": {
+            "default": "",
+            "title": "Time Zone",
+            "type": "string"
+          },
           "trades_built": {
             "title": "Trades Built",
+            "type": "integer"
+          },
+          "trades_changed": {
+            "default": 0,
+            "title": "Trades Changed",
+            "type": "integer"
+          },
+          "trades_removed": {
+            "default": 0,
+            "title": "Trades Removed",
             "type": "integer"
           },
           "warnings": {
@@ -3137,7 +3324,11 @@
           }
         },
         "required": [
+          "platform",
+          "recognised",
+          "suggested_platform",
           "file_name",
+          "file_count",
           "file_bytes",
           "fatal",
           "rows_parsed",
@@ -3145,9 +3336,18 @@
           "duplicates",
           "duplicates_in_file",
           "duplicates_other_accounts",
+          "matches_other_accounts",
+          "skipped_by_status",
+          "one_page",
+          "open_positions",
+          "file_commission",
+          "commissions",
+          "time_zone",
           "errors",
           "warnings",
           "trades_built",
+          "trades_changed",
+          "trades_removed",
           "rows",
           "rows_shown_limit"
         ],
@@ -3174,6 +3374,14 @@
             "title": "Imported At",
             "type": "string"
           },
+          "platform": {
+            "enum": [
+              "tradovate",
+              "tradesea"
+            ],
+            "title": "Platform",
+            "type": "string"
+          },
           "rows_added": {
             "title": "Rows Added",
             "type": "integer"
@@ -3197,6 +3405,7 @@
         },
         "required": [
           "id",
+          "platform",
           "imported_at",
           "file_name",
           "account",
@@ -3788,6 +3997,39 @@
           "notes_html"
         ],
         "title": "NotesOut",
+        "type": "object"
+      },
+      "OpenPositionOut": {
+        "description": "Contracts still held after the last order of a contract: held overnight, or an order the export left out.",
+        "properties": {
+          "direction": {
+            "enum": [
+              "long",
+              "short"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "qty": {
+            "title": "Qty",
+            "type": "integer"
+          },
+          "since": {
+            "title": "Since",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "direction",
+          "qty",
+          "since"
+        ],
+        "title": "OpenPositionOut",
         "type": "object"
       },
       "OverrideIn": {
@@ -12624,7 +12866,7 @@
         ]
       },
       "post": {
-        "description": "Import the file into the account. Rows already stored are left alone, so importing a file twice is safe.",
+        "description": "Import the files into the account. Rows already stored are left alone, so importing a file twice is safe.",
         "operationId": "import_file",
         "requestBody": {
           "content": {
@@ -12726,7 +12968,7 @@
     },
     "/api/v1/imports/preview": {
       "post": {
-        "description": "What importing this file into this account would do: counts, problems, and the first rows with a status each.\nNothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the\nreal import would do.",
+        "description": "What importing these files into this account would do: counts, problems, and the first rows with a status each.\nNothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the\nreal import would do.",
         "operationId": "preview_import",
         "requestBody": {
           "content": {
