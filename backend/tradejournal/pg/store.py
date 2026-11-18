@@ -30,7 +30,7 @@ from ..trades import build_trade
 from . import settings, usage
 from .accounts import fee_schedule
 
-SOURCE = "tradovate_performance"  # the only import adapter so far (matches the column default)
+SOURCE = "tradovate_performance"  # Tradovate's fill pairs (the column default); TradeSea's are worked out from orders
 _LOCK_CLASS = 7283  # advisory-lock namespace for per-user work; the migration runner uses a single bigint key
 
 
@@ -39,8 +39,11 @@ def lock_user(conn: psycopg.Connection) -> None:
     conn.execute("SELECT pg_advisory_xact_lock(%s, hashtext(app_user_id()::text))", (_LOCK_CLASS,))
 
 
-def insert_fill_pairs(conn: psycopg.Connection, account_id: int, pairs: Sequence[FillPair]) -> list[int]:
-    """Store fill pairs in one batch and return their ids in the same order."""
+def insert_fill_pairs(
+    conn: psycopg.Connection, account_id: int, pairs: Sequence[FillPair], *, source: str = SOURCE
+) -> list[int]:
+    """Store fill pairs in one batch and return their ids in the same order. A pair worked out from stored orders
+    (`executions.py`) has its orders' ids as its references and the orders' source."""
     if not pairs:
         return []
     with conn.cursor() as cursor:
@@ -53,7 +56,7 @@ def insert_fill_pairs(conn: psycopg.Connection, account_id: int, pairs: Sequence
             [
                 (
                     account_id,
-                    SOURCE,
+                    source,
                     str(pair.buy_fill_id),
                     str(pair.sell_fill_id),
                     pair.symbol,

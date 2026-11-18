@@ -24,9 +24,13 @@ import psycopg
 from ..importer import FileImportReport, ImportReport, UndoReport
 from ..models import FillPair
 from ..parser import parse_performance_csv
-from . import store, usage
+from ..platforms import tradesea
+from . import executions, store, usage
 from .accounts import get_account
 from .settings import effective_csv_timezone
+
+TRADOVATE, TRADESEA = "tradovate", "tradesea"
+PLATFORMS = (TRADOVATE, TRADESEA)
 
 
 def import_files(
@@ -34,14 +38,24 @@ def import_files(
     account_id: int,
     files: Sequence[tuple[str, bytes]],
     *,
+    platform: str = TRADOVATE,
     dry_run: bool = False,
 ) -> ImportReport:
-    """Import one or more exports into an account, in order, as one atomic operation."""
+    """Import one or more exports into an account, in order, as one atomic operation.
+
+    Tradovate's files are one import each. TradeSea's are the pages of one day (its export saves one page of 10 orders),
+    so they are read together as **one** import, with one report.
+    """
+    if platform not in PLATFORMS:
+        raise ValueError(f"unknown platform {platform!r}")
     store.lock_user(conn)
     get_account(conn, account_id)
     tz_name = effective_csv_timezone(conn)  # the CSV zone if one is chosen, else the person's own timezone
     with conn.transaction():  # a savepoint inside the tenant session's transaction
-        reports = [_import_file(conn, account_id, name, data, tz_name) for name, data in files]
+        if platform == TRADESEA:
+            reports = [_import_order_files(conn, account_id, files, tz_name)]
+        else:
+            reports = [_import_file(conn, account_id, name, data, tz_name) for name, data in files]
         usage.refresh(conn)
         if dry_run:
             raise psycopg.Rollback
@@ -131,6 +145,84 @@ def _import_file(
     return report
 
 
+def _import_order_files(
+    conn: psycopg.Connection, account_id: int, files: Sequence[tuple[str, bytes]], tz_name: str
+) -> FileImportReport:
+    """TradeSea: store the filled orders, then work the account's fill pairs and trades out again from every stored
+    order of the symbols in the files (`executions.py`)."""
+    read = tradesea.read_order_files(files, tz_name)
+    report = FileImportReport(
+        filename=_names(files),
+        platform=TRADESEA,
+        rows_parsed=len(read.executions),
+        duplicates_in_file=read.duplicates_across_files,
+        errors=read.errors,
+        warnings=read.warnings,
+        fatal=read.fatal,
+        skipped_by_status=dict(read.skipped),
+        file_commission=read.commission if any(e.commission is not None for e in read.executions) else None,
+    )
+    if read.fatal:
+        return report
+
+    digest = _digest(files)
+    report.previous_imports = [
+        row["id"]
+        for row in conn.execute(
+            "SELECT id FROM imports WHERE account_id = %s AND file_sha256 = %s AND undone_at IS NULL ORDER BY id",
+            (account_id, digest),
+        )
+    ]
+    # The zone the times were read in: the file's own ("PST"), and the setting's when some had none Roundturn reads.
+    zones = sorted(read.zones) + ([tz_name] if read.fell_back or not read.zones else [])
+    import_id = conn.execute(
+        """INSERT INTO imports (account_id, source, filename, file_sha256, source_timezone, imported_at)
+           VALUES (%s, %s, %s, %s, %s, clock_timestamp()) RETURNING id""",
+        (account_id, tradesea.SOURCE, report.filename, digest, ", ".join(zones)),
+    ).fetchone()["id"]
+    report.import_id = import_id
+
+    stored = executions.store_executions(conn, account_id, tradesea.SOURCE, read.executions)
+    executions.link_to_import(conn, import_id, stored.linked_ids)
+    report.rows_added = len(stored.added_ids)
+    report.duplicates = len(stored.duplicate_ids)
+    report.matches_other_accounts = dict(stored.other_accounts)
+
+    rederived = executions.rederive(conn, account_id, tradesea.SOURCE, {e.symbol for e in read.executions})
+    report.trades_created = len(rederived.trades.created)
+    report.trades_extended = len(rederived.trades.updated)
+    report.trades_merged = len(rederived.trades.removed | rederived.journal_moved)
+    report.trades_removed = len(rederived.deleted)
+    report.open_positions = rederived.open_positions
+
+    conn.execute(
+        "UPDATE imports SET rows_parsed = %s, rows_added = %s, rows_duplicate = %s, rows_error = %s, "
+        "trades_affected = %s WHERE id = %s",
+        (
+            report.rows_parsed,
+            report.rows_added,
+            report.duplicates + report.duplicates_in_file,
+            len(report.errors),
+            report.trades_built,
+            import_id,
+        ),
+    )
+    return report
+
+
+def _names(files: Sequence[tuple[str, bytes]]) -> str:
+    return ", ".join(name for name, _ in files)[:500]
+
+
+def _digest(files: Sequence[tuple[str, bytes]]) -> str:
+    """One file's SHA-256, as for Tradovate; for several pages, the SHA-256 of their sorted SHA-256s, so the same pages
+    picked in any order give the same fingerprint."""
+    digests = sorted(hashlib.sha256(data).hexdigest() for _, data in files)
+    if len(digests) == 1:
+        return digests[0]
+    return hashlib.sha256("\n".join(digests).encode()).hexdigest()
+
+
 def _key(pair: FillPair) -> tuple[str, str]:
     return (str(pair.buy_fill_id), str(pair.sell_fill_id))
 
@@ -202,56 +294,89 @@ def undo_import(conn: psycopg.Connection, import_id: int, *, dry_run: bool = Fal
             raise LookupError(f"no import with id {import_id}")
         if record["undone_at"] is not None:
             raise ValueError(f"import {import_id} was already undone")
-        account_id = record["account_id"]
-
-        linked = [
-            row["fill_pair_id"]
-            for row in conn.execute(
-                "DELETE FROM import_fill_pairs WHERE import_id = %s RETURNING fill_pair_id", (import_id,)
-            )
-        ]
-        kept = {
-            row["fill_pair_id"]
-            for row in conn.execute(
-                "SELECT DISTINCT fill_pair_id FROM import_fill_pairs WHERE fill_pair_id = ANY(%s::bigint[])", (linked,)
-            )
-        }
-        report.rows_kept = len(kept)
-        orphans = [pair_id for pair_id in linked if pair_id not in kept]
-        affected: dict[int, str] = {  # trade id -> symbol
-            row["trade_id"]: row["symbol"]
-            for row in conn.execute(
-                "DELETE FROM fill_pairs WHERE id = ANY(%s::bigint[]) RETURNING trade_id, symbol", (orphans,)
-            )
-            if row["trade_id"] is not None
-        }
-        report.rows_removed = len(orphans)
-
-        remaining: dict[int, list[int]] = defaultdict(list)  # trade id -> its surviving fill pair ids
-        for row in conn.execute(
-            "SELECT id, trade_id FROM fill_pairs WHERE trade_id = ANY(%s::bigint[])", (list(affected),)
-        ):
-            remaining[row["trade_id"]].append(row["id"])
-        emptied = [trade_id for trade_id in affected if trade_id not in remaining]
-        report.trades_with_journal_removed = len(store.journal_trade_ids(conn, emptied))
-        conn.execute("DELETE FROM trades WHERE id = ANY(%s::bigint[])", (emptied,))
-        report.trades_removed = len(emptied)
-
-        remaining_by_symbol: dict[str, list[int]] = defaultdict(list)
-        for trade_id, pair_ids in remaining.items():
-            remaining_by_symbol[affected[trade_id]].extend(pair_ids)
-        changed: set[int] = set(remaining)  # trades that lost some, but not all, of their fill pairs
-        for symbol, pair_ids in remaining_by_symbol.items():
-            rebuilt = store.rebuild_trades(conn, account_id, symbol, pair_ids)
-            changed |= rebuilt.created | rebuilt.updated
-            report.trades_removed += len(rebuilt.removed)
-        report.trades_changed = len(changed)
-
+        if record["source"] == store.SOURCE:
+            _undo_fill_pairs(conn, record, report)
+        else:
+            _undo_orders(conn, record, report)
         conn.execute("UPDATE imports SET undone_at = clock_timestamp() WHERE id = %s", (import_id,))
         usage.refresh(conn)
         if dry_run:
             raise psycopg.Rollback
     return report
+
+
+def _undo_orders(conn: psycopg.Connection, record: dict, report: UndoReport) -> None:
+    """Remove the orders only this import holds, then work the fill pairs and trades out again (`executions.py`)."""
+    linked = [
+        row["execution_id"]
+        for row in conn.execute(
+            "DELETE FROM import_executions WHERE import_id = %s RETURNING execution_id", (record["id"],)
+        )
+    ]
+    kept = {
+        row["execution_id"]
+        for row in conn.execute(
+            "SELECT DISTINCT execution_id FROM import_executions WHERE execution_id = ANY(%s::bigint[])", (linked,)
+        )
+    }
+    report.rows_kept = len(kept)
+    orphans = [execution_id for execution_id in linked if execution_id not in kept]
+    symbols = {
+        row["symbol"]
+        for row in conn.execute("DELETE FROM executions WHERE id = ANY(%s::bigint[]) RETURNING symbol", (orphans,))
+    }
+    report.rows_removed = len(orphans)
+    rederived = executions.rederive(conn, record["account_id"], record["source"], symbols)
+    report.trades_removed = len(rederived.removed)
+    report.trades_with_journal_removed = rederived.journal_lost
+    report.trades_changed = len(rederived.trades.created | rederived.trades.updated)
+
+
+def _undo_fill_pairs(conn: psycopg.Connection, record: dict, report: UndoReport) -> None:
+    """Tradovate: remove the fill pairs only this import holds, and regroup what is left."""
+    import_id, account_id = record["id"], record["account_id"]
+    linked = [
+        row["fill_pair_id"]
+        for row in conn.execute(
+            "DELETE FROM import_fill_pairs WHERE import_id = %s RETURNING fill_pair_id", (import_id,)
+        )
+    ]
+    kept = {
+        row["fill_pair_id"]
+        for row in conn.execute(
+            "SELECT DISTINCT fill_pair_id FROM import_fill_pairs WHERE fill_pair_id = ANY(%s::bigint[])", (linked,)
+        )
+    }
+    report.rows_kept = len(kept)
+    orphans = [pair_id for pair_id in linked if pair_id not in kept]
+    affected: dict[int, str] = {  # trade id -> symbol
+        row["trade_id"]: row["symbol"]
+        for row in conn.execute(
+            "DELETE FROM fill_pairs WHERE id = ANY(%s::bigint[]) RETURNING trade_id, symbol", (orphans,)
+        )
+        if row["trade_id"] is not None
+    }
+    report.rows_removed = len(orphans)
+
+    remaining: dict[int, list[int]] = defaultdict(list)  # trade id -> its surviving fill pair ids
+    for row in conn.execute(
+        "SELECT id, trade_id FROM fill_pairs WHERE trade_id = ANY(%s::bigint[])", (list(affected),)
+    ):
+        remaining[row["trade_id"]].append(row["id"])
+    emptied = [trade_id for trade_id in affected if trade_id not in remaining]
+    report.trades_with_journal_removed = len(store.journal_trade_ids(conn, emptied))
+    conn.execute("DELETE FROM trades WHERE id = ANY(%s::bigint[])", (emptied,))
+    report.trades_removed = len(emptied)
+
+    remaining_by_symbol: dict[str, list[int]] = defaultdict(list)
+    for trade_id, pair_ids in remaining.items():
+        remaining_by_symbol[affected[trade_id]].extend(pair_ids)
+    changed: set[int] = set(remaining)  # trades that lost some, but not all, of their fill pairs
+    for symbol, pair_ids in remaining_by_symbol.items():
+        rebuilt = store.rebuild_trades(conn, account_id, symbol, pair_ids)
+        changed |= rebuilt.created | rebuilt.updated
+        report.trades_removed += len(rebuilt.removed)
+    report.trades_changed = len(changed)
 
 
 def list_imports(conn: psycopg.Connection, account_id: int | None = None) -> list[dict]:

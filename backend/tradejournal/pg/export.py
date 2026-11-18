@@ -3,6 +3,7 @@
 What is in the ZIP
     profile.json                 who the account is and its settings
     accounts.csv, fee_schedules.csv, imports.csv, trades.csv, fill_pairs.csv, import_fill_pairs.csv,
+    executions.csv, import_executions.csv,
     tag_groups.csv, tags.csv, trade_tags.csv, ledger.csv, account_rules.csv,
     screenshots.csv              one file per table, same column names
     notes/trade-<id>.html and .txt, notes/day-<date>.html and .txt            the notes, as written and as plain text
@@ -75,6 +76,8 @@ TABLES = (
     Table("trades.csv", "trades", "id", frozenset({"user_id", "notes"})),  # notes go in notes/, where they are readable
     Table("fill_pairs.csv", "fill_pairs", "id"),
     Table("import_fill_pairs.csv", "import_fill_pairs", "import_id, fill_pair_id"),
+    Table("executions.csv", "executions", "id"),
+    Table("import_executions.csv", "import_executions", "import_id, execution_id"),
     Table("tag_groups.csv", "tag_groups", "id"),
     Table("tags.csv", "tags", "id"),
     Table("trade_tags.csv", "trade_tags", "trade_id, tag_id"),

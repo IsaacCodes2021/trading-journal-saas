@@ -8,6 +8,7 @@ from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 
 from . import store
 from .accounts import get_account
@@ -15,6 +16,16 @@ from .db import transaction
 from .parser import RowIssue, parse_performance_csv
 from .settings import get_setting
 from .timeutil import to_utc_iso
+
+
+@dataclass(frozen=True)
+class OpenPosition:
+    """Contracts still held after the last stored order of a symbol: held overnight, or an order the export left out."""
+
+    symbol: str
+    direction: str  # long or short
+    qty: int
+    since: datetime  # when the oldest of them was opened
 
 
 @dataclass
@@ -33,6 +44,13 @@ class FileImportReport:
     trades_extended: int = 0  # existing trades that gained fill pairs from this file
     trades_merged: int = 0  # existing trades folded into another trade
     previous_imports: list[int] = field(default_factory=list)  # earlier imports of this exact file
+    # Orders from a platform that does not pair its own fills (TradeSea). Rows are then orders, not fill pairs.
+    platform: str = "tradovate"
+    skipped_by_status: dict[str, int] = field(default_factory=dict)  # orders that did not fill ("cancelled": 4)
+    matches_other_accounts: dict[str, int] = field(default_factory=dict)  # also stored here (copy trading), by account
+    open_positions: list[OpenPosition] = field(default_factory=list)  # contracts held after the last order
+    file_commission: Decimal | None = None  # the file's own commission total for the orders read
+    trades_removed: int = 0  # existing trades left with no fill pair when the orders were paired again
 
     @property
     def trades_built(self) -> int:

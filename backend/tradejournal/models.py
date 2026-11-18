@@ -8,6 +8,7 @@ from decimal import Decimal
 from typing import Literal
 
 Direction = Literal["long", "short"]
+Side = Literal["buy", "sell"]
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,26 @@ class FillPair:
     @property
     def exit_price(self) -> Decimal:
         return self.sell_price if self.direction == "long" else self.buy_price
+
+
+@dataclass(frozen=True)
+class Execution:
+    """One fill, or one filled order at its average price, from a platform that does not pair its own fills.
+
+    TradeSea's Orders export is the first such source. Executions are paired first in, first out into fill pairs
+    (pairing.py), which then go through the same grouping and P&L code as Tradovate's.
+    """
+
+    executed_at: datetime  # timezone-aware, UTC
+    symbol: str  # as stored: the contract root, or root and month code ("NQ", "NQZ6")
+    side: Side
+    qty: int
+    price: Decimal  # the exact average fill price
+    ref: str  # stable reference built from what the fill is; the same fill in another export has the same one
+    fill_id: int = 0  # orders fills in time: their order within one import, the database id once stored
+    commission: Decimal | None = None  # the file's own commission for the whole order, when it has one
+    order_type: str = ""  # as the platform writes it: "Market", "Limit", "Stop"
+    line: int = 0  # 1-based line in the source file
 
 
 @dataclass(frozen=True)
