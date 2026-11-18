@@ -66,7 +66,7 @@ screen (`/admin/rules`, PR 142) edits those templates and re-imports the CSV (a 
 **TradeSea import** (plan: `docs/design/tradesea-import-plan.md`, not committed). The engine went live on 2026-11-18 (PR 182,
 migration 0025): TradeSea's filled orders are stored in `executions` and paired first in, first out into fill pairs. The
 Import page part (the "Where are these trades from?" dialog, several pages as one import, the preview's checks) came in
-the PR from branch `app/tradesea-import`. The contract table `backend/tradejournal/contracts.py` sets point values, so it
+PR 183. The contract table `backend/tradejournal/contracts.py` sets point values, so it
 sets money: see Open items.
 
 **Export guides on the marketing site: the app links to pages that do not exist yet.** The addresses were picked on
