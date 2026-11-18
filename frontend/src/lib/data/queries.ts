@@ -6,8 +6,10 @@ import type {
   AccountRulesInput,
   ArchiveInput,
   DataSource,
+  ImportPlatform,
   NewLedgerEntry,
   PayoutInput,
+  Platform,
   ReportBy,
   RuleSetInput,
   TagCatalog,
@@ -253,7 +255,8 @@ export function useImports() {
 export function usePreviewImport() {
   const source = useDataSource()
   return useMutation({
-    mutationFn: ({ accountId, file }: { accountId: number; file: File }) => source.previewImport(accountId, file),
+    mutationFn: ({ accountId, files, platform }: { accountId: number; files: File[]; platform: ImportPlatform }) =>
+      source.previewImport(accountId, files, platform),
   })
 }
 
@@ -262,7 +265,8 @@ export function useCommitImport() {
   const source = useDataSource()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ accountId, file }: { accountId: number; file: File }) => source.commitImport(accountId, file),
+    mutationFn: ({ accountId, files, platform }: { accountId: number; files: File[]; platform: Platform }) =>
+      source.commitImport(accountId, files, platform),
     onSuccess: () =>
       Promise.all(
         ['imports', 'trades', 'trade', 'dashboard', 'filter-options', 'account-overviews', 'accounts-overview'].map(

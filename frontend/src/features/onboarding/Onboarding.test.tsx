@@ -28,6 +28,17 @@ async function open(step?: number, options: ApiOptions = {}) {
 }
 
 const step = (title: string) => screen.findByRole('region', { name: title })
+
+/** Chooses a Tradovate file the way a person does: Choose files, the platform, then the computer's file window. */
+async function chooseTradovate(user: ReturnType<typeof userEvent.setup>, region: HTMLElement, file: File) {
+  const choose = within(region).getByRole('button', { name: 'Choose files' })
+  await waitFor(() => expect(choose).toBeEnabled()) // the accounts have loaded
+  await user.click(choose)
+  const dialog = await screen.findByRole('dialog', { name: 'Where are these trades from?' })
+  await user.selectOptions(within(dialog).getByLabelText('Platform'), 'Tradovate: Performance report')
+  await user.click(within(dialog).getByRole('button', { name: 'Choose files' }))
+  await user.upload(within(region).getByLabelText('Export files'), file)
+}
 const stepOf = (router: { state: { location: { search: unknown } } }) =>
   (router.state.location.search as { step?: number }).step
 
@@ -89,7 +100,7 @@ describe('the first-run setup', () => {
     ).toEqual([
       '1Confirm timezone',
       '2Add your first account',
-      '3Export from Tradovate',
+      '3Export your trades',
       '4Upload your CSV',
       '5See your dashboard',
     ])
@@ -104,7 +115,7 @@ describe('the first-run setup', () => {
 
   it('opens on the step the address names, and on the first for anything else', async () => {
     const { unmount } = await open(3)
-    expect(await step('Export from Tradovate')).toBeInTheDocument()
+    expect(await step('Export your trades')).toBeInTheDocument()
     unmount()
     await open(9)
     expect(await step('Confirm your timezone')).toBeInTheDocument()
@@ -226,7 +237,7 @@ describe('step 2: the first account', () => {
     expect(within(region).getByText('Apex 50K #1')).toBeInTheDocument()
     expect(within(region).queryByLabelText('Account name')).not.toBeInTheDocument() // the form has done its job
     await user.click(within(region).getByRole('button', { name: 'Continue' }))
-    await step('Export from Tradovate')
+    await step('Export your trades')
     expect(stepOf(router)).toBe(3)
   })
 
@@ -284,12 +295,23 @@ describe('step 2: the first account', () => {
 describe('step 3: the file', () => {
   it('says what to look for and lists exactly the columns the file must have', async () => {
     await open(3)
-    const region = await step('Export from Tradovate')
+    const region = await step('Export your trades')
     expect(within(region).getAllByRole('listitem').length).toBeGreaterThan(REQUIRED_COLUMNS.length)
     const columns = within(within(region).getByRole('list', { name: 'Required columns' })).getAllByRole('listitem')
     expect(columns.map((c) => c.textContent)).toEqual([...REQUIRED_COLUMNS])
     expect(within(region).getByText(/Performance/, { selector: 'strong' })).toBeInTheDocument()
     expect(within(region).getByText(/Nothing is saved until you confirm a preview/)).toBeInTheDocument()
+  })
+
+  it('says how to export from TradeSea: the Filled orders, every page', async () => {
+    await open(3)
+    const tradesea = within(await step('Export your trades')).getByRole('region', { name: 'TradeSea' })
+    expect(tradesea).toHaveTextContent('In TradeSea, open Orders and select Filled.')
+    expect(tradesea).toHaveTextContent('export every page')
+    expect(within(tradesea).getByRole('link', { name: 'How to export from TradeSea' })).toHaveAttribute(
+      'href',
+      'https://roundturn.app/docs/import/tradesea/',
+    )
   })
 })
 
@@ -300,10 +322,7 @@ describe('step 4: upload', () => {
     const next = within(region).getByRole('button', { name: 'Skip for now' }) // nothing imported yet
     expect(next).toBeEnabled()
 
-    await user.upload(
-      within(region).getByLabelText('Choose a Performance CSV'),
-      csvFile(csv(manyRows(3)), 'Performance_2026-10-02.csv'),
-    )
+    await chooseTradovate(user, region, csvFile(csv(manyRows(3)), 'Performance_2026-10-02.csv'))
     await user.click(await within(region).findByRole('button', { name: 'Import 3 fill pairs' }))
     expect(
       await within(region).findByText('Imported 3 fill pairs into Apex 50K #1, making 3 trades.'),
@@ -319,11 +338,16 @@ describe('step 4: upload', () => {
     expect(within(done).getByRole('link', { name: 'Import another file' })).toHaveAttribute('href', '/import')
   })
 
-  it('names the zone the files are read in: the CSV zone, not the display zone', async () => {
-    await open(4, { settings: { csv_timezone: 'America/Chicago' } })
+  it('names the zone Tradovate files are read in: the CSV zone, not the display zone', async () => {
+    const { user } = await open(4, { settings: { csv_timezone: 'America/Chicago' } })
     const region = await step('Upload your CSV')
-    expect(await within(region).findByText('America/Chicago')).toBeInTheDocument()
-    expect(within(region).queryByText('America/Los_Angeles')).not.toBeInTheDocument()
+    const choose = within(region).getByRole('button', { name: 'Choose files' })
+    await waitFor(() => expect(choose).toBeEnabled())
+    await user.click(choose)
+    const dialog = await screen.findByRole('dialog', { name: 'Where are these trades from?' })
+    await user.selectOptions(within(dialog).getByLabelText('Platform'), 'Tradovate: Performance report')
+    expect(within(dialog).getByText('America/Chicago')).toBeInTheDocument()
+    expect(within(dialog).queryByText('America/Los_Angeles')).not.toBeInTheDocument()
   })
 
   it('lets a person without their file skip it', async () => {
@@ -337,7 +361,7 @@ describe('step 4: upload', () => {
   it('tells what is wrong with a file that is not a Performance export', async () => {
     const { user } = await open(4)
     const region = await step('Upload your CSV')
-    await user.upload(within(region).getByLabelText('Choose a Performance CSV'), csvFile('a,b\n1,2', 'orders.csv'))
+    await chooseTradovate(user, region, csvFile('a,b\n1,2', 'orders.csv'))
     expect(await within(region).findByRole('alert')).toHaveTextContent(/missing/i)
     expect(within(region).getByRole('button', { name: 'Skip for now' })).toBeEnabled() // and nobody is stuck
   })

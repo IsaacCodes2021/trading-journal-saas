@@ -2,7 +2,7 @@
 export const STEPS = [
   { number: 1, title: 'Confirm timezone' },
   { number: 2, title: 'Add your first account' },
-  { number: 3, title: 'Export from Tradovate' },
+  { number: 3, title: 'Export your trades' },
   { number: 4, title: 'Upload your CSV' },
   { number: 5, title: 'See your dashboard' },
 ] as const

@@ -16,10 +16,12 @@ import { DAY_TRADES_LIMIT, type DataSource, type ScreenshotRef, type TradesQuery
 type FirmName = components['schemas']['AccountDetailsIn']['firm']
 
 /** A file upload is multipart, not JSON: the browser writes the boundary itself, so no content type is set here. */
-function uploadForm(accountId: number, file: File): FormData {
+/** An import upload: the account, where the files come from, and the files (TradeSea: one per page of its list). */
+function uploadForm(accountId: number, files: File[], platform: string): FormData {
   const form = new FormData()
   form.append('account_id', String(accountId))
-  form.append('file', file)
+  form.append('platform', platform)
+  for (const file of files) form.append('file', file)
   return form
 }
 
@@ -197,18 +199,18 @@ export const apiSource: DataSource = {
       }),
     )
   },
-  previewImport: (accountId, file) =>
+  previewImport: (accountId, files, platform) =>
     unwrap(
       api.POST('/api/v1/imports/preview', {
-        body: { account_id: accountId, file: file as unknown as string },
-        bodySerializer: () => uploadForm(accountId, file),
+        body: { account_id: accountId, platform, file: files as unknown as string[] },
+        bodySerializer: () => uploadForm(accountId, files, platform),
       }),
     ),
-  commitImport: (accountId, file) =>
+  commitImport: (accountId, files, platform) =>
     unwrap(
       api.POST('/api/v1/imports', {
-        body: { account_id: accountId, file: file as unknown as string },
-        bodySerializer: () => uploadForm(accountId, file),
+        body: { account_id: accountId, platform, file: files as unknown as string[] },
+        bodySerializer: () => uploadForm(accountId, files, platform),
       }),
     ),
   imports: (signal) => unwrap(api.GET('/api/v1/imports', { signal })),

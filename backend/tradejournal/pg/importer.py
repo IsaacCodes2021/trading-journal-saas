@@ -18,19 +18,19 @@ import hashlib
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
+from decimal import Decimal
 
 import psycopg
 
-from ..importer import FileImportReport, ImportReport, UndoReport
-from ..models import FillPair
+from .. import finance
+from ..importer import FileImportReport, ImportReport, RootCommission, UndoReport
+from ..models import Execution, FillPair
 from ..parser import parse_performance_csv
 from ..platforms import tradesea
+from ..platforms.detect import PLATFORMS, TRADESEA, TRADOVATE
 from . import executions, store, usage
 from .accounts import get_account
 from .settings import effective_csv_timezone
-
-TRADOVATE, TRADESEA = "tradovate", "tradesea"
-PLATFORMS = (TRADOVATE, TRADESEA)
 
 
 def import_files(
@@ -76,6 +76,7 @@ def _import_file(
         errors=parsed.errors,
         warnings=parsed.warnings,
         fatal=parsed.fatal,
+        time_zone=tz_name,
     )
     if parsed.fatal:
         return report
@@ -161,6 +162,7 @@ def _import_order_files(
         fatal=read.fatal,
         skipped_by_status=dict(read.skipped),
         file_commission=read.commission if any(e.commission is not None for e in read.executions) else None,
+        commissions=_commissions(read.executions),
     )
     if read.fatal:
         return report
@@ -175,10 +177,11 @@ def _import_order_files(
     ]
     # The zone the times were read in: the file's own ("PST"), and the setting's when some had none Roundturn reads.
     zones = sorted(read.zones) + ([tz_name] if read.fell_back or not read.zones else [])
+    report.time_zone = ", ".join(zones)
     import_id = conn.execute(
         """INSERT INTO imports (account_id, source, filename, file_sha256, source_timezone, imported_at)
            VALUES (%s, %s, %s, %s, %s, clock_timestamp()) RETURNING id""",
-        (account_id, tradesea.SOURCE, report.filename, digest, ", ".join(zones)),
+        (account_id, tradesea.SOURCE, report.filename, digest, report.time_zone),
     ).fetchone()["id"]
     report.import_id = import_id
 
@@ -208,6 +211,51 @@ def _import_order_files(
         ),
     )
     return report
+
+
+def _commissions(orders: Sequence[Execution]) -> list[RootCommission]:
+    """The files' own commission by contract root, for the orders that state one."""
+    sides: Counter[str] = Counter()
+    totals: dict[str, Decimal] = defaultdict(lambda: finance.ZERO)
+    for order in orders:
+        if order.commission is not None:
+            sides[order.symbol] += order.qty
+            totals[order.symbol] += order.commission
+    return [RootCommission(root, sides[root], totals[root]) for root in sorted(sides)]
+
+
+def preview_orders(
+    conn: psycopg.Connection, account_id: int, files: Sequence[tuple[str, bytes]], limit: int
+) -> tuple[FileImportReport, list[RowPreview]]:
+    """TradeSea: what importing these pages would do, and the first `limit` fill pairs their orders would be part of,
+    each with its status. The import itself runs and is rolled back, as `import_files(dry_run=True)` does, so the
+    preview is what the import would do."""
+    store.lock_user(conn)
+    get_account(conn, account_id)
+    tz_name = effective_csv_timezone(conn)
+    rows: list[RowPreview] = []
+    with conn.transaction():
+        # Fill pair ids only grow, so a pair with a higher id than any stored now is one this import would make.
+        last = conn.execute("SELECT coalesce(max(id), 0) AS id FROM fill_pairs").fetchone()["id"]
+        report = _import_order_files(conn, account_id, files, tz_name)
+        if not report.fatal:
+            refs = [
+                str(row["execution_id"])
+                for row in conn.execute(
+                    "SELECT execution_id FROM import_executions WHERE import_id = %s", (report.import_id,)
+                )
+            ]
+            for row in conn.execute(
+                """SELECT * FROM fill_pairs
+                   WHERE account_id = %s AND source = %s AND (buy_ref = ANY(%s::text[]) OR sell_ref = ANY(%s::text[]))
+                   ORDER BY least(bought_at, sold_at), id LIMIT %s""",
+                (account_id, tradesea.SOURCE, refs, refs, limit),
+            ):
+                status = PAIR_NEW if row["id"] > last else PAIR_DUPLICATE
+                rows.append(RowPreview(store.pair_from_row(row), status, None))
+        raise psycopg.Rollback
+    report.import_id = None
+    return report, rows
 
 
 def _names(files: Sequence[tuple[str, bytes]]) -> str:

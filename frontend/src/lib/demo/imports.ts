@@ -1,16 +1,23 @@
-import type { ImportPreview, ImportRecord, PreviewRow, UndoPreview } from '../data/model'
+import type { ImportPlatform, ImportPreview, ImportRecord, Platform, PreviewRow, UndoPreview } from '../data/model'
 import { ImportRefused } from '../data/model'
 import { countTrades, parsePerformanceCsv, type ParsedPair } from './csv'
 import { SAMPLE_ACCOUNTS } from './generate'
 import { accountRef } from './accounts'
 import { MAX_CSV_MB } from '../tradovate'
+import { TRADESEA_COLUMNS } from '../platforms'
 
 /*
  * The sample import: reads a real Performance export in the browser (nothing is uploaded), checks it the way the
  * backend will, and keeps the result in memory. Importing the same file twice shows every row as already imported, and
  * a pair stored under another account is reported as such, so the screen can be tried honestly. The real source sends
  * the file to the server, which does all of this with the real parser and the real timezone.
+ *
+ * Only Tradovate's Performance report is read here: TradeSea's orders need the server's pairing (decision T7 of
+ * docs/design/tradesea-import-plan.md), so the demo asks the person to sign up for those.
  */
+
+export const SIGN_UP_FOR_TRADESEA = 'Sign up to import TradeSea files. The sample journal reads Tradovate files only.'
+const ONE_FILE = "Tradovate's Performance report is one file. Choose one file at a time."
 
 export const MAX_CSV_BYTES = MAX_CSV_MB * 1024 * 1024
 export const MAX_CSV_ROWS = 50_000
@@ -23,6 +30,7 @@ const INITIAL: ImportRecord[] = [
   {
     id: 4,
     imported_at: '2026-09-30T23:48:00Z',
+    platform: 'tradovate',
     file_name: 'Performance_2026-09-30.csv',
     account: account(1),
     rows_added: 41,
@@ -32,6 +40,7 @@ const INITIAL: ImportRecord[] = [
   {
     id: 3,
     imported_at: '2026-09-26T22:12:00Z',
+    platform: 'tradovate',
     file_name: 'Performance_2026-09-26.csv',
     account: account(2),
     rows_added: 22,
@@ -41,6 +50,7 @@ const INITIAL: ImportRecord[] = [
   {
     id: 2,
     imported_at: '2026-09-25T21:03:00Z',
+    platform: 'tradovate',
     file_name: 'Performance_2026-09-25.csv',
     account: account(3),
     rows_added: 18,
@@ -50,6 +60,7 @@ const INITIAL: ImportRecord[] = [
   {
     id: 1,
     imported_at: '2026-09-22T20:40:00Z',
+    platform: 'tradovate',
     file_name: 'Performance_2026-09-22.csv',
     account: account(4),
     rows_added: 30,
@@ -78,9 +89,22 @@ function checkFile(file: File): void {
   if (file.size > MAX_CSV_BYTES) throw new ImportRefused(`${file.name} is larger than ${MAX_CSV_MB} MB.`)
 }
 
-async function read(accountId: number, file: File) {
+/** Whether the text starts with TradeSea's header row (every column of it, in any order). */
+function isTradeSea(text: string): boolean {
+  const header = (text.split(/\r?\n/).find((line) => line.trim()) ?? '')
+    .split(',')
+    .map((c) => c.trim().replace(/^"|"$/g, ''))
+  return TRADESEA_COLUMNS.every((column) => header.includes(column))
+}
+
+async function read(accountId: number, files: File[], platform: ImportPlatform) {
+  if (platform === 'tradesea') throw new ImportRefused(SIGN_UP_FOR_TRADESEA)
+  if (files.length !== 1) throw new ImportRefused(ONE_FILE)
+  const file = files[0] as File
   checkFile(file)
-  const parsed = parsePerformanceCsv(await file.text())
+  const text = await file.text()
+  if (isTradeSea(text)) throw new ImportRefused(SIGN_UP_FOR_TRADESEA)
+  const parsed = parsePerformanceCsv(text)
   if (parsed.pairs.length + parsed.errors.length > MAX_CSV_ROWS) {
     throw new ImportRefused(`${file.name} has more than ${MAX_CSV_ROWS.toLocaleString('en-US')} rows.`)
   }
@@ -114,7 +138,11 @@ async function read(accountId: number, file: File) {
     }
   }
   const preview: ImportPreview = {
+    platform: 'tradovate',
+    recognised: platform === 'auto',
+    suggested_platform: null,
     file_name: file.name,
+    file_count: 1,
     file_bytes: file.size,
     fatal: parsed.fatal,
     rows_parsed: parsed.pairs.length,
@@ -122,21 +150,34 @@ async function read(accountId: number, file: File) {
     duplicates,
     duplicates_in_file: parsed.duplicates_in_file,
     duplicates_other_accounts: otherAccounts,
+    matches_other_accounts: {},
+    skipped_by_status: {},
+    one_page: false,
+    open_positions: [],
+    file_commission: null,
+    commissions: [],
+    time_zone: 'America/Los_Angeles',
     errors: parsed.errors,
     warnings: [],
     trades_built: countTrades(fresh),
+    trades_changed: 0,
+    trades_removed: 0,
     rows,
     rows_shown_limit: PREVIEW_ROWS_SHOWN,
   }
-  return { preview, fresh, account: thisAccount }
+  return { preview, fresh, account: thisAccount, file }
 }
 
-export async function previewImport(accountId: number, file: File): Promise<ImportPreview> {
-  return (await read(accountId, file)).preview
+export async function previewImport(
+  accountId: number,
+  files: File[],
+  platform: ImportPlatform,
+): Promise<ImportPreview> {
+  return (await read(accountId, files, platform)).preview
 }
 
-export async function commitImport(accountId: number, file: File): Promise<ImportRecord> {
-  const { preview, fresh, account: target } = await read(accountId, file)
+export async function commitImport(accountId: number, files: File[], platform: Platform): Promise<ImportRecord> {
+  const { preview, fresh, account: target, file } = await read(accountId, files, platform)
   if (preview.fatal) throw new ImportRefused(preview.fatal)
   if (fresh.length === 0) throw new ImportRefused('Nothing new to import: every row is already stored.')
   const id = nextId++
@@ -145,6 +186,7 @@ export async function commitImport(accountId: number, file: File): Promise<Impor
   keysOf.set(id, keys)
   const record: ImportRecord = {
     id,
+    platform: 'tradovate',
     imported_at: new Date().toISOString(),
     file_name: file.name,
     account: target,

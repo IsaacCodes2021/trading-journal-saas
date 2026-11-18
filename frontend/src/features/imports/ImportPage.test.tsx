@@ -22,8 +22,23 @@ async function openImport() {
   return { ...app, user: userEvent.setup({ applyAccept: false }) }
 }
 
-async function choose(user: ReturnType<typeof userEvent.setup>, file: File) {
-  await user.upload(screen.getByLabelText('Choose a Performance CSV'), file)
+type User = ReturnType<typeof userEvent.setup>
+
+/** Answers "Where are these trades from?" and returns the dialog's main button, which opens the file window. */
+async function answer(user: User, platform: string) {
+  const button = screen.getByRole('button', { name: /^(Choose|Replace) files$/ })
+  await waitFor(() => expect(button).toBeEnabled()) // the accounts have loaded
+  await user.click(button)
+  const dialog = await screen.findByRole('dialog', { name: 'Where are these trades from?' })
+  await user.selectOptions(within(dialog).getByLabelText('Platform'), platform)
+  return { dialog, open: within(dialog).getByRole('button', { name: 'Choose files' }) }
+}
+
+/** Chooses files the way a person does: Choose files, the platform, then the computer's file window. */
+async function choose(user: User, files: File | File[], platform = 'Tradovate: Performance report') {
+  const { open } = await answer(user, platform)
+  await user.click(open)
+  await user.upload(screen.getByLabelText('Export files'), files)
 }
 
 const tile = (label: string) =>
@@ -32,7 +47,9 @@ const tile = (label: string) =>
 describe('the import page', () => {
   it('says what it does, names the account and the timezone the file is read in, and shows the history', async () => {
     await openImport()
-    expect(screen.getByText(/Upload a Tradovate Performance CSV/)).toHaveTextContent(/every import can be undone/)
+    expect(screen.getByText(/Upload an export from Tradovate or TradeSea/)).toHaveTextContent(
+      /every import can be undone/,
+    )
     // The hint states the server's real limit, and does not claim the file stays on the device (the real source uploads it).
     expect(screen.getByText(/Up to 10 MB\. Nothing is saved until you confirm the preview\./)).toBeInTheDocument()
     expect(screen.queryByText(/read on your device/)).not.toBeInTheDocument()
@@ -44,13 +61,11 @@ describe('the import page', () => {
           .map((o) => o.textContent),
       ).toEqual(['Apex 50K #1', 'Apex 150K', 'Lucid 100K', 'Apex 50K #2']),
     )
-    expect(screen.getByText('America/Los_Angeles')).toBeInTheDocument() // the session's timezone
-    expect(screen.getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/settings')
-
     const history = await screen.findByRole('region', { name: 'Import history' })
     const rows = within(history).getAllByRole('row').slice(1)
     expect(rows).toHaveLength(4)
     expect(rows[0]).toHaveTextContent('Performance_2026-09-30.csv')
+    expect(rows[0]).toHaveTextContent('Tradovate') // where it came from
     expect(rows[0]).toHaveTextContent('Active')
     expect(rows[3]).toHaveTextContent('Undone')
     expect(within(rows[3] as HTMLElement).queryByRole('button')).not.toBeInTheDocument()
@@ -136,7 +151,7 @@ describe('the import page', () => {
     expect(screen.queryByRole('region', { name: 'Preview' })).not.toBeInTheDocument()
     await user.click(within(alert).getByRole('button', { name: 'Choose another file' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(screen.getByText('Drop a Performance CSV here')).toBeInTheDocument()
+    expect(screen.getByText('Drop your export here')).toBeInTheDocument()
   })
 
   it('refuses a file that is not a .csv, in words', async () => {
@@ -145,16 +160,27 @@ describe('the import page', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('notes.txt is not a .csv file.')
   })
 
-  it('accepts a dropped file, and uses only the first when several are dropped', async () => {
+  it('reads a dropped file without asking where it is from: the platform is told from its header', async () => {
+    const preview = vi.spyOn(demoSource, 'previewImport')
     await openImport()
     await waitFor(() => expect(screen.getByLabelText('Import into account')).toBeEnabled()) // the accounts have loaded
-    const zone = screen.getByText('Drop a Performance CSV here').parentElement as HTMLElement
+    const zone = screen.getByText('Drop your export here').parentElement as HTMLElement
+    fireEvent.drop(zone, { dataTransfer: { files: [csvFile(csv(manyRows(2)), 'first.csv')] } })
+    expect(await screen.findByRole('region', { name: 'Preview' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(preview).toHaveBeenLastCalledWith(1, [expect.objectContaining({ name: 'first.csv' })], 'auto')
+    expect(screen.getByLabelText('What was read')).toHaveTextContent('Tradovate (recognised from the file)')
+    expect(tile('New fill pairs')).toHaveTextContent('2')
+  })
+
+  it('refuses several dropped Tradovate files in words: its report is one file', async () => {
+    await openImport()
+    await waitFor(() => expect(screen.getByLabelText('Import into account')).toBeEnabled())
+    const zone = screen.getByText('Drop your export here').parentElement as HTMLElement
     fireEvent.drop(zone, {
       dataTransfer: { files: [csvFile(csv(manyRows(2)), 'first.csv'), csvFile(csv(manyRows(3)), 'second.csv')] },
     })
-    expect(await screen.findByRole('region', { name: 'Preview' })).toBeInTheDocument()
-    expect(screen.getByText('One file at a time: using first.csv.')).toBeInTheDocument()
-    expect(tile('New fill pairs')).toHaveTextContent('2')
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose one file at a time.')
   })
 
   it('cancels back to the start without saving', async () => {
@@ -162,7 +188,7 @@ describe('the import page', () => {
     await choose(user, csvFile(csv(manyRows(2))))
     await user.click(await screen.findByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('region', { name: 'Preview' })).not.toBeInTheDocument()
-    expect(screen.getByText('Drop a Performance CSV here')).toBeInTheDocument()
+    expect(screen.getByText('Drop your export here')).toBeInTheDocument()
     expect(await demoSource.imports()).toHaveLength(4)
   })
 
@@ -241,20 +267,23 @@ describe('undoing an import', () => {
   })
 })
 
-describe('the zone the file is read in', () => {
-  it('is the CSV zone when one is set, and the history stays in the zone times are shown in', async () => {
+describe('the zone a Tradovate file is read in, said when Tradovate is chosen', () => {
+  it('is the CSV zone when one is set', async () => {
     stubApi({ settings: { csv_timezone: 'America/Chicago' } })
     openApp('/import')
     await screen.findByRole('heading', { name: 'Import trades' })
-    expect(await screen.findByText('America/Chicago')).toBeInTheDocument()
-    expect(screen.queryByText('America/Los_Angeles')).not.toBeInTheDocument()
+    const { dialog } = await answer(userEvent.setup(), 'Tradovate: Performance report')
+    expect(within(dialog).getByText('America/Chicago')).toBeInTheDocument()
+    expect(within(dialog).queryByText('America/Los_Angeles')).not.toBeInTheDocument()
+    expect(within(dialog).getByRole('link', { name: 'Change' })).toHaveAttribute('href', '/settings')
   })
 
   it('is the own zone when there is no separate CSV zone', async () => {
     stubApi()
     openApp('/import')
     await screen.findByRole('heading', { name: 'Import trades' })
-    expect(await screen.findByText('America/Los_Angeles')).toBeInTheDocument()
+    const { dialog } = await answer(userEvent.setup(), 'Tradovate: Performance report')
+    expect(within(dialog).getByText('America/Los_Angeles')).toBeInTheDocument()
   })
 })
 
@@ -279,7 +308,7 @@ describe('the accounts it offers', () => {
     await openImport()
     expect(await screen.findByText('You have no active accounts. Add one to import into.')).toBeInTheDocument()
     expect(screen.getByLabelText('Import into account')).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Choose a file' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Choose files' })).toBeDisabled()
     expect(screen.getByRole('button', { name: '+ New account' })).toBeEnabled()
   })
 

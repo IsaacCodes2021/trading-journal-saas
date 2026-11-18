@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORT_ADDRESS } from '../../components/RouteError'
 import { MAX_IMAGES_PER_TRADE, MAX_IMAGE_MB } from '../../lib/limits'
+import { TRADESEA_COLUMNS } from '../../lib/platforms'
 import { MAX_CSV_MB, REQUIRED_COLUMNS } from '../../lib/tradovate'
 import { openApp, stubApi } from '../../test-utils'
 
@@ -26,6 +27,7 @@ describe('the page', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Help' })).toBeInTheDocument()
     expect(screen.getAllByRole('region').map((r) => r.getAttribute('aria-labelledby'))).toEqual([
       'help-start',
+      'help-tradesea',
       'help-numbers',
       'help-trades',
       'help-filters',
@@ -34,6 +36,7 @@ describe('the page', () => {
     ])
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
       'Getting started',
+      'Importing from TradeSea',
       'How the numbers are worked out',
       'Notes, tags and screenshots',
       'Filters',
@@ -72,10 +75,35 @@ describe('getting started', () => {
 
   it('lists every required column, in order, behind a disclosure', async () => {
     const { user } = await openHelp()
-    const summary = screen.getByText('The columns the file must have')
+    const summary = screen.getByText('The columns a Tradovate file must have')
     await user.click(summary)
     const codes = [...(summary.closest('details') as HTMLElement).querySelectorAll('code')].map((c) => c.textContent)
     expect(codes).toEqual([...REQUIRED_COLUMNS])
+  })
+
+  it('says how to import from TradeSea: Filled orders, every page, one account per export', async () => {
+    const { user } = await openHelp()
+    const tradesea = section('Importing from TradeSea')
+    for (const words of [
+      'open Orders, select Filled, and export',
+      'export every page',
+      'One account per export.',
+      'not your CSV timezone setting',
+      'from the account’s own Fees tab',
+    ])
+      expect(tradesea, words).toHaveTextContent(words)
+    expect(within(tradesea).getByRole('link', { name: 'How to export from TradeSea' })).toHaveAttribute(
+      'href',
+      'https://roundturn.app/docs/import/tradesea/',
+    )
+    expect(within(section('Getting started')).getByRole('link', { name: 'Importing from TradeSea' })).toHaveAttribute(
+      'href',
+      '#help-tradesea',
+    )
+    const summary = screen.getByText('The columns a TradeSea file must have')
+    await user.click(summary)
+    const codes = [...(summary.closest('details') as HTMLElement).querySelectorAll('code')].map((c) => c.textContent)
+    expect(codes).toEqual([...TRADESEA_COLUMNS])
   })
 
   it('does not give a menu path in Tradovate, since those change between versions', async () => {

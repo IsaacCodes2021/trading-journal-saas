@@ -1,31 +1,35 @@
+import { platformInfo, TRADESEA_PAGE_ROWS } from '../../lib/platforms'
 import { REQUIRED_COLUMNS } from '../../lib/tradovate'
 import { StepFrame } from './StepFrame'
 
 /**
- * Step 3: how to get the file. The click path in Tradovate changes between versions, so this says what to look for (the
- * Performance report, as a CSV) and shows the columns the file must have, which is the one thing that can be checked:
- * the import tells the person exactly which are missing if the file does not match.
+ * Step 3: how to get the files, from Tradovate or TradeSea. Tradovate's click path changes between versions, so its part
+ * says what to look for (the Performance report, as a CSV) and shows the columns the file must have, which is the one
+ * thing that can be checked. TradeSea's says where its export is and that it saves one page of orders per file
+ * (docs/design/tradesea-import-plan.md, section 1.9). Either way, the import says exactly what is wrong with a file.
  */
 export function ExportStep({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {
   return (
     <StepFrame
       number={3}
-      title="Export from Tradovate"
-      intro="We read the Performance report from Tradovate, saved as a CSV file. It lists every fill pair, which is what we build your trades from."
+      title="Export your trades"
+      intro="We read Tradovate's Performance report and TradeSea's Orders export, saved as CSV files. Use the part for the platform you trade on."
       onBack={onBack}
       next={{ onClick: onNext }}
     >
-      <ol className="m-0 flex list-decimal flex-col gap-2 pl-5">
-        <li>
-          In Tradovate, find the <strong>Performance</strong> report for the account you trade (under its reports).
-        </li>
-        <li>Choose the dates you want: a day, a week, or everything you have.</li>
-        <li>
-          Export it as a <strong>CSV</strong> and save the file where you can find it.
-        </li>
-      </ol>
-
-      <div className="flex flex-col gap-2">
+      <section aria-labelledby="export-tradovate" className="flex flex-col gap-2">
+        <h3 id="export-tradovate" className="m-0 text-sm font-semibold">
+          Tradovate
+        </h3>
+        <ol className="m-0 flex list-decimal flex-col gap-2 pl-5">
+          <li>
+            In Tradovate, find the <strong>Performance</strong> report for the account you trade (under its reports).
+          </li>
+          <li>Choose the dates you want: a day, a week, or everything you have.</li>
+          <li>
+            Export it as a <strong>CSV</strong> and save the file where you can find it.
+          </li>
+        </ol>
         <div className="text-[13px] font-medium">The file must have these columns</div>
         <ul aria-label="Required columns" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
           {REQUIRED_COLUMNS.map((column) => (
@@ -36,10 +40,36 @@ export function ExportStep({ onBack, onNext }: { onBack: () => void; onNext: () 
         </ul>
         <p className="m-0 text-xs text-muted">
           Menu names change between Tradovate versions, so if you cannot find the report, look for a file with these
-          columns. Other exports (orders, statements) do not have them and cannot be read. If a file does not match, the
-          next step says exactly what is missing. Nothing is saved until you confirm a preview.
+          columns. Other exports (orders, statements) do not have them and cannot be read.
         </p>
-      </div>
+      </section>
+
+      <section aria-labelledby="export-tradesea" className="flex flex-col gap-2">
+        <h3 id="export-tradesea" className="m-0 text-sm font-semibold">
+          TradeSea
+        </h3>
+        <ol className="m-0 flex list-decimal flex-col gap-2 pl-5">
+          <li>
+            In TradeSea, open <strong>Orders</strong> and select <strong>Filled</strong>.
+          </li>
+          <li>
+            Export. TradeSea saves the page on screen ({TRADESEA_PAGE_ROWS} orders), so{' '}
+            <strong>export every page</strong>, one right after another.
+          </li>
+          <li>In the next step, choose all the files together: they are read as one import.</li>
+        </ol>
+        <p className="m-0 text-xs text-muted">
+          Export each account on its own.{' '}
+          <a href={platformInfo('tradesea').guide} target="_blank" rel="noopener noreferrer">
+            How to export from TradeSea
+          </a>
+        </p>
+      </section>
+
+      <p className="m-0 text-xs text-muted">
+        If a file does not match, the next step says exactly what is wrong. Nothing is saved until you confirm a
+        preview.
+      </p>
     </StepFrame>
   )
 }

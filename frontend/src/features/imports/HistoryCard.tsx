@@ -6,6 +6,7 @@ import { cx } from '../../components/ui/cx'
 import type { ImportRecord } from '../../lib/data/model'
 import { useImports, useUndoImport, useUndoPreview } from '../../lib/data/queries'
 import { formatTradeTime, pluralize } from '../../lib/format'
+import { platformInfo } from '../../lib/platforms'
 
 function UndoDialog({
   record,
@@ -19,6 +20,7 @@ function UndoDialog({
   const preview = useUndoPreview(record.id)
   const undo = useUndoImport()
   const data = preview.data
+  const [one, many] = platformInfo(record.platform).row
   return (
     <Modal label="Undo import" onClose={undo.isPending ? () => undefined : onClose} className="max-w-[520px]">
       <h2 className="m-0 text-base font-semibold">Undo this import?</h2>
@@ -34,9 +36,15 @@ function UndoDialog({
       {data ? (
         <div className="flex flex-col gap-2 text-[13px]">
           <p className="m-0">
-            This removes {pluralize(data.rows_removed, 'fill pair')} and {pluralize(data.trades_removed, 'trade')}.
-            {data.rows_kept > 0 ? ` ${pluralize(data.rows_kept, 'fill pair')} also in another import stay.` : ''}
+            This removes {pluralize(data.rows_removed, one, many)} and {pluralize(data.trades_removed, 'trade')}.
+            {data.rows_kept > 0 ? ` ${pluralize(data.rows_kept, one, many)} also in another import stay.` : ''}
           </p>
+          {record.platform === 'tradesea' && data.trades_changed > 0 ? (
+            <p className="m-0">
+              {pluralize(data.trades_changed, 'other trade')} change: their orders are paired again, and they keep their
+              notes, tags and screenshots.
+            </p>
+          ) : null}
           {data.trades_with_journal_removed > 0 ? (
             <p role="alert" className="m-0 text-warn">
               {pluralize(data.trades_with_journal_removed, 'of those trade')} has notes, tags or screenshots. They are
@@ -94,13 +102,16 @@ export function HistoryCard({ timeZone, onUndone }: { timeZone: string; onUndone
                   Imported
                 </th>
                 <th scope="col" className={`${th} text-left`}>
+                  From
+                </th>
+                <th scope="col" className={`${th} text-left`}>
                   File
                 </th>
                 <th scope="col" className={`${th} text-left`}>
                   Account
                 </th>
                 <th scope="col" className={`${th} text-right`}>
-                  Pairs
+                  Rows
                 </th>
                 <th scope="col" className={`${th} text-right`}>
                   Trades
@@ -119,7 +130,10 @@ export function HistoryCard({ timeZone, onUndone }: { timeZone: string; onUndone
                 return (
                   <tr key={record.id}>
                     <td className={`${td} num`}>{formatTradeTime(record.imported_at, timeZone)}</td>
-                    <td className={td}>{record.file_name}</td>
+                    <td className={td}>{platformInfo(record.platform).name}</td>
+                    <td className={`${td} max-w-[280px] truncate`} title={record.file_name}>
+                      {record.file_name}
+                    </td>
                     <td className={td}>
                       <Link to="/settings/accounts" search={{ account: record.account.id, tab: 'details' }}>
                         {record.account.name}

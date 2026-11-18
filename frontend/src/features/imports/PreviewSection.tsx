@@ -1,7 +1,12 @@
+import Decimal from 'decimal.js'
+import type { ReactNode } from 'react'
 import { Button, Card, Pnl } from '../../components/ui/primitives'
 import { cx } from '../../components/ui/cx'
-import type { ImportPreview, PairStatus } from '../../lib/data/model'
+import type { CommissionCheck, ImportPreview, PairStatus } from '../../lib/data/model'
+import { useSetFee } from '../../lib/data/queries'
 import { formatPrice, pluralize } from '../../lib/format'
+import { formatMoney } from '../../lib/money'
+import { platformInfo, TRADESEA_PAGE_ROWS } from '../../lib/platforms'
 
 const PILL: Record<PairStatus, string> = {
   new: 'bg-long-bg text-pos',
@@ -38,45 +43,292 @@ function Tile({ label, value, tone }: { label: string; value: number; tone?: 'po
 const th = 'border-b border-line px-3.5 py-2.5 text-xs font-medium whitespace-nowrap text-muted'
 const td = 'num border-b border-line-soft px-3.5 py-2.5 whitespace-nowrap'
 const SHOWN_ERRORS = 20
+const SHOWN_WARNINGS = 20
 
-/** What importing the chosen file would do: the counts, any rows that cannot be read, and the rows themselves. */
+const total = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0)
+
+/** "3 cancelled orders and 1 rejected order". */
+function byStatus(counts: Record<string, number>): string {
+  const parts = Object.entries(counts).map(([status, n]) => pluralize(n, `${status} order`))
+  return parts.length <= 1 ? (parts[0] ?? '') : `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
+}
+
+function Note({ tone, children }: { tone?: 'warn'; children: ReactNode }) {
+  return (
+    <li className={cx('flex flex-wrap items-center gap-x-3 gap-y-1.5', tone === 'warn' && 'text-warn')}>{children}</li>
+  )
+}
+
+/** A contract whose commission in the files differs from the account's own setting, and a button to use the files'. */
+function CommissionNote({
+  check,
+  accountId,
+  accountName,
+  onSet,
+}: {
+  check: CommissionCheck
+  accountId: number
+  accountName: string
+  onSet: () => void
+}) {
+  const setFee = useSetFee(accountId)
+  const rate = formatMoney(check.file_rate)
+  const button = (
+    <Button
+      className="h-[30px]"
+      disabled={setFee.isPending}
+      onClick={() => setFee.mutate({ root: check.root, rate: check.file_rate }, { onSuccess: onSet })}
+    >
+      Use {rate} per contract for {check.root}
+    </Button>
+  )
+  const free = new Decimal(check.schedule_rate).isZero()
+  return (
+    <Note tone={free ? 'warn' : undefined}>
+      <span>
+        {free ? (
+          <>
+            Your commission setting for {check.root} on {accountName} is $0.00, but these files show{' '}
+            {formatMoney(check.file_total)} in commissions. Roundturn uses your setting, so your net P&amp;L would be{' '}
+            {formatMoney(check.file_total)} too high.
+          </>
+        ) : (
+          <>
+            These files&rsquo; commissions for {check.root} come to {formatMoney(check.file_total)} ({rate} per contract
+            round trip). Your setting on {accountName} charges {formatMoney(check.schedule_total)} (
+            {formatMoney(check.schedule_rate)} per contract), and Roundturn uses your setting.
+          </>
+        )}
+      </span>
+      {button}
+      {setFee.isError ? (
+        <span role="alert" className="text-neg">
+          The setting could not be changed.
+        </span>
+      ) : null}
+    </Note>
+  )
+}
+
+/** What a TradeSea preview adds to the counts: pages, orders that did not fill, positions, commissions, other accounts. */
+function OrderNotes({
+  preview,
+  accountId,
+  accountName,
+  onAddFiles,
+  onRecheck,
+}: {
+  preview: ImportPreview
+  accountId: number
+  accountName: string
+  onAddFiles: () => void
+  onRecheck: (done: string) => void
+}) {
+  const skipped = total(preview.skipped_by_status)
+  const elsewhere = Object.entries(preview.matches_other_accounts)
+  const differing = preview.commissions.filter((c) => !new Decimal(c.file_rate).equals(c.schedule_rate))
+  const shownWarnings = preview.warnings.slice(0, SHOWN_WARNINGS)
+  return (
+    <Card className="px-5 py-4" role="region" aria-label="Things to check">
+      <h2 className="m-0 mb-2 text-base font-semibold">Things to check</h2>
+      <ul className="m-0 flex list-none flex-col gap-2 p-0 text-[13px]">
+        {preview.one_page ? (
+          <Note tone="warn">
+            <span>
+              This looks like one page of TradeSea&rsquo;s list. If you had more than {TRADESEA_PAGE_ROWS} filled
+              orders, export the other pages and add them.
+            </span>
+            <Button className="h-[30px]" onClick={onAddFiles}>
+              Add files
+            </Button>
+          </Note>
+        ) : null}
+        {preview.open_positions.map((position) => (
+          <Note key={`${position.symbol}-${position.direction}`} tone="warn">
+            <span>
+              These orders end with{' '}
+              <strong>
+                {position.qty} {position.symbol} {position.direction} still open
+              </strong>{' '}
+              (opened <span className="num">{position.since}</span>). If you were flat, TradeSea&rsquo;s export left out
+              an order: show the whole day in TradeSea&rsquo;s Orders list and export every page again. If you are still
+              in the trade, import it with its exit later.
+            </span>
+          </Note>
+        ))}
+        {preview.trades_removed > 0 ? (
+          <Note tone="warn">
+            <span>
+              {pluralize(preview.trades_removed, 'trade')} you already have would be removed: their orders are now an
+              open position. Their notes, tags and screenshots go with them.
+            </span>
+          </Note>
+        ) : null}
+        {skipped > 0 ? (
+          <Note>
+            <span>{byStatus(preview.skipped_by_status)} were skipped: they did not fill.</span>
+          </Note>
+        ) : null}
+        {preview.duplicates_in_file > 0 ? (
+          <Note>
+            <span>
+              {pluralize(preview.duplicates_in_file, 'order is', 'orders are')} on more than one page; each counts once.
+            </span>
+          </Note>
+        ) : null}
+        {preview.trades_changed > 0 ? (
+          <Note>
+            <span>
+              {pluralize(preview.trades_changed, 'trade')} you already have change: their orders are paired again, and
+              they keep their notes, tags and screenshots.
+            </span>
+          </Note>
+        ) : null}
+        {preview.file_commission !== null ? (
+          <Note>
+            <span>
+              These files&rsquo; commissions add up to {formatMoney(preview.file_commission)}. If TradeSea&rsquo;s Total
+              Charges for the day shows the same, no fill is missing.
+            </span>
+          </Note>
+        ) : null}
+        {differing.map((check) => (
+          <CommissionNote
+            key={check.root}
+            check={check}
+            accountId={accountId}
+            accountName={accountName}
+            onSet={() =>
+              onRecheck(
+                `${accountName} now charges ${formatMoney(check.file_rate)} per contract for ${check.root}, and its stored trades were recalculated.`,
+              )
+            }
+          />
+        ))}
+        {elsewhere.map(([name, count]) => (
+          <Note key={name}>
+            <span>
+              {count === preview.rows_parsed ? `These ${pluralize(count, 'order')}` : pluralize(count, 'order')}{' '}
+              {count === 1 ? 'matches an order' : 'match orders'} in {name}. That is normal if you copy trades;
+              otherwise check the account.
+            </span>
+          </Note>
+        ))}
+        {shownWarnings.map((issue, index) => (
+          <Note key={`${issue.line}-${index}`}>
+            <span>
+              {issue.line > 0 ? <span className="num text-muted">Line {issue.line}: </span> : null}
+              {issue.message}
+            </span>
+          </Note>
+        ))}
+        {preview.warnings.length > SHOWN_WARNINGS ? (
+          <li className="text-xs text-muted">and {preview.warnings.length - SHOWN_WARNINGS} more</li>
+        ) : null}
+      </ul>
+    </Card>
+  )
+}
+
+/** Whether a TradeSea preview has anything for "Things to check". */
+function hasOrderNotes(preview: ImportPreview): boolean {
+  return (
+    preview.one_page ||
+    preview.open_positions.length > 0 ||
+    preview.trades_removed > 0 ||
+    preview.trades_changed > 0 ||
+    preview.duplicates_in_file > 0 ||
+    total(preview.skipped_by_status) > 0 ||
+    preview.file_commission !== null ||
+    Object.keys(preview.matches_other_accounts).length > 0 ||
+    preview.warnings.length > 0
+  )
+}
+
+/**
+ * What importing the chosen files would do: what was read, the counts, any rows that cannot be read, and the rows
+ * themselves. For TradeSea, a row of the files is a filled order; the table shows the fill pairs the orders make, and
+ * "Things to check" says what the counts cannot (a missing page, a position left open, commissions).
+ */
 export function PreviewSection({
   preview,
+  accountId,
   accountName,
   committing,
   onCancel,
   onCommit,
+  onAddFiles,
+  onRecheck,
 }: {
   preview: ImportPreview
+  accountId: number
   accountName: string
   committing: boolean
   onCancel: () => void
   onCommit: () => void
+  /** Opens the file window to add more of the same platform's files (TradeSea's other pages). */
+  onAddFiles: () => void
+  /** Works the preview out again after the account's fee setting changed, saying so (`done`) above the form. */
+  onRecheck: (done: string) => void
 }) {
-  const skippedElsewhere = Object.values(preview.duplicates_other_accounts).reduce((a, b) => a + b, 0)
-  const already = preview.duplicates + preview.duplicates_in_file
+  const orders = preview.platform === 'tradesea'
+  const info = platformInfo(preview.platform)
+  const [one, many] = info.row
+  const skippedElsewhere = total(preview.duplicates_other_accounts)
+  const already = orders ? preview.duplicates : preview.duplicates + preview.duplicates_in_file
   const inFile = preview.rows_parsed + preview.duplicates_in_file + preview.errors.length
   const hidden = preview.rows_parsed - preview.rows.length
   return (
     <>
+      <p className="m-0 text-[13px] text-muted" aria-label="What was read">
+        <strong className="text-ink">{info.name}</strong>
+        {preview.recognised ? ' (recognised from the file)' : ''}
+        {preview.file_count > 1 ? ` · ${preview.file_count} files` : ''} ·{' '}
+        {pluralize(preview.rows_parsed, orders ? 'filled order' : one, orders ? 'filled orders' : many)},{' '}
+        {preview.rows_added.toLocaleString('en-US')} new · into {accountName} · times in{' '}
+        <span className="num">{preview.time_zone}</span>
+      </p>
+
       <section aria-label="Preview summary" className="flex flex-wrap gap-3">
-        <Tile label="Rows in file" value={inFile} />
-        <Tile label="New fill pairs" value={preview.rows_added} tone="pos" />
-        <Tile label="Already imported" value={already} />
-        <Tile label="Skipped (other account)" value={skippedElsewhere} tone="warn" />
+        {orders ? (
+          <>
+            <Tile label="Filled orders" value={preview.rows_parsed} />
+            <Tile label="New orders" value={preview.rows_added} tone="pos" />
+            <Tile label="Already imported" value={already} />
+            <Tile label="Not filled (skipped)" value={total(preview.skipped_by_status)} />
+          </>
+        ) : (
+          <>
+            <Tile label="Rows in file" value={inFile} />
+            <Tile label="New fill pairs" value={preview.rows_added} tone="pos" />
+            <Tile label="Already imported" value={already} />
+            <Tile label="Skipped (other account)" value={skippedElsewhere} tone="warn" />
+          </>
+        )}
         <Tile label="Errors" value={preview.errors.length} />
         <Tile label="Resulting trades" value={preview.trades_built} />
       </section>
+
+      {orders && hasOrderNotes(preview) ? (
+        <OrderNotes
+          preview={preview}
+          accountId={accountId}
+          accountName={accountName}
+          onAddFiles={onAddFiles}
+          onRecheck={onRecheck}
+        />
+      ) : null}
 
       {preview.errors.length > 0 ? (
         <Card className="px-5 py-4" role="region" aria-label="Rows that cannot be imported">
           <h2 className="m-0 text-base font-semibold">{pluralize(preview.errors.length, 'row')} cannot be imported</h2>
           <p className="mt-1 mb-2 text-muted">
-            The rest of the file can be. Fix these in the file and import it again.
+            The rest {orders && preview.file_count > 1 ? 'of the files' : 'of the file'} can be. Fix these and import
+            again.
           </p>
           <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
-            {preview.errors.slice(0, SHOWN_ERRORS).map((issue) => (
-              <li key={issue.line}>
+            {preview.errors.slice(0, SHOWN_ERRORS).map((issue, index) => (
+              <li key={`${issue.line}-${index}`}>
                 <span className="num text-muted">Line {issue.line}:</span> {issue.message}
               </li>
             ))}
@@ -90,19 +342,24 @@ export function PreviewSection({
       <Card className="p-0" role="region" aria-label="Preview">
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3.5">
           <h2 className="m-0 text-base font-semibold">Preview</h2>
-          <span className="text-[13px] text-muted">Dry run: nothing is saved until you confirm</span>
+          <span className="text-[13px] text-muted">
+            {orders ? 'The fill pairs these orders make. ' : ''}Dry run: nothing is saved until you confirm
+          </span>
           <span className="grow" />
           <Button onClick={onCancel} disabled={committing}>
             Cancel
           </Button>
           <Button variant="primary" onClick={onCommit} disabled={committing || preview.rows_added === 0}>
-            {committing ? 'Importing…' : `Import ${pluralize(preview.rows_added, 'fill pair')}`}
+            {committing ? 'Importing…' : `Import ${pluralize(preview.rows_added, one, many)}`}
           </Button>
         </div>
         {preview.rows_added === 0 ? (
           <p role="status" className="m-0 border-b border-line px-5 py-3 text-warn">
-            Nothing new to import into {accountName}: every row is already stored.
+            Nothing new to import into {accountName}: every {orders ? 'order' : 'row'} is already stored.
           </p>
+        ) : null}
+        {orders && preview.rows.length === 0 ? (
+          <p className="m-0 border-b border-line px-5 py-3 text-muted">These orders close no trade yet.</p>
         ) : null}
         <div className="scroll-x">
           <table className="w-full border-collapse">
@@ -135,8 +392,8 @@ export function PreviewSection({
               </tr>
             </thead>
             <tbody>
-              {preview.rows.map((row) => (
-                <tr key={row.line}>
+              {preview.rows.map((row, index) => (
+                <tr key={`${row.line}-${index}`}>
                   <td className="border-b border-line-soft px-3.5 py-2.5 whitespace-nowrap">
                     <Pill status={row.status} account={row.account} />
                   </td>
@@ -154,7 +411,12 @@ export function PreviewSection({
             </tbody>
           </table>
         </div>
-        {hidden > 0 ? (
+        {orders && preview.rows.length >= preview.rows_shown_limit ? (
+          <p className="m-0 px-5 py-3 text-xs text-muted">
+            Showing the first {preview.rows.length} fill pairs. All of them are imported.
+          </p>
+        ) : null}
+        {!orders && hidden > 0 ? (
           <p className="m-0 px-5 py-3 text-xs text-muted">
             Showing the first {preview.rows.length} of {preview.rows_parsed.toLocaleString('en-US')} rows. All of them
             are imported.

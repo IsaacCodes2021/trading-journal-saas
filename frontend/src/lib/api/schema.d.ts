@@ -1096,7 +1096,7 @@ export interface paths {
         put?: never;
         /**
          * Import File
-         * @description Import the file into the account. Rows already stored are left alone, so importing a file twice is safe.
+         * @description Import the files into the account. Rows already stored are left alone, so importing a file twice is safe.
          */
         post: operations["import_file"];
         delete?: never;
@@ -1116,7 +1116,7 @@ export interface paths {
         put?: never;
         /**
          * Preview Import
-         * @description What importing this file into this account would do: counts, problems, and the first rows with a status each.
+         * @description What importing these files into this account would do: counts, problems, and the first rows with a status each.
          *     Nothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the
          *     real import would do.
          */
@@ -2334,15 +2334,33 @@ export interface components {
         Body_import_file: {
             /** Account Id */
             account_id: number;
-            /** File */
-            file: string;
+            /**
+             * File
+             * @description The export; for TradeSea, one file per page of its list
+             */
+            file: string[];
+            /**
+             * Platform
+             * @default tradovate
+             * @enum {string}
+             */
+            platform?: "tradovate" | "tradesea" | "auto";
         };
         /** Body_preview_import */
         Body_preview_import: {
             /** Account Id */
             account_id: number;
-            /** File */
-            file: string;
+            /**
+             * File
+             * @description The export; for TradeSea, one file per page of its list
+             */
+            file: string[];
+            /**
+             * Platform
+             * @default tradovate
+             * @enum {string}
+             */
+            platform?: "tradovate" | "tradesea" | "auto";
         };
         /**
          * BusinessTotalsOut
@@ -2400,6 +2418,40 @@ export interface components {
             color: string;
             /** Name */
             name: string;
+        };
+        /**
+         * CommissionCheckOut
+         * @description One contract's commission in the files, beside what the account's own fee setting charges for the same
+         *     contracts. Roundturn uses the setting, so the two should match.
+         */
+        CommissionCheckOut: {
+            /**
+             * File Rate
+             * @example -475.00
+             */
+            file_rate: string;
+            /**
+             * File Total
+             * @example -475.00
+             */
+            file_total: string;
+            /** Root */
+            root: string;
+            /**
+             * Round Trips
+             * @example -475.00
+             */
+            round_trips: string;
+            /**
+             * Schedule Rate
+             * @example -475.00
+             */
+            schedule_rate: string;
+            /**
+             * Schedule Total
+             * @example -475.00
+             */
+            schedule_total: string;
         };
         /** CreatedGrantCodeOut */
         CreatedGrantCodeOut: {
@@ -2832,9 +2884,17 @@ export interface components {
         };
         /**
          * ImportPreviewOut
-         * @description What importing a file would do, worked out without saving anything. Mirrors `FileImportReport`.
+         * @description What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.
+         *
+         *     For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; the table
+         *     still shows the fill pairs the orders make.
          */
         ImportPreviewOut: {
+            /**
+             * Commissions
+             * @default []
+             */
+            commissions: components["schemas"]["CommissionCheckOut"][];
             /** Duplicates */
             duplicates: number;
             /** Duplicates In File */
@@ -2849,8 +2909,42 @@ export interface components {
             fatal: string | null;
             /** File Bytes */
             file_bytes: number;
+            /** File Commission */
+            file_commission: string | null;
+            /**
+             * File Count
+             * @default 1
+             */
+            file_count: number;
             /** File Name */
             file_name: string;
+            /**
+             * Matches Other Accounts
+             * @default {}
+             */
+            matches_other_accounts: {
+                [key: string]: number;
+            };
+            /**
+             * One Page
+             * @default false
+             */
+            one_page: boolean;
+            /**
+             * Open Positions
+             * @default []
+             */
+            open_positions: components["schemas"]["OpenPositionOut"][];
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "tradovate" | "tradesea";
+            /**
+             * Recognised
+             * @default false
+             */
+            recognised: boolean;
             /** Rows */
             rows: components["schemas"]["PreviewRowOut"][];
             /** Rows Added */
@@ -2859,8 +2953,32 @@ export interface components {
             rows_parsed: number;
             /** Rows Shown Limit */
             rows_shown_limit: number;
+            /**
+             * Skipped By Status
+             * @default {}
+             */
+            skipped_by_status: {
+                [key: string]: number;
+            };
+            /** Suggested Platform */
+            suggested_platform: ("tradovate" | "tradesea") | null;
+            /**
+             * Time Zone
+             * @default
+             */
+            time_zone: string;
             /** Trades Built */
             trades_built: number;
+            /**
+             * Trades Changed
+             * @default 0
+             */
+            trades_changed: number;
+            /**
+             * Trades Removed
+             * @default 0
+             */
+            trades_removed: number;
             /** Warnings */
             warnings: components["schemas"]["ImportIssueOut"][];
         };
@@ -2876,6 +2994,11 @@ export interface components {
              * Format: date-time
              */
             imported_at: string;
+            /**
+             * Platform
+             * @enum {string}
+             */
+            platform: "tradovate" | "tradesea";
             /** Rows Added */
             rows_added: number;
             /** Trades Built */
@@ -3080,6 +3203,23 @@ export interface components {
         NotesOut: {
             /** Notes Html */
             notes_html: string;
+        };
+        /**
+         * OpenPositionOut
+         * @description Contracts still held after the last order of a contract: held overnight, or an order the export left out.
+         */
+        OpenPositionOut: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "long" | "short";
+            /** Qty */
+            qty: number;
+            /** Since */
+            since: string;
+            /** Symbol */
+            symbol: string;
         };
         /** OverrideIn */
         OverrideIn: {

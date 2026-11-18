@@ -1,6 +1,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { ImportRecord } from '../../lib/data/model'
 import { pluralize } from '../../lib/format'
+import { platformInfo } from '../../lib/platforms'
 import { StepFrame } from './StepFrame'
 
 const LINK =
@@ -15,7 +16,7 @@ export function DoneStep({ imported, onBack }: { imported: ImportRecord | null; 
       title="You are all set"
       intro={
         imported
-          ? `Your first file is in: ${pluralize(imported.rows_added, 'fill pair')} from ${imported.file_name} became ${pluralize(imported.trades_built, 'trade')} in ${imported.account.name}.`
+          ? `Your first file is in: ${pluralize(imported.rows_added, ...platformInfo(imported.platform).row)} from ${imported.file_name} became ${pluralize(imported.trades_built, 'trade')} in ${imported.account.name}.`
           : 'Your timezone and account are saved. You have not imported a file yet; you can do that whenever you are ready.'
       }
       onBack={onBack}
