@@ -3,7 +3,14 @@ import type { ReactNode } from 'react'
 import { SUPPORT_ADDRESS } from '../../components/RouteError'
 import { Card } from '../../components/ui/primitives'
 import { MAX_IMAGES_PER_TRADE, MAX_IMAGE_MB } from '../../lib/limits'
-import { TRADESEA_COLUMNS, TRADESEA_PAGE_ROWS, platformInfo } from '../../lib/platforms'
+import {
+  ROUND_TURN_LOG,
+  ROUND_TURN_LOG_FOLDER,
+  ROUND_TURN_OVERFLOW,
+  TRADESEA_COLUMNS,
+  TRADESEA_PAGE_ROWS,
+  platformInfo,
+} from '../../lib/platforms'
 import { MAX_CSV_MB, REQUIRED_COLUMNS } from '../../lib/tradovate'
 
 /*
@@ -41,8 +48,9 @@ export function HelpPage() {
             <li>
               <strong>Check your timezone.</strong> In{' '}
               <Link to="/settings/preferences">Settings &rsaquo; Preferences</Link>, set the timezone you want times
-              shown in, and the timezone your Tradovate files are written in. If the second is wrong, trades land on the
-              wrong day. TradeSea files name their own timezone, so the setting does not apply to them.
+              shown in, and the timezone your Tradovate files (and the Round Turn Monitor&rsquo;s log) are written in.
+              If the second is wrong, trades land on the wrong day. TradeSea files name their own timezone, so the
+              setting does not apply to them.
             </li>
             <li>
               <strong>Add your accounts.</strong> In{' '}
@@ -54,7 +62,8 @@ export function HelpPage() {
               <strong>Export your trades.</strong> From Tradovate, export the <em>Performance</em> report as a CSV with
               all its columns (not the orders or fills reports). Menu names change between Tradovate versions, so look
               for the Performance report rather than a fixed path. From TradeSea, see{' '}
-              <a href="#help-tradesea">Importing from TradeSea</a>.
+              <a href="#help-tradesea">Importing from TradeSea</a>; from NinjaTrader, see{' '}
+              <a href="#help-round-turn-monitor">Importing from NinjaTrader (Round Turn Monitor)</a>.
             </li>
             <li>
               <strong>Import it.</strong> On the <Link to="/import">Import</Link> page choose the account, then{' '}
@@ -130,6 +139,53 @@ export function HelpPage() {
               . If one is missing, the preview says which.
             </p>
           </details>
+        </Section>
+
+        <Section id="help-round-turn-monitor" title="Importing from NinjaTrader (Round Turn Monitor)">
+          <p className={p}>
+            The Round Turn Monitor is an add-on for NinjaTrader 8. It writes a log with one row for every round turn,
+            and Roundturn reads that log.
+          </p>
+          <ol className={`${list} list-decimal`}>
+            <li>
+              On the <Link to="/import">Import</Link> page, choose <em>{platformInfo('round_turn_monitor').label}</em>.
+            </li>
+            <li>
+              Choose <strong>{ROUND_TURN_LOG}</strong> in {ROUND_TURN_LOG_FOLDER.join(' › ')}. If{' '}
+              <strong>{ROUND_TURN_OVERFLOW}</strong> is there too (the add-on writes to it while the log is open in
+              Excel), choose both.
+            </li>
+            <li>
+              Choose the same log every time, as it grows: round turns already imported are left alone, and only the new
+              ones are added.
+            </li>
+          </ol>
+          <ul className={list}>
+            <li>
+              <strong>Not the Export button&rsquo;s file.</strong> It has no contract (NQ or MNQ) and no commission, so
+              it cannot be read safely. The preview says so if you choose it.
+            </li>
+            <li>
+              <strong>One NinjaTrader account per import.</strong> The log holds every account NinjaTrader tracks,
+              Sim101 too. The preview lists them and picks the one this account already holds, or the only real one; you
+              can choose another. Practice accounts are never picked for you.
+            </li>
+            <li>
+              <strong>Times</strong> are read in your CSV timezone setting, because the log writes NinjaTrader&rsquo;s
+              clock without a timezone.
+            </li>
+            <li>
+              <strong>Commissions</strong> come from the account&rsquo;s own Fees tab, as for every import. The preview
+              shows the rate the add-on charges and offers to use it.
+            </li>
+            <li>
+              The full guide on our site:{' '}
+              <a href={platformInfo('round_turn_monitor').guide} target="_blank" rel="noopener noreferrer">
+                How to import from Round Turn Monitor
+              </a>
+              .
+            </li>
+          </ul>
         </Section>
 
         <Section id="help-numbers" title="How the numbers are worked out">

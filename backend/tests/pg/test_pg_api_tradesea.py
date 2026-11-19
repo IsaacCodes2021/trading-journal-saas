@@ -169,7 +169,7 @@ def test_tradovate_is_still_the_default_and_its_preview_says_so(db, alice, accou
     ("asked", "files", "suggested", "fatal"),
     [
         ("tradesea", [TRADOVATE_FILE], "tradovate", "This looks like a file from Tradovate, not TradeSea."),
-        ("tradovate", PAGES, "tradesea", "These look like TradeSea files, not Tradovate."),
+        ("tradovate", PAGES, "tradesea", "These look like files from TradeSea, not Tradovate."),
         ("tradovate", PAGES[:1], "tradesea", "This looks like a file from TradeSea, not Tradovate."),
     ],
 )
@@ -202,9 +202,12 @@ def test_files_from_two_platforms_together_are_refused(db, alice, account_id, pl
     assert body["fatal"] == "These files come from different platforms. Choose files from one platform at a time."
 
 
-def test_a_file_that_is_neither_platforms_names_what_roundturn_reads(db, alice, account_id):
+def test_a_file_from_no_platform_names_what_roundturn_reads(db, alice, account_id):
     body = preview(api(db, alice), account_id, [("notes.csv", b"name,age\nalice,31\n")], platform="auto")
-    assert body["fatal"].startswith("Roundturn reads Tradovate's Performance report and TradeSea's Orders export")
+    assert body["fatal"].startswith(
+        "Roundturn reads Tradovate's Performance report, TradeSea's Orders export (the Filled view) and the Round Turn "
+        "Monitor's log from NinjaTrader."
+    )
     assert body["suggested_platform"] is None
 
 

@@ -28,6 +28,7 @@ describe('the page', () => {
     expect(screen.getAllByRole('region').map((r) => r.getAttribute('aria-labelledby'))).toEqual([
       'help-start',
       'help-tradesea',
+      'help-round-turn-monitor',
       'help-numbers',
       'help-trades',
       'help-filters',
@@ -37,6 +38,7 @@ describe('the page', () => {
     expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent)).toEqual([
       'Getting started',
       'Importing from TradeSea',
+      'Importing from NinjaTrader (Round Turn Monitor)',
       'How the numbers are worked out',
       'Notes, tags and screenshots',
       'Filters',
@@ -104,6 +106,27 @@ describe('getting started', () => {
     await user.click(summary)
     const codes = [...(summary.closest('details') as HTMLElement).querySelectorAll('code')].map((c) => c.textContent)
     expect(codes).toEqual([...TRADESEA_COLUMNS])
+  })
+
+  it("says how to import the Round Turn Monitor's log: the log, not the Export file, one account at a time", async () => {
+    await openHelp()
+    const log = section('Importing from NinjaTrader (Round Turn Monitor)')
+    for (const words of [
+      'Choose RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog.',
+      'If RoundTurnLog_overflow.csv is there too',
+      'only the new ones are added',
+      'Not the Export button’s file.',
+      'One NinjaTrader account per import.',
+      'read in your CSV timezone setting',
+    ])
+      expect(log, words).toHaveTextContent(words)
+    expect(within(log).getByRole('link', { name: 'How to import from Round Turn Monitor' })).toHaveAttribute(
+      'href',
+      'https://roundturn.app/docs/import/round-turn-monitor/',
+    )
+    expect(
+      within(section('Getting started')).getByRole('link', { name: 'Importing from NinjaTrader (Round Turn Monitor)' }),
+    ).toHaveAttribute('href', '#help-round-turn-monitor')
   })
 
   it('does not give a menu path in Tradovate, since those change between versions', async () => {

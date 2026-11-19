@@ -2,7 +2,7 @@
 
 from helpers import HEADER, SAMPLE, fixture_bytes
 
-from tradejournal.platforms import detect
+from tradejournal.platforms import detect, round_turn_monitor
 
 TRADESEA_HEADER = (
     '"Time","Symbol","Qty","Side","Order Type","Limit Price","Stop Price","Avg Price","Commission","Status"'
@@ -15,6 +15,17 @@ def test_each_platforms_header_names_it_in_any_column_order_and_with_extra_colum
     shuffled = ",".join(reversed(TRADESEA_HEADER.split(","))) + ',"Account"\n'
     assert detect.platform_of(shuffled.encode()) == detect.TRADESEA
     assert detect.platform_of(HEADER + ",extra\n") == detect.TRADOVATE  # text, as well as bytes
+
+
+def test_the_round_turn_monitors_log_names_it_and_so_do_the_two_files_its_reader_refuses_in_words():
+    assert detect.platform_of(fixture_bytes("rtm_log_2026-11-18.csv")) == detect.ROUND_TURN_MONITOR
+    assert detect.platform_of(fixture_bytes("rtm_export_2026-11-18.csv")) == detect.ROUND_TURN_MONITOR
+    old = ",".join(round_turn_monitor.OLD_COLUMNS) + "\n"
+    assert detect.platform_of(old.encode()) == detect.ROUND_TURN_MONITOR
+    log, tradesea = fixture_bytes("rtm_log_2026-11-18.csv"), TRADESEA_HEADER.encode()
+    assert detect.platform_of_files([log, log]) == (detect.ROUND_TURN_MONITOR, None)
+    assert detect.platform_of_files([log, tradesea]) == (None, detect.MIXED)
+    assert detect.SOURCES[round_turn_monitor.SOURCE] == detect.ROUND_TURN_MONITOR
 
 
 def test_a_byte_order_mark_and_blank_first_lines_do_not_hide_the_header():

@@ -39,7 +39,7 @@ function UndoDialog({
             This removes {pluralize(data.rows_removed, one, many)} and {pluralize(data.trades_removed, 'trade')}.
             {data.rows_kept > 0 ? ` ${pluralize(data.rows_kept, one, many)} also in another import stay.` : ''}
           </p>
-          {record.platform === 'tradesea' && data.trades_changed > 0 ? (
+          {record.platform !== 'tradovate' && data.trades_changed > 0 ? (
             <p className="m-0">
               {pluralize(data.trades_changed, 'other trade')} change: their orders are paired again, and they keep their
               notes, tags and screenshots.

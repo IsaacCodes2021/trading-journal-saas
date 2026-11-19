@@ -19,7 +19,8 @@ export interface PlatformInfo {
   name: string
   /** The entry in the drop-down list: the platform and the export it reads. */
   label: string
-  /** Several files make one import (TradeSea saves one page of its list per file). */
+  /** Several files make one import (TradeSea saves one page of its list per file; the Round Turn Monitor may have an
+   * overflow file beside its log). */
   multiple: boolean
   /** What one row of its export is, singular and plural. */
   row: readonly [string, string]
@@ -44,7 +45,20 @@ export const PLATFORMS: readonly PlatformInfo[] = [
     row: ['order', 'orders'],
     guide: `${DOCS_IMPORT}tradesea/`,
   },
+  {
+    id: 'round_turn_monitor',
+    name: 'Round Turn Monitor',
+    label: 'NinjaTrader: Round Turn Monitor log',
+    multiple: true, // its log, and the overflow file it writes while the log is open in Excel
+    row: ['round turn', 'round turns'],
+    guide: `${DOCS_IMPORT}round-turn-monitor/`,
+  },
 ]
+
+/** Where the Round Turn Monitor (an add-on for NinjaTrader 8) keeps its log, and the files' names. */
+export const ROUND_TURN_LOG_FOLDER = ['Documents', 'NinjaTrader 8', 'RoundTurnLog'] as const
+export const ROUND_TURN_LOG = 'RoundTurnLog.csv'
+export const ROUND_TURN_OVERFLOW = 'RoundTurnLog_overflow.csv'
 
 export function platformInfo(id: Platform): PlatformInfo {
   return PLATFORMS.find((p) => p.id === id) as PlatformInfo

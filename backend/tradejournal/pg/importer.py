@@ -23,14 +23,24 @@ from decimal import Decimal
 import psycopg
 
 from .. import finance
-from ..importer import FileImportReport, ImportReport, RootCommission, UndoReport
+from ..importer import FileImportReport, ImportReport, LogAccount, RootCommission, UndoReport
 from ..models import Execution, FillPair
 from ..parser import parse_performance_csv
-from ..platforms import tradesea
-from ..platforms.detect import PLATFORMS, TRADESEA, TRADOVATE
+from ..platforms import round_turn_monitor, tradesea
+from ..platforms.detect import PLATFORMS, ROUND_TURN_MONITOR, TRADESEA, TRADOVATE
+from ..symbols import parse_symbol
 from . import executions, store, usage
 from .accounts import get_account
 from .settings import effective_csv_timezone
+
+# Platforms whose rows are stored as orders (`executions`), and the source each one's orders and imports are stored under.
+ORDER_SOURCES = {TRADESEA: tradesea.SOURCE, ROUND_TURN_MONITOR: round_turn_monitor.SOURCE}
+# How many stored orders one row of a file is: a round turn of the Round Turn Monitor is its entry and its exit. Counts
+# shown to the trader (rows read, added, already there, removed by an undo) are rows of the file.
+ORDERS_PER_ROW = {round_turn_monitor.SOURCE: 2}
+
+CHOOSE_ACCOUNT = "This log has round turns from {count} accounts. Choose which one to import into this account."
+NOT_IN_LOG = "This log has no round turns from the account {name}. Choose one of the accounts it has."
 
 
 def import_files(
@@ -40,11 +50,13 @@ def import_files(
     *,
     platform: str = TRADOVATE,
     dry_run: bool = False,
+    log_account: str | None = None,
 ) -> ImportReport:
     """Import one or more exports into an account, in order, as one atomic operation.
 
     Tradovate's files are one import each. TradeSea's are the pages of one day (its export saves one page of 10 orders),
-    so they are read together as **one** import, with one report.
+    so they are read together as **one** import, with one report. So are the Round Turn Monitor's (its log and the
+    overflow file), of which `log_account` picks the account to read (None: the one `default_log_account` picks).
     """
     if platform not in PLATFORMS:
         raise ValueError(f"unknown platform {platform!r}")
@@ -52,10 +64,10 @@ def import_files(
     get_account(conn, account_id)
     tz_name = effective_csv_timezone(conn)  # the CSV zone if one is chosen, else the person's own timezone
     with conn.transaction():  # a savepoint inside the tenant session's transaction
-        if platform == TRADESEA:
-            reports = [_import_order_files(conn, account_id, files, tz_name)]
-        else:
+        if platform == TRADOVATE:
             reports = [_import_file(conn, account_id, name, data, tz_name) for name, data in files]
+        else:
+            reports = [_import_orders(conn, account_id, files, tz_name, platform, log_account)]
         usage.refresh(conn)
         if dry_run:
             raise psycopg.Rollback
@@ -146,28 +158,132 @@ def _import_file(
     return report
 
 
-def _import_order_files(
-    conn: psycopg.Connection, account_id: int, files: Sequence[tuple[str, bytes]], tz_name: str
+def _import_orders(
+    conn: psycopg.Connection,
+    account_id: int,
+    files: Sequence[tuple[str, bytes]],
+    tz_name: str,
+    platform: str,
+    log_account: str | None,
 ) -> FileImportReport:
-    """TradeSea: store the filled orders, then work the account's fill pairs and trades out again from every stored
+    """Read the files of a platform whose rows are orders, and import them."""
+    if platform == TRADESEA:
+        return _import_order_files(
+            conn, account_id, files, tz_name, tradesea.read_order_files(files, tz_name), TRADESEA
+        )
+    return _import_log_files(conn, account_id, files, tz_name, log_account)
+
+
+def _import_log_files(
+    conn: psycopg.Connection,
+    account_id: int,
+    files: Sequence[tuple[str, bytes]],
+    tz_name: str,
+    log_account: str | None,
+) -> FileImportReport:
+    """The Round Turn Monitor: one account's round turns from a log that holds every account's, as orders."""
+    log = round_turn_monitor.read_log_files(files, tz_name)
+    if log.fatal:
+        return FileImportReport(filename=_names(files), platform=ROUND_TURN_MONITOR, fatal=log.fatal, time_zone=tz_name)
+    accounts = log_accounts(conn, account_id, log)
+    chosen = default_log_account(accounts) if log_account is None else log_account
+    if accounts and chosen not in {account.name for account in accounts}:
+        fatal = CHOOSE_ACCOUNT.format(count=len(accounts)) if chosen is None else NOT_IN_LOG.format(name=chosen)
+        return FileImportReport(
+            filename=_names(files),
+            platform=ROUND_TURN_MONITOR,
+            fatal=fatal,
+            time_zone=tz_name,
+            log_accounts=accounts,
+        )
+    read = log.for_account(chosen or "")
+    # Which account was read is part of what was imported: the same log for another account is another import.
+    digest = hashlib.sha256(f"{_digest(files)}|{chosen or ''}".encode()).hexdigest()
+    report = _import_order_files(conn, account_id, files, tz_name, read, ROUND_TURN_MONITOR, digest)
+    report.log_accounts = accounts
+    report.log_account = chosen
+    return report
+
+
+def log_accounts(conn: psycopg.Connection, account_id: int, log: round_turn_monitor.LogRead) -> list[LogAccount]:
+    """The log's accounts, real ones first, each with how many of its round turns this account (or another one)
+    already holds. One query for the whole log."""
+    owner = {turn.entry.ref: turn.account for turn in log.round_turns}
+    here: Counter[str] = Counter()
+    elsewhere: dict[str, Counter[str]] = defaultdict(Counter)
+    for row in conn.execute(
+        """SELECT executions.ref, executions.account_id, accounts.name AS account_name
+           FROM executions JOIN accounts ON accounts.id = executions.account_id
+           WHERE executions.source = %s AND executions.ref = ANY(%s::text[])""",
+        (round_turn_monitor.SOURCE, list(owner)),
+    ):
+        name = owner[row["ref"]]
+        if row["account_id"] == account_id:
+            here[name] += 1
+        else:
+            elsewhere[name][row["account_name"]] += 1
+    accounts = [
+        LogAccount(
+            name=name,
+            round_turns=count,
+            practice=round_turn_monitor.is_practice(name),
+            here=here[name],
+            elsewhere=elsewhere[name].most_common(1)[0][0] if elsewhere[name] else None,
+        )
+        for name, count in log.accounts().items()
+    ]
+    return sorted(accounts, key=lambda account: account.practice)  # stable: the files' order within each kind
+
+
+def default_log_account(accounts: Sequence[LogAccount]) -> str | None:
+    """The account to read when the trader has not chosen one, or None when they must.
+
+    The one this account already holds round turns of (so the choice is remembered, with nothing stored but the round
+    turns); else the only real account no other account holds yet; else the only real account; else, for a log of
+    one practice account, that one. A practice account is never picked over a real one."""
+    held = [account for account in accounts if account.here]
+    if held:
+        return max(held, key=lambda account: account.here).name
+    real = [account for account in accounts if not account.practice and account.round_turns]
+    fresh = [account for account in real if account.elsewhere is None]
+    if len(fresh) == 1:
+        return fresh[0].name
+    if len(real) == 1:
+        return real[0].name
+    if not real and len(accounts) == 1:
+        return accounts[0].name
+    return None
+
+
+def _import_order_files(
+    conn: psycopg.Connection,
+    account_id: int,
+    files: Sequence[tuple[str, bytes]],
+    tz_name: str,
+    read: tradesea.ReadResult,
+    platform: str,
+    digest: str | None = None,
+) -> FileImportReport:
+    """Store the orders read from the files, then work the account's fill pairs and trades out again from every stored
     order of the symbols in the files (`executions.py`)."""
-    read = tradesea.read_order_files(files, tz_name)
+    source = ORDER_SOURCES[platform]
+    per_row = ORDERS_PER_ROW.get(source, 1)
     report = FileImportReport(
         filename=_names(files),
-        platform=TRADESEA,
-        rows_parsed=len(read.executions),
+        platform=platform,
+        rows_parsed=len(read.executions) // per_row,
         duplicates_in_file=read.duplicates_across_files,
         errors=read.errors,
         warnings=read.warnings,
         fatal=read.fatal,
         skipped_by_status=dict(read.skipped),
         file_commission=read.commission if any(e.commission is not None for e in read.executions) else None,
-        commissions=_commissions(read.executions),
+        commissions=_commissions(read.executions, read.rates),
     )
     if read.fatal:
         return report
 
-    digest = _digest(files)
+    digest = digest or _digest(files)
     report.previous_imports = [
         row["id"]
         for row in conn.execute(
@@ -181,17 +297,17 @@ def _import_order_files(
     import_id = conn.execute(
         """INSERT INTO imports (account_id, source, filename, file_sha256, source_timezone, imported_at)
            VALUES (%s, %s, %s, %s, %s, clock_timestamp()) RETURNING id""",
-        (account_id, tradesea.SOURCE, report.filename, digest, report.time_zone),
+        (account_id, source, report.filename, digest, report.time_zone),
     ).fetchone()["id"]
     report.import_id = import_id
 
-    stored = executions.store_executions(conn, account_id, tradesea.SOURCE, read.executions)
+    stored = executions.store_executions(conn, account_id, source, read.executions)
     executions.link_to_import(conn, import_id, stored.linked_ids)
-    report.rows_added = len(stored.added_ids)
-    report.duplicates = len(stored.duplicate_ids)
-    report.matches_other_accounts = dict(stored.other_accounts)
+    report.rows_added = len(stored.added_ids) // per_row
+    report.duplicates = len(stored.duplicate_ids) // per_row
+    report.matches_other_accounts = {name: n // per_row for name, n in stored.other_accounts.items()}
 
-    rederived = executions.rederive(conn, account_id, tradesea.SOURCE, {e.symbol for e in read.executions})
+    rederived = executions.rederive(conn, account_id, source, {e.symbol for e in read.executions})
     report.trades_created = len(rederived.trades.created)
     report.trades_extended = len(rederived.trades.updated)
     report.trades_merged = len(rederived.trades.removed | rederived.journal_moved)
@@ -213,23 +329,31 @@ def _import_order_files(
     return report
 
 
-def _commissions(orders: Sequence[Execution]) -> list[RootCommission]:
+def _commissions(orders: Sequence[Execution], rates: dict[str, Decimal]) -> list[RootCommission]:
     """The files' own commission by contract root, for the orders that state one."""
     sides: Counter[str] = Counter()
     totals: dict[str, Decimal] = defaultdict(lambda: finance.ZERO)
     for order in orders:
         if order.commission is not None:
-            sides[order.symbol] += order.qty
-            totals[order.symbol] += order.commission
-    return [RootCommission(root, sides[root], totals[root]) for root in sorted(sides)]
+            root, _ = parse_symbol(order.symbol, order.executed_at.date())  # "NQZ6" -> "NQ"; TradeSea's "NQ" as it is
+            sides[root] += order.qty
+            totals[root] += order.commission
+    return [RootCommission(root, sides[root], totals[root], rates.get(root)) for root in sorted(sides)]
 
 
 def preview_orders(
-    conn: psycopg.Connection, account_id: int, files: Sequence[tuple[str, bytes]], limit: int
+    conn: psycopg.Connection,
+    account_id: int,
+    files: Sequence[tuple[str, bytes]],
+    limit: int,
+    *,
+    platform: str = TRADESEA,
+    log_account: str | None = None,
 ) -> tuple[FileImportReport, list[RowPreview]]:
-    """TradeSea: what importing these pages would do, and the first `limit` fill pairs their orders would be part of,
-    each with its status. The import itself runs and is rolled back, as `import_files(dry_run=True)` does, so the
-    preview is what the import would do."""
+    """TradeSea or the Round Turn Monitor: what importing these files would do, and the first `limit` fill pairs their
+    orders would be part of, each with its status. The import itself runs and is rolled back, as
+    `import_files(dry_run=True)` does, so the preview is what the import would do."""
+    source = ORDER_SOURCES[platform]
     store.lock_user(conn)
     get_account(conn, account_id)
     tz_name = effective_csv_timezone(conn)
@@ -237,7 +361,7 @@ def preview_orders(
     with conn.transaction():
         # Fill pair ids only grow, so a pair with a higher id than any stored now is one this import would make.
         last = conn.execute("SELECT coalesce(max(id), 0) AS id FROM fill_pairs").fetchone()["id"]
-        report = _import_order_files(conn, account_id, files, tz_name)
+        report = _import_orders(conn, account_id, files, tz_name, platform, log_account)
         if not report.fatal:
             refs = [
                 str(row["execution_id"])
@@ -249,7 +373,7 @@ def preview_orders(
                 """SELECT * FROM fill_pairs
                    WHERE account_id = %s AND source = %s AND (buy_ref = ANY(%s::text[]) OR sell_ref = ANY(%s::text[]))
                    ORDER BY least(bought_at, sold_at), id LIMIT %s""",
-                (account_id, tradesea.SOURCE, refs, refs, limit),
+                (account_id, source, refs, refs, limit),
             ):
                 status = PAIR_NEW if row["id"] > last else PAIR_DUPLICATE
                 rows.append(RowPreview(store.pair_from_row(row), status, None))
@@ -367,13 +491,14 @@ def _undo_orders(conn: psycopg.Connection, record: dict, report: UndoReport) -> 
             "SELECT DISTINCT execution_id FROM import_executions WHERE execution_id = ANY(%s::bigint[])", (linked,)
         )
     }
-    report.rows_kept = len(kept)
+    per_row = ORDERS_PER_ROW.get(record["source"], 1)
+    report.rows_kept = len(kept) // per_row
     orphans = [execution_id for execution_id in linked if execution_id not in kept]
     symbols = {
         row["symbol"]
         for row in conn.execute("DELETE FROM executions WHERE id = ANY(%s::bigint[]) RETURNING symbol", (orphans,))
     }
-    report.rows_removed = len(orphans)
+    report.rows_removed = len(orphans) // per_row
     rederived = executions.rederive(conn, record["account_id"], record["source"], symbols)
     report.trades_removed = len(rederived.removed)
     report.trades_with_journal_removed = rederived.journal_lost

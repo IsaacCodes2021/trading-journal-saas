@@ -1,7 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { ImportRefused } from '../data/model'
 import { csv, csvFile, manyRows } from '../../test-csv'
-import { MAX_CSV_BYTES, PREVIEW_ROWS_SHOWN, resetDemoImports, SIGN_UP_FOR_TRADESEA } from './imports'
+import {
+  MAX_CSV_BYTES,
+  PREVIEW_ROWS_SHOWN,
+  resetDemoImports,
+  SIGN_UP_FOR_ROUND_TURN_MONITOR,
+  SIGN_UP_FOR_TRADESEA,
+} from './imports'
 import { demoSource } from './source'
 
 afterEach(resetDemoImports)
@@ -159,6 +165,22 @@ describe('TradeSea in the sample journal', () => {
     await expect(demoSource.previewImport(APEX_50K, [tradesea()], 'tradesea')).rejects.toThrow(SIGN_UP_FOR_TRADESEA)
     await expect(demoSource.previewImport(APEX_50K, [tradesea()], 'auto')).rejects.toThrow(SIGN_UP_FOR_TRADESEA)
     await expect(demoSource.commitImport(APEX_50K, [tradesea()], 'tradesea')).rejects.toThrow(SIGN_UP_FOR_TRADESEA)
+    expect(await demoSource.imports()).toHaveLength(4)
+  })
+
+  it("asks the person to sign up for the Round Turn Monitor's log and its Export file too", async () => {
+    const log = csvFile(
+      'date_local,account,instrument,direction\n2026-11-18,Sim101,NQ 12-26,Long\n',
+      'RoundTurnLog.csv',
+    )
+    const exported = csvFile('date,account,side,contracts,entry_time_pt\n', 'RoundTurnExport.csv')
+    for (const [file, platform] of [
+      [log, 'round_turn_monitor'],
+      [log, 'auto'],
+      [exported, 'auto'],
+    ] as const) {
+      await expect(demoSource.previewImport(APEX_50K, [file], platform)).rejects.toThrow(SIGN_UP_FOR_ROUND_TURN_MONITOR)
+    }
     expect(await demoSource.imports()).toHaveLength(4)
   })
 

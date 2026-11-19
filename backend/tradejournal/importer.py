@@ -35,6 +35,18 @@ class RootCommission:
     root: str
     sides: int  # contracts bought plus contracts sold: two per contract round trip
     commission: Decimal
+    rate: Decimal | None = None  # the usual rate per contract round trip, when it is not commission / round trips
+
+
+@dataclass(frozen=True)
+class LogAccount:
+    """One account in a log that holds several (the Round Turn Monitor's), and where its round turns are already."""
+
+    name: str
+    round_turns: int
+    practice: bool  # NinjaTrader's practice account (Sim101): never chosen for the trader
+    here: int = 0  # round turns already in the account being imported into
+    elsewhere: str | None = None  # another account that already holds some of them
 
 
 @dataclass
@@ -62,6 +74,10 @@ class FileImportReport:
     commissions: list[RootCommission] = field(default_factory=list)  # the same, by contract root
     trades_removed: int = 0  # existing trades left with no fill pair when the orders were paired again
     time_zone: str = ""  # the zone the times were read in, as stored in `imports.source_timezone`
+    # A log of several accounts (the Round Turn Monitor's): each one, and the one whose round turns were read (None:
+    # the trader has to choose, and `fatal` says so).
+    log_accounts: list[LogAccount] = field(default_factory=list)
+    log_account: str | None = None
 
     @property
     def trades_built(self) -> int:

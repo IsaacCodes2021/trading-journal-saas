@@ -255,8 +255,17 @@ export function useImports() {
 export function usePreviewImport() {
   const source = useDataSource()
   return useMutation({
-    mutationFn: ({ accountId, files, platform }: { accountId: number; files: File[]; platform: ImportPlatform }) =>
-      source.previewImport(accountId, files, platform),
+    mutationFn: ({
+      accountId,
+      files,
+      platform,
+      logAccount,
+    }: {
+      accountId: number
+      files: File[]
+      platform: ImportPlatform
+      logAccount?: string | null
+    }) => source.previewImport(accountId, files, platform, logAccount),
   })
 }
 
@@ -265,8 +274,17 @@ export function useCommitImport() {
   const source = useDataSource()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ accountId, files, platform }: { accountId: number; files: File[]; platform: Platform }) =>
-      source.commitImport(accountId, files, platform),
+    mutationFn: ({
+      accountId,
+      files,
+      platform,
+      logAccount,
+    }: {
+      accountId: number
+      files: File[]
+      platform: Platform
+      logAccount?: string | null
+    }) => source.commitImport(accountId, files, platform, logAccount),
     onSuccess: () =>
       Promise.all(
         ['imports', 'trades', 'trade', 'dashboard', 'filter-options', 'account-overviews', 'accounts-overview'].map(
