@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Roundturn: a trading journal for prop-firm futures traders</title>
-<meta name="description" content="Roundturn is a journal and analytics tool for prop-firm futures traders. Upload your Tradovate trade history after the session, see where each prop account stands against its firm's rules, and keep notes and screenshots on every trade. Try it free for 7 days, then USD 15 per month.">
+<meta name="description" content="Roundturn is a journal and analytics tool for prop-firm futures traders. Upload your trade history from Tradovate, TradeSea or any other platform after the session, see where each prop account stands against its firm's rules, and keep notes and screenshots on every trade. Try it free for 7 days, then USD 15 per month.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
@@ -15,7 +15,6 @@
   <div class="wrap">
     <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
     <nav class="menu" aria-label="Main">
-      <a class="jump" href="#accounts">Accounts</a>
       <a class="jump" href="#what">What it does</a>
       <a class="jump" href="#review">The review</a>
       <a class="jump" href="#pricing">Pricing</a>
@@ -35,7 +34,7 @@
         <div>
           <span class="chip"><span class="live-dot" aria-hidden="true"></span>REVIEW EVERY ROUND TURN · 7-DAY FREE TRIAL</span>
           <h1 id="hero-title">Every prop account. One view.<br><span class="accent">After every session.</span></h1>
-          <p class="lead">Upload your Tradovate export when the session ends. Roundturn rebuilds your trades and shows where each evaluation and funded account stands against its firm's rules: the drawdown floor, the daily loss limit, consistency and payout readiness.</p>
+          <p class="lead">Upload your trades when the session ends, from Tradovate, TradeSea or any other platform. Roundturn rebuilds your trades and shows where each evaluation and funded account stands against its firm's rules: the drawdown floor, the daily loss limit, consistency and payout readiness.</p>
           <div class="actions">
             <a class="btn btn-big" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start your 7-day free trial</a>
             <a class="btn-ghost" href="#what">See the dashboard</a>
@@ -165,7 +164,7 @@
         <div class="card">
           <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3m0 0L7 8m5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></span>
           <h3>Import with a preview</h3>
-          <p>Upload the Tradovate Performance CSV and see what will be added before anything is saved. Import the same file twice and nothing doubles. Undo any import.</p>
+          <p>Upload the export from Tradovate, TradeSea or any other platform and see what will be added before anything is saved. Import the same file twice and nothing doubles. Undo any import.</p>
         </div>
         <div class="card">
           <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg></span>
@@ -275,7 +274,7 @@
       <p class="label">How it works</p>
       <h2 id="how-title">From one export to a full review.</h2>
       <div class="steps">
-        <div class="step"><p class="label">01 · Export</p><h3>Export from Tradovate</h3><p>Download the Performance report as a CSV after the session.</p></div>
+        <div class="step"><p class="label">01 · Export</p><h3>Export from your platform</h3><p>Save your trades as a file after the session: Tradovate, TradeSea, the Round Turn Monitor or any other.</p></div>
         <div class="step"><p class="label">02 · Preview</p><h3>Upload and preview</h3><p>See what will be added before anything is saved. The same file twice adds nothing twice.</p></div>
         <div class="step"><p class="label">03 · Check</p><h3>See every account</h3><p>Each prop account checked against its firm's rules, from the trades you just imported.</p></div>
         <div class="step"><p class="label">04 · Review</p><h3>Write it down</h3><p>Notes, tags for setup, mistake and emotion, and screenshots on any round turn.</p></div>
@@ -291,8 +290,8 @@
       </div>
       <div class="rows">
         <div><span class="n">01</span><div><h3>Prop-firm futures traders</h3><p>Several accounts across several firms: evaluations, funded accounts, their fees and their payouts, in one place.</p></div></div>
-        <div><span class="n">02</span><div><h3>Tradovate users</h3><p>You export the Performance report from Tradovate. Roundturn builds your trades from it.</p></div></div>
-        <div><span class="n">03</span><div><h3>Traders who review</h3><p>Ten minutes after the session: what happened, why, and what to change.</p></div></div>
+        <div><span class="n">02</span><div><h3>Futures traders</h3><p>On Tradovate, TradeSea or any other platform. You export your trades, and Roundturn builds them from the file.</p></div></div>
+        <div><span class="n">03</span><div><h3>Traders who want to get better</h3><p>Ten minutes after the session: what happened, why, and what to change.</p></div></div>
       </div>
     </div>
   </section>
@@ -335,10 +334,11 @@
           <h3>Tradovate auto-sync</h3>
           <p class="label">Coming soon</p>
         </div>
-        <p>Connect your Tradovate account and have your trades arrive on their own, with no file to export and upload. This is what the work is aimed at right now. It is not built yet, and there is no date.</p>
+        <p>Connect your Tradovate account and have your trades arrive on their own, with no file to export and upload. This is what the work is aimed at right now. It is not built yet, and there is no date: for now, Tradovate trades come in by file, like every other platform's.</p>
       </div>
       <div class="planned">
-        <div class="card"><p class="label">Also planned</p><h3>More brokerage imports</h3></div>
+        <div class="card"><p class="label live">Live now</p><h3>Imports from any platform</h3><p>Tradovate, TradeSea and the Round Turn Monitor are read directly. Any other platform comes in through an AI chatbot: see the <a href="/docs/import/">import docs</a>.</p></div>
+        <div class="card"><p class="label">Also planned</p><h3>A copy trader</h3><p>Place a trade on one account and have it copied to your others. It is not built yet, and there is no date.</p></div>
       </div>
     </div>
   </section>
@@ -369,7 +369,7 @@
       </nav>
     </div>
     <p class="legal">Roundturn analyzes the data you upload. It does not place, route or execute trades, and it is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
-    <p class="legal">Roundturn is not affiliated with Tradovate or any broker, exchange or prop firm.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea or any other platform, broker, exchange or prop firm.</p>
   </div>
 </footer>
 <dialog class="offer" id="offer" aria-labelledby="offer-title" aria-describedby="offer-text">

@@ -1418,7 +1418,7 @@ details[open] > summary.day::after {
 
 .planned {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 16px;
 }
@@ -1431,6 +1431,11 @@ details[open] > summary.day::after {
 
 .planned .card h3 {
   margin-top: 8px;
+}
+
+/* a roadmap item that has shipped */
+.planned .card .label.live {
+  color: var(--pos);
 }
 
 /* closing call to action */
@@ -1860,6 +1865,10 @@ article li {
   /* on a phone the menu keeps the refund policy, sign-in and the trial; the in-page links would take three rows */
   .menu .jump {
     display: none;
+  }
+
+  .planned {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .hero {
