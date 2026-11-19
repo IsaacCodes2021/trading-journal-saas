@@ -50,6 +50,44 @@
       ]
     },
     {
+      "id": "tradesea-panel",
+      "src": "tradesea/orders-filled.png",
+      "scale": 1,
+      "crop": [6, 626, 1994, 570],
+      "out": "docs/import/tradesea/tradesea-orders-panel.png",
+      "alt": "TradeSea's panel under the chart: the Orders tab open, the Filled view selected, a page of ten filled orders, and the Export button with the page count at the bottom right.",
+      "marks": [
+        { "n": 1, "box": [98, 645, 52, 34] },
+        { "n": 2, "box": [119, 687, 51, 30], "pin": "br" },
+        { "n": 3, "box": [1820, 1157, 67, 30], "pin": "tl" },
+        { "n": 4, "box": [1889, 1158, 106, 28], "pin": "br" }
+      ]
+    },
+    {
+      "id": "tradesea-tabs",
+      "src": "tradesea/orders-filled.png",
+      "scale": 1,
+      "crop": [12, 630, 290, 102],
+      "out": "docs/import/tradesea/tradesea-orders-filled.png",
+      "alt": "Close-up of TradeSea's Accounts, Orders, Positions and pSpark tabs, and the All, Open, Filled and Cancelled views, with Orders and Filled selected.",
+      "marks": [
+        { "n": 1, "box": [98, 645, 52, 34] },
+        { "n": 2, "box": [119, 687, 51, 30], "pin": "br" }
+      ]
+    },
+    {
+      "id": "tradesea-export",
+      "src": "tradesea/orders-filled.png",
+      "scale": 1,
+      "crop": [1690, 1130, 310, 66],
+      "out": "docs/import/tradesea/tradesea-export-pages.png",
+      "alt": "Close-up of the bottom right of TradeSea's Orders list: the Export button, Page 1 of 2, and the arrows to the previous and next page.",
+      "marks": [
+        { "n": 3, "box": [1820, 1157, 67, 30], "pin": "tl" },
+        { "n": 4, "box": [1889, 1158, 106, 28], "pin": "tl" }
+      ]
+    },
+    {
       "id": "tradesea-dialog",
       "src": "roundturn/dialog-tradesea.png",
       "scale": 2,
