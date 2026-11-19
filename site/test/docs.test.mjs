@@ -105,3 +105,21 @@ test("the guide for any other platform lists exactly the columns of Roundturn's 
   const listed = [...html.matchAll(/<dt><code>([a-z_]+)<\/code><\/dt>/g)].map((m) => m[1]);
   assert.deepEqual(listed, columns, "the guide's column list is not the app's");
 });
+
+test("the guide for any other platform links only the platforms' own help in \"Where to find your export\"", () => {
+  // The owner's rule (2026-11-19): each platform's own website or documentation, never another journal's guide, so every
+  // step there is the platform's own word. Roundturn's own guides may be linked too.
+  const OWN = ["ninjatrader.com", "topstep.com", "sierrachart.com", "quantower.com", "atas.net", "rithmic.com"];
+  const html = readFileSync(join(DOCS, "import", "other", "index.html"), "utf8");
+  const section = html.match(/<h2 id="where-to-find-your-export">([\s\S]*?)(?=<h2[\s>])/);
+  assert.ok(section, "the guide has no \"Where to find your export\" section");
+  const links = [...section[1].matchAll(/<a\b[^>]*\bhref="([^"]+)"/g)].map((m) => m[1]);
+  const outside = links.filter((href) => !href.startsWith("/docs/import/"));
+  assert.ok(outside.length >= 5, `only ${outside.length} platforms' pages are linked`);
+  for (const href of outside) {
+    const url = new URL(href);
+    assert.equal(url.protocol, "https:", `${href} is not https`);
+    assert.ok(OWN.some((d) => url.hostname === d || url.hostname.endsWith(`.${d}`)), `${href} is not on a platform's own domain`);
+  }
+  for (const [, id] of html.matchAll(/href="#([^"]+)"/g)) assert.ok(html.includes(`id="${id}"`), `#${id} is not on the page`);
+});

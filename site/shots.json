@@ -115,6 +115,42 @@
       ]
     },
     {
+      "id": "other-dialog",
+      "src": "roundturn/dialog-other.png",
+      "scale": 2,
+      "crop": [239, 174, 522, 551],
+      "out": "docs/import/other/roundturn-platform.png",
+      "alt": "Roundturn's dialog \"Where are these trades from?\" with Other platform (converted with an AI chatbot) chosen, a net P&L typed from the statement, the Copy prompt and See the prompt buttons, and the Choose file button.",
+      "marks": [
+        { "n": 1, "box": [257, 253, 486, 42] },
+        { "n": 2, "box": [250, 301, 500, 99] },
+        { "n": 3, "box": [251, 518, 237, 48] },
+        { "n": 4, "box": [645, 672, 98, 36] }
+      ]
+    },
+    {
+      "id": "other-check",
+      "src": "roundturn/preview-other.png",
+      "scale": 2,
+      "crop": [20, 358, 960, 350],
+      "out": "docs/import/other/roundturn-check.png",
+      "alt": "Roundturn's preview of the chatbot's file: 5 round turns, all new, none already imported and no errors, then Check against your statement, with the file's gross, fees and net P&L, the statement's figure, and the line saying the two match.",
+      "marks": [
+        { "n": 1, "box": [48, 548, 590, 30] },
+        { "n": 2, "box": [48, 580, 330, 75] },
+        { "n": 3, "box": [48, 656, 290, 30] }
+      ]
+    },
+    {
+      "id": "other-refused",
+      "src": "roundturn/preview-other-refused.png",
+      "scale": 2,
+      "crop": [20, 1085, 960, 133],
+      "out": "docs/import/other/roundturn-refused-row.png",
+      "alt": "The card \"1 row cannot be imported\" in Roundturn's preview: line 5's gross P&L of 20.00 is not what the prices make, because 1 CL short from 60.15 to 59.95 is 200.00 at $1000 a point.",
+      "marks": [{ "n": 1, "box": [44, 1164, 916, 34] }]
+    },
+    {
       "id": "start-preferences",
       "src": "roundturn-sample/preferences.png",
       "scale": 2,

@@ -102,7 +102,11 @@ screenshots of the app's sample journal (made-up data), and a Docs link in every
 `site/scripts/shots.mjs` from raw captures kept outside the repository (`Development/guide-screenshots/`): it crops them,
 paints over account numbers in the pixels, and draws numbered marks over the image (`site/README.md`, "The docs pages and
 their screenshots"). The docs pages say only what the app does: when a screen or a rule changes, change its page and
-screenshot in the same pull request.
+screenshot in the same pull request. The Other platform guide's *Where to find your export* links each platform's own
+help page for its export (NinjaTrader, TopstepX, Sierra Chart, Quantower, ATAS; checked 2026-11-19, the date is in a
+comment beside the section). Those are outside pages that move: look at them now and then. A site test keeps the links on
+the platforms' own domains, never another journal's guide. R|Trader Pro has a placeholder with no link until the owner
+helps with screenshots.
 
 | Page | Address | Linked from the app |
 |---|---|---|
