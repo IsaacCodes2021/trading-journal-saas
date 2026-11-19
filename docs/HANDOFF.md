@@ -74,6 +74,10 @@ owner's NinjaTrader 8 add-on (`RoundTurnLog.csv`, 22 columns, one row per round 
 Each round turn is stored as two orders (entry and exit) in `executions` with source `round_turn_monitor_log`, so it uses
 TradeSea's engine: choosing the same growing log again adds only new round turns, and undo works the same. One NinjaTrader
 account per import, picked in the preview (`log_account`); Sim101 is never picked over a real account. No migration.
+**The add-on's Export button** (owner's decision, 2026-11-19): once the add-on is updated, its Export file has the log's
+22 columns for one trading day, so Roundturn reads it as a log, and a round turn in both files gets the same reference
+and is imported once. An Export file from the older add-on (15 columns, no contract or commission) is refused with "Update
+the add-on and export again, or choose RoundTurnLog.csv". The add-on's own change is made in its project, not here.
 
 **Export guides on the marketing site: the app links to pages that do not exist yet.** The addresses were picked on
 2026-11-18, before the site's docs section is built. Until it is published, each shows the site's own "page not found"

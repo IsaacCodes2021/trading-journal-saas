@@ -108,14 +108,14 @@ describe('getting started', () => {
     expect(codes).toEqual([...TRADESEA_COLUMNS])
   })
 
-  it("says how to import the Round Turn Monitor's log: the log, not the Export file, one account at a time", async () => {
+  it('says how to import the Round Turn Monitor: its Export file or its log, one account at a time', async () => {
     await openHelp()
     const log = section('Importing from NinjaTrader (Round Turn Monitor)')
     for (const words of [
-      'Choose RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog.',
+      'Choose a file from the add-on’s Export button, or its log: RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog.',
       'If RoundTurnLog_overflow.csv is there too',
-      'only the new ones are added',
-      'Not the Export button’s file.',
+      'only the new ones are added. A round turn in both files counts once.',
+      'An Export file from an older version of the add-on has no contract',
       'One NinjaTrader account per import.',
       'read in your CSV timezone setting',
     ])

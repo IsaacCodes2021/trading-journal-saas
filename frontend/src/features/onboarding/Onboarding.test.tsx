@@ -314,13 +314,15 @@ describe('step 3: the file', () => {
     )
   })
 
-  it("says to choose the Round Turn Monitor's log, not its Export file", async () => {
+  it("says to choose the Round Turn Monitor's Export file or its log", async () => {
     await open(3)
     const log = within(await step('Export your trades')).getByRole('region', {
       name: 'NinjaTrader (Round Turn Monitor)',
     })
-    expect(log).toHaveTextContent('choose RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog')
-    expect(log).toHaveTextContent('not a file from its Export button')
+    expect(log).toHaveTextContent('Click Export in the add-on’s window')
+    expect(log).toHaveTextContent(
+      'choose the Export file, or RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog',
+    )
     expect(within(log).getByRole('link', { name: 'How to import from Round Turn Monitor' })).toHaveAttribute(
       'href',
       'https://roundturn.app/docs/import/round-turn-monitor/',

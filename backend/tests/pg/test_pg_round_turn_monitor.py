@@ -25,7 +25,8 @@ from tradejournal.platforms import round_turn_monitor as rtm
 D = Decimal
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 LOG = ("RoundTurnLog.csv", (FIXTURES / "rtm_log_2026-11-18.csv").read_bytes())
-EXPORT = ("RoundTurnExport_2026-11-18.csv", (FIXTURES / "rtm_export_2026-11-18.csv").read_bytes())
+EXPORT = ("RoundTurnExport_2026-11-18_LFE0000000000001.csv", (FIXTURES / "rtm_export_new_2026-11-18.csv").read_bytes())
+OLD_EXPORT = ("RoundTurnExport_2026-11-18.csv", (FIXTURES / "rtm_export_2026-11-18.csv").read_bytes())
 LUCID = "LFE0000000000001"
 PLATFORM = "round_turn_monitor"
 
@@ -160,8 +161,21 @@ def test_a_preview_saves_nothing_and_says_what_the_import_does(conn, lucid):
         assert count(conn, table) == 0, table
 
 
-def test_the_export_file_is_refused_and_nothing_is_stored(conn, lucid):
+def test_an_export_file_imports_its_day_and_the_log_afterwards_adds_nothing_twice(conn, lucid):
     report = run(conn, lucid.id, EXPORT)
+    assert report.fatal is None and report.log_account == LUCID
+    assert [(a.name, a.round_turns) for a in report.log_accounts] == [(LUCID, 18)]
+    assert (report.rows_parsed, report.rows_added, report.trades_created) == (18, 18, 18)
+    assert sum(t["net_pnl"] for t in trades(conn)) == D("1328.50")  # the same day as the log gives
+    later = run(conn, lucid.id, LOG)  # the whole log: the same 18 round turns, and Sim101's
+    assert (later.log_account, later.rows_parsed, later.rows_added, later.duplicates) == (LUCID, 18, 0, 18)
+    assert later.trades_built == 0 and len(trades(conn)) == 18
+    again = run(conn, lucid.id, EXPORT)
+    assert (again.rows_added, again.duplicates) == (0, 18)
+
+
+def test_an_export_file_from_the_older_add_on_is_refused_and_nothing_is_stored(conn, lucid):
+    report = run(conn, lucid.id, OLD_EXPORT)
     assert report.fatal == rtm.EXPORT_FILE and report.log_accounts == []
     assert count(conn, "imports") == 0 and count(conn, "executions") == 0
 
@@ -242,12 +256,21 @@ def test_a_log_of_several_real_accounts_needs_a_choice_before_it_imports(db, ali
     assert send(client, "/api/v1/imports", account_id, [two], log_account="LFE0000000000002").status_code == 201
 
 
-def test_the_log_dropped_on_the_page_is_recognised_and_the_export_file_is_refused_in_words(db, alice, account_id):
+def test_the_log_or_an_export_file_dropped_on_the_page_is_recognised_and_the_older_export_is_refused(
+    db, alice, account_id
+):
     client = api(db, alice)
     body = preview(client, account_id, [LOG], platform="auto")
     assert (body["platform"], body["recognised"], body["fatal"]) == (PLATFORM, True, None)
     export = preview(client, account_id, [EXPORT], platform="auto")
-    assert (export["platform"], export["fatal"]) == (PLATFORM, rtm.EXPORT_FILE)
+    assert (export["platform"], export["recognised"], export["fatal"], export["log_account"]) == (
+        PLATFORM,
+        True,
+        None,
+        LUCID,
+    )
+    older = preview(client, account_id, [OLD_EXPORT], platform="auto")
+    assert (older["platform"], older["fatal"]) == (PLATFORM, rtm.EXPORT_FILE)
 
 
 def test_the_log_chosen_as_another_platform_is_refused_with_a_way_to_read_it_as_the_log(db, alice, account_id):

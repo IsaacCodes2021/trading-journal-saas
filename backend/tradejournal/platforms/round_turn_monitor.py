@@ -8,6 +8,9 @@ What the log is, from the add-on's source (`RoundTurnMonitor.Csv.cs`) and a real
   `RoundTurnLog_overflow.csv` instead; choosing both reads them together.
 * It holds every tracked account, practice ones (Sim101) too. One import takes one account's rows (`for_account`); which
   one is the caller's choice.
+* The add-on's Export button saves the same 22 columns (`CsvLog.Header` and `CsvLog.FormatRow`) for one trading day and
+  one account or all, so an Export file is read as a log. Its rows are the log's rows character for character, so a
+  round turn in both gets the same references and is imported once.
 * Times are NinjaTrader's clock, which the add-on writes without converting, so they are read in the person's CSV time
   zone setting. `date_local` is the entry's date. The exit is the entry plus `duration_seconds`, as the add-on itself
   reads its rows, so a round turn over midnight is right; `exit_time_local` gives its time of day to the millisecond.
@@ -19,8 +22,8 @@ What the log is, from the add-on's source (`RoundTurnMonitor.Csv.cs`) and a real
 
 Each round turn becomes two orders, its entry and its exit, stored and paired like TradeSea's (`pg/executions.py`).
 Each order's reference is built from the round turn's contents, so choosing the same growing log again adds only the
-new round turns. The Export button's file (no contract, no commission, today only) and the add-on's old 19-column log
-(`RoundTurnLog_v1.csv`) are refused in words.
+new round turns. The Export file of the add-on before that change (15 columns: no contract, no commission) and the
+add-on's old 19-column log (`RoundTurnLog_v1.csv`) are refused in words.
 """
 
 from __future__ import annotations
@@ -70,12 +73,12 @@ COLUMNS = (
     "traded_during_break",
 )
 OLD_COLUMNS = COLUMNS[:19]  # the log before the add-on's decision D58 added the last three
-EXPORT_MARKERS = ("entry_time_pt", "exit_time_pt", "pnl_usd_net")  # the Export button's file (D41, D61)
+EXPORT_MARKERS = ("entry_time_pt", "exit_time_pt", "pnl_usd_net")  # the add-on's older 15-column Export file
 
 LOG_FOLDER = "Documents\\NinjaTrader 8\\RoundTurnLog"
 EXPORT_FILE = (
-    "This is the Round Turn Monitor's Export file, which has no contract or commission. "
-    f"Choose RoundTurnLog.csv instead (in {LOG_FOLDER})."
+    "This Export file is from an older version of the Round Turn Monitor, without the contract or commission. "
+    f"Update the add-on and export again, or choose RoundTurnLog.csv (in {LOG_FOLDER})."
 )
 OLD_LOG = (
     "This is the Round Turn Monitor's old log, from before the add-on was updated (19 columns, now named "
@@ -171,8 +174,8 @@ def read_log(data: bytes | str, tz_name: str) -> LogRead:
 
 
 def read_log_files(files: Sequence[tuple[str, bytes | str]], tz_name: str) -> LogRead:
-    """Read several files as one log: `RoundTurnLog.csv` and `RoundTurnLog_overflow.csv`, or the same log chosen twice.
-    A round turn in more than one file counts once."""
+    """Read several files as one log: `RoundTurnLog.csv` and `RoundTurnLog_overflow.csv`, Export files, or the same log
+    chosen twice. A round turn in more than one file counts once."""
     combined = LogRead()
     labelled = len(files) > 1
     seen: set[str] = set()

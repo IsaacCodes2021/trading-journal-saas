@@ -72,8 +72,9 @@ export function ExportStep({ onBack, onNext }: { onBack: () => void; onNext: () 
           NinjaTrader (Round Turn Monitor)
         </h3>
         <p className="m-0">
-          Nothing to export: the add-on logs every round turn. In the next step, choose{' '}
-          <strong>{ROUND_TURN_LOG}</strong> in {ROUND_TURN_LOG_FOLDER.join(' › ')}, not a file from its Export button.
+          Click <strong>Export</strong> in the add-on&rsquo;s window, or use the log it writes after every round turn.
+          In the next step, choose the Export file, or <strong>{ROUND_TURN_LOG}</strong> in{' '}
+          {ROUND_TURN_LOG_FOLDER.join(' › ')}.
         </p>
         <p className="m-0 text-xs text-muted">
           <a href={platformInfo('round_turn_monitor').guide} target="_blank" rel="noopener noreferrer">
