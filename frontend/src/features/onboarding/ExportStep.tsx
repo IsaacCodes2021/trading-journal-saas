@@ -4,7 +4,7 @@ import { StepFrame } from './StepFrame'
 
 /**
  * Step 3: how to get the files, from Tradovate, TradeSea or NinjaTrader's Round Turn Monitor (its log, which needs no
- * export). Tradovate's click path changes between versions, so its part
+ * export), or from any other platform through an AI chatbot. Tradovate's click path changes between versions, so its part
  * says what to look for (the Performance report, as a CSV) and shows the columns the file must have, which is the one
  * thing that can be checked. TradeSea's says where its export is and that it saves one page of orders per file
  * (docs/design/tradesea-import-plan.md, section 1.9). Either way, the import says exactly what is wrong with a file.
@@ -14,7 +14,7 @@ export function ExportStep({ onBack, onNext }: { onBack: () => void; onNext: () 
     <StepFrame
       number={3}
       title="Export your trades"
-      intro="We read Tradovate's Performance report, TradeSea's Orders export and the Round Turn Monitor's log from NinjaTrader, saved as CSV files. Use the part for the platform you trade on."
+      intro="We read Tradovate's Performance report, TradeSea's Orders export and the Round Turn Monitor's log from NinjaTrader, saved as CSV files, and any other platform's export through an AI chatbot. Use the part for the platform you trade on."
       onBack={onBack}
       next={{ onClick: onNext }}
     >
@@ -79,6 +79,23 @@ export function ExportStep({ onBack, onNext }: { onBack: () => void; onNext: () 
         <p className="m-0 text-xs text-muted">
           <a href={platformInfo('round_turn_monitor').guide} target="_blank" rel="noopener noreferrer">
             How to import from Round Turn Monitor
+          </a>
+        </p>
+      </section>
+
+      <section aria-labelledby="export-other" className="flex flex-col gap-2">
+        <h3 id="export-other" className="m-0 text-sm font-semibold">
+          Any other platform
+        </h3>
+        <p className="m-0">
+          Export your trades from your platform as it allows. In the next step, choose{' '}
+          <strong>{platformInfo('other').label}</strong>: it gives you a prompt that has ChatGPT, Claude or another AI
+          chatbot turn the export into Roundturn&rsquo;s import file, which Roundturn checks against your
+          statement&rsquo;s net P&amp;L.
+        </p>
+        <p className="m-0 text-xs text-muted">
+          <a href={platformInfo('other').guide} target="_blank" rel="noopener noreferrer">
+            How to import from another platform
           </a>
         </p>
       </section>

@@ -2056,6 +2056,25 @@ article li {
   overflow-wrap: anywhere;
 }
 
+/* a file's lines, as on the Other platform guide: scrolls sideways inside its box, never the page */
+.doc pre {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--raised);
+  overflow-x: auto;
+}
+
+.doc pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 12.5px;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
 .doc kbd {
   border-bottom-width: 2px;
 }

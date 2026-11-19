@@ -17,8 +17,9 @@ export function ImportPage({ timeZone, csvTimeZone }: { timeZone: string; csvTim
       <div>
         <h1 className="m-0 text-[22px] font-semibold">Import trades</h1>
         <p className="mt-1 mb-0 text-muted">
-          Upload an export from Tradovate or TradeSea, or the Round Turn Monitor&rsquo;s log from NinjaTrader. Nothing
-          is saved until you confirm the preview, and every import can be undone.
+          Upload an export from Tradovate or TradeSea, the Round Turn Monitor&rsquo;s log from NinjaTrader, or any other
+          platform&rsquo;s export converted with an AI chatbot. Nothing is saved until you confirm the preview, and
+          every import can be undone.
         </p>
       </div>
 

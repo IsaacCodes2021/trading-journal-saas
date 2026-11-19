@@ -49,6 +49,11 @@ function tradeseaPreview(changes: Partial<ImportPreview> = {}): ImportPreview {
     time_zone: 'PST',
     log_accounts: [],
     log_account: null,
+    file_gross: null,
+    file_fees: null,
+    file_net: null,
+    first_day: null,
+    last_day: null,
     errors: [],
     warnings: [],
     trades_built: 5,
@@ -151,22 +156,6 @@ describe('where the trades come from', () => {
     await user.click(within(dialog).getByRole('button', { name: 'Choose files' }))
     expect(input.multiple).toBe(false)
     expect(screen.queryByRole('region', { name: 'Preview' })).not.toBeInTheDocument()
-  })
-
-  it('a platform not listed says which ones are, and how to ask for another', async () => {
-    const { user, button } = await openImport()
-    const dialog = await ask(user, button)
-    await user.selectOptions(within(dialog).getByLabelText('Platform'), 'My platform isn’t listed')
-    expect(dialog).toHaveTextContent(
-      'We import Tradovate, TradeSea and NinjaTrader (through the Round Turn Monitor) today',
-    )
-    expect(within(dialog).getByRole('link', { name: 'hello@roundturn.app' })).toHaveAttribute(
-      'href',
-      'mailto:hello@roundturn.app',
-    )
-    expect(within(dialog).queryByRole('button', { name: 'Choose files' })).not.toBeInTheDocument()
-    await user.click(within(dialog).getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('in the demo, TradeSea asks the person to sign up instead', async () => {

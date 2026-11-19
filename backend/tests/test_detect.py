@@ -2,7 +2,7 @@
 
 from helpers import HEADER, SAMPLE, fixture_bytes
 
-from tradejournal.platforms import detect, round_turn_monitor
+from tradejournal.platforms import detect, other, round_turn_monitor
 
 TRADESEA_HEADER = (
     '"Time","Symbol","Qty","Side","Order Type","Limit Price","Stop Price","Avg Price","Commission","Status"'
@@ -26,6 +26,15 @@ def test_the_round_turn_monitors_log_names_it_and_so_do_the_two_files_its_reader
     assert detect.platform_of_files([log, log]) == (detect.ROUND_TURN_MONITOR, None)
     assert detect.platform_of_files([log, tradesea]) == (None, detect.MIXED)
     assert detect.SOURCES[round_turn_monitor.SOURCE] == detect.ROUND_TURN_MONITOR
+
+
+def test_roundturns_own_import_file_is_told_by_its_version_column_even_when_the_rest_of_its_header_is_wrong():
+    header = ",".join(other.COLUMNS)
+    assert detect.platform_of((header + "\n").encode()) == detect.OTHER
+    assert detect.platform_of((header.upper() + "\n").encode()) == detect.OTHER
+    assert detect.platform_of(b"roundturn_version,symbol,account\n") == detect.OTHER  # its reader says what is wrong
+    assert detect.platform_of(b"symbol,side,qty,entry_time\n") is None
+    assert detect.SOURCES[other.SOURCE] == detect.OTHER and detect.OTHER in detect.PLATFORMS
 
 
 def test_a_byte_order_mark_and_blank_first_lines_do_not_hide_the_header():

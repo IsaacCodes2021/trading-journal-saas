@@ -48,7 +48,7 @@ describe('the import page', () => {
   it('says what it does, names the account and the timezone the file is read in, and shows the history', async () => {
     await openImport()
     expect(screen.getByText(/Upload an export from Tradovate or TradeSea/)).toHaveTextContent(
-      /every import can be undone/,
+      /any other platform’s export converted with an AI chatbot\. .*every import can be undone/,
     )
     // The hint states the server's real limit, and does not claim the file stays on the device (the real source uploads it).
     expect(screen.getByText(/Up to 10 MB\. Nothing is saved until you confirm the preview\./)).toBeInTheDocument()

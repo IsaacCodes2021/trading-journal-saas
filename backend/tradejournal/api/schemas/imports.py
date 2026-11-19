@@ -1,9 +1,10 @@
 """Importing exports (Tradovate's Performance report, TradeSea's Orders pages, the Round Turn Monitor's log from
-NinjaTrader): what the files would do, what an import did, and what undoing one would remove."""
+NinjaTrader, and Roundturn's own import file for any other platform): what the files would do, what an import did, and
+what undoing one would remove."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from .base import ApiModel
@@ -11,7 +12,7 @@ from .journal import AccountRefOut, RowId
 from .money import Money
 
 PairStatus = Literal["new", "duplicate", "other_account"]
-Platform = Literal["tradovate", "tradesea", "round_turn_monitor"]
+Platform = Literal["tradovate", "tradesea", "round_turn_monitor", "other"]
 
 
 class ImportIssueOut(ApiModel):
@@ -73,7 +74,7 @@ class ImportPreviewOut(ApiModel):
     """What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.
 
     For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; for the Round
-    Turn Monitor, a round turn. The table shows the fill pairs either makes."""
+    Turn Monitor and Roundturn's own import file (`other`), a round turn. The table shows the fill pairs either makes."""
 
     platform: Platform
     recognised: bool = False  # the platform was told from the files' header row (`platform=auto`)
@@ -97,6 +98,14 @@ class ImportPreviewOut(ApiModel):
     # The Round Turn Monitor: the log's accounts, and the one read. With no account read, `fatal` asks for a choice.
     log_accounts: list[LogAccountOut] = []
     log_account: str | None = None
+    # Roundturn's own import file (`other`): the file's own totals over the round turns that can be imported (new or
+    # already stored; refused rows left out), for the trader to check against their platform's statement, and the
+    # dates they span as the file wrote them.
+    file_gross: Money | None = None
+    file_fees: Money | None = None
+    file_net: Money | None = None
+    first_day: date | None = None
+    last_day: date | None = None
     errors: list[ImportIssueOut]
     warnings: list[ImportIssueOut]
     trades_built: int  # trades the new rows would create or extend

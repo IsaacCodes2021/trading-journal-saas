@@ -7,7 +7,7 @@ import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from . import store
@@ -78,6 +78,13 @@ class FileImportReport:
     # the trader has to choose, and `fatal` says so).
     log_accounts: list[LogAccount] = field(default_factory=list)
     log_account: str | None = None
+    # Roundturn's own import file (Other platform): the file's own totals over the round turns it holds, which the
+    # trader checks against their platform's statement, and the dates they span, as the file wrote them.
+    file_gross: Decimal | None = None
+    file_fees: Decimal | None = None
+    file_net: Decimal | None = None
+    first_day: date | None = None
+    last_day: date | None = None
 
     @property
     def trades_built(self) -> int:

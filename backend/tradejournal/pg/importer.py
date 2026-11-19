@@ -26,18 +26,19 @@ from .. import finance
 from ..importer import FileImportReport, ImportReport, LogAccount, RootCommission, UndoReport
 from ..models import Execution, FillPair
 from ..parser import parse_performance_csv
-from ..platforms import round_turn_monitor, tradesea
-from ..platforms.detect import PLATFORMS, ROUND_TURN_MONITOR, TRADESEA, TRADOVATE
+from ..platforms import other, round_turn_monitor, tradesea
+from ..platforms.detect import OTHER, PLATFORMS, ROUND_TURN_MONITOR, TRADESEA, TRADOVATE
 from ..symbols import parse_symbol
 from . import executions, store, usage
 from .accounts import get_account
 from .settings import effective_csv_timezone
 
 # Platforms whose rows are stored as orders (`executions`), and the source each one's orders and imports are stored under.
-ORDER_SOURCES = {TRADESEA: tradesea.SOURCE, ROUND_TURN_MONITOR: round_turn_monitor.SOURCE}
-# How many stored orders one row of a file is: a round turn of the Round Turn Monitor is its entry and its exit. Counts
-# shown to the trader (rows read, added, already there, removed by an undo) are rows of the file.
-ORDERS_PER_ROW = {round_turn_monitor.SOURCE: 2}
+ORDER_SOURCES = {TRADESEA: tradesea.SOURCE, ROUND_TURN_MONITOR: round_turn_monitor.SOURCE, OTHER: other.SOURCE}
+# How many stored orders one row of a file is: a round turn (the Round Turn Monitor's, or one of Roundturn's own import
+# file) is its entry and its exit. Counts shown to the trader (rows read, added, already there, removed by an undo) are
+# rows of the file.
+ORDERS_PER_ROW = {round_turn_monitor.SOURCE: 2, other.SOURCE: 2}
 
 CHOOSE_ACCOUNT = "This log has round turns from {count} accounts. Choose which one to import into this account."
 NOT_IN_LOG = "This log has no round turns from the account {name}. Choose one of the accounts it has."
@@ -57,6 +58,7 @@ def import_files(
     Tradovate's files are one import each. TradeSea's are the pages of one day (its export saves one page of 10 orders),
     so they are read together as **one** import, with one report. So are the Round Turn Monitor's (its log and the
     overflow file), of which `log_account` picks the account to read (None: the one `default_log_account` picks).
+    Roundturn's own import file (`OTHER`) is one file, read as round turns like the Round Turn Monitor's.
     """
     if platform not in PLATFORMS:
         raise ValueError(f"unknown platform {platform!r}")
@@ -171,7 +173,23 @@ def _import_orders(
         return _import_order_files(
             conn, account_id, files, tz_name, tradesea.read_order_files(files, tz_name), TRADESEA
         )
+    if platform == OTHER:
+        return _import_other_file(conn, account_id, files, tz_name)
     return _import_log_files(conn, account_id, files, tz_name, log_account)
+
+
+def _import_other_file(
+    conn: psycopg.Connection, account_id: int, files: Sequence[tuple[str, bytes]], tz_name: str
+) -> FileImportReport:
+    """Roundturn's own import file (Other platform): its round turns as orders, with the file's own totals, which the
+    trader checks against their platform's statement."""
+    read = other.read_files(files)
+    if read.fatal:
+        return FileImportReport(filename=_names(files), platform=OTHER, fatal=read.fatal, time_zone=tz_name)
+    report = _import_order_files(conn, account_id, files, tz_name, read.as_orders(), OTHER)
+    report.file_gross, report.file_fees, report.file_net = read.gross, read.fees, read.net
+    report.first_day, report.last_day = read.first_day, read.last_day
+    return report
 
 
 def _import_log_files(

@@ -92,3 +92,16 @@ test("a marked-up screenshot is an image with a text alternative, and its marks 
     for (const [svg] of html.matchAll(/<svg class="shot-marks"[^>]*>/g)) assert.match(svg, /aria-hidden="true"/);
   }
 });
+
+test("the guide for any other platform lists exactly the columns of Roundturn's import file, as the app asks for them", () => {
+  const app = readFileSync(fileURLToPath(new URL("../../frontend/src/lib/otherPlatform.ts", import.meta.url)), "utf8");
+  const block = app.split("export const OTHER_COLUMNS = [")[1].split("] as const")[0];
+  const columns = [...block.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  assert.equal(columns.length, 11, "otherPlatform.ts no longer lists 11 columns");
+  const html = readFileSync(join(DOCS, "import", "other", "index.html"), "utf8");
+  const example = html.match(/<pre><code>([^\r\n]*)/);
+  assert.ok(example, "the guide has no example file");
+  assert.equal(example[1], columns.join(","), "the example file's header row is not the app's");
+  const listed = [...html.matchAll(/<dt><code>([a-z_]+)<\/code><\/dt>/g)].map((m) => m[1]);
+  assert.deepEqual(listed, columns, "the guide's column list is not the app's");
+});

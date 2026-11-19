@@ -35,6 +35,7 @@
     <a href="/docs/import/tradovate/">Tradovate</a>
     <a href="/docs/import/tradesea/">TradeSea</a>
     <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+    <a href="/docs/import/other/">Any other platform<small>with an AI chatbot</small></a>
     <p class="label">Using Roundturn</p>
     <a href="/docs/accounts/">Prop accounts and rules</a>
     <a href="/docs/numbers/">How the numbers work</a>
@@ -55,6 +56,8 @@
       <dd>Most often a missing page of the Orders export, or a different commission rate. The import preview checks both: see <a href="/docs/import/tradesea/">the TradeSea guide</a>.</dd>
       <dt>The numbers differ from the Round Turn Monitor's</dt>
       <dd>The add-on's net uses its own commission rate, which may have been $0.00 for round turns logged before it was set. Roundturn charges every trade the account's fee setting. See <a href="/docs/import/round-turn-monitor/">the Round Turn Monitor guide</a>.</dd>
+      <dt>The numbers differ from another platform's statement</dt>
+      <dd>The import preview compares the chatbot's file with the net P&amp;L you typed from your statement: a difference there means a trade is missing, doubled or wrong in the file. After the import, check the fees: Roundturn charges the account's own commission setting, not the file's fees. See <a href="/docs/import/other/">the guide for any other platform</a>.</dd>
       <dt>A trade is on the wrong day</dt>
       <dd>Check when your trading day starts, and the zone your files are written in, both in <strong>Settings › Preferences</strong>. Changing them moves your existing trades to match.</dd>
       <dt>A page says "The server had a problem" and gives a reference</dt>

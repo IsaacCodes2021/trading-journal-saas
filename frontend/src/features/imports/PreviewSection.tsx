@@ -1,11 +1,13 @@
 import Decimal from 'decimal.js'
 import type { ReactNode } from 'react'
+import { CONTROL, Field } from '../../components/ui/Field'
 import { Button, Card, Pnl } from '../../components/ui/primitives'
 import { cx } from '../../components/ui/cx'
 import type { CommissionCheck, ImportPreview, PairStatus } from '../../lib/data/model'
 import { useSetFee } from '../../lib/data/queries'
-import { formatPrice, pluralize } from '../../lib/format'
+import { formatLongDay, formatPrice, pluralize } from '../../lib/format'
 import { formatMoney } from '../../lib/money'
+import { checkStatement, statementProblem } from '../../lib/otherPlatform'
 import { platformInfo, TRADESEA_PAGE_ROWS } from '../../lib/platforms'
 
 const PILL: Record<PairStatus, string> = {
@@ -63,6 +65,7 @@ function Note({ tone, children }: { tone?: 'warn'; children: ReactNode }) {
 function CommissionNote({
   check,
   log,
+  file,
   accountId,
   accountName,
   onSet,
@@ -70,6 +73,8 @@ function CommissionNote({
   check: CommissionCheck
   /** The Round Turn Monitor's log: its rate is the usual one its rows show, not its total over the contracts. */
   log: boolean
+  /** Roundturn's own import file (Other platform): its rate is the usual one its rows show, too. */
+  file: boolean
   accountId: number
   accountName: string
   onSet: () => void
@@ -94,6 +99,11 @@ function CommissionNote({
             Your commission setting for {check.root} on {accountName} is $0.00, but the Round Turn Monitor charges{' '}
             {rate} per contract round trip. Roundturn uses your setting, so your net P&amp;L would be too high.
           </>
+        ) : free && file ? (
+          <>
+            Your commission setting for {check.root} on {accountName} is $0.00, but the file&rsquo;s fees are {rate} per
+            contract round trip. Roundturn uses your setting, so your net P&amp;L would be too high.
+          </>
         ) : free ? (
           <>
             Your commission setting for {check.root} on {accountName} is $0.00, but these files show{' '}
@@ -104,6 +114,11 @@ function CommissionNote({
           <>
             The Round Turn Monitor charges {rate} per contract round trip for {check.root}. Your setting on{' '}
             {accountName} charges {formatMoney(check.schedule_rate)} per contract, and Roundturn uses your setting.
+          </>
+        ) : file ? (
+          <>
+            The file&rsquo;s fees for {check.root} are {rate} per contract round trip. Your setting on {accountName}{' '}
+            charges {formatMoney(check.schedule_rate)} per contract, and Roundturn uses your setting.
           </>
         ) : (
           <>
@@ -123,8 +138,8 @@ function CommissionNote({
   )
 }
 
-/** What a TradeSea or Round Turn Monitor preview adds to the counts: pages, orders that did not fill, positions,
- * commissions, other accounts. */
+/** What a TradeSea, Round Turn Monitor or Other platform preview adds to the counts: pages, orders that did not fill,
+ * positions, commissions, other accounts. */
 function OrderNotes({
   preview,
   accountId,
@@ -139,6 +154,7 @@ function OrderNotes({
   onRecheck: (done: string) => void
 }) {
   const log = preview.platform === 'round_turn_monitor'
+  const file = preview.platform === 'other' // Roundturn's own import file
   const skipped = total(preview.skipped_by_status)
   const elsewhere = Object.entries(preview.matches_other_accounts)
   const differing = preview.commissions.filter((c) => !new Decimal(c.file_rate).equals(c.schedule_rate))
@@ -170,6 +186,8 @@ function OrderNotes({
                 <>
                   A round turn is missing its other half. Choose the whole log, with its overflow file if there is one.
                 </>
+              ) : file ? (
+                <>A round turn is missing its other half. Check the file&rsquo;s rows for {position.symbol}.</>
               ) : (
                 <>
                   If you were flat, TradeSea&rsquo;s export left out an order: show the whole day in TradeSea&rsquo;s
@@ -217,7 +235,15 @@ function OrderNotes({
             </span>
           </Note>
         ) : null}
-        {preview.file_commission !== null && !log ? (
+        {preview.file_commission !== null && file ? (
+          <Note>
+            <span>
+              The file&rsquo;s own fees for these round turns add up to {formatMoney(preview.file_commission)}.
+              Roundturn charges your commission setting on every trade instead.
+            </span>
+          </Note>
+        ) : null}
+        {preview.file_commission !== null && !log && !file ? (
           <Note>
             <span>
               These files&rsquo; commissions add up to {formatMoney(preview.file_commission)}. If TradeSea&rsquo;s Total
@@ -230,6 +256,7 @@ function OrderNotes({
             key={check.root}
             check={check}
             log={log}
+            file={file}
             accountId={accountId}
             accountName={accountName}
             onSet={() =>
@@ -240,13 +267,13 @@ function OrderNotes({
           />
         ))}
         {elsewhere.map(([name, count]) =>
-          log ? (
+          log || file ? (
             <Note key={name} tone="warn">
               <span>
                 {count === preview.rows_parsed
                   ? `These ${pluralize(count, 'round turn')} are`
                   : pluralize(count, 'round turn is', 'round turns are')}{' '}
-                already in {name}. Check that you chose the right NinjaTrader account.
+                already in {name}. Check that you chose the right {log ? 'NinjaTrader account' : 'account'}.
               </span>
             </Note>
           ) : (
@@ -275,6 +302,72 @@ function OrderNotes({
   )
 }
 
+/**
+ * Roundturn's own import file: what it holds, and its net P&L against the trader's own statement, which they typed when
+ * they chose Other platform (and can change here). The import waits for a figure: it is how a chatbot's mistake in the
+ * file is caught before it reaches the journal.
+ */
+function StatementCheckCard({
+  preview,
+  statement,
+  onStatement,
+}: {
+  preview: ImportPreview
+  statement: string
+  onStatement: (text: string) => void
+}) {
+  const net = preview.file_net ?? '0.00'
+  const check = checkStatement(net, statement)
+  const days =
+    preview.first_day && preview.last_day
+      ? preview.first_day === preview.last_day
+        ? `on ${formatLongDay(preview.first_day)}`
+        : `from ${formatLongDay(preview.first_day)} to ${formatLongDay(preview.last_day)}`
+      : null
+  return (
+    <Card className="flex flex-col gap-3 px-5 py-4" role="region" aria-label="Check against your statement">
+      <h2 className="m-0 text-base font-semibold">Check against your statement</h2>
+      <p className="m-0 text-[13px]">
+        The file has {pluralize(preview.rows_parsed, 'round turn')}
+        {days ? ` ${days}` : ''}: gross <Pnl value={preview.file_gross ?? '0.00'} />, fees{' '}
+        {formatMoney(preview.file_fees ?? '0.00')}, net <Pnl value={net} />.
+        {preview.errors.length > 0
+          ? ` The ${pluralize(preview.errors.length, 'row')} below that cannot be imported ${preview.errors.length === 1 ? 'is' : 'are'} not in these totals.`
+          : ''}
+      </p>
+      <div className="max-w-[320px]">
+        <Field id="statement-check" label="Net P&L on your platform’s statement" error={statementProblem(statement)}>
+          <input
+            id="statement-check"
+            inputMode="decimal"
+            autoComplete="off"
+            placeholder="-125.50"
+            value={statement}
+            onChange={(event) => onStatement(event.target.value)}
+            className={`${CONTROL} num`}
+          />
+        </Field>
+      </div>
+      <p role="status" className="m-0 text-[13px] empty:hidden">
+        {check.state === 'empty' ? (
+          <span className="text-muted">
+            Type the net P&amp;L your platform&rsquo;s statement shows for the same dates. The import waits for it.
+          </span>
+        ) : check.state === 'match' ? (
+          <span className="text-pos">The file&rsquo;s net P&amp;L matches your statement.</span>
+        ) : check.state === 'differs' ? (
+          <span className="text-warn">
+            The file&rsquo;s net P&amp;L is {formatMoney(net)}, but your statement says {formatMoney(check.statement)}:{' '}
+            {formatMoney(new Decimal(check.difference).abs().toFixed(2))} apart. A trade may be missing, doubled or
+            wrong in the file. Ask the chatbot to check it against your export row by row, or import it anyway if you
+            know why they differ.
+          </span>
+        ) : null}
+      </p>
+    </Card>
+  )
+}
+
 /** Whether a TradeSea preview has anything for "Things to check". */
 function hasOrderNotes(preview: ImportPreview): boolean {
   return (
@@ -294,13 +387,17 @@ function hasOrderNotes(preview: ImportPreview): boolean {
  * What importing the chosen files would do: what was read, the counts, any rows that cannot be read, and the rows
  * themselves. For TradeSea, a row of the files is a filled order; the table shows the fill pairs the orders make, and
  * "Things to check" says what the counts cannot (a missing page, a position left open, commissions). For the Round Turn
- * Monitor, a row is a round turn of one NinjaTrader account (the log holds every account; the page picks one).
+ * Monitor, a row is a round turn of one NinjaTrader account (the log holds every account; the page picks one). For
+ * Roundturn's own import file (Other platform), a row is a round turn, and the file's net P&L is checked against the
+ * trader's statement (`statement`) before the import button works.
  */
 export function PreviewSection({
   preview,
   accountId,
   accountName,
   committing,
+  statement = '',
+  onStatement = () => undefined,
   onCancel,
   onCommit,
   onAddFiles,
@@ -310,6 +407,9 @@ export function PreviewSection({
   accountId: number
   accountName: string
   committing: boolean
+  /** Other platform: the net P&L the trader typed from their statement, and a change to it. */
+  statement?: string
+  onStatement?: (text: string) => void
   onCancel: () => void
   onCommit: () => void
   /** Opens the file window to add more of the same platform's files (TradeSea's other pages). */
@@ -319,6 +419,10 @@ export function PreviewSection({
 }) {
   const orders = preview.platform !== 'tradovate' // stored as orders and paired: TradeSea and the Round Turn Monitor
   const log = preview.platform === 'round_turn_monitor'
+  const file = preview.platform === 'other' // Roundturn's own import file
+  const roundTurns = log || file // a row of the file is a round turn
+  const statementState = file ? checkStatement(preview.file_net ?? '0.00', statement).state : null
+  const waitingForStatement = statementState === 'empty' || statementState === 'invalid'
   const info = platformInfo(preview.platform)
   const [one, many] = info.row
   const [readOne, readMany] = preview.platform === 'tradesea' ? ['filled order', 'filled orders'] : info.row
@@ -338,7 +442,7 @@ export function PreviewSection({
       </p>
 
       <section aria-label="Preview summary" className="flex flex-wrap gap-3">
-        {log ? (
+        {roundTurns ? (
           <>
             <Tile label="Round turns" value={preview.rows_parsed} />
             <Tile label="New round turns" value={preview.rows_added} tone="pos" />
@@ -362,6 +466,8 @@ export function PreviewSection({
         <Tile label="Errors" value={preview.errors.length} />
         <Tile label="Resulting trades" value={preview.trades_built} />
       </section>
+
+      {file ? <StatementCheckCard preview={preview} statement={statement} onStatement={onStatement} /> : null}
 
       {orders && hasOrderNotes(preview) ? (
         <OrderNotes
@@ -397,26 +503,35 @@ export function PreviewSection({
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3.5">
           <h2 className="m-0 text-base font-semibold">Preview</h2>
           <span className="text-[13px] text-muted">
-            {log ? 'One row per round turn. ' : orders ? 'The fill pairs these orders make. ' : ''}Dry run: nothing is
-            saved until you confirm
+            {roundTurns ? 'One row per round turn. ' : orders ? 'The fill pairs these orders make. ' : ''}Dry run:
+            nothing is saved until you confirm
           </span>
           <span className="grow" />
           <Button onClick={onCancel} disabled={committing}>
             Cancel
           </Button>
-          <Button variant="primary" onClick={onCommit} disabled={committing || preview.rows_added === 0}>
+          <Button
+            variant="primary"
+            onClick={onCommit}
+            disabled={committing || preview.rows_added === 0 || waitingForStatement}
+            title={waitingForStatement ? 'Type the net P&L from your statement first' : undefined}
+          >
             {committing ? 'Importing…' : `Import ${pluralize(preview.rows_added, one, many)}`}
           </Button>
         </div>
         {preview.rows_added === 0 ? (
           <p role="status" className="m-0 border-b border-line px-5 py-3 text-warn">
-            Nothing new to import into {accountName}: every {log ? 'round turn' : orders ? 'order' : 'row'} is already
-            stored.
+            Nothing new to import into {accountName}: every {roundTurns ? 'round turn' : orders ? 'order' : 'row'} is
+            already stored.
           </p>
         ) : null}
         {orders && preview.rows.length === 0 ? (
           <p className="m-0 border-b border-line px-5 py-3 text-muted">
-            {log ? 'This log has no round turns for this account.' : 'These orders close no trade yet.'}
+            {log
+              ? 'This log has no round turns for this account.'
+              : file
+                ? 'No round turn in the file can be imported.'
+                : 'These orders close no trade yet.'}
           </p>
         ) : null}
         <div className="scroll-x">
@@ -471,7 +586,8 @@ export function PreviewSection({
         </div>
         {orders && preview.rows.length >= preview.rows_shown_limit ? (
           <p className="m-0 px-5 py-3 text-xs text-muted">
-            Showing the first {preview.rows.length} {log ? 'round turns' : 'fill pairs'}. All of them are imported.
+            Showing the first {preview.rows.length} {roundTurns ? 'round turns' : 'fill pairs'}. All of them are
+            imported.
           </p>
         ) : null}
         {!orders && hidden > 0 ? (

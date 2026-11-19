@@ -239,7 +239,7 @@ export interface ImportIssue {
 export type PairStatus = 'new' | 'duplicate' | 'other_account'
 
 /** Where an export comes from. `lib/platforms.ts` says how each is exported and read. */
-export type Platform = 'tradovate' | 'tradesea' | 'round_turn_monitor'
+export type Platform = 'tradovate' | 'tradesea' | 'round_turn_monitor' | 'other'
 /** What an import is read as: a platform, or `auto`, told by the server from the files' header row (dropped files). */
 export type ImportPlatform = Platform | 'auto'
 
@@ -287,8 +287,8 @@ export interface PreviewRow {
 
 /**
  * What importing the files would do, worked out without saving anything (the "dry run"). Mirrors `FileImportReport`.
- * For Tradovate a row is a fill pair; for TradeSea it is a filled order; for the Round Turn Monitor, a round turn. The
- * table shows the fill pairs either makes.
+ * For Tradovate a row is a fill pair; for TradeSea it is a filled order; for the Round Turn Monitor and Roundturn's own
+ * import file (Other platform), a round turn. The table shows the fill pairs either makes.
  */
 export interface ImportPreview {
   platform: Platform
@@ -314,6 +314,13 @@ export interface ImportPreview {
   /** The Round Turn Monitor: the log's accounts, and the one read. With none read, `fatal` asks for a choice. */
   log_accounts: LogAccount[]
   log_account: string | null
+  /** Roundturn's own import file (Other platform): the file's own totals over the round turns that can be imported, for
+   * the trader to check against their platform's statement (`lib/otherPlatform.ts`), and the days they span. */
+  file_gross: string | null
+  file_fees: string | null
+  file_net: string | null
+  first_day: string | null // "2026-11-18", as the file wrote it
+  last_day: string | null
   errors: ImportIssue[]
   warnings: ImportIssue[]
   trades_built: number // trades the new rows would create or extend

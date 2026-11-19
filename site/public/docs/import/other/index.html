@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Import from any other platform | Roundturn docs</title>
+<meta name="description" content="How to import trades from any futures platform into Roundturn: an AI chatbot turns your platform's export into Roundturn's import file, and Roundturn checks every row and the total against your statement.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/docs/">Docs</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <a href="/docs/getting-started/">Getting started</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+    <a href="/docs/import/other/" aria-current="page">Any other platform<small>with an AI chatbot</small></a>
+    <p class="label">Using Roundturn</p>
+    <a href="/docs/accounts/">Prop accounts and rules</a>
+    <a href="/docs/numbers/">How the numbers work</a>
+    <a href="/docs/journal/">Your journal</a>
+    <a href="/docs/your-data/">Your data</a>
+    <a href="/docs/troubleshooting/">When something goes wrong</a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / <a href="/docs/import/">Importing</a> / Any other platform</p>
+    <h1>Import from any other platform</h1>
+    <p class="lead">For a platform Roundturn has no reader for, an AI chatbot such as ChatGPT or Claude turns your platform's export into Roundturn's own import file. Roundturn then checks every row, and you check the total against your statement, before anything is saved.</p>
+
+    <dl class="doc-facts">
+      <div><dt>The file</dt><dd><code>roundturn-import.csv</code>, made by the chatbot</dd></div>
+      <div><dt>In Roundturn</dt><dd>Other platform (converted with an AI chatbot)</dd></div>
+      <div><dt>The check</dt><dd>Your statement's net P&amp;L</dd></div>
+    </dl>
+
+    <ol class="doc-steps">
+      <li>
+        <p class="where">On your platform</p>
+        <h2>Export your trades, and note the net P&amp;L</h2>
+        <p>Export your trade history for the dates you want, in whatever form your platform gives: fills, orders or trades, as a CSV, a spreadsheet or a text file. Then note the <strong>net P&amp;L</strong> your platform's statement shows for the same dates, after commissions and fees. That number is how you and Roundturn know the chatbot's file is right.</p>
+      </li>
+      <li>
+        <p class="where rt">In Roundturn</p>
+        <h2>Choose Other platform, and copy the prompt</h2>
+        <p>On the Import page, choose the Roundturn account the trades belong to, then <strong>Choose files</strong>. Roundturn asks where the trades are from: pick <strong>Other platform (converted with an AI chatbot)</strong>.</p>
+        <p>Type the net P&amp;L from your statement, then click <strong>Copy prompt</strong>. <strong>See the prompt</strong> shows it first if you want to read it.</p>
+      </li>
+      <li>
+        <p class="where">In your AI chatbot</p>
+        <h2>Paste the prompt, attach your export, and answer its questions</h2>
+        <p>Open ChatGPT, Claude or another chatbot that reads attached files. Paste the prompt and attach your export. The chatbot asks only what the file does not say for certain: the time zone of its times, whether a row is a fill or a whole trade, your fees if the file has none, and which account, if there are several.</p>
+        <p>Before it gives you the file, it shows a summary: the number of round turns, the dates, and the total gross P&amp;L, fees and net P&amp;L. <strong>Check the net P&amp;L against your statement.</strong> If they differ, ask it to find out why before going on.</p>
+        <p>Then download <code>roundturn-import.csv</code>. If the chatbot shows the file as text instead, copy it into a plain text file and save it with that name.</p>
+      </li>
+      <li>
+        <p class="where rt">In Roundturn</p>
+        <h2>Choose the file, check, and import</h2>
+        <p><strong>Choose file</strong> opens your computer's file window: choose <code>roundturn-import.csv</code>. The preview shows the round turns, the days they cover, and their gross P&amp;L, fees and net P&amp;L, beside the figure you typed: either <em>matches your statement</em>, or how far apart the two are.</p>
+        <p>Rows that do not add up are listed by line and left out; the rest can be imported. Nothing is saved until you click <strong>Import</strong>, and every import can be undone from the import history.</p>
+      </li>
+    </ol>
+
+    <h2>What Roundturn checks</h2>
+    <ul>
+      <li><strong>The file is Roundturn's import file, version 1:</strong> exactly its eleven columns, with <code>1</code> as the version on every row. Anything else, your platform's own export included, is refused whole, with the reason.</li>
+      <li><strong>Every row:</strong> a contract Roundturn knows, long or short, a whole number of contracts, times with their UTC offset, an exit no earlier than the entry and not in the future, and, for one contract, prices that are a whole number of ticks.</li>
+      <li><strong>The money:</strong> the row's gross P&amp;L must be what its prices make (the price move &times; the contracts &times; the contract's dollars per point), to the cent, and its net P&amp;L must be gross minus fees. This catches a micro written as a mini, a long written as a short, or a misread price.</li>
+      <li><strong>Trades already imported</strong> are recognised and left alone, even when the chatbot writes them a little differently the next time. So you can ask it to fix a refused row and import the corrected file: only that row is added.</li>
+      <li><strong>The total:</strong> the file's net P&amp;L against your statement's. The import waits until you type the figure. If they differ, the preview says by how much; you can still import if you know why.</li>
+    </ul>
+
+    <h2>The file, column by column</h2>
+    <p>The prompt tells the chatbot all of this. It is here so you can check its work, or write the file yourself. One row per <strong>round turn</strong>: a position in one contract, from flat back to flat.</p>
+    <pre><code>roundturn_version,symbol,side,qty,entry_time,entry_price,exit_time,exit_price,gross_pnl,fees,net_pnl
+1,NQZ6,long,2,2026-11-18T09:31:05-05:00,21000.25,2026-11-18T09:33:10-05:00,21010.5,410.00,9.00,401.00
+1,MESZ6,short,1,2026-11-18T10:01:00-05:00,6001.25,2026-11-18T10:05:00-05:00,6000.00,6.25,1.24,5.01</code></pre>
+    <dl class="doc-qa">
+      <dt><code>roundturn_version</code></dt>
+      <dd><code>1</code> on every row.</dd>
+      <dt><code>symbol</code></dt>
+      <dd>The contract as Tradovate writes it: the exchange's root, the month code and the year, so <code>NQZ6</code> is December 2026's E-mini Nasdaq-100. The root alone (<code>NQ</code>) when the export does not show the month.</dd>
+      <dt><code>side</code></dt>
+      <dd><code>long</code> or <code>short</code>.</dd>
+      <dt><code>qty</code></dt>
+      <dd>The contracts bought in the round turn, which is also the contracts sold.</dd>
+      <dt><code>entry_time</code></dt>
+      <dd>The first opening fill, with its UTC offset: <code>2026-11-18T09:31:05-05:00</code>.</dd>
+      <dt><code>entry_price</code></dt>
+      <dd>The average price of the opening fills, not rounded, in the exchange's units.</dd>
+      <dt><code>exit_time</code></dt>
+      <dd>The fill that made the position flat, written like <code>entry_time</code>.</dd>
+      <dt><code>exit_price</code></dt>
+      <dd>The average price of the closing fills.</dd>
+      <dt><code>gross_pnl</code></dt>
+      <dd>Dollars before fees, negative for a loss.</dd>
+      <dt><code>fees</code></dt>
+      <dd>The round turn's commissions and fees, both sides together, zero or more.</dd>
+      <dt><code>net_pnl</code></dt>
+      <dd><code>gross_pnl</code> minus <code>fees</code>.</dd>
+    </dl>
+
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>Your export goes to the chatbot you choose,</strong> under that company's own terms. Roundturn never sends your file to an AI, and uses none itself: it only reads the file the chatbot gives you. You can blank out account numbers before you attach the export.</li>
+      <li><strong>Fees</strong> come from each account's own commission setting, charged on every trade, as for every import. The preview shows the file's fees beside your setting and offers to use them.</li>
+      <li><strong>Times</strong> carry their own UTC offset, so the file says its own time zone. The preview shows them in that offset, or in your CSV time zone setting when the file has more than one (across a daylight saving change).</li>
+      <li><strong>A position still open</strong> at the end of the export is not a round turn yet. The chatbot leaves it out; import it after it is closed.</li>
+      <li><strong>One file per import,</strong> up to 10 MB and 50,000 round turns.</li>
+    </ul>
+
+    <h2>If the preview says</h2>
+    <dl class="doc-qa">
+      <dt>"This is not Roundturn's import file."</dt>
+      <dd>The file is not the chatbot's, most likely your platform's own export. Choose <code>roundturn-import.csv</code>, or start a new chat with the prompt.</dd>
+      <dt>"The header row is not Roundturn's import file version 1"</dt>
+      <dd>The chatbot renamed, added or left out a column. Ask it to use exactly the header row the prompt gives, with no other columns.</dd>
+      <dt>"roundturn_version is '2', and Roundturn reads version 1"</dt>
+      <dd>The file was made for another version of the format. Copy the prompt again from the Import page and start a new chat.</dd>
+      <dt>"gross_pnl … is not what the prices make"</dt>
+      <dd>The contract, the side, the contracts or a price is wrong in that row: often a micro written as a mini, or a platform's own code for a contract. Ask the chatbot to check that round turn against your export, then import the corrected file.</dd>
+      <dt>"… has no UTC offset"</dt>
+      <dd>Ask the chatbot to write every time with its offset, like <code>2026-11-18T09:31:05-05:00</code>.</dd>
+      <dt>"the contract … is not in Roundturn's contract list"</dt>
+      <dd>The chatbot wrote the platform's own code (CQG writes EP for ES), or Roundturn does not know the contract yet. Ask for the exchange's root; if it is right, tell us the contract.</dd>
+      <dt>"The file's net P&amp;L is …, but your statement says …"</dt>
+      <dd>A trade may be missing, doubled or wrong, the fees may differ, or the statement covers other dates. Ask the chatbot to compare the file with your export row by row.</dd>
+    </dl>
+
+    <aside class="callout">
+      <p class="label">Rather have Roundturn read your platform directly?</p>
+      <p>Tell us which platform you use: <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>. The platforms people ask for most get a reader of their own.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with OpenAI (ChatGPT), Anthropic (Claude), Tradovate or any other AI company, platform, broker, exchange or prop firm. Their names are used only to say how files can be made for Roundturn.</p>
+  </div>
+</footer>
+</body>
+</html>

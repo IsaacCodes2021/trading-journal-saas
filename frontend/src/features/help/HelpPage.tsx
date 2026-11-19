@@ -11,6 +11,7 @@ import {
   TRADESEA_PAGE_ROWS,
   platformInfo,
 } from '../../lib/platforms'
+import { OTHER_COLUMNS, OTHER_FILE_NAME } from '../../lib/otherPlatform'
 import { MAX_CSV_MB, REQUIRED_COLUMNS } from '../../lib/tradovate'
 
 /*
@@ -63,7 +64,8 @@ export function HelpPage() {
               all its columns (not the orders or fills reports). Menu names change between Tradovate versions, so look
               for the Performance report rather than a fixed path. From TradeSea, see{' '}
               <a href="#help-tradesea">Importing from TradeSea</a>; from NinjaTrader, see{' '}
-              <a href="#help-round-turn-monitor">Importing from NinjaTrader (Round Turn Monitor)</a>.
+              <a href="#help-round-turn-monitor">Importing from NinjaTrader (Round Turn Monitor)</a>; from anything
+              else, see <a href="#help-other-platform">Importing from any other platform</a>.
             </li>
             <li>
               <strong>Import it.</strong> On the <Link to="/import">Import</Link> page choose the account, then{' '}
@@ -187,6 +189,73 @@ export function HelpPage() {
               .
             </li>
           </ul>
+        </Section>
+
+        <Section id="help-other-platform" title="Importing from any other platform">
+          <p className={p}>
+            For a platform Roundturn has no reader for, an AI chatbot (ChatGPT, Claude or another) turns your
+            platform&rsquo;s export into Roundturn&rsquo;s own import file: one row per round turn, from flat back to
+            flat. Roundturn then checks every row, and you check the total against your statement.
+          </p>
+          <ol className={`${list} list-decimal`}>
+            <li>
+              On the <Link to="/import">Import</Link> page, choose the account, then <em>Choose files</em> and{' '}
+              <em>{platformInfo('other').label}</em>.
+            </li>
+            <li>
+              Type the <strong>net P&amp;L on your platform&rsquo;s statement</strong> for the same dates as the export,
+              after fees.
+            </li>
+            <li>
+              <strong>Copy the prompt</strong>, paste it into the chatbot, attach your export and answer its questions
+              (the time zone, whether a row is a fill or a whole trade, fees). It shows you a summary: check its total
+              net P&amp;L against your statement.
+            </li>
+            <li>
+              Download the file it makes ({OTHER_FILE_NAME}) and choose it on the Import page. The preview shows the
+              round turns, the days they cover and their total, and compares the total with your statement. Then import.
+            </li>
+          </ol>
+          <ul className={list}>
+            <li>
+              <strong>Roundturn is strict at the door.</strong> A file in another format, or another version of it, is
+              refused whole. A row whose gross P&amp;L is not what its prices make (prices &times; contracts &times; the
+              contract&rsquo;s dollars per point), whose net is not gross minus fees, or whose time has no time zone is
+              refused and listed by line; the rest can be imported.
+            </li>
+            <li>
+              <strong>Fix and import again.</strong> Ask the chatbot to correct the refused rows and import the new
+              file: round turns already imported are recognised and left alone, even if the chatbot writes them a little
+              differently.
+            </li>
+            <li>
+              <strong>Commissions</strong> come from the account&rsquo;s own Fees tab, as for every import. The preview
+              shows the file&rsquo;s fees beside your setting and offers to use them.
+            </li>
+            <li>
+              <strong>Your export goes to the chatbot you choose</strong>, under its own terms. Roundturn sends it
+              nowhere and does not use AI itself.
+            </li>
+            <li>
+              The full guide on our site:{' '}
+              <a href={platformInfo('other').guide} target="_blank" rel="noopener noreferrer">
+                How to import from another platform
+              </a>
+              .
+            </li>
+          </ul>
+          <details className="text-[13.5px]">
+            <summary className="cursor-pointer text-muted">The columns of Roundturn&rsquo;s import file</summary>
+            <p className={`${p} mt-2`}>
+              {OTHER_COLUMNS.map((column, i) => (
+                <span key={column}>
+                  {i > 0 ? ', ' : ''}
+                  <code>{column}</code>
+                </span>
+              ))}
+              . The prompt says what goes in each.
+            </p>
+          </details>
         </Section>
 
         <Section id="help-numbers" title="How the numbers are worked out">

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SUPPORT_ADDRESS } from '../../components/RouteError'
 import { MAX_IMAGES_PER_TRADE, MAX_IMAGE_MB } from '../../lib/limits'
+import { OTHER_COLUMNS } from '../../lib/otherPlatform'
 import { TRADESEA_COLUMNS } from '../../lib/platforms'
 import { MAX_CSV_MB, REQUIRED_COLUMNS } from '../../lib/tradovate'
 import { openApp, stubApi } from '../../test-utils'
@@ -29,6 +30,7 @@ describe('the page', () => {
       'help-start',
       'help-tradesea',
       'help-round-turn-monitor',
+      'help-other-platform',
       'help-numbers',
       'help-trades',
       'help-filters',
@@ -39,6 +41,7 @@ describe('the page', () => {
       'Getting started',
       'Importing from TradeSea',
       'Importing from NinjaTrader (Round Turn Monitor)',
+      'Importing from any other platform',
       'How the numbers are worked out',
       'Notes, tags and screenshots',
       'Filters',
@@ -127,6 +130,30 @@ describe('getting started', () => {
     expect(
       within(section('Getting started')).getByRole('link', { name: 'Importing from NinjaTrader (Round Turn Monitor)' }),
     ).toHaveAttribute('href', '#help-round-turn-monitor')
+  })
+
+  it('says how to import from any other platform: the statement, the prompt, the checks, the columns', async () => {
+    await openHelp()
+    const other = section('Importing from any other platform')
+    for (const words of [
+      'an AI chatbot (ChatGPT, Claude or another) turns your platform’s export into Roundturn’s own import file',
+      'then Choose files and Other platform (converted with an AI chatbot).',
+      'net P&L on your platform’s statement',
+      'A file in another format, or another version of it, is refused whole.',
+      'round turns already imported are recognised and left alone',
+      'Roundturn sends it nowhere and does not use AI itself.',
+    ])
+      expect(other, words).toHaveTextContent(words)
+    const summary = within(other).getByText('The columns of Roundturn’s import file')
+    const codes = [...(summary.closest('details') as HTMLElement).querySelectorAll('code')].map((c) => c.textContent)
+    expect(codes).toEqual([...OTHER_COLUMNS])
+    expect(within(other).getByRole('link', { name: 'How to import from another platform' })).toHaveAttribute(
+      'href',
+      'https://roundturn.app/docs/import/other/',
+    )
+    expect(
+      within(section('Getting started')).getByRole('link', { name: 'Importing from any other platform' }),
+    ).toHaveAttribute('href', '#help-other-platform')
   })
 
   it('does not give a menu path in Tradovate, since those change between versions', async () => {

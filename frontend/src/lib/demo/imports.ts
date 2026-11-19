@@ -12,14 +12,16 @@ import { TRADESEA_COLUMNS } from '../platforms'
  * a pair stored under another account is reported as such, so the screen can be tried honestly. The real source sends
  * the file to the server, which does all of this with the real parser and the real timezone.
  *
- * Only Tradovate's Performance report is read here: TradeSea's orders and the Round Turn Monitor's round turns need
- * the server's pairing (decision T7 of docs/design/tradesea-import-plan.md), so the demo asks the person to sign up for
- * those.
+ * Only Tradovate's Performance report is read here: TradeSea's orders, the Round Turn Monitor's round turns and
+ * Roundturn's own import file (Other platform) need the server's pairing and checks (decision T7 of
+ * docs/design/tradesea-import-plan.md), so the demo asks the person to sign up for those.
  */
 
 export const SIGN_UP_FOR_TRADESEA = 'Sign up to import TradeSea files. The sample journal reads Tradovate files only.'
 export const SIGN_UP_FOR_ROUND_TURN_MONITOR =
   "Sign up to import the Round Turn Monitor's log. The sample journal reads Tradovate files only."
+export const SIGN_UP_FOR_OTHER =
+  'Sign up to import from another platform. The sample journal reads Tradovate files only.'
 const ONE_FILE = "Tradovate's Performance report is one file. Choose one file at a time."
 
 export const MAX_CSV_BYTES = MAX_CSV_MB * 1024 * 1024
@@ -106,15 +108,23 @@ function isRoundTurnMonitor(text: string): boolean {
   return header.includes('date_local') || header.includes('entry_time_pt')
 }
 
+/** Whether the text is Roundturn's own import file (Other platform): it has a `roundturn_version` column. */
+function isRoundturnFile(text: string): boolean {
+  const header = (text.split(/\r?\n/).find((line) => line.trim()) ?? '').split(',').map((c) => c.trim().toLowerCase())
+  return header.includes('roundturn_version')
+}
+
 async function read(accountId: number, files: File[], platform: ImportPlatform) {
   if (platform === 'tradesea') throw new ImportRefused(SIGN_UP_FOR_TRADESEA)
   if (platform === 'round_turn_monitor') throw new ImportRefused(SIGN_UP_FOR_ROUND_TURN_MONITOR)
+  if (platform === 'other') throw new ImportRefused(SIGN_UP_FOR_OTHER)
   if (files.length !== 1) throw new ImportRefused(ONE_FILE)
   const file = files[0] as File
   checkFile(file)
   const text = await file.text()
   if (isTradeSea(text)) throw new ImportRefused(SIGN_UP_FOR_TRADESEA)
   if (isRoundTurnMonitor(text)) throw new ImportRefused(SIGN_UP_FOR_ROUND_TURN_MONITOR)
+  if (isRoundturnFile(text)) throw new ImportRefused(SIGN_UP_FOR_OTHER)
   const parsed = parsePerformanceCsv(text)
   if (parsed.pairs.length + parsed.errors.length > MAX_CSV_ROWS) {
     throw new ImportRefused(`${file.name} has more than ${MAX_CSV_ROWS.toLocaleString('en-US')} rows.`)
@@ -170,6 +180,11 @@ async function read(accountId: number, files: File[], platform: ImportPlatform) 
     time_zone: 'America/Los_Angeles',
     log_accounts: [],
     log_account: null,
+    file_gross: null,
+    file_fees: null,
+    file_net: null,
+    first_day: null,
+    last_day: null,
     errors: parsed.errors,
     warnings: [],
     trades_built: countTrades(fresh),
