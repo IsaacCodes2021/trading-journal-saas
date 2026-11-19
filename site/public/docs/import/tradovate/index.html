@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Export your trades from Tradovate | Roundturn docs</title>
+<meta name="description" content="How to export Tradovate's Performance report and import it into Roundturn: which report, which time zone, and what the preview checks.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/" aria-current="page">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / <a href="/docs/import/">Importing</a> / Tradovate</p>
+    <h1>Export your trades from Tradovate</h1>
+    <p class="lead">Roundturn reads Tradovate's Performance report: one row for each pair of fills that opened and closed a position, with its result. Export it after the session and import the file.</p>
+
+    <dl class="doc-facts">
+      <div><dt>Export</dt><dd>Performance report, as a CSV</dd></div>
+      <div><dt>In Roundturn</dt><dd>Tradovate: Performance report</dd></div>
+      <div><dt>Times</dt><dd>Your CSV time zone setting</dd></div>
+    </dl>
+
+    <ol class="doc-steps">
+      <li>
+        <p class="where">In Tradovate</p>
+        <h2>Export the Performance report as a CSV</h2>
+        <p>Open the <strong>Performance</strong> report for the account and the days you want, and export it as a CSV with all its columns. Not the Orders or Fills reports: they are laid out differently. Menu names change between Tradovate versions, so look for the Performance report rather than a fixed path.</p>
+      </li>
+      <li>
+        <p class="where rt">In Roundturn</p>
+        <h2>Choose Tradovate: Performance report</h2>
+        <p>On the Import page, choose the Roundturn account the trades belong to, then <strong>Choose files</strong>.</p>
+        <figure class="shot">
+          <!-- shot:tradovate-dialog -->
+          <a class="shot-frame" href="/docs/import/tradovate/roundturn-platform.png" title="Open the full-size image">
+          <img src="/docs/import/tradovate/roundturn-platform.png" width="522" height="236" alt="Roundturn's dialog &quot;Where are these trades from?&quot; with Tradovate: Performance report chosen, the time zone the file is read in with a link to change it, and the Choose files button." loading="lazy" decoding="async">
+          <svg class="shot-marks" aria-hidden="true" focusable="false">
+          <rect class="shot-box" x="3.45%" y="33.47%" width="93.1%" height="17.8%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="33.47%" r="13"/><text x="96.55%" y="33.47%">1</text></g>
+          <rect class="shot-box" x="3.45%" y="56.36%" width="93.1%" height="16.1%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="56.36%" r="13"/><text x="96.55%" y="56.36%">2</text></g>
+          <rect class="shot-box" x="76.44%" y="77.12%" width="20.11%" height="15.25%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="77.12%" r="13"/><text x="96.55%" y="77.12%">3</text></g>
+          </svg>
+          </a>
+          <!-- /shot:tradovate-dialog -->
+          <figcaption>
+            <ol>
+              <li><span class="pin" aria-hidden="true">1</span><span>Pick <strong>Tradovate: Performance report</strong>.</span></li>
+              <li><span class="pin" aria-hidden="true">2</span><span>The time zone the file's times are read in. <strong>Change</strong> opens Settings if yours is different.</span></li>
+              <li><span class="pin" aria-hidden="true">3</span><span><strong>Choose files</strong> opens your computer's file window. Choose the CSV.</span></li>
+            </ol>
+          </figcaption>
+        </figure>
+      </li>
+      <li>
+        <p class="where rt">In Roundturn</p>
+        <h2>Check the preview, then import</h2>
+        <p>The preview counts the new rows and the ones already imported, and lists anything to check. Nothing is saved until you import, and every import can be undone from the import history.</p>
+      </li>
+    </ol>
+
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>Times</strong> are read in your CSV time zone setting, America/Los_Angeles unless you change it, because the file's times carry no time zone.</li>
+      <li><strong>Commissions</strong> come from each account's own commission setting, not from the file.</li>
+      <li><strong>Choosing the same file again</strong> adds nothing twice: rows already imported are left alone.</li>
+      <li><strong>Size:</strong> a file can be up to 10 MB. A real export is a few hundred KB.</li>
+    </ul>
+
+    <h3>The columns the file must have</h3>
+    <p><code>symbol</code>, <code>_priceFormat</code>, <code>_priceFormatType</code>, <code>_tickSize</code>, <code>buyFillId</code>, <code>sellFillId</code>, <code>qty</code>, <code>buyPrice</code>, <code>sellPrice</code>, <code>pnl</code>, <code>boughtTimestamp</code>, <code>soldTimestamp</code>, <code>duration</code>. If one is missing, the preview says which.</p>
+
+    <aside class="callout">
+      <p class="label">Another platform?</p>
+      <p>See <a href="/docs/import/">all the platforms Roundturn imports</a>, or tell us which one you use: <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>

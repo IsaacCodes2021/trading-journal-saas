@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importing your trades into Roundturn | Roundturn docs</title>
+<meta name="description" content="The platforms Roundturn imports from, what to export from each, and how an import works: the preview, duplicates, fees and undo.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/" aria-current="page">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / Importing</p>
+    <h1>Importing your trades</h1>
+    <p class="lead">Roundturn builds your trades from a file your platform saves. You choose the file, Roundturn shows what it found, and nothing is saved until you confirm.</p>
+
+    <h2>Pick your platform</h2>
+    <div class="doc-cards">
+      <a class="doc-card" href="/docs/import/tradovate/">
+        <p class="label">Tradovate</p>
+        <h3>Performance report</h3>
+        <p>One CSV for the days you choose.</p>
+        <span class="go">Read the guide →</span>
+      </a>
+      <a class="doc-card" href="/docs/import/tradesea/">
+        <p class="label">TradeSea</p>
+        <h3>Orders, Filled view</h3>
+        <p>One CSV per page of the list. Export every page.</p>
+        <span class="go">Read the guide →</span>
+      </a>
+      <a class="doc-card" href="/docs/import/round-turn-monitor/">
+        <p class="label">NinjaTrader 8</p>
+        <h3>Round Turn Monitor log</h3>
+        <p>The add-on's own log, <code>RoundTurnLog.csv</code>. Nothing to export.</p>
+        <span class="go">Read the guide →</span>
+      </a>
+    </div>
+
+    <h2>How an import works</h2>
+    <ol class="doc-steps">
+      <li>
+        <h3>Choose the account</h3>
+        <p>On the Import page, choose the Roundturn account the trades belong to, or add one with <strong>+ New account</strong>. One import goes into one account.</p>
+      </li>
+      <li>
+        <h3>Choose files</h3>
+        <p><strong>Choose files</strong> asks where the trades are from, reminds you what to export, then opens your computer's file window. You can also drop the files on the page: Roundturn tells the platform from the file.</p>
+      </li>
+      <li>
+        <h3>Read the preview</h3>
+        <p>The preview counts what is new and what was already imported, and lists anything to check: a missing page, a position still open, a commission that differs from your setting.</p>
+      </li>
+      <li>
+        <h3>Import</h3>
+        <p><strong>Import</strong> saves the new trades. Every import can be undone from the import history on the same page.</p>
+      </li>
+    </ol>
+
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>The same file twice adds nothing twice.</strong> Rows already imported are left alone, and only new ones are added.</li>
+      <li><strong>Fees</strong> come from each account's own commission setting, charged on every trade, not from the file. The preview compares the two and offers to use the file's rate.</li>
+      <li><strong>Times:</strong> each guide says which time zone its file is read in.</li>
+      <li><strong>Size:</strong> one import can be up to 10 MB.</li>
+    </ul>
+
+    <aside class="callout">
+      <p class="label">Your platform isn't listed?</p>
+      <p>More are coming. Tell us which one you use: <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Export your trades from TradeSea | Roundturn docs</title>
+<meta name="description" content="How to export your filled orders from TradeSea, page by page, and import them into Roundturn: what to choose, and what the preview checks.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/" aria-current="page">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / <a href="/docs/import/">Importing</a> / TradeSea</p>
+    <h1>Export your trades from TradeSea</h1>
+    <p class="lead">Roundturn reads TradeSea's list of filled orders and pairs them into trades. TradeSea exports the list one page at a time, so a session usually takes a few files. Choose them all together in Roundturn and they are read as one import.</p>
+
+    <dl class="doc-facts">
+      <div><dt>Export</dt><dd>Orders, Filled view, every page</dd></div>
+      <div><dt>In Roundturn</dt><dd>TradeSea: Orders (Filled)</dd></div>
+      <div><dt>Times</dt><dd>The time zone in the file</dd></div>
+    </dl>
+
+    <ol class="doc-steps">
+      <li>
+        <p class="where">In TradeSea</p>
+        <h2>Open Orders and select Filled</h2>
+        <p>Open the <strong>Orders</strong> list for the account and select the <strong>Filled</strong> view. The export saves what the list shows, so in the Filled view the file holds only filled orders, with no cancelled or rejected ones.</p>
+      </li>
+      <li>
+        <p class="where">In TradeSea</p>
+        <h2>Export, then export every page</h2>
+        <p>Export the list. TradeSea shows 10 orders a page and its export saves only the page on screen, so go to the next page and export again, until every page of the session is saved. Do it one right after another, while nothing new is filling.</p>
+        <aside class="callout attention">
+          <p class="label">Every page</p>
+          <p>A missing page means missing orders. Roundturn warns you when a file looks like a single page, and when the orders end with a position still open. Exporting a page twice does no harm: an order on two pages counts once.</p>
+        </aside>
+      </li>
+      <li>
+        <p class="where rt">In Roundturn</p>
+        <h2>Choose TradeSea: Orders (Filled), then all the files</h2>
+        <p>On the Import page, choose the Roundturn account the trades belong to, then <strong>Choose files</strong>.</p>
+        <figure class="shot">
+          <!-- shot:tradesea-dialog -->
+          <a class="shot-frame" href="/docs/import/tradesea/roundturn-platform.png" title="Open the full-size image">
+          <img src="/docs/import/tradesea/roundturn-platform.png" width="522" height="332" alt="Roundturn's dialog &quot;Where are these trades from?&quot; with TradeSea: Orders (Filled) chosen, its reminder to export every page, and the Choose files button." loading="lazy" decoding="async">
+          <svg class="shot-marks" aria-hidden="true" focusable="false">
+          <rect class="shot-box" x="3.45%" y="23.8%" width="93.1%" height="12.65%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="23.8%" r="13"/><text x="96.55%" y="23.8%">1</text></g>
+          <rect class="shot-box" x="3.45%" y="40.06%" width="93.1%" height="39.76%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="40.06%" r="13"/><text x="96.55%" y="40.06%">2</text></g>
+          <rect class="shot-box" x="76.44%" y="83.73%" width="20.11%" height="10.84%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="83.73%" r="13"/><text x="96.55%" y="83.73%">3</text></g>
+          </svg>
+          </a>
+          <!-- /shot:tradesea-dialog -->
+          <figcaption>
+            <ol>
+              <li><span class="pin" aria-hidden="true">1</span><span>Pick <strong>TradeSea: Orders (Filled)</strong>.</span></li>
+              <li><span class="pin" aria-hidden="true">2</span><span>The same reminder as above: Filled view, every page.</span></li>
+              <li><span class="pin" aria-hidden="true">3</span><span><strong>Choose files</strong>, then choose all the pages at once: hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) and click each file.</span></li>
+            </ol>
+          </figcaption>
+        </figure>
+      </li>
+      <li>
+        <p class="where rt">In Roundturn</p>
+        <h2>Check the preview, then import</h2>
+        <p>The preview says what was read and lists anything to check before you import.</p>
+        <figure class="shot">
+          <!-- shot:tradesea-preview -->
+          <a class="shot-frame" href="/docs/import/tradesea/roundturn-preview.png" title="Open the full-size image">
+          <img src="/docs/import/tradesea/roundturn-preview.png" width="960" height="492" alt="Roundturn's preview of two TradeSea files: 17 filled orders making 5 trades, the commissions the files add up to, a button to use TradeSea's rate, and the Import button." loading="lazy" decoding="async">
+          <svg class="shot-marks" aria-hidden="true" focusable="false">
+          <rect class="shot-box" x="0.83%" y="1.83%" width="45%" height="6.1%" rx="6"/>
+          <g class="shot-pin"><circle cx="45.83%" cy="1.83%" r="13"/><text x="45.83%" y="1.83%">1</text></g>
+          <rect class="shot-box" x="2.92%" y="57.32%" width="72.92%" height="4.88%" rx="6"/>
+          <g class="shot-pin"><circle cx="75.83%" cy="57.32%" r="13"/><text x="75.83%" y="57.32%">2</text></g>
+          <rect class="shot-box" x="3.44%" y="72.56%" width="20.94%" height="6.1%" rx="6"/>
+          <g class="shot-pin"><circle cx="24.38%" cy="72.56%" r="13"/><text x="24.38%" y="72.56%">3</text></g>
+          <rect class="shot-box" x="82.29%" y="88.41%" width="14.27%" height="7.32%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.56%" cy="88.41%" r="13"/><text x="96.56%" y="88.41%">4</text></g>
+          </svg>
+          </a>
+          <!-- /shot:tradesea-preview -->
+          <figcaption>
+            <ol>
+              <li><span class="pin" aria-hidden="true">1</span><span>How many files and filled orders were read, how many are new, and the account they go into.</span></li>
+              <li><span class="pin" aria-hidden="true">2</span><span>What the files' commissions add up to. If TradeSea's Total Charges for the day shows the same, no order is missing.</span></li>
+              <li><span class="pin" aria-hidden="true">3</span><span>If your commission setting differs from TradeSea's rate, one click sets it to TradeSea's.</span></li>
+              <li><span class="pin" aria-hidden="true">4</span><span>Nothing is saved until you import. Every import can be undone from the import history.</span></li>
+            </ol>
+          </figcaption>
+        </figure>
+      </li>
+    </ol>
+
+    <h2>Good to know</h2>
+    <ul>
+      <li><strong>One account per export.</strong> Export each TradeSea account on its own and import it into its own Roundturn account. If you copy trades, the same orders can go into several accounts; the preview points it out.</li>
+      <li><strong>Times</strong> are read in the time zone the file names (PST, EST and so on), not your CSV time zone setting. That setting is used only for a time whose zone is missing, and the preview says so.</li>
+      <li><strong>Commissions</strong> come from each account's own commission setting, not from the file, so every import is charged the same way.</li>
+      <li><strong>A position still open</strong> at the end of the files is kept until a later import closes it.</li>
+      <li><strong>Forgot a page?</strong> <strong>Add files</strong> in the preview adds it to the same import.</li>
+    </ul>
+
+    <h2>If the preview says</h2>
+    <dl class="doc-qa">
+      <dt>"This looks like one page of TradeSea's list."</dt>
+      <dd>A single file with exactly 10 orders is probably one page of several. If you had more than 10 filled orders, export the other pages and add them.</dd>
+      <dt>"These orders end with 1 NQ long still open"</dt>
+      <dd>If you were flat, the export left out an order: show the whole session in TradeSea's Orders list and export every page again. If you really are still in the trade, import it now and its exit later.</dd>
+      <dt>"These look like files from Tradovate, not TradeSea."</dt>
+      <dd>The files are from another platform. The preview offers to read them as that platform.</dd>
+    </dl>
+
+    <aside class="callout">
+      <p class="label">Another platform?</p>
+      <p>See <a href="/docs/import/">all the platforms Roundturn imports</a>, or tell us which one you use: <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with TradeSea, Tradovate, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>

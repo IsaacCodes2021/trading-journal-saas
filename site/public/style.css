@@ -1916,3 +1916,489 @@ article li {
     padding: 22px;
   }
 }
+
+/*
+ * ---- docs (roundturn.app/docs/): how to get trades in, platform by platform ----
+ * A side menu of the guides on wide screens, chips above the page on narrow ones. Each guide is a list of numbered steps
+ * on a rail. A step says where it happens (in the platform, or in Roundturn), and a screenshot can carry marks: boxes
+ * with numbered pins, drawn by scripts/shots.mjs as an <svg> over the image. The marks' colours are the same in both
+ * themes because they sit on the screenshot, not on the page.
+ */
+
+:root {
+  --mark: #ffc94a;
+  --mark-ink: #1d1500;
+  --mark-no: #ff6b6b;
+}
+
+.docs {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 56px;
+  align-items: start;
+  padding-block: 48px 88px;
+}
+
+.docs-nav {
+  position: sticky;
+  top: 96px;
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+}
+
+.docs-nav .label {
+  margin: 20px 10px 6px;
+}
+
+.docs-nav .label:first-child {
+  margin-top: 0;
+}
+
+.docs-nav a {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--muted);
+}
+
+.docs-nav a:hover {
+  color: var(--text);
+  background: var(--raised);
+}
+
+.docs-nav a[aria-current="page"] {
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.docs-nav small {
+  display: block;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.doc {
+  min-width: 0;
+  max-width: 52rem;
+}
+
+.crumbs {
+  margin-bottom: 18px;
+  font: 500 12px/1.4 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.crumbs a {
+  color: var(--muted);
+}
+
+.crumbs a:hover {
+  color: var(--text);
+}
+
+.doc h1 {
+  font-size: clamp(2rem, 4.5vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+}
+
+.doc .lead {
+  margin-top: 16px;
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.doc h2 {
+  margin: 56px 0 12px;
+  font-size: 1.4rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.doc h3 {
+  margin: 24px 0 8px;
+  font-size: 17px;
+}
+
+.doc p,
+.doc ul,
+.doc ol,
+.doc dl {
+  margin-block: 0 14px;
+}
+
+.doc p,
+.doc li {
+  max-width: 44rem;
+}
+
+.doc ul {
+  padding-left: 1.2rem;
+}
+
+.doc li {
+  margin-bottom: 8px;
+}
+
+.doc code,
+.doc kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+  font: 500 0.88em/1.4 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.doc kbd {
+  border-bottom-width: 2px;
+}
+
+/* what the guide needs, at a glance */
+
+.doc-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 36px;
+  margin: 28px 0 0;
+  padding: 16px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.doc-facts dt {
+  font: 500 11px/1.4 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.doc-facts dd {
+  margin: 4px 0 0;
+  font-weight: 500;
+}
+
+/* the numbered steps, on a rail */
+
+.doc-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 44px 0 0;
+  padding: 0;
+}
+
+.doc-steps > li {
+  position: relative;
+  max-width: none;
+  margin: 0;
+  padding: 0 0 44px 60px;
+  counter-increment: step;
+}
+
+.doc-steps > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--panel);
+  font: 500 13px/1 var(--mono);
+  color: var(--accent);
+}
+
+.doc-steps > li::after {
+  content: "";
+  position: absolute;
+  top: 46px;
+  bottom: 8px;
+  left: 19px;
+  width: 1px;
+  background: var(--line);
+}
+
+.doc-steps > li:last-child {
+  padding-bottom: 8px;
+}
+
+.doc-steps > li:last-child::after {
+  display: none;
+}
+
+.doc-steps h2,
+.doc-steps h3 {
+  margin: 6px 0 10px;
+  font-size: 1.25rem;
+}
+
+.where {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 2px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font: 500 11px/1.5 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.where.rt {
+  color: var(--accent);
+}
+
+/* a note beside a step */
+
+.callout {
+  margin: 18px 0;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.callout.attention {
+  border-left-color: var(--warn);
+}
+
+.callout .label {
+  color: var(--accent);
+}
+
+.callout.attention .label {
+  color: var(--warn);
+}
+
+.callout p {
+  margin: 4px 0 0;
+}
+
+/* a marked-up screenshot: the image, the marks over it, and what each number means */
+
+.shot {
+  margin: 20px 0 8px;
+}
+
+.shot-frame {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  cursor: zoom-in;
+}
+
+.shot-frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 9px;
+}
+
+.shot-marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.shot-box {
+  fill: rgb(255 201 74 / 7%);
+  stroke: var(--mark);
+  stroke-width: 2.5px;
+}
+
+.shot-box.no {
+  fill: rgb(255 107 107 / 10%);
+  stroke: var(--mark-no);
+}
+
+.shot-pin circle {
+  fill: var(--mark);
+  stroke: rgb(0 0 0 / 55%);
+  stroke-width: 1.5px;
+}
+
+.shot-pin text {
+  fill: var(--mark-ink);
+  font: 700 13px/1 var(--sans);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+.shot-pin.no circle {
+  fill: var(--mark-no);
+}
+
+.shot-pin.no text {
+  fill: #ffffff;
+  font-size: 17px;
+}
+
+.shot figcaption {
+  margin-top: 14px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.shot figcaption ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shot figcaption li {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+}
+
+.pin {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--mark);
+  font: 700 12px/1 var(--sans);
+  color: var(--mark-ink);
+}
+
+.pin.no {
+  background: var(--mark-no);
+  color: #ffffff;
+  font-size: 15px;
+}
+
+/* the guides, as cards */
+
+.doc-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 20px 0 8px;
+}
+
+.doc-card {
+  display: block;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.doc-card:hover {
+  border-color: var(--line-strong);
+  background: var(--raised);
+  color: var(--text);
+}
+
+.doc-card h3 {
+  margin: 6px 0 4px;
+  font-size: 17px;
+}
+
+.doc-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.doc-card .go {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--accent);
+}
+
+/* questions and answers */
+
+.doc-qa dt {
+  margin-top: 18px;
+  font-weight: 600;
+}
+
+.doc-qa dd {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+@media (max-width: 1060px) {
+  .docs {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+    padding-top: 28px;
+  }
+
+  .docs-nav {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .docs-nav .label {
+    display: none;
+  }
+
+  .docs-nav a {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 5px 12px;
+  }
+
+  .docs-nav a[aria-current="page"] {
+    border-color: var(--accent);
+    box-shadow: none;
+  }
+
+  .docs-nav small {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .doc-steps > li {
+    padding-left: 0;
+  }
+
+  .doc-steps > li::before {
+    position: static;
+    margin-bottom: 12px;
+  }
+
+  .doc-steps > li::after {
+    display: none;
+  }
+
+  .doc-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .doc-facts {
+    gap: 12px 24px;
+  }
+}
