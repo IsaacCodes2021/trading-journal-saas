@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Import from the Round Turn Monitor (NinjaTrader 8) | Roundturn docs</title>
-<meta name="description" content="How to import the Round Turn Monitor's Export file or its log from NinjaTrader 8 into Roundturn: which file to choose, and how to pick the NinjaTrader account.">
+<meta name="description" content="How to import the Round Turn Monitor's Export file or its log from NinjaTrader 8 into Roundturn: which file to choose, and how to pick the trading account.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
@@ -109,7 +109,7 @@
       <li>
         <p class="where rt">In Roundturn</p>
         <h2>Pick the trading account, check, and import</h2>
-        <p>One import takes one NinjaTrader account. An Export file of one account needs no choice. The log, or an Export of all accounts, holds every account NinjaTrader tracks, Sim101 included: the preview picks the account this Roundturn account already holds, or the only real one. Practice accounts (Sim101, Playback, Backtest) are never picked for you.</p>
+        <p>One import takes one trading account. An Export file of one account needs no choice. The log, or an Export of all accounts, holds every account NinjaTrader tracks, Sim101 included: the preview picks the account this Roundturn account already holds, or the only real one. Practice accounts (Sim101, Playback, Backtest) are never picked for you.</p>
         <figure class="shot">
           <!-- shot:rtm-preview -->
           <a class="shot-frame" href="/docs/import/round-turn-monitor/roundturn-preview.png" title="Open the full-size image">
@@ -126,7 +126,7 @@
           <!-- /shot:rtm-preview -->
           <figcaption>
             <ol>
-              <li><span class="pin" aria-hidden="true">1</span><span>The NinjaTrader account that goes into this Roundturn account. Choose another if this one is wrong.</span></li>
+              <li><span class="pin" aria-hidden="true">1</span><span>The trading account that goes into this Roundturn account. Choose another if this one is wrong.</span></li>
               <li><span class="pin" aria-hidden="true">2</span><span>If your commission setting differs from the rate the add-on charges, one click sets it to the add-on's rate.</span></li>
               <li><span class="pin" aria-hidden="true">3</span><span>Nothing is saved until you import. Every import can be undone from the import history.</span></li>
             </ol>
@@ -138,7 +138,7 @@
     <h2>Good to know</h2>
     <ul>
       <li><strong>Choose the same log every time, or each day's Export file.</strong> Round turns already imported are left alone, and only the new ones are added. A round turn in both an Export file and the log counts once.</li>
-      <li><strong>Several NinjaTrader accounts?</strong> Import the log once for each, each into its own Roundturn account. Copied trades can go into several accounts.</li>
+      <li><strong>Several trading accounts?</strong> Import the log once for each, each into its own Roundturn account. Copied trades can go into several accounts.</li>
       <li><strong>Times</strong> are read in your CSV time zone setting (in Roundturn's Settings), because the log writes NinjaTrader's clock without a time zone.</li>
       <li><strong>Commissions</strong> come from each account's own commission setting, as for every import, not from the log. Round turns logged before the add-on's rate was set show $0.00 in the log; Roundturn charges them the same as the rest.</li>
     </ul>
