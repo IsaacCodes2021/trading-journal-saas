@@ -32,7 +32,12 @@ function together(chosen: File[], more: File[]): File[] {
 function importedText(record: ImportRecord): string {
   const [one, many] = platformInfo(record.platform).row
   const rows = pluralize(record.rows_added, one, many)
-  const from = record.platform === 'tradovate' ? '' : ` from ${platformInfo(record.platform).name}`
+  const from =
+    record.platform === 'tradovate'
+      ? ''
+      : record.platform === 'other'
+        ? ' from your converted file'
+        : ` from ${platformInfo(record.platform).name}`
   return `Imported ${rows}${from} into ${record.account.name}, making ${pluralize(record.trades_built, 'trade')}.`
 }
 
@@ -42,8 +47,10 @@ function importedText(record: ImportRecord): string {
  *
  * **Choose files** first asks where the files come from (`ImportSourceDialog`), with a reminder of how to export from
  * that platform, and then opens the computer's file window: one file for Tradovate, several for TradeSea (one per page of
- * its Orders list) and for the Round Turn Monitor (its log and overflow file). Files dropped onto the page skip the
- * question: the server tells the platform from their header row. The Round Turn Monitor's log holds every NinjaTrader
+ * its Orders list) and for the Round Turn Monitor (its log and overflow file). For any other platform, the dialog
+ * takes the trader's statement figure and gives them the prompt for an AI chatbot, which makes Roundturn's own import
+ * file; the preview checks the file's net P&L against that figure. Files dropped onto the page skip the question: the
+ * server tells the platform from their header row (the statement figure is then typed in the preview). The Round Turn Monitor's log holds every NinjaTrader
  * account: the server picks one when it can, and `LogAccountPicker` lets the trader choose.
  * The preview is worked out again if the account changes, because what counts as "already imported" depends on it.
  *
@@ -73,6 +80,7 @@ export function ImportWorkspace({
   const [sentAs, setSentAs] = useState<ImportPlatform>('auto') // what the chosen files were last read as
   const [sentLogAccount, setSentLogAccount] = useState<string | null>(null) // the log's account chosen for them
   const [picked, setPicked] = useState<Platform | null>(null) // the dialog's last answer on this page
+  const [statement, setStatement] = useState('') // Other platform: the net P&L on the trader's statement
   const [asking, setAsking] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [adding, setAdding] = useState(false)
@@ -199,7 +207,8 @@ export function ImportWorkspace({
           ) : null}
           <div className="mt-0.5 text-xs text-muted">
             We read Tradovate&rsquo;s Performance report, TradeSea&rsquo;s Orders and the Round Turn Monitor&rsquo;s log
-            from NinjaTrader.
+            from NinjaTrader. Any other platform&rsquo;s export can come in through an AI chatbot: choose Other
+            platform.
           </div>
         </div>
 
@@ -223,7 +232,7 @@ export function ImportWorkspace({
                 {data && !data.fatal
                   ? data.platform === 'tradesea'
                     ? ` · ${pluralize(data.rows_parsed, 'filled order')}`
-                    : data.platform === 'round_turn_monitor'
+                    : data.platform === 'round_turn_monitor' || data.platform === 'other'
                       ? ` · ${pluralize(data.rows_parsed, 'round turn')}`
                       : ` · ${pluralize(data.rows_parsed + data.errors.length + data.duplicates_in_file, 'row')}`
                   : ''}
@@ -317,6 +326,8 @@ export function ImportWorkspace({
           accountId={accountId}
           accountName={account?.name ?? 'this account'}
           committing={commit.isPending}
+          statement={statement}
+          onStatement={setStatement}
           onCancel={clear}
           onCommit={doCommit}
           onAddFiles={() => openFileWindow(data.platform, true)}
@@ -330,11 +341,13 @@ export function ImportWorkspace({
       {asking ? (
         <ImportSourceDialog
           initial={picked ?? lastPlatform}
+          initialStatement={statement}
           timeZone={timeZone}
           demo={isDemo()}
           onClose={() => setAsking(false)}
-          onPick={(platform) => {
+          onPick={(platform, typed) => {
             setPicked(platform)
+            if (platform === 'other') setStatement(typed)
             openFileWindow(platform, false)
             setAsking(false)
           }}

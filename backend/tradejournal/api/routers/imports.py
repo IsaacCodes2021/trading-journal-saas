@@ -1,6 +1,7 @@
 """Importing exports, preview, import, history and undo: Tradovate's Performance report (one file, fill pairs),
-TradeSea's Orders export (one file per page of its list, read together as one import of filled orders), and the Round
-Turn Monitor's log from NinjaTrader (one account's round turns, stored as orders)."""
+TradeSea's Orders export (one file per page of its list, read together as one import of filled orders), the Round
+Turn Monitor's log from NinjaTrader (one account's round turns, stored as orders), and Roundturn's own import file, which
+an AI chatbot writes from any other platform's export (round turns, stored as orders)."""
 
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ from ...parser import RowIssue
 from ...pg import accounts as pg_accounts
 from ...pg import importer as pg_importer
 from ...pg import settings as pg_settings
-from ...platforms import detect, tradesea
+from ...platforms import detect, other, tradesea
 from ...timeutil import zone
 from ..config import ApiConfig
 from ..deps import (
@@ -64,7 +65,8 @@ AccountField = Annotated[int, Form(ge=1, le=MAX_ID)]
 FilesField = Annotated[list[UploadFile], File(description="The export; for TradeSea, one file per page of its list")]
 # Where the files come from: Tradovate (the default, as before the choice existed), TradeSea, or `auto`, told from the
 # files' header row (files dropped onto the page).
-PlatformField = Annotated[Literal["tradovate", "tradesea", "round_turn_monitor", "auto"], Form()]
+# `other` is Roundturn's own import file, from any other platform.
+PlatformField = Annotated[Literal["tradovate", "tradesea", "round_turn_monitor", "other", "auto"], Form()]
 # The Round Turn Monitor's log holds every account NinjaTrader tracks: the one to import (none: the preview's pick).
 LogAccountField = Annotated[str | None, Form(min_length=1, max_length=200)]
 
@@ -164,11 +166,22 @@ def _refused(platform: str, files: list[tuple[str, bytes]], fatal: str, **extra:
 
 def _shown_zone(report: FileImportReport, setting: str) -> tzinfo:
     """The zone the table shows times in, so they read as the file wrote them: TradeSea's own zone when every time had
-    the same one ("PST"), else the CSV time zone setting (for example, files that cross a daylight saving change)."""
+    the same one ("PST"), or the one UTC offset every time of Roundturn's own import file had ("UTC-05:00"), else the
+    CSV time zone setting (for example, files that cross a daylight saving change)."""
     zones = [name for name in report.time_zone.split(", ") if name]
     if report.platform == detect.TRADESEA and len(zones) == 1:
         return tradesea.display_zone(zones[0])
+    if report.platform == detect.OTHER and len(zones) == 1:
+        return other.display_zone(zones[0]) or zone(setting)
     return zone(setting)
+
+
+def _zone_label(report: FileImportReport, setting: str) -> str:
+    """The zone the preview says the times are in. Roundturn's own import file stores every offset it had, but shows
+    times in the setting's zone when it had more than one."""
+    if report.platform == detect.OTHER and len([name for name in report.time_zone.split(", ") if name]) != 1:
+        return setting
+    return report.time_zone or setting
 
 
 def _commission_checks(report: FileImportReport, schedule: dict[str, Decimal]) -> list[CommissionCheckOut]:
@@ -250,7 +263,7 @@ def preview_import(
         ],
         file_commission=None if report.file_commission is None else finance.to_money(report.file_commission),
         commissions=checks,
-        time_zone=report.time_zone or setting,
+        time_zone=_zone_label(report, setting),
         log_accounts=[
             LogAccountOut(
                 name=a.name, round_turns=a.round_turns, practice=a.practice, here=a.here, elsewhere=a.elsewhere
@@ -258,6 +271,11 @@ def preview_import(
             for a in report.log_accounts
         ],
         log_account=report.log_account,
+        file_gross=None if report.file_gross is None else finance.to_money(report.file_gross),
+        file_fees=None if report.file_fees is None else finance.to_money(report.file_fees),
+        file_net=None if report.file_net is None else finance.to_money(report.file_net),
+        first_day=report.first_day,
+        last_day=report.last_day,
         errors=[ImportIssueOut(line=e.line, message=e.message) for e in report.errors],
         # The one-page warning is said by `one_page`, which the page shows with a button to add the other pages.
         warnings=[ImportIssueOut(line=w.line, message=w.message) for w in report.warnings if not _is_one_page(w)],

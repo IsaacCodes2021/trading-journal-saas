@@ -2346,7 +2346,7 @@ export interface components {
              * @default tradovate
              * @enum {string}
              */
-            platform?: "tradovate" | "tradesea" | "round_turn_monitor" | "auto";
+            platform?: "tradovate" | "tradesea" | "round_turn_monitor" | "other" | "auto";
         };
         /** Body_preview_import */
         Body_preview_import: {
@@ -2364,7 +2364,7 @@ export interface components {
              * @default tradovate
              * @enum {string}
              */
-            platform?: "tradovate" | "tradesea" | "round_turn_monitor" | "auto";
+            platform?: "tradovate" | "tradesea" | "round_turn_monitor" | "other" | "auto";
         };
         /**
          * BusinessTotalsOut
@@ -2891,7 +2891,7 @@ export interface components {
          * @description What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.
          *
          *     For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; for the Round
-         *     Turn Monitor, a round turn. The table shows the fill pairs either makes.
+         *     Turn Monitor and Roundturn's own import file (`other`), a round turn. The table shows the fill pairs either makes.
          */
         ImportPreviewOut: {
             /**
@@ -2920,8 +2920,18 @@ export interface components {
              * @default 1
              */
             file_count: number;
+            /** File Fees */
+            file_fees: string | null;
+            /** File Gross */
+            file_gross: string | null;
             /** File Name */
             file_name: string;
+            /** File Net */
+            file_net: string | null;
+            /** First Day */
+            first_day: string | null;
+            /** Last Day */
+            last_day: string | null;
             /** Log Account */
             log_account: string | null;
             /**
@@ -2950,7 +2960,7 @@ export interface components {
              * Platform
              * @enum {string}
              */
-            platform: "tradovate" | "tradesea" | "round_turn_monitor";
+            platform: "tradovate" | "tradesea" | "round_turn_monitor" | "other";
             /**
              * Recognised
              * @default false
@@ -2972,7 +2982,7 @@ export interface components {
                 [key: string]: number;
             };
             /** Suggested Platform */
-            suggested_platform: ("tradovate" | "tradesea" | "round_turn_monitor") | null;
+            suggested_platform: ("tradovate" | "tradesea" | "round_turn_monitor" | "other") | null;
             /**
              * Time Zone
              * @default
@@ -3009,7 +3019,7 @@ export interface components {
              * Platform
              * @enum {string}
              */
-            platform: "tradovate" | "tradesea" | "round_turn_monitor";
+            platform: "tradovate" | "tradesea" | "round_turn_monitor" | "other";
             /** Rows Added */
             rows_added: number;
             /** Trades Built */

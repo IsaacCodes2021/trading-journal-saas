@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How the numbers work | Roundturn docs</title>
+<meta name="description" content="How Roundturn works out net P&L, win rate, profit factor, expectancy, max drawdown and the trading day, and how the filters narrow them.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/docs/">Docs</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <a href="/docs/getting-started/">Getting started</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+    <a href="/docs/import/other/">Any other platform<small>with an AI chatbot</small></a>
+    <p class="label">Using Roundturn</p>
+    <a href="/docs/accounts/">Prop accounts and rules</a>
+    <a href="/docs/numbers/" aria-current="page">How the numbers work</a>
+    <a href="/docs/journal/">Your journal</a>
+    <a href="/docs/your-data/">Your data</a>
+    <a href="/docs/troubleshooting/">When something goes wrong</a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / How the numbers work</p>
+    <h1>How the numbers work</h1>
+    <p class="lead">Every number in Roundturn comes from your closed trades, after the fees set on each account. This is how each one is worked out.</p>
+
+      <figure class="shot">
+        <!-- shot:numbers-dashboard -->
+        <a class="shot-frame" href="/docs/numbers/roundturn-dashboard.png" title="Open the full-size image">
+        <img src="/docs/numbers/roundturn-dashboard.png" width="952" height="352" alt="The top of Roundturn's Dashboard with sample data: the filter bar, then net P&amp;L after fees, win rate, profit factor, average win and loss, expectancy and max drawdown." loading="lazy" decoding="async">
+        <svg class="shot-marks" aria-hidden="true" focusable="false">
+        <rect class="shot-box" x="2.42%" y="5.11%" width="25%" height="10.8%" rx="6"/>
+        <g class="shot-pin"><circle cx="27.42%" cy="5.11%" r="13"/><text x="27.42%" y="5.11%">1</text></g>
+        <rect class="shot-box" x="82.98%" y="6.82%" width="12.18%" height="7.39%" rx="6"/>
+        <g class="shot-pin"><circle cx="95.17%" cy="6.82%" r="13"/><text x="95.17%" y="6.82%">2</text></g>
+        <rect class="shot-box" x="0.84%" y="32.1%" width="23.63%" height="30.4%" rx="6"/>
+        <g class="shot-pin"><circle cx="24.47%" cy="32.1%" r="13"/><text x="24.47%" y="32.1%">3</text></g>
+        <rect class="shot-box" x="25.74%" y="32.1%" width="23.53%" height="30.4%" rx="6"/>
+        <g class="shot-pin"><circle cx="49.26%" cy="32.1%" r="13"/><text x="49.26%" y="32.1%">4</text></g>
+        <rect class="shot-box" x="0.84%" y="66.19%" width="48.42%" height="30.97%" rx="6"/>
+        <g class="shot-pin"><circle cx="49.26%" cy="66.19%" r="13"/><text x="49.26%" y="66.19%">5</text></g>
+        <rect class="shot-box" x="50.63%" y="66.19%" width="48.53%" height="30.97%" rx="6"/>
+        <g class="shot-pin"><circle cx="99.16%" cy="66.19%" r="13"/><text x="99.16%" y="66.19%">6</text></g>
+        </svg>
+        </a>
+        <!-- /shot:numbers-dashboard -->
+        <figcaption>
+          <ol>
+          <li><span class="pin" aria-hidden="true">1</span><span>The date range. The bar narrows everything on the page.</span></li>
+          <li><span class="pin" aria-hidden="true">2</span><span><strong>Show archived</strong> brings passed, failed and closed accounts back in.</span></li>
+          <li><span class="pin" aria-hidden="true">3</span><span><strong>Net P&amp;L</strong>, after fees.</span></li>
+          <li><span class="pin" aria-hidden="true">4</span><span><strong>Win rate</strong>, with the wins and losses it counts.</span></li>
+          <li><span class="pin" aria-hidden="true">5</span><span><strong>Expectancy</strong>: what an average trade made.</span></li>
+          <li><span class="pin" aria-hidden="true">6</span><span><strong>Max drawdown</strong>, from closed trades.</span></li>
+          </ol>
+        </figcaption>
+      </figure>
+
+    <h2>The definitions</h2>
+    <ul>
+      <li><strong>Net result</strong> is what you made after fees. Fees come from each account's Fees tab, which holds a rate for each contract you trade.</li>
+      <li><strong>A win</strong> is a trade with a net result above zero, <strong>a loss</strong> below zero. A trade at exactly zero is breakeven and is in neither group.</li>
+      <li><strong>Win rate</strong> is wins divided by wins plus losses.</li>
+      <li><strong>Profit factor</strong> is the total won divided by the total lost.</li>
+      <li><strong>Avg win / avg loss</strong> is the average win divided by the average loss; the two averages are shown under it.</li>
+      <li><strong>Expectancy</strong> is the net result divided by the number of trades, so it is what an average trade made.</li>
+      <li><strong>Max drawdown</strong> is the deepest drop of your running total from its highest point so far, counting closed trades only, starting from zero.</li>
+    </ul>
+
+    <h2>The trading day</h2>
+    <p>A trading day starts at 18:00 New York time by default, the way futures sessions do, so a trade entered on Sunday evening belongs to Monday. You can change the start time and its time zone in <strong>Settings › Preferences</strong>, and existing trades are moved to match.</p>
+
+    <h2>The filters</h2>
+    <p>The bar at the top of the Dashboard, Trades, Calendar and Reports pages narrows everything on the page: the date range, the account type, the firm, the contract and the direction. Archived accounts are left out unless you turn on <strong>Show archived</strong>. The choices are in the page's address, so you can bookmark a view.</p>
+
+    <h2>A trade</h2>
+    <p>A trade runs from flat to flat in one account and one contract: every fill from the first entry until the position is closed. Its fill pairs, each entry matched with the exit that closed it, are listed on the trade's page.</p>
+
+    <aside class="callout">
+      <p class="label">A question this does not answer?</p>
+      <p>Write to <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>. We read every message.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>

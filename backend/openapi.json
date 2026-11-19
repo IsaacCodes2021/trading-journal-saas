@@ -1939,6 +1939,7 @@
               "tradovate",
               "tradesea",
               "round_turn_monitor",
+              "other",
               "auto"
             ],
             "title": "Platform",
@@ -1988,6 +1989,7 @@
               "tradovate",
               "tradesea",
               "round_turn_monitor",
+              "other",
               "auto"
             ],
             "title": "Platform",
@@ -3177,7 +3179,7 @@
         "type": "object"
       },
       "ImportPreviewOut": {
-        "description": "What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.\n\nFor Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; for the Round\nTurn Monitor, a round turn. The table shows the fill pairs either makes.",
+        "description": "What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.\n\nFor Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; for the Round\nTurn Monitor and Roundturn's own import file (`other`), a round turn. The table shows the fill pairs either makes.",
         "properties": {
           "commissions": {
             "default": [],
@@ -3244,9 +3246,78 @@
             "title": "File Count",
             "type": "integer"
           },
+          "file_fees": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Fees"
+          },
+          "file_gross": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Gross"
+          },
           "file_name": {
             "title": "File Name",
             "type": "string"
+          },
+          "file_net": {
+            "anyOf": [
+              {
+                "examples": [
+                  "-475.00"
+                ],
+                "pattern": "^-?\\d+(\\.\\d+)?$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File Net"
+          },
+          "first_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Day"
+          },
+          "last_day": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Day"
           },
           "log_account": {
             "anyOf": [
@@ -3292,7 +3363,8 @@
             "enum": [
               "tradovate",
               "tradesea",
-              "round_turn_monitor"
+              "round_turn_monitor",
+              "other"
             ],
             "title": "Platform",
             "type": "string"
@@ -3335,7 +3407,8 @@
                 "enum": [
                   "tradovate",
                   "tradesea",
-                  "round_turn_monitor"
+                  "round_turn_monitor",
+                  "other"
                 ],
                 "type": "string"
               },
@@ -3394,6 +3467,11 @@
           "time_zone",
           "log_accounts",
           "log_account",
+          "file_gross",
+          "file_fees",
+          "file_net",
+          "first_day",
+          "last_day",
           "errors",
           "warnings",
           "trades_built",
@@ -3429,7 +3507,8 @@
             "enum": [
               "tradovate",
               "tradesea",
-              "round_turn_monitor"
+              "round_turn_monitor",
+              "other"
             ],
             "title": "Platform",
             "type": "string"

@@ -205,8 +205,9 @@ def test_files_from_two_platforms_together_are_refused(db, alice, account_id, pl
 def test_a_file_from_no_platform_names_what_roundturn_reads(db, alice, account_id):
     body = preview(api(db, alice), account_id, [("notes.csv", b"name,age\nalice,31\n")], platform="auto")
     assert body["fatal"].startswith(
-        "Roundturn reads Tradovate's Performance report, TradeSea's Orders export (the Filled view) and the Round Turn "
-        "Monitor's log from NinjaTrader."
+        "Roundturn reads Tradovate's Performance report, TradeSea's Orders export (the Filled view), the Round Turn "
+        "Monitor's log from NinjaTrader, and its own import file. This file is none of them. For any other platform, "
+        "choose Other platform on the Import page"
     )
     assert body["suggested_platform"] is None
 

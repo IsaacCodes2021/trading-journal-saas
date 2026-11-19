@@ -26,7 +26,8 @@ billing on): `docs/runbooks/launch-checklist.md`, section B.
 ## 1. What this is
 
 **Roundturn** (roundturn.app) is a hosted, multi-user trading journal for futures prop-firm traders: import Tradovate
-Performance CSV exports, TradeSea's Orders exports or the Round Turn Monitor's log from NinjaTrader, see trades, a dashboard, reports and a calendar, add notes, tags and screenshots, track prop accounts,
+Performance CSV exports, TradeSea's Orders exports, the Round Turn Monitor's log from NinjaTrader, or any other platform's
+export converted by an AI chatbot into Roundturn's own import file, see trades, a dashboard, reports and a calendar, add notes, tags and screenshots, track prop accounts,
 fees, payouts and costs. It is a private-beta product, invite-only, free for now.
 
 It was built from the owner's local journal (`C:\Users\Isaac\Desktop\Development\trading-journal`, SQLite and NiceGUI). That
@@ -79,13 +80,29 @@ account per import, picked in the preview (`log_account`); Sim101 is never picke
 and is imported once. An Export file from the older add-on (15 columns, no contract or commission) is refused with "Update
 the add-on and export again, or choose RoundTurnLog.csv". The add-on's own change is made in its project, not here.
 
-**Export guides on the marketing site** (`site/public/docs/`, PR 185, 2026-11-18). The pages
-below are built, with marked-up screenshots of Roundturn's own Import dialog and preview; they go live when that pull
-request is merged (until then each address shows the site's "page not found" page). Screenshots are made by
+**Other platform import** (every platform with no reader of its own; the owner's spec of 2026-11-19, which replaced the
+plan's column-mapping screen). Roundturn does not read the other platform's export. On the Import page, *Other platform
+(converted with an AI chatbot)* takes the net P&L from the trader's statement and copies a prompt
+(`frontend/src/lib/otherPlatform.ts`) that has ChatGPT, Claude or another chatbot write **Roundturn's own import file,
+version 1**: 11 columns with a `roundturn_version` column, one row per round turn, times in ISO 8601 with their UTC
+offset. `backend/tradejournal/platforms/other.py` refuses a file not in the format (or of another version) whole, and
+refuses each row whose gross P&L is not what its prices make (prices x contracts x the contract's dollars per point) or
+whose net is not gross minus fees. Round turns are stored as two orders in `executions` with source `roundturn_csv`,
+like the Round Turn Monitor's, so duplicates and undo work the same; a round turn's reference ignores formatting, offsets
+and fees, so a re-converted file adds only the new or corrected round turns. The preview compares the file's net P&L
+with the statement figure (in the browser) and the Import button waits for a figure. No migration. A backend test pins
+the prompt's columns, version and contract list (with dollars per point) to the reader and `contracts.py`: a change to
+the contract table changes the prompt with it.
+
+**The docs on the marketing site** (`site/public/docs/`). The export guides below went live on 2026-11-19 (PR 185), with
+marked-up screenshots of Roundturn's own Import dialog and preview and of TradeSea's Orders list. Branch
+`site/docs-using-roundturn` adds Getting started and the "Using Roundturn" pages (`/docs/accounts/`, `/docs/numbers/`,
+`/docs/journal/`, `/docs/your-data/`, `/docs/troubleshooting/`), written from the app's Help page and screens, with
+screenshots of the app's sample journal (made-up data), and a Docs link in every page's top menu and footer. Screenshots are made by
 `site/scripts/shots.mjs` from raw captures kept outside the repository (`Development/guide-screenshots/`): it crops them,
 paints over account numbers in the pixels, and draws numbered marks over the image (`site/README.md`, "The docs pages and
-their screenshots"). Still to add: the owner's screenshots of TradeSea's Orders list, Tradovate's Performance report and
-the Round Turn Monitor's log folder in File Explorer.
+their screenshots"). The docs pages say only what the app does: when a screen or a rule changes, change its page and
+screenshot in the same pull request.
 
 | Page | Address | Linked from the app |
 |---|---|---|
@@ -94,6 +111,7 @@ the Round Turn Monitor's log folder in File Explorer.
 | Export from TradeSea | `https://roundturn.app/docs/import/tradesea/` | yes: the Import dialog, the Help page, first-run setup |
 | Export from Tradovate | `https://roundturn.app/docs/import/tradovate/` | not yet (kept in `lib/platforms.ts`) |
 | Import from Round Turn Monitor | `https://roundturn.app/docs/import/round-turn-monitor/` | yes: the Import dialog, the Help page, first-run setup |
+| Import from any other platform | `https://roundturn.app/docs/import/other/` | yes: the Import dialog, the Help page, first-run setup |
 
 Each platform added later gets `https://roundturn.app/docs/import/<platform>/`, lower case, no spaces (`ninjatrader`,
 `projectx`). The addresses live in one place in the app: `DOCS_IMPORT` and each platform's `guide` in
@@ -217,7 +235,7 @@ an import replaces any template the file also has, an operator's edit included),
 | Decide Free versus Pro | `LIMITS` in `backend/tradejournal/entitlements.py` is empty on purpose. |
 | Set up your accounts' rules | Each active prop account needs a purchase date (Details tab) and its firm's rules (Firm rules tab, then Verify); until then the Accounts tab shows "No rules set" for it. |
 | Read the contract table | `backend/tradejournal/contracts.py` gives each contract's point value and tick size (56 contracts), which TradeSea's P&L is worked out from. Live since PR 182; nobody but its author has checked it. |
-| Publish the docs section | Built in PR 185 (section 2); merging it publishes `roundturn.app/docs/`. Then send screenshots of TradeSea's Orders list (Filled view, the export button, the page arrows), Tradovate's Performance report and its export, and File Explorer showing `Documents › NinjaTrader 8 › RoundTurnLog`, for marking up. |
+| Screenshots for the docs | Live since 2026-11-19 (section 2). Still wanted, for marking up: what TradeSea shows after Export, its Page 2 of 2 and where it shows Total Charges; Tradovate's Performance report and its export; File Explorer showing `Documents › NinjaTrader 8 › RoundTurnLog`. |
 | Three Accounts-tab questions | Defaults in use until answered: (1) the old simple "Rules" tab is kept, the new rules are the separate "Firm rules" tab; (2) the research CSV stays out of git (the import takes a file); (3) the nine sample templates in `frontend/src/lib/demo/ruleData.ts` (rows of the research, trimmed) stay committed. |
 
 **Built or planned, not proven**

@@ -3,6 +3,8 @@
 The Import page asks the trader where the files come from. This check catches the wrong answer ("these look like
 Tradovate files, not TradeSea"), and reads files dropped onto the page without the question (`AUTO`). The Round Turn
 Monitor's Export file and old log count as the Round Turn Monitor's, so its reader can say which file to choose instead.
+Roundturn's own import file (the Other platform route) is told by its `roundturn_version` column, so its reader can say
+what is wrong with the rest of its header.
 """
 
 from __future__ import annotations
@@ -11,21 +13,30 @@ import csv
 
 from ..parser import REQUIRED_COLUMNS as TRADOVATE_COLUMNS
 from ..parser import _decode
-from . import round_turn_monitor, tradesea
+from . import other, round_turn_monitor, tradesea
 
 TRADOVATE, TRADESEA, ROUND_TURN_MONITOR = "tradovate", "tradesea", "round_turn_monitor"
-PLATFORMS = (TRADOVATE, TRADESEA, ROUND_TURN_MONITOR)
+OTHER = "other"  # Roundturn's own import file, written by an AI chatbot from another platform's export
+PLATFORMS = (TRADOVATE, TRADESEA, ROUND_TURN_MONITOR, OTHER)
 AUTO = "auto"  # tell from the files themselves
-NAMES = {TRADOVATE: "Tradovate", TRADESEA: "TradeSea", ROUND_TURN_MONITOR: "the Round Turn Monitor (NinjaTrader)"}
+NAMES = {
+    TRADOVATE: "Tradovate",
+    TRADESEA: "TradeSea",
+    ROUND_TURN_MONITOR: "the Round Turn Monitor (NinjaTrader)",
+    OTHER: "Roundturn's import file (Other platform)",
+}
 SOURCES = {  # `imports.source` -> platform
     "tradovate_performance": TRADOVATE,
     tradesea.SOURCE: TRADESEA,
     round_turn_monitor.SOURCE: ROUND_TURN_MONITOR,
+    other.SOURCE: OTHER,
 }
 
 NEITHER = (
-    "Roundturn reads Tradovate's Performance report, TradeSea's Orders export (the Filled view) and the Round Turn "
-    "Monitor's log from NinjaTrader. This file is none of them."
+    "Roundturn reads Tradovate's Performance report, TradeSea's Orders export (the Filled view), the Round Turn "
+    "Monitor's log from NinjaTrader, and its own import file. This file is none of them. For any other platform, "
+    "choose Other platform on the Import page: it gives you a prompt that turns your export into Roundturn's import "
+    "file with an AI chatbot."
 )
 MIXED = "These files come from different platforms. Choose files from one platform at a time."
 
@@ -54,6 +65,8 @@ def platform_of(data: bytes | str) -> str | None:
         return TRADESEA
     if any(header.issuperset(columns) for columns in _ROUND_TURN_MONITOR_FILES):
         return ROUND_TURN_MONITOR
+    if "roundturn_version" in {column.lower() for column in header}:
+        return OTHER
     return None
 
 

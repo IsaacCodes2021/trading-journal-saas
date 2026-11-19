@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Getting started with Roundturn | Roundturn docs</title>
+<meta name="description" content="From sign-up to your first reviewed session: set your time zones, add your prop accounts and their fees, and import your trades.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/docs/">Docs</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <a href="/docs/getting-started/" aria-current="page">Getting started</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+    <a href="/docs/import/other/">Any other platform<small>with an AI chatbot</small></a>
+    <p class="label">Using Roundturn</p>
+    <a href="/docs/accounts/">Prop accounts and rules</a>
+    <a href="/docs/numbers/">How the numbers work</a>
+    <a href="/docs/journal/">Your journal</a>
+    <a href="/docs/your-data/">Your data</a>
+    <a href="/docs/troubleshooting/">When something goes wrong</a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / Getting started</p>
+    <h1>Getting started</h1>
+    <p class="lead">From sign-up to your first reviewed session in four steps. When you first sign in, a short setup walks you through the same steps; this page is here for when you want them again.</p>
+
+    <ol class="doc-steps">
+      <li>
+        <p class="where rt">Settings › Preferences</p>
+        <h2>Check your time zones</h2>
+        <p>Roundturn needs to know two clocks: the one you want times shown in, and the one your files are written in. If the second is wrong, trades land hours off and on the wrong trading day.</p>
+      <figure class="shot">
+        <!-- shot:start-preferences -->
+        <a class="shot-frame" href="/docs/getting-started/roundturn-preferences.png" title="Open the full-size image">
+        <img src="/docs/getting-started/roundturn-preferences.png" width="728" height="735" alt="Roundturn's Preferences in Settings: the time zone times are shown in, the zone Tradovate files are written in, and when a trading day starts." loading="lazy" decoding="async">
+        <svg class="shot-marks" aria-hidden="true" focusable="false">
+        <rect class="shot-box" x="3.98%" y="10.75%" width="92.03%" height="5.44%" rx="6"/>
+        <g class="shot-pin"><circle cx="96.02%" cy="10.75%" r="13"/><text x="96.02%" y="10.75%">1</text></g>
+        <rect class="shot-box" x="3.98%" y="34.42%" width="92.03%" height="20.14%" rx="6"/>
+        <g class="shot-pin"><circle cx="96.02%" cy="34.42%" r="13"/><text x="96.02%" y="34.42%">2</text></g>
+        <rect class="shot-box" x="3.98%" y="88.16%" width="92.03%" height="9.52%" rx="6"/>
+        <g class="shot-pin"><circle cx="96.02%" cy="88.16%" r="13"/><text x="96.02%" y="88.16%">3</text></g>
+        </svg>
+        </a>
+        <!-- /shot:start-preferences -->
+        <figcaption>
+          <ol>
+          <li><span class="pin" aria-hidden="true">1</span><span><strong>Your time zone</strong>: times are shown in it everywhere in the app.</span></li>
+          <li><span class="pin" aria-hidden="true">2</span><span><strong>Tradovate files</strong>: the zone Tradovate's files, and the Round Turn Monitor's log, are written in. TradeSea files name their own zone, so this does not apply to them.</span></li>
+          <li><span class="pin" aria-hidden="true">3</span><span><strong>Trading day</strong>: when a day starts. The default is 6:00 PM New York time, the way futures sessions run, so a trade on Sunday evening belongs to Monday. Changing it moves your existing trades to match.</span></li>
+          </ol>
+        </figcaption>
+      </figure>
+      </li>
+      <li>
+        <p class="where rt">Settings › Prop accounts</p>
+        <h2>Add your accounts</h2>
+        <p>Add each evaluation and funded account with <strong>+ Add account</strong>: its name, firm, stage, size, starting balance and the day you bought it. The purchase date matters: it decides which version of the firm's rules applies. What it cost can be added now or later.</p>
+      <figure class="shot">
+        <!-- shot:start-add-account -->
+        <a class="shot-frame" href="/docs/getting-started/roundturn-prop-accounts.png" title="Open the full-size image">
+        <img src="/docs/getting-started/roundturn-prop-accounts.png" width="726" height="400" alt="Roundturn's Prop accounts in Settings, with sample accounts: each account's stage, size, progress to its target and net P&amp;L, and the Add account button." loading="lazy" decoding="async">
+        <svg class="shot-marks" aria-hidden="true" focusable="false">
+        <rect class="shot-box" x="82.37%" y="2.25%" width="16.94%" height="10%" rx="6"/>
+        <g class="shot-pin"><circle cx="82.37%" cy="2.25%" r="13"/><text x="82.37%" y="2.25%">1</text></g>
+        </svg>
+        </a>
+        <!-- /shot:start-add-account -->
+        <figcaption>
+          <ol>
+          <li><span class="pin" aria-hidden="true">1</span><span><strong>+ Add account</strong>. Each account then has its own tabs for fees, rules and payouts.</span></li>
+          </ol>
+        </figcaption>
+      </figure>
+      </li>
+      <li>
+        <p class="where rt">The account's Fees tab</p>
+        <h2>Set each account's fees</h2>
+        <p>Roundturn charges each trade the account's own commission rate for the contract, per contract, round trip. With no rate set, your net P&amp;L is too high; the import preview tells you when the file's commissions differ and offers to use its rate. See <a href="/docs/accounts/">Prop accounts and rules</a>.</p>
+      </li>
+      <li>
+        <p class="where rt">Import</p>
+        <h2>Import your trades</h2>
+        <p>Choose the account, then <strong>Choose files</strong>, and pick your platform. Nothing is saved until you confirm the preview. Each platform has its guide: <a href="/docs/import/tradovate/">Tradovate</a>, <a href="/docs/import/tradesea/">TradeSea</a>, <a href="/docs/import/round-turn-monitor/">Round Turn Monitor</a>.</p>
+      </li>
+    </ol>
+
+    <h2>Then</h2>
+    <ul>
+      <li>The <strong>Dashboard</strong> and <strong>Reports</strong> show your results: <a href="/docs/numbers/">how the numbers work</a>.</li>
+      <li>Open any trade to add a note, tags and screenshots: <a href="/docs/journal/">your journal</a>.</li>
+      <li>The <strong>Accounts</strong> tab checks each account against its firm's rules once you have set them: <a href="/docs/accounts/">prop accounts and rules</a>.</li>
+    </ul>
+
+    <aside class="callout">
+      <p class="label">A question this does not answer?</p>
+      <p>Write to <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>. We read every message.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -53,6 +53,15 @@ export const PLATFORMS: readonly PlatformInfo[] = [
     row: ['round turn', 'round turns'],
     guide: `${DOCS_IMPORT}round-turn-monitor/`,
   },
+  {
+    // Any other platform: an AI chatbot turns its export into Roundturn's own import file (`lib/otherPlatform.ts`).
+    id: 'other',
+    name: 'Other platform',
+    label: 'Other platform (converted with an AI chatbot)',
+    multiple: false,
+    row: ['round turn', 'round turns'],
+    guide: `${DOCS_IMPORT}other/`,
+  },
 ]
 
 /** Where the Round Turn Monitor (an add-on for NinjaTrader 8) keeps its log, and the files' names. */
