@@ -59,13 +59,38 @@
       <li>
         <p class="where">On your platform</p>
         <h2>Export your trades, and note the net P&amp;L</h2>
-        <p>Export your trade history for the dates you want, in whatever form your platform gives: fills, orders or trades, as a CSV, a spreadsheet or a text file. Then note the <strong>net P&amp;L</strong> your platform's statement shows for the same dates, after commissions and fees. That number is how you and Roundturn know the chatbot's file is right.</p>
+        <p>Export your trade history for the dates you want, in whatever form your platform gives: fills, orders or trades, as a CSV, a spreadsheet or a text file (<a href="#where-to-find-your-export">Where to find your export</a>, below, links your platform's own help). Then note the <strong>net P&amp;L</strong> your platform's statement shows for the same dates, after commissions and fees. That number is how you and Roundturn know the chatbot's file is right.</p>
       </li>
       <li>
         <p class="where rt">In Roundturn</p>
         <h2>Choose Other platform, and copy the prompt</h2>
         <p>On the Import page, choose the Roundturn account the trades belong to, then <strong>Choose files</strong>. Roundturn asks where the trades are from: pick <strong>Other platform (converted with an AI chatbot)</strong>.</p>
         <p>Type the net P&amp;L from your statement, then click <strong>Copy prompt</strong>. <strong>See the prompt</strong> shows it first if you want to read it.</p>
+        <figure class="shot">
+          <!-- shot:other-dialog -->
+          <a class="shot-frame" href="/docs/import/other/roundturn-platform.png" title="Open the full-size image">
+          <img src="/docs/import/other/roundturn-platform.png" width="522" height="551" alt="Roundturn's dialog &quot;Where are these trades from?&quot; with Other platform (converted with an AI chatbot) chosen, a net P&amp;L typed from the statement, the Copy prompt and See the prompt buttons, and the Choose file button." loading="lazy" decoding="async">
+          <svg class="shot-marks" aria-hidden="true" focusable="false">
+          <rect class="shot-box" x="3.45%" y="14.34%" width="93.1%" height="7.62%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="14.34%" r="13"/><text x="96.55%" y="14.34%">1</text></g>
+          <rect class="shot-box" x="2.11%" y="23.05%" width="95.79%" height="17.97%" rx="6"/>
+          <g class="shot-pin"><circle cx="97.89%" cy="23.05%" r="13"/><text x="97.89%" y="23.05%">2</text></g>
+          <rect class="shot-box" x="2.3%" y="62.43%" width="45.4%" height="8.71%" rx="6"/>
+          <g class="shot-pin"><circle cx="47.7%" cy="62.43%" r="13"/><text x="47.7%" y="62.43%">3</text></g>
+          <rect class="shot-box" x="77.78%" y="90.38%" width="18.77%" height="6.53%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="90.38%" r="13"/><text x="96.55%" y="90.38%">4</text></g>
+          </svg>
+          </a>
+          <!-- /shot:other-dialog -->
+          <figcaption>
+            <ol>
+              <li><span class="pin" aria-hidden="true">1</span><span>Pick <strong>Other platform (converted with an AI chatbot)</strong>.</span></li>
+              <li><span class="pin" aria-hidden="true">2</span><span>Type the net P&amp;L from your statement, for the same dates as your export and after fees. A loss starts with a minus: <code>-125.50</code>.</span></li>
+              <li><span class="pin" aria-hidden="true">3</span><span><strong>Copy prompt</strong> copies it for the chatbot. <strong>See the prompt</strong> shows it first.</span></li>
+              <li><span class="pin" aria-hidden="true">4</span><span><strong>Choose file</strong>, once the chatbot has made the file (step 4). It stays off until a figure is typed.</span></li>
+            </ol>
+          </figcaption>
+        </figure>
       </li>
       <li>
         <p class="where">In your AI chatbot</p>
@@ -78,9 +103,72 @@
         <p class="where rt">In Roundturn</p>
         <h2>Choose the file, check, and import</h2>
         <p><strong>Choose file</strong> opens your computer's file window: choose <code>roundturn-import.csv</code>. The preview shows the round turns, the days they cover, and their gross P&amp;L, fees and net P&amp;L, beside the figure you typed: either <em>matches your statement</em>, or how far apart the two are.</p>
-        <p>Rows that do not add up are listed by line and left out; the rest can be imported. Nothing is saved until you click <strong>Import</strong>, and every import can be undone from the import history.</p>
+        <figure class="shot">
+          <!-- shot:other-check -->
+          <a class="shot-frame" href="/docs/import/other/roundturn-check.png" title="Open the full-size image">
+          <img src="/docs/import/other/roundturn-check.png" width="960" height="350" alt="Roundturn's preview of the chatbot's file: 5 round turns, all new, none already imported and no errors, then Check against your statement, with the file's gross, fees and net P&amp;L, the statement's figure, and the line saying the two match." loading="lazy" decoding="async">
+          <svg class="shot-marks" aria-hidden="true" focusable="false">
+          <rect class="shot-box" x="2.92%" y="54.29%" width="61.46%" height="8.57%" rx="6"/>
+          <g class="shot-pin"><circle cx="64.38%" cy="54.29%" r="13"/><text x="64.38%" y="54.29%">1</text></g>
+          <rect class="shot-box" x="2.92%" y="63.43%" width="34.38%" height="21.43%" rx="6"/>
+          <g class="shot-pin"><circle cx="37.29%" cy="63.43%" r="13"/><text x="37.29%" y="63.43%">2</text></g>
+          <rect class="shot-box" x="2.92%" y="85.14%" width="30.21%" height="8.57%" rx="6"/>
+          <g class="shot-pin"><circle cx="33.13%" cy="85.14%" r="13"/><text x="33.13%" y="85.14%">3</text></g>
+          </svg>
+          </a>
+          <!-- /shot:other-check -->
+          <figcaption>
+            <ol>
+              <li><span class="pin" aria-hidden="true">1</span><span>What the file holds: its round turns and days, and their gross P&amp;L, fees and net P&amp;L.</span></li>
+              <li><span class="pin" aria-hidden="true">2</span><span>The figure you typed from your statement. Correct it here if it was wrong.</span></li>
+              <li><span class="pin" aria-hidden="true">3</span><span><em>The file&rsquo;s net P&amp;L matches your statement</em>, or how far apart the two are.</span></li>
+            </ol>
+          </figcaption>
+        </figure>
+        <p>Rows that do not add up are listed by line and left out; the rest can be imported.</p>
+        <figure class="shot">
+          <!-- shot:other-refused -->
+          <a class="shot-frame" href="/docs/import/other/roundturn-refused-row.png" title="Open the full-size image">
+          <img src="/docs/import/other/roundturn-refused-row.png" width="960" height="133" alt="The card &quot;1 row cannot be imported&quot; in Roundturn's preview: line 5's gross P&amp;L of 20.00 is not what the prices make, because 1 CL short from 60.15 to 59.95 is 200.00 at $1000 a point." loading="lazy" decoding="async">
+          <svg class="shot-marks" aria-hidden="true" focusable="false">
+          <rect class="shot-box" x="2.5%" y="59.4%" width="95.42%" height="25.56%" rx="6"/>
+          <g class="shot-pin"><circle cx="97.92%" cy="59.4%" r="13"/><text x="97.92%" y="59.4%">1</text></g>
+          </svg>
+          </a>
+          <!-- /shot:other-refused -->
+          <figcaption>
+            <ol>
+              <li><span class="pin" aria-hidden="true">1</span><span>The line of the file, and what is wrong with it: here the gross P&amp;L the chatbot wrote is not what the prices make. Ask the chatbot to check that round turn against your export.</span></li>
+            </ol>
+          </figcaption>
+        </figure>
+        <p>Nothing is saved until you click <strong>Import</strong>, and every import can be undone from the import history.</p>
       </li>
     </ol>
+
+    <h2 id="where-to-find-your-export">Where to find your export</h2>
+    <!-- Links checked 2026-11-19. Each goes to the platform's own help, never another journal's guide; a test in test/docs.test.mjs keeps them on the platforms' own domains. Pages move: look again now and then. -->
+    <p>Your platform's own help says where its export is. Choose one that lists each fill or each trade with its time and price: a summary of totals is not enough. Trade on Tradovate or TradeSea, or with the Round Turn Monitor in NinjaTrader&nbsp;8? Use their own import instead: <a href="/docs/import/tradovate/">Tradovate</a>, <a href="/docs/import/tradesea/">TradeSea</a>, <a href="/docs/import/round-turn-monitor/">Round Turn Monitor</a>.</p>
+    <dl class="doc-qa">
+      <dt>NinjaTrader 8</dt>
+      <dd>The Control Center's Executions tab lists the current day's executions, and <strong>Export</strong> in its right-click menu saves them as a CSV or Excel file.</dd>
+      <dd><a href="https://static.ninjatrader.com/support/helpGuides/nt8/executions_tab.htm" rel="noopener noreferrer">NinjaTrader's help: Executions tab</a></dd>
+      <dt>TopstepX, and other firms on ProjectX</dt>
+      <dd><strong>Export</strong> on the Orders or Trades tab at the bottom of the page saves your trades for the dates you choose; other firms' platforms on ProjectX have the same Export.</dd>
+      <dd><a href="https://help.topstep.com/en/articles/14434175-topstepx" rel="noopener noreferrer">Topstep's help: TopstepX, under Exporting Trades</a></dd>
+      <dt>Sierra Chart</dt>
+      <dd>In the Trade Activity Log, show the fills (Fills in the Trade Activity Type filter), then <strong>File &gt;&gt; Save Log As</strong> saves what is shown as a text file, its fields separated by tabs.</dd>
+      <dd><a href="https://www.sierrachart.com/index.php?page=doc/TradeActivityLog.php#SaveToText" rel="noopener noreferrer">Sierra Chart's help: Trade Activity Log, Saving to a Text File</a></dd>
+      <dt>Quantower</dt>
+      <dd>In the Trades panel, <strong>Export Data</strong> in the panel's menu (top left, before its title) saves the table as a CSV file, except with CQG, which does not permit data export.</dd>
+      <dd><a href="https://help.quantower.com/quantower/general-settings/standalone-panels" rel="noopener noreferrer">Quantower's help: Single Panel, the panel's menu</a></dd>
+      <dt>ATAS</dt>
+      <dd>Use <strong>Export Statistics</strong> in the Trading Journal.</dd>
+      <dd><a href="https://help.atas.net/en/support/solutions/articles/72000660488-trading-journal-trading-statistics-" rel="noopener noreferrer">ATAS's help: Trading Journal (trading statistics)</a></dd>
+      <!-- R|Trader Pro: a placeholder, on the owner's word (2026-11-19). The owner will help with screenshots later; this entry then gets its steps. -->
+      <dt>R|Trader Pro (Rithmic)</dt>
+      <dd>Rithmic publishes no export guide we can link to, so steps with screenshots will be added here. Until then, export your fills for the dates you want.</dd>
+    </dl>
 
     <h2>What Roundturn checks</h2>
     <ul>
@@ -169,7 +257,7 @@
       </nav>
     </div>
     <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
-    <p class="legal">Roundturn is not affiliated with OpenAI (ChatGPT), Anthropic (Claude), Tradovate or any other AI company, platform, broker, exchange or prop firm. Their names are used only to say how files can be made for Roundturn.</p>
+    <p class="legal">Roundturn is not affiliated with OpenAI (ChatGPT), Anthropic (Claude), Tradovate, NinjaTrader, Topstep, ProjectX, Sierra Chart, Quantower, ATAS, Rithmic or any other AI company, platform, broker, exchange or prop firm. Their names are used only to say how files can be made for Roundturn.</p>
   </div>
 </footer>
 </body>

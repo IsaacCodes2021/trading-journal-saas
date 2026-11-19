@@ -2021,6 +2021,11 @@ article li {
   font-weight: 600;
 }
 
+/* a heading a link jumps to stops below the sticky top bar */
+.doc h2[id] {
+  scroll-margin-top: 88px;
+}
+
 .doc h3 {
   margin: 24px 0 8px;
   font-size: 17px;

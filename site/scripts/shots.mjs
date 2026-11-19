@@ -258,7 +258,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
       const match = MARKER(shot.id).exec(text);
       if (!match) continue;
       const eol = text.includes("\r\n") ? "\r\n" : "\n";
-      const updated = text.replace(MARKER(shot.id), blockFor(shot, match[1], eol));
+      // A function, so a "$" in the alt text ("$1000 a point") is not read as a replacement pattern.
+      const updated = text.replace(MARKER(shot.id), () => blockFor(shot, match[1], eol));
       texts.set(file, updated);
       writeFileSync(file, updated);
       placed++;
