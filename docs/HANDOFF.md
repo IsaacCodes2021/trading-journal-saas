@@ -75,7 +75,7 @@ Each round turn is stored as two orders (entry and exit) in `executions` with so
 TradeSea's engine: choosing the same growing log again adds only new round turns, and undo works the same. One NinjaTrader
 account per import, picked in the preview (`log_account`); Sim101 is never picked over a real account. No migration.
 
-**Export guides on the marketing site** (`site/public/docs/`, branch `site/export-guides`, 2026-11-18). The pages
+**Export guides on the marketing site** (`site/public/docs/`, PR 185, 2026-11-18). The pages
 below are built, with marked-up screenshots of Roundturn's own Import dialog and preview; they go live when that pull
 request is merged (until then each address shows the site's "page not found" page). Screenshots are made by
 `site/scripts/shots.mjs` from raw captures kept outside the repository (`Development/guide-screenshots/`): it crops them,
@@ -213,7 +213,7 @@ an import replaces any template the file also has, an operator's edit included),
 | Decide Free versus Pro | `LIMITS` in `backend/tradejournal/entitlements.py` is empty on purpose. |
 | Set up your accounts' rules | Each active prop account needs a purchase date (Details tab) and its firm's rules (Firm rules tab, then Verify); until then the Accounts tab shows "No rules set" for it. |
 | Read the contract table | `backend/tradejournal/contracts.py` gives each contract's point value and tick size (56 contracts), which TradeSea's P&L is worked out from. Live since PR 182; nobody but its author has checked it. |
-| Publish the docs section | Built on branch `site/export-guides` (section 2); merging it publishes `roundturn.app/docs/`. Then send screenshots of TradeSea's Orders list (Filled view, the export button, the page arrows), Tradovate's Performance report and its export, and File Explorer showing `Documents › NinjaTrader 8 › RoundTurnLog`, for marking up. |
+| Publish the docs section | Built in PR 185 (section 2); merging it publishes `roundturn.app/docs/`. Then send screenshots of TradeSea's Orders list (Filled view, the export button, the page arrows), Tradovate's Performance report and its export, and File Explorer showing `Documents › NinjaTrader 8 › RoundTurnLog`, for marking up. |
 | Three Accounts-tab questions | Defaults in use until answered: (1) the old simple "Rules" tab is kept, the new rules are the separate "Firm rules" tab; (2) the research CSV stays out of git (the import takes a file); (3) the nine sample templates in `frontend/src/lib/demo/ruleData.ts` (rows of the research, trimmed) stay committed. |
 
 **Built or planned, not proven**
