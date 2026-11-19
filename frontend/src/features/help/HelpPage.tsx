@@ -144,26 +144,27 @@ export function HelpPage() {
         <Section id="help-round-turn-monitor" title="Importing from NinjaTrader (Round Turn Monitor)">
           <p className={p}>
             The Round Turn Monitor is an add-on for NinjaTrader 8. It writes a log with one row for every round turn,
-            and Roundturn reads that log.
+            and its Export button saves the same rows for one day. Roundturn reads either.
           </p>
           <ol className={`${list} list-decimal`}>
             <li>
               On the <Link to="/import">Import</Link> page, choose <em>{platformInfo('round_turn_monitor').label}</em>.
             </li>
             <li>
-              Choose <strong>{ROUND_TURN_LOG}</strong> in {ROUND_TURN_LOG_FOLDER.join(' › ')}. If{' '}
-              <strong>{ROUND_TURN_OVERFLOW}</strong> is there too (the add-on writes to it while the log is open in
-              Excel), choose both.
+              Choose a file from the add-on&rsquo;s Export button, or its log: <strong>{ROUND_TURN_LOG}</strong> in{' '}
+              {ROUND_TURN_LOG_FOLDER.join(' › ')}. If <strong>{ROUND_TURN_OVERFLOW}</strong> is there too (the add-on
+              writes to it while the log is open in Excel), choose both.
             </li>
             <li>
-              Choose the same log every time, as it grows: round turns already imported are left alone, and only the new
-              ones are added.
+              Choose the same log every time as it grows, or each day&rsquo;s Export file: round turns already imported
+              are left alone, and only the new ones are added. A round turn in both files counts once.
             </li>
           </ol>
           <ul className={list}>
             <li>
-              <strong>Not the Export button&rsquo;s file.</strong> It has no contract (NQ or MNQ) and no commission, so
-              it cannot be read safely. The preview says so if you choose it.
+              <strong>An Export file from an older version of the add-on</strong> has no contract (NQ or MNQ) and no
+              commission, so it cannot be read safely. The preview says so: update the add-on and export again, or
+              choose the log.
             </li>
             <li>
               <strong>One NinjaTrader account per import.</strong> The log holds every account NinjaTrader tracks,

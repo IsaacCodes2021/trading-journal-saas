@@ -50,16 +50,18 @@ function RoundTurnMonitorReminder({ timeZone }: { timeZone: string }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-warn/40 bg-warn/10 px-3.5 py-3 text-[13px]">
       <p className="m-0">
-        Choose <strong>{ROUND_TURN_LOG}</strong> in{' '}
+        Choose a file from the add-on&rsquo;s Export button, or its log: <strong>{ROUND_TURN_LOG}</strong> in{' '}
         {ROUND_TURN_LOG_FOLDER.map((part, i) => (
           <span key={part}>
             {i > 0 ? ' › ' : ''}
             <strong>{part}</strong>
           </span>
         ))}
-        , not a file from the Export button. If <strong>{ROUND_TURN_OVERFLOW}</strong> is there too, choose both.
+        . If <strong>{ROUND_TURN_OVERFLOW}</strong> is there too, choose both.
       </p>
-      <p className="m-0">You can choose the same log every time: only new round turns are added.</p>
+      <p className="m-0">
+        You can choose the same log every time, or each day&rsquo;s Export file: only new round turns are added.
+      </p>
       <p className="m-0 text-muted">
         Times are read as <span className="num">{timeZone}</span>.{' '}
         <Link to="/settings" search={(prev) => prev}>

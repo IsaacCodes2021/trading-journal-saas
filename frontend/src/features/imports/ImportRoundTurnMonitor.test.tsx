@@ -114,10 +114,12 @@ describe("the dialog's reminder", () => {
     const dialog = await ask(user, button)
     await user.selectOptions(within(dialog).getByLabelText('Platform'), LABEL)
     expect(dialog).toHaveTextContent(
-      'Choose RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog, not a file from the Export button. ' +
-        'If RoundTurnLog_overflow.csv is there too, choose both.',
+      'Choose a file from the add-on’s Export button, or its log: RoundTurnLog.csv in ' +
+        'Documents › NinjaTrader 8 › RoundTurnLog. If RoundTurnLog_overflow.csv is there too, choose both.',
     )
-    expect(dialog).toHaveTextContent('You can choose the same log every time: only new round turns are added.')
+    expect(dialog).toHaveTextContent(
+      'You can choose the same log every time, or each day’s Export file: only new round turns are added.',
+    )
     expect(dialog).toHaveTextContent('Times are read as')
     const guide = within(dialog).getByRole('link', { name: 'How to import from Round Turn Monitor' })
     expect(guide).toHaveAttribute('href', 'https://roundturn.app/docs/import/round-turn-monitor/')
@@ -241,13 +243,13 @@ describe("the log's preview", () => {
     )
   })
 
-  it("refuses the Export button's file in the server's words", async () => {
+  it("refuses an older add-on's Export file in the server's words", async () => {
     const exportFile =
-      "This is the Round Turn Monitor's Export file, which has no contract or commission. Choose RoundTurnLog.csv " +
-      'instead (in Documents\\NinjaTrader 8\\RoundTurnLog).'
+      'This Export file is from an older version of the Round Turn Monitor, without the contract or commission. ' +
+      'Update the add-on and export again, or choose RoundTurnLog.csv (in Documents\\NinjaTrader 8\\RoundTurnLog).'
     await chooseLog(logPreview({ fatal: exportFile, log_accounts: [], log_account: null, rows: [] }))
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent("This is the Round Turn Monitor's Export file")
+    expect(alert).toHaveTextContent('Update the add-on and export again')
     expect(within(alert).getByRole('button', { name: 'Choose another file' })).toBeInTheDocument()
   })
 })

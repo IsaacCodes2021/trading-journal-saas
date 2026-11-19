@@ -19,7 +19,8 @@ from tradejournal.platforms import round_turn_monitor as rtm
 D = Decimal
 FIXTURES = Path(__file__).parent / "fixtures"
 LOG = "rtm_log_2026-11-18.csv"
-EXPORT = "rtm_export_2026-11-18.csv"
+EXPORT = "rtm_export_new_2026-11-18.csv"  # the updated add-on's Export file: the log's columns, one account's day
+OLD_EXPORT = "rtm_export_2026-11-18.csv"  # the add-on's Export file before that: 15 columns, no contract or commission
 TZ = "America/Los_Angeles"
 LUCID = "LFE0000000000001"  # stands in for the real account number
 HEADER = ",".join(rtm.COLUMNS)
@@ -241,13 +242,34 @@ def test_the_log_and_its_overflow_file_are_read_together_and_a_row_in_both_count
     assert rtm.read_log(log(row(account="Sim101")), TZ).round_turns[0].entry.ref != turns.round_turns[0].entry.ref
 
 
+# ---- the Export button's file -----------------------------------------------------------------------------------------
+
+
+def test_an_export_file_is_read_like_the_log_and_its_round_turns_are_the_logs_own():
+    export = rtm.read_log(log_bytes(EXPORT), TZ)
+    assert export.fatal is None and export.errors == [] and export.warnings == []
+    assert export.accounts() == {LUCID: 18}  # one account's day: nothing to choose
+    lucid = export.for_account(LUCID)
+    assert lucid.rows == 18 and lucid.commission == D("28.00") and lucid.rates == {"NQ": D("3.50")}
+    # Its rows are the log's, character for character, so each round turn has the same references in both files.
+    in_log = rtm.read_log(log_bytes(), TZ).for_account(LUCID)
+    assert [e.ref for e in lucid.executions] == [e.ref for e in in_log.executions]
+    assert [e.executed_at for e in lucid.executions] == [e.executed_at for e in in_log.executions]
+
+
+def test_an_export_file_and_the_log_chosen_together_count_each_round_turn_once():
+    both = rtm.read_log_files([("RoundTurnLog.csv", log_bytes()), ("RoundTurnExport.csv", log_bytes(EXPORT))], TZ)
+    assert both.fatal is None and both.accounts() == {"Sim101": 5, LUCID: 18}
+    assert both.duplicates == {LUCID: 18} and both.for_account(LUCID).duplicates_across_files == 18
+
+
 # ---- the wrong file --------------------------------------------------------------------------------------------------
 
 
-def test_the_export_buttons_file_is_refused_with_where_to_find_the_log():
-    assert rtm.read_log(log_bytes(EXPORT), TZ).fatal == (
-        "This is the Round Turn Monitor's Export file, which has no contract or commission. "
-        "Choose RoundTurnLog.csv instead (in Documents\\NinjaTrader 8\\RoundTurnLog)."
+def test_an_export_file_from_the_older_add_on_is_refused_with_what_to_do():
+    assert rtm.read_log(log_bytes(OLD_EXPORT), TZ).fatal == (
+        "This Export file is from an older version of the Round Turn Monitor, without the contract or commission. "
+        "Update the add-on and export again, or choose RoundTurnLog.csv (in Documents\\NinjaTrader 8\\RoundTurnLog)."
     )
 
 
