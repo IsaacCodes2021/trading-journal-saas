@@ -313,6 +313,19 @@ describe('step 3: the file', () => {
       'https://roundturn.app/docs/import/tradesea/',
     )
   })
+
+  it("says to choose the Round Turn Monitor's log, not its Export file", async () => {
+    await open(3)
+    const log = within(await step('Export your trades')).getByRole('region', {
+      name: 'NinjaTrader (Round Turn Monitor)',
+    })
+    expect(log).toHaveTextContent('choose RoundTurnLog.csv in Documents › NinjaTrader 8 › RoundTurnLog')
+    expect(log).toHaveTextContent('not a file from its Export button')
+    expect(within(log).getByRole('link', { name: 'How to import from Round Turn Monitor' })).toHaveAttribute(
+      'href',
+      'https://roundturn.app/docs/import/round-turn-monitor/',
+    )
+  })
 })
 
 describe('step 4: upload', () => {

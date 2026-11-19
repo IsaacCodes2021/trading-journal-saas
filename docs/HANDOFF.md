@@ -26,7 +26,7 @@ billing on): `docs/runbooks/launch-checklist.md`, section B.
 ## 1. What this is
 
 **Roundturn** (roundturn.app) is a hosted, multi-user trading journal for futures prop-firm traders: import Tradovate
-Performance CSV exports or TradeSea's Orders exports, see trades, a dashboard, reports and a calendar, add notes, tags and screenshots, track prop accounts,
+Performance CSV exports, TradeSea's Orders exports or the Round Turn Monitor's log from NinjaTrader, see trades, a dashboard, reports and a calendar, add notes, tags and screenshots, track prop accounts,
 fees, payouts and costs. It is a private-beta product, invite-only, free for now.
 
 It was built from the owner's local journal (`C:\Users\Isaac\Desktop\Development\trading-journal`, SQLite and NiceGUI). That
@@ -69,6 +69,12 @@ Import page part (the "Where are these trades from?" dialog, several pages as on
 PR 183. The contract table `backend/tradejournal/contracts.py` sets point values, so it
 sets money: see Open items.
 
+**Round Turn Monitor import** (plan: `docs/design/round-turn-monitor-import-plan.md`, not committed). Reads the log of the
+owner's NinjaTrader 8 add-on (`RoundTurnLog.csv`, 22 columns, one row per round turn, every account NinjaTrader tracks).
+Each round turn is stored as two orders (entry and exit) in `executions` with source `round_turn_monitor_log`, so it uses
+TradeSea's engine: choosing the same growing log again adds only new round turns, and undo works the same. One NinjaTrader
+account per import, picked in the preview (`log_account`); Sim101 is never picked over a real account. No migration.
+
 **Export guides on the marketing site: the app links to pages that do not exist yet.** The addresses were picked on
 2026-11-18, before the site's docs section is built. Until it is published, each shows the site's own "page not found"
 page (`site/public/404.html`); the owner accepted that.
@@ -79,7 +85,7 @@ page (`site/public/404.html`); the owner accepted that.
 | Importing, all platforms | `https://roundturn.app/docs/import/` | no |
 | Export from TradeSea | `https://roundturn.app/docs/import/tradesea/` | yes: the Import dialog, the Help page, first-run setup |
 | Export from Tradovate | `https://roundturn.app/docs/import/tradovate/` | not yet (kept in `lib/platforms.ts`) |
-| Import from Round Turn Monitor | `https://roundturn.app/docs/import/round-turn-monitor/` | no (that import is not built) |
+| Import from Round Turn Monitor | `https://roundturn.app/docs/import/round-turn-monitor/` | yes: the Import dialog, the Help page, first-run setup |
 
 Each platform added later gets `https://roundturn.app/docs/import/<platform>/`, lower case, no spaces (`ninjatrader`,
 `projectx`). The addresses live in one place in the app: `DOCS_IMPORT` and each platform's `guide` in
@@ -203,7 +209,7 @@ an import replaces any template the file also has, an operator's edit included),
 | Decide Free versus Pro | `LIMITS` in `backend/tradejournal/entitlements.py` is empty on purpose. |
 | Set up your accounts' rules | Each active prop account needs a purchase date (Details tab) and its firm's rules (Firm rules tab, then Verify); until then the Accounts tab shows "No rules set" for it. |
 | Read the contract table | `backend/tradejournal/contracts.py` gives each contract's point value and tick size (56 contracts), which TradeSea's P&L is worked out from. Live since PR 182; nobody but its author has checked it. |
-| Publish the docs section | The app links to `roundturn.app/docs/import/tradesea/`, a 404 page until the site's docs section exists (section 2). |
+| Publish the docs section | The app links to `roundturn.app/docs/import/tradesea/` and `.../round-turn-monitor/`, 404 pages until the site's docs section exists (section 2). |
 | Three Accounts-tab questions | Defaults in use until answered: (1) the old simple "Rules" tab is kept, the new rules are the separate "Firm rules" tab; (2) the research CSV stays out of git (the import takes a file); (3) the nine sample templates in `frontend/src/lib/demo/ruleData.ts` (rows of the research, trimmed) stay committed. |
 
 **Built or planned, not proven**

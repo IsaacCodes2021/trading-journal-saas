@@ -10,6 +10,7 @@ import { platformInfo } from '../../lib/platforms'
 import { MAX_CSV_MB } from '../../lib/tradovate'
 import { AddAccountDialog } from '../accounts/AccountDialogs'
 import { ImportSourceDialog } from './ImportSourceDialog'
+import { LogAccountPicker } from './LogAccountPicker'
 import { PreviewSection } from './PreviewSection'
 
 function kilobytes(bytes: number): string {
@@ -41,7 +42,9 @@ function importedText(record: ImportRecord): string {
  *
  * **Choose files** first asks where the files come from (`ImportSourceDialog`), with a reminder of how to export from
  * that platform, and then opens the computer's file window: one file for Tradovate, several for TradeSea (one per page of
- * its Orders list). Files dropped onto the page skip the question: the server tells the platform from their header row.
+ * its Orders list) and for the Round Turn Monitor (its log and overflow file). Files dropped onto the page skip the
+ * question: the server tells the platform from their header row. The Round Turn Monitor's log holds every NinjaTrader
+ * account: the server picks one when it can, and `LogAccountPicker` lets the trader choose.
  * The preview is worked out again if the account changes, because what counts as "already imported" depends on it.
  *
  * Only active accounts are offered (an archived one is finished). A new account can be added from here without
@@ -68,6 +71,7 @@ export function ImportWorkspace({
   const [pickedAccount, setPickedAccount] = useState<number | null>(null)
   const [files, setFiles] = useState<File[]>([])
   const [sentAs, setSentAs] = useState<ImportPlatform>('auto') // what the chosen files were last read as
+  const [sentLogAccount, setSentLogAccount] = useState<string | null>(null) // the log's account chosen for them
   const [picked, setPicked] = useState<Platform | null>(null) // the dialog's last answer on this page
   const [asking, setAsking] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -80,12 +84,19 @@ export function ImportWorkspace({
   // The dialog opens on the platform picked here, else the one this account last imported from (newest first).
   const lastPlatform = history.data?.find((record) => record.account.id === accountId)?.platform ?? null
 
-  const read = (next: File[], platform: ImportPlatform, id: number | null = accountId) => {
+  /** Works the preview out for these files. `logAccount` is the NinjaTrader account chosen in the Round Turn
+   * Monitor's log; none lets the server pick (the one this account already holds, or the only real one). */
+  const read = (
+    next: File[],
+    platform: ImportPlatform,
+    { id = accountId, logAccount = null }: { id?: number | null; logAccount?: string | null } = {},
+  ) => {
     if (next.length === 0 || id === null) return // the account list is still loading: there is nothing to import into
     setFiles(next)
     setSentAs(platform)
+    setSentLogAccount(logAccount)
     commit.reset()
-    preview.mutate({ accountId: id, files: next, platform })
+    preview.mutate({ accountId: id, files: next, platform, logAccount })
   }
 
   /** Opens the computer's file window. Called straight from a click: browsers refuse to open it any other way. */
@@ -102,12 +113,16 @@ export function ImportWorkspace({
     picking.current = null
     if (!pick || chosen.length === 0) return // the file window was cancelled: nothing changes
     onNotice(null)
-    read(pick.more ? together(files, chosen) : chosen, pick.platform)
+    // Files added to the same import keep the log's account chosen for them; new files start again.
+    read(pick.more ? together(files, chosen) : chosen, pick.platform, {
+      logAccount: pick.more ? sentLogAccount : null,
+    })
   }
 
+  // Another Roundturn account may hold another of the log's accounts: the server picks again for it.
   const changeAccount = (id: number) => {
     setPickedAccount(id)
-    if (files.length > 0) read(files, sentAs, id)
+    if (files.length > 0) read(files, sentAs, { id })
   }
 
   const clear = () => {
@@ -120,7 +135,8 @@ export function ImportWorkspace({
   const doCommit = () => {
     if (!data || files.length === 0 || accountId === null) return
     commit.mutate(
-      { accountId, files, platform: data.platform },
+      // The log's account the preview read, so the import is exactly what the preview showed.
+      { accountId, files, platform: data.platform, logAccount: data.log_account },
       {
         onSuccess: (record) => {
           onNotice(importedText(record))
@@ -182,7 +198,8 @@ export function ImportWorkspace({
             </div>
           ) : null}
           <div className="mt-0.5 text-xs text-muted">
-            We read Tradovate&rsquo;s Performance report and TradeSea&rsquo;s Orders.
+            We read Tradovate&rsquo;s Performance report, TradeSea&rsquo;s Orders and the Round Turn Monitor&rsquo;s log
+            from NinjaTrader.
           </div>
         </div>
 
@@ -206,7 +223,9 @@ export function ImportWorkspace({
                 {data && !data.fatal
                   ? data.platform === 'tradesea'
                     ? ` · ${pluralize(data.rows_parsed, 'filled order')}`
-                    : ` · ${pluralize(data.rows_parsed + data.errors.length + data.duplicates_in_file, 'row')}`
+                    : data.platform === 'round_turn_monitor'
+                      ? ` · ${pluralize(data.rows_parsed, 'round turn')}`
+                      : ` · ${pluralize(data.rows_parsed + data.errors.length + data.duplicates_in_file, 'row')}`
                   : ''}
               </div>
             </>
@@ -245,7 +264,21 @@ export function ImportWorkspace({
           </Button>
         </Card>
       ) : null}
-      {data?.fatal ? (
+      {data?.fatal && data.log_accounts.length > 0 && accountId !== null ? (
+        // The log holds several NinjaTrader accounts and none could be picked for this one: the trader chooses.
+        <LogAccountPicker
+          accounts={data.log_accounts}
+          chosen={null}
+          accountName={account?.name ?? 'this account'}
+          message={data.fatal}
+          onChoose={(name) => read(files, sentAs, { logAccount: name })}
+        >
+          <Button className="h-[42px]" onClick={clear}>
+            Choose another file
+          </Button>
+        </LogAccountPicker>
+      ) : null}
+      {data?.fatal && data.log_accounts.length === 0 ? (
         <Card className="p-5" role="alert">
           <p className="m-0 font-semibold text-neg">{data.fatal}</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -270,6 +303,14 @@ export function ImportWorkspace({
           <p className="m-0 font-semibold text-neg">{messageOf(commit.error)}</p>
         </Card>
       ) : null}
+      {data && !data.fatal && data.log_accounts.length > 1 && files.length > 0 ? (
+        <LogAccountPicker
+          accounts={data.log_accounts}
+          chosen={data.log_account}
+          accountName={account?.name ?? 'this account'}
+          onChoose={(name) => read(files, sentAs, { logAccount: name })}
+        />
+      ) : null}
       {data && !data.fatal && files.length > 0 && accountId !== null ? (
         <PreviewSection
           preview={data}
@@ -281,7 +322,7 @@ export function ImportWorkspace({
           onAddFiles={() => openFileWindow(data.platform, true)}
           onRecheck={(done) => {
             onNotice(done)
-            read(files, sentAs)
+            read(files, sentAs, { logAccount: data.log_account })
           }}
         />
       ) : null}

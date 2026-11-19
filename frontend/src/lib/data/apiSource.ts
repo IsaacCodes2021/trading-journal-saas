@@ -16,11 +16,13 @@ import { DAY_TRADES_LIMIT, type DataSource, type ScreenshotRef, type TradesQuery
 type FirmName = components['schemas']['AccountDetailsIn']['firm']
 
 /** A file upload is multipart, not JSON: the browser writes the boundary itself, so no content type is set here. */
-/** An import upload: the account, where the files come from, and the files (TradeSea: one per page of its list). */
-function uploadForm(accountId: number, files: File[], platform: string): FormData {
+/** An import upload: the account, where the files come from, and the files (TradeSea: one per page of its list). For
+ * the Round Turn Monitor's log, which holds every NinjaTrader account, the one to read when the trader chose it. */
+function uploadForm(accountId: number, files: File[], platform: string, logAccount?: string | null): FormData {
   const form = new FormData()
   form.append('account_id', String(accountId))
   form.append('platform', platform)
+  if (logAccount) form.append('log_account', logAccount)
   for (const file of files) form.append('file', file)
   return form
 }
@@ -199,18 +201,18 @@ export const apiSource: DataSource = {
       }),
     )
   },
-  previewImport: (accountId, files, platform) =>
+  previewImport: (accountId, files, platform, logAccount) =>
     unwrap(
       api.POST('/api/v1/imports/preview', {
-        body: { account_id: accountId, platform, file: files as unknown as string[] },
-        bodySerializer: () => uploadForm(accountId, files, platform),
+        body: { account_id: accountId, platform, log_account: logAccount ?? null, file: files as unknown as string[] },
+        bodySerializer: () => uploadForm(accountId, files, platform, logAccount),
       }),
     ),
-  commitImport: (accountId, files, platform) =>
+  commitImport: (accountId, files, platform, logAccount) =>
     unwrap(
       api.POST('/api/v1/imports', {
-        body: { account_id: accountId, platform, file: files as unknown as string[] },
-        bodySerializer: () => uploadForm(accountId, files, platform),
+        body: { account_id: accountId, platform, log_account: logAccount ?? null, file: files as unknown as string[] },
+        bodySerializer: () => uploadForm(accountId, files, platform, logAccount),
       }),
     ),
   imports: (signal) => unwrap(api.GET('/api/v1/imports', { signal })),

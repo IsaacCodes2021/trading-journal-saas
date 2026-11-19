@@ -468,6 +468,18 @@ describe('importing', () => {
     expect(pages?.match(/name="file"/g)).toHaveLength(3)
     expect(pages).toMatch(/name="platform"\r?\n\r?\ntradesea/)
     expect(dropped).toMatch(/name="platform"\r?\n\r?\nauto/)
+    expect(pages).not.toContain('name="log_account"') // only sent when the trader chose one
+  })
+
+  it("sends the Round Turn Monitor's log with the NinjaTrader account chosen in it", async () => {
+    const seen = recordUploads(() => json({ id: 1 }))
+    await apiSource.previewImport(4, [csv, csv], 'round_turn_monitor', 'Sim101')
+    await apiSource.commitImport(4, [csv], 'round_turn_monitor', 'LFE0000000000001')
+    const [log, commit] = seen.map((s) => s.text)
+    expect(log).toMatch(/name="platform"\r?\n\r?\nround_turn_monitor/)
+    expect(log).toMatch(/name="log_account"\r?\n\r?\nSim101/)
+    expect(log?.match(/name="file"/g)).toHaveLength(2)
+    expect(commit).toMatch(/name="log_account"\r?\n\r?\nLFE0000000000001/)
   })
 
   it("shows a refused file as the server's sentence", async () => {

@@ -47,6 +47,8 @@ function tradeseaPreview(changes: Partial<ImportPreview> = {}): ImportPreview {
     file_commission: '165.00',
     commissions: [],
     time_zone: 'PST',
+    log_accounts: [],
+    log_account: null,
     errors: [],
     warnings: [],
     trades_built: 5,
@@ -155,7 +157,9 @@ describe('where the trades come from', () => {
     const { user, button } = await openImport()
     const dialog = await ask(user, button)
     await user.selectOptions(within(dialog).getByLabelText('Platform'), 'My platform isn’t listed')
-    expect(dialog).toHaveTextContent('We import Tradovate and TradeSea today')
+    expect(dialog).toHaveTextContent(
+      'We import Tradovate, TradeSea and NinjaTrader (through the Round Turn Monitor) today',
+    )
     expect(within(dialog).getByRole('link', { name: 'hello@roundturn.app' })).toHaveAttribute(
       'href',
       'mailto:hello@roundturn.app',
@@ -178,7 +182,7 @@ describe('where the trades come from', () => {
 describe("TradeSea's preview", () => {
   it('sends every page as one TradeSea import and says what was read', async () => {
     const { spy } = await chooseTradeSea()
-    expect(spy).toHaveBeenCalledWith(1, [expect.any(File), expect.any(File)], 'tradesea')
+    expect(spy).toHaveBeenCalledWith(1, [expect.any(File), expect.any(File)], 'tradesea', null)
     expect(screen.getByLabelText('What was read')).toHaveTextContent(
       'TradeSea · 2 files · 17 filled orders, 17 new · into Apex 50K #1 · times in PST',
     )
@@ -269,7 +273,7 @@ describe("TradeSea's preview", () => {
     const { user } = await chooseTradeSea()
     await user.click(screen.getByRole('button', { name: 'Import 17 orders' }))
     expect(await screen.findByText('Imported 17 orders from TradeSea into Apex 50K #1, making 5 trades.')).toBeVisible()
-    expect(commit).toHaveBeenCalledWith(1, [expect.any(File), expect.any(File)], 'tradesea')
+    expect(commit).toHaveBeenCalledWith(1, [expect.any(File), expect.any(File)], 'tradesea', null)
   })
 
   it('offers to read files from the other platform as that platform', async () => {
@@ -291,7 +295,7 @@ describe("TradeSea's preview", () => {
     expect(alert).toHaveTextContent('These look like TradeSea files, not Tradovate.')
     await user.click(within(alert).getByRole('button', { name: 'Read it as TradeSea' }))
     expect(await screen.findByRole('region', { name: 'Preview' })).toBeInTheDocument()
-    expect(spy).toHaveBeenLastCalledWith(1, [expect.any(File)], 'tradesea')
+    expect(spy).toHaveBeenLastCalledWith(1, [expect.any(File)], 'tradesea', null)
     const again = await ask(user, screen.getByRole('button', { name: 'Replace files' }))
     expect(within(again).getByLabelText('Platform')).toHaveValue('tradesea') // the choice made is kept
   })

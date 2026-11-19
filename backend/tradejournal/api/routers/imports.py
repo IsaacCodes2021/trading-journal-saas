@@ -1,5 +1,6 @@
-"""Importing exports, preview, import, history and undo: Tradovate's Performance report (one file, fill pairs) and
-TradeSea's Orders export (one file per page of its list, read together as one import of filled orders)."""
+"""Importing exports, preview, import, history and undo: Tradovate's Performance report (one file, fill pairs),
+TradeSea's Orders export (one file per page of its list, read together as one import of filled orders), and the Round
+Turn Monitor's log from NinjaTrader (one account's round turns, stored as orders)."""
 
 from __future__ import annotations
 
@@ -37,6 +38,7 @@ from ..schemas.imports import (
     ImportIssueOut,
     ImportPreviewOut,
     ImportRecordOut,
+    LogAccountOut,
     OpenPositionOut,
     PreviewRowOut,
     UndoPreviewOut,
@@ -62,7 +64,9 @@ AccountField = Annotated[int, Form(ge=1, le=MAX_ID)]
 FilesField = Annotated[list[UploadFile], File(description="The export; for TradeSea, one file per page of its list")]
 # Where the files come from: Tradovate (the default, as before the choice existed), TradeSea, or `auto`, told from the
 # files' header row (files dropped onto the page).
-PlatformField = Annotated[Literal["tradovate", "tradesea", "auto"], Form()]
+PlatformField = Annotated[Literal["tradovate", "tradesea", "round_turn_monitor", "auto"], Form()]
+# The Round Turn Monitor's log holds every account NinjaTrader tracks: the one to import (none: the preview's pick).
+LogAccountField = Annotated[str | None, Form(min_length=1, max_length=200)]
 
 
 def _read(files: list[UploadFile]) -> list[tuple[str, bytes]]:
@@ -93,7 +97,7 @@ def _resolve(asked: str, files: list[tuple[str, bytes]]) -> tuple[str, bool, str
             return asked, False, None, problem
         if found is not None and found != asked:
             if len(files) > 1:
-                looks = f"These look like {detect.NAMES[found]} files"
+                looks = f"These look like files from {detect.NAMES[found]}"
             else:
                 looks = f"This looks like a file from {detect.NAMES[found]}"
             return asked, False, found, f"{looks}, not {detect.NAMES[asked]}."
@@ -177,7 +181,9 @@ def _commission_checks(report: FileImportReport, schedule: dict[str, Decimal]) -
                 root=line.root,
                 round_trips=round_trips.normalize(),
                 file_total=finance.to_money(line.commission),
-                file_rate=fee_rate_shown((line.commission / round_trips).quantize(RATE_PLACES)),
+                file_rate=fee_rate_shown(
+                    line.rate if line.rate is not None else (line.commission / round_trips).quantize(RATE_PLACES)
+                ),
                 schedule_rate=fee_rate_shown(rate),
                 schedule_total=finance.to_money(rate * round_trips),
             )
@@ -191,7 +197,11 @@ def _commission_checks(report: FileImportReport, schedule: dict[str, Decimal]) -
     dependencies=[limited_per_person(lambda limits: limits.import_preview), ImportSlot],
 )
 def preview_import(
-    account_id: AccountField, file: FilesField, tenant: WriteTenantDep, platform: PlatformField = "tradovate"
+    account_id: AccountField,
+    file: FilesField,
+    tenant: WriteTenantDep,
+    platform: PlatformField = "tradovate",
+    log_account: LogAccountField = None,
 ) -> ImportPreviewOut:
     """What importing these files into this account would do: counts, problems, and the first rows with a status each.
     Nothing is saved (the import runs inside a transaction that is rolled back), so the preview is exactly what the
@@ -203,8 +213,10 @@ def preview_import(
             pg_accounts.get_account(conn, account_id)  # someone else's account is a 404, whatever the files are
         return _refused(platform, files, problem, recognised=recognised, suggested_platform=suggested)
     with refusals(what="account"), tenant.session(statement_timeout_ms=HEAVY) as conn:
-        if platform == detect.TRADESEA:
-            report, rows = pg_importer.preview_orders(conn, account_id, files, PREVIEW_ROWS_SHOWN)
+        if platform in pg_importer.ORDER_SOURCES:
+            report, rows = pg_importer.preview_orders(
+                conn, account_id, files, PREVIEW_ROWS_SHOWN, platform=platform, log_account=log_account
+            )
             setting = pg_settings.effective_csv_timezone(conn)
             checks = _commission_checks(report, pg_accounts.fee_schedule(conn, account_id))
         else:
@@ -239,6 +251,13 @@ def preview_import(
         file_commission=None if report.file_commission is None else finance.to_money(report.file_commission),
         commissions=checks,
         time_zone=report.time_zone or setting,
+        log_accounts=[
+            LogAccountOut(
+                name=a.name, round_turns=a.round_turns, practice=a.practice, here=a.here, elsewhere=a.elsewhere
+            )
+            for a in report.log_accounts
+        ],
+        log_account=report.log_account,
         errors=[ImportIssueOut(line=e.line, message=e.message) for e in report.errors],
         # The one-page warning is said by `one_page`, which the page shows with a button to add the other pages.
         warnings=[ImportIssueOut(line=w.line, message=w.message) for w in report.warnings if not _is_one_page(w)],
@@ -247,7 +266,7 @@ def preview_import(
         trades_removed=report.trades_removed,
         rows=[
             PreviewRowOut(
-                line=r.pair.line or number,  # TradeSea's pairs come from orders, not lines: numbered in order
+                line=r.pair.line or number,  # pairs worked out from orders have no line: numbered in order
                 status=r.status,  # type: ignore[arg-type]  # one of the three PAIR_* words
                 account=r.account_name,
                 symbol=r.pair.symbol,
@@ -282,6 +301,7 @@ def import_file(
     services: ServicesDep,
     config: ConfigDep,
     platform: PlatformField = "tradovate",
+    log_account: LogAccountField = None,
 ) -> ImportRecordOut:
     """Import the files into the account. Rows already stored are left alone, so importing a file twice is safe."""
     files = _read(file)
@@ -290,7 +310,7 @@ def import_file(
         pg_accounts.get_account(conn, account_id)
         if problem is not None:
             raise HTTPException(422, sentence(problem))
-        report = pg_importer.import_files(conn, account_id, files, platform=platform).files[0]
+        report = pg_importer.import_files(conn, account_id, files, platform=platform, log_account=log_account).files[0]
         if report.fatal:
             raise HTTPException(422, sentence(report.fatal))  # nothing was written for a refused file
         row = next(r for r in pg_importer.list_imports(conn, account_id) if r["id"] == report.import_id)

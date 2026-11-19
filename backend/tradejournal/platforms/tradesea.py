@@ -79,6 +79,9 @@ class ReadResult:
     commission: Decimal = finance.ZERO  # the files' own commission for the filled orders kept
     zones: set[str] = field(default_factory=set)  # the files' own zone abbreviations that were read ("PST")
     fell_back: bool = False  # some times had no zone Roundturn reads, so the CSV time zone setting was used
+    # The commission per contract, round trip, most rows show, by contract root, when the reader can tell it better than
+    # the total over the contracts can (the Round Turn Monitor's log shows $0 for round turns before its rate was set).
+    rates: dict[str, Decimal] = field(default_factory=dict)
     fatal: str | None = None  # the whole import was refused
 
 

@@ -62,11 +62,14 @@ function Note({ tone, children }: { tone?: 'warn'; children: ReactNode }) {
 /** A contract whose commission in the files differs from the account's own setting, and a button to use the files'. */
 function CommissionNote({
   check,
+  log,
   accountId,
   accountName,
   onSet,
 }: {
   check: CommissionCheck
+  /** The Round Turn Monitor's log: its rate is the usual one its rows show, not its total over the contracts. */
+  log: boolean
   accountId: number
   accountName: string
   onSet: () => void
@@ -86,11 +89,21 @@ function CommissionNote({
   return (
     <Note tone={free ? 'warn' : undefined}>
       <span>
-        {free ? (
+        {free && log ? (
+          <>
+            Your commission setting for {check.root} on {accountName} is $0.00, but the Round Turn Monitor charges{' '}
+            {rate} per contract round trip. Roundturn uses your setting, so your net P&amp;L would be too high.
+          </>
+        ) : free ? (
           <>
             Your commission setting for {check.root} on {accountName} is $0.00, but these files show{' '}
             {formatMoney(check.file_total)} in commissions. Roundturn uses your setting, so your net P&amp;L would be{' '}
             {formatMoney(check.file_total)} too high.
+          </>
+        ) : log ? (
+          <>
+            The Round Turn Monitor charges {rate} per contract round trip for {check.root}. Your setting on{' '}
+            {accountName} charges {formatMoney(check.schedule_rate)} per contract, and Roundturn uses your setting.
           </>
         ) : (
           <>
@@ -110,7 +123,8 @@ function CommissionNote({
   )
 }
 
-/** What a TradeSea preview adds to the counts: pages, orders that did not fill, positions, commissions, other accounts. */
+/** What a TradeSea or Round Turn Monitor preview adds to the counts: pages, orders that did not fill, positions,
+ * commissions, other accounts. */
 function OrderNotes({
   preview,
   accountId,
@@ -124,6 +138,7 @@ function OrderNotes({
   onAddFiles: () => void
   onRecheck: (done: string) => void
 }) {
+  const log = preview.platform === 'round_turn_monitor'
   const skipped = total(preview.skipped_by_status)
   const elsewhere = Object.entries(preview.matches_other_accounts)
   const differing = preview.commissions.filter((c) => !new Decimal(c.file_rate).equals(c.schedule_rate))
@@ -150,9 +165,17 @@ function OrderNotes({
               <strong>
                 {position.qty} {position.symbol} {position.direction} still open
               </strong>{' '}
-              (opened <span className="num">{position.since}</span>). If you were flat, TradeSea&rsquo;s export left out
-              an order: show the whole day in TradeSea&rsquo;s Orders list and export every page again. If you are still
-              in the trade, import it with its exit later.
+              (opened <span className="num">{position.since}</span>).{' '}
+              {log ? (
+                <>
+                  A round turn is missing its other half. Choose the whole log, with its overflow file if there is one.
+                </>
+              ) : (
+                <>
+                  If you were flat, TradeSea&rsquo;s export left out an order: show the whole day in TradeSea&rsquo;s
+                  Orders list and export every page again. If you are still in the trade, import it with its exit later.
+                </>
+              )}
             </span>
           </Note>
         ))}
@@ -172,7 +195,9 @@ function OrderNotes({
         {preview.duplicates_in_file > 0 ? (
           <Note>
             <span>
-              {pluralize(preview.duplicates_in_file, 'order is', 'orders are')} on more than one page; each counts once.
+              {log
+                ? `${pluralize(preview.duplicates_in_file, 'round turn is', 'round turns are')} in more than one file; each counts once.`
+                : `${pluralize(preview.duplicates_in_file, 'order is', 'orders are')} on more than one page; each counts once.`}
             </span>
           </Note>
         ) : null}
@@ -184,7 +209,15 @@ function OrderNotes({
             </span>
           </Note>
         ) : null}
-        {preview.file_commission !== null ? (
+        {preview.file_commission !== null && log ? (
+          <Note>
+            <span>
+              The log&rsquo;s own commissions for these round turns add up to {formatMoney(preview.file_commission)}.
+              Roundturn charges your commission setting on every trade instead.
+            </span>
+          </Note>
+        ) : null}
+        {preview.file_commission !== null && !log ? (
           <Note>
             <span>
               These files&rsquo; commissions add up to {formatMoney(preview.file_commission)}. If TradeSea&rsquo;s Total
@@ -196,6 +229,7 @@ function OrderNotes({
           <CommissionNote
             key={check.root}
             check={check}
+            log={log}
             accountId={accountId}
             accountName={accountName}
             onSet={() =>
@@ -205,15 +239,26 @@ function OrderNotes({
             }
           />
         ))}
-        {elsewhere.map(([name, count]) => (
-          <Note key={name}>
-            <span>
-              {count === preview.rows_parsed ? `These ${pluralize(count, 'order')}` : pluralize(count, 'order')}{' '}
-              {count === 1 ? 'matches an order' : 'match orders'} in {name}. That is normal if you copy trades;
-              otherwise check the account.
-            </span>
-          </Note>
-        ))}
+        {elsewhere.map(([name, count]) =>
+          log ? (
+            <Note key={name} tone="warn">
+              <span>
+                {count === preview.rows_parsed
+                  ? `These ${pluralize(count, 'round turn')} are`
+                  : pluralize(count, 'round turn is', 'round turns are')}{' '}
+                already in {name}. Check that you chose the right NinjaTrader account.
+              </span>
+            </Note>
+          ) : (
+            <Note key={name}>
+              <span>
+                {count === preview.rows_parsed ? `These ${pluralize(count, 'order')}` : pluralize(count, 'order')}{' '}
+                {count === 1 ? 'matches an order' : 'match orders'} in {name}. That is normal if you copy trades;
+                otherwise check the account.
+              </span>
+            </Note>
+          ),
+        )}
         {shownWarnings.map((issue, index) => (
           <Note key={`${issue.line}-${index}`}>
             <span>
@@ -248,7 +293,8 @@ function hasOrderNotes(preview: ImportPreview): boolean {
 /**
  * What importing the chosen files would do: what was read, the counts, any rows that cannot be read, and the rows
  * themselves. For TradeSea, a row of the files is a filled order; the table shows the fill pairs the orders make, and
- * "Things to check" says what the counts cannot (a missing page, a position left open, commissions).
+ * "Things to check" says what the counts cannot (a missing page, a position left open, commissions). For the Round Turn
+ * Monitor, a row is a round turn of one NinjaTrader account (the log holds every account; the page picks one).
  */
 export function PreviewSection({
   preview,
@@ -271,9 +317,11 @@ export function PreviewSection({
   /** Works the preview out again after the account's fee setting changed, saying so (`done`) above the form. */
   onRecheck: (done: string) => void
 }) {
-  const orders = preview.platform === 'tradesea'
+  const orders = preview.platform !== 'tradovate' // stored as orders and paired: TradeSea and the Round Turn Monitor
+  const log = preview.platform === 'round_turn_monitor'
   const info = platformInfo(preview.platform)
   const [one, many] = info.row
+  const [readOne, readMany] = preview.platform === 'tradesea' ? ['filled order', 'filled orders'] : info.row
   const skippedElsewhere = total(preview.duplicates_other_accounts)
   const already = orders ? preview.duplicates : preview.duplicates + preview.duplicates_in_file
   const inFile = preview.rows_parsed + preview.duplicates_in_file + preview.errors.length
@@ -284,13 +332,19 @@ export function PreviewSection({
         <strong className="text-ink">{info.name}</strong>
         {preview.recognised ? ' (recognised from the file)' : ''}
         {preview.file_count > 1 ? ` · ${preview.file_count} files` : ''} ·{' '}
-        {pluralize(preview.rows_parsed, orders ? 'filled order' : one, orders ? 'filled orders' : many)},{' '}
-        {preview.rows_added.toLocaleString('en-US')} new · into {accountName} · times in{' '}
+        {pluralize(preview.rows_parsed, readOne, readMany)}, {preview.rows_added.toLocaleString('en-US')} new
+        {log && preview.log_account ? ` · from ${preview.log_account}` : ''} · into {accountName} · times in{' '}
         <span className="num">{preview.time_zone}</span>
       </p>
 
       <section aria-label="Preview summary" className="flex flex-wrap gap-3">
-        {orders ? (
+        {log ? (
+          <>
+            <Tile label="Round turns" value={preview.rows_parsed} />
+            <Tile label="New round turns" value={preview.rows_added} tone="pos" />
+            <Tile label="Already imported" value={already} />
+          </>
+        ) : orders ? (
           <>
             <Tile label="Filled orders" value={preview.rows_parsed} />
             <Tile label="New orders" value={preview.rows_added} tone="pos" />
@@ -343,7 +397,8 @@ export function PreviewSection({
         <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3.5">
           <h2 className="m-0 text-base font-semibold">Preview</h2>
           <span className="text-[13px] text-muted">
-            {orders ? 'The fill pairs these orders make. ' : ''}Dry run: nothing is saved until you confirm
+            {log ? 'One row per round turn. ' : orders ? 'The fill pairs these orders make. ' : ''}Dry run: nothing is
+            saved until you confirm
           </span>
           <span className="grow" />
           <Button onClick={onCancel} disabled={committing}>
@@ -355,11 +410,14 @@ export function PreviewSection({
         </div>
         {preview.rows_added === 0 ? (
           <p role="status" className="m-0 border-b border-line px-5 py-3 text-warn">
-            Nothing new to import into {accountName}: every {orders ? 'order' : 'row'} is already stored.
+            Nothing new to import into {accountName}: every {log ? 'round turn' : orders ? 'order' : 'row'} is already
+            stored.
           </p>
         ) : null}
         {orders && preview.rows.length === 0 ? (
-          <p className="m-0 border-b border-line px-5 py-3 text-muted">These orders close no trade yet.</p>
+          <p className="m-0 border-b border-line px-5 py-3 text-muted">
+            {log ? 'This log has no round turns for this account.' : 'These orders close no trade yet.'}
+          </p>
         ) : null}
         <div className="scroll-x">
           <table className="w-full border-collapse">
@@ -413,7 +471,7 @@ export function PreviewSection({
         </div>
         {orders && preview.rows.length >= preview.rows_shown_limit ? (
           <p className="m-0 px-5 py-3 text-xs text-muted">
-            Showing the first {preview.rows.length} fill pairs. All of them are imported.
+            Showing the first {preview.rows.length} {log ? 'round turns' : 'fill pairs'}. All of them are imported.
           </p>
         ) : null}
         {!orders && hidden > 0 ? (

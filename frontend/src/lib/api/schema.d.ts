@@ -2339,12 +2339,14 @@ export interface components {
              * @description The export; for TradeSea, one file per page of its list
              */
             file: string[];
+            /** Log Account */
+            log_account?: string | null;
             /**
              * Platform
              * @default tradovate
              * @enum {string}
              */
-            platform?: "tradovate" | "tradesea" | "auto";
+            platform?: "tradovate" | "tradesea" | "round_turn_monitor" | "auto";
         };
         /** Body_preview_import */
         Body_preview_import: {
@@ -2355,12 +2357,14 @@ export interface components {
              * @description The export; for TradeSea, one file per page of its list
              */
             file: string[];
+            /** Log Account */
+            log_account?: string | null;
             /**
              * Platform
              * @default tradovate
              * @enum {string}
              */
-            platform?: "tradovate" | "tradesea" | "auto";
+            platform?: "tradovate" | "tradesea" | "round_turn_monitor" | "auto";
         };
         /**
          * BusinessTotalsOut
@@ -2886,8 +2890,8 @@ export interface components {
          * ImportPreviewOut
          * @description What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.
          *
-         *     For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; the table
-         *     still shows the fill pairs the orders make.
+         *     For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; for the Round
+         *     Turn Monitor, a round turn. The table shows the fill pairs either makes.
          */
         ImportPreviewOut: {
             /**
@@ -2918,6 +2922,13 @@ export interface components {
             file_count: number;
             /** File Name */
             file_name: string;
+            /** Log Account */
+            log_account: string | null;
+            /**
+             * Log Accounts
+             * @default []
+             */
+            log_accounts: components["schemas"]["LogAccountOut"][];
             /**
              * Matches Other Accounts
              * @default {}
@@ -2939,7 +2950,7 @@ export interface components {
              * Platform
              * @enum {string}
              */
-            platform: "tradovate" | "tradesea";
+            platform: "tradovate" | "tradesea" | "round_turn_monitor";
             /**
              * Recognised
              * @default false
@@ -2961,7 +2972,7 @@ export interface components {
                 [key: string]: number;
             };
             /** Suggested Platform */
-            suggested_platform: ("tradovate" | "tradesea") | null;
+            suggested_platform: ("tradovate" | "tradesea" | "round_turn_monitor") | null;
             /**
              * Time Zone
              * @default
@@ -2998,7 +3009,7 @@ export interface components {
              * Platform
              * @enum {string}
              */
-            platform: "tradovate" | "tradesea";
+            platform: "tradovate" | "tradesea" | "round_turn_monitor";
             /** Rows Added */
             rows_added: number;
             /** Trades Built */
@@ -3116,6 +3127,22 @@ export interface components {
             payout_number: number | null;
             /** Profit Split Pct */
             profit_split_pct: string | null;
+        };
+        /**
+         * LogAccountOut
+         * @description One account in the Round Turn Monitor's log, which holds every account NinjaTrader tracks.
+         */
+        LogAccountOut: {
+            /** Elsewhere */
+            elsewhere: string | null;
+            /** Here */
+            here: number;
+            /** Name */
+            name: string;
+            /** Practice */
+            practice: boolean;
+            /** Round Turns */
+            round_turns: number;
         };
         /** LogoutOut */
         LogoutOut: {

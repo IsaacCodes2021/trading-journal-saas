@@ -168,7 +168,7 @@ describe('the import page', () => {
     fireEvent.drop(zone, { dataTransfer: { files: [csvFile(csv(manyRows(2)), 'first.csv')] } })
     expect(await screen.findByRole('region', { name: 'Preview' })).toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(preview).toHaveBeenLastCalledWith(1, [expect.objectContaining({ name: 'first.csv' })], 'auto')
+    expect(preview).toHaveBeenLastCalledWith(1, [expect.objectContaining({ name: 'first.csv' })], 'auto', null)
     expect(screen.getByLabelText('What was read')).toHaveTextContent('Tradovate (recognised from the file)')
     expect(tile('New fill pairs')).toHaveTextContent('2')
   })

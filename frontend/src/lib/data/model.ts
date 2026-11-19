@@ -239,7 +239,7 @@ export interface ImportIssue {
 export type PairStatus = 'new' | 'duplicate' | 'other_account'
 
 /** Where an export comes from. `lib/platforms.ts` says how each is exported and read. */
-export type Platform = 'tradovate' | 'tradesea'
+export type Platform = 'tradovate' | 'tradesea' | 'round_turn_monitor'
 /** What an import is read as: a platform, or `auto`, told by the server from the files' header row (dropped files). */
 export type ImportPlatform = Platform | 'auto'
 
@@ -261,6 +261,15 @@ export interface CommissionCheck {
   schedule_total: string
 }
 
+/** One account in the Round Turn Monitor's log, which holds every account NinjaTrader tracks. */
+export interface LogAccount {
+  name: string // as NinjaTrader names it: the firm's account number, or Sim101
+  round_turns: number
+  practice: boolean // NinjaTrader's practice account (Sim101): only picked when the log has nothing else
+  here: number // round turns already in the account being imported into
+  elsewhere: string | null // another account that already holds some of its round turns
+}
+
 /** One fill pair as the file states it (times as written in the file, in the timezone the settings name). */
 export interface PreviewRow {
   line: number
@@ -278,7 +287,8 @@ export interface PreviewRow {
 
 /**
  * What importing the files would do, worked out without saving anything (the "dry run"). Mirrors `FileImportReport`.
- * For Tradovate a row is a fill pair; for TradeSea it is a filled order, and the table shows the fill pairs they make.
+ * For Tradovate a row is a fill pair; for TradeSea it is a filled order; for the Round Turn Monitor, a round turn. The
+ * table shows the fill pairs either makes.
  */
 export interface ImportPreview {
   platform: Platform
@@ -301,6 +311,9 @@ export interface ImportPreview {
   file_commission: string | null // TradeSea: the files' own commission total
   commissions: CommissionCheck[]
   time_zone: string // the zone the times were read in
+  /** The Round Turn Monitor: the log's accounts, and the one read. With none read, `fatal` asks for a choice. */
+  log_accounts: LogAccount[]
+  log_account: string | null
   errors: ImportIssue[]
   warnings: ImportIssue[]
   trades_built: number // trades the new rows would create or extend
@@ -682,8 +695,14 @@ export interface DataSource {
   deleteScreenshot(id: number, screenshotId: number): Promise<void>
   /** The active accounts (the ones a file can be imported into); every account, archived ones too, when asked. */
   accounts(signal?: AbortSignal, options?: { includeArchived?: boolean }): Promise<AccountRef[]>
-  previewImport(accountId: number, files: File[], platform: ImportPlatform): Promise<ImportPreview>
-  commitImport(accountId: number, files: File[], platform: Platform): Promise<ImportRecord>
+  /** `logAccount`: for the Round Turn Monitor's log, the NinjaTrader account to read (none: the server's pick). */
+  previewImport(
+    accountId: number,
+    files: File[],
+    platform: ImportPlatform,
+    logAccount?: string | null,
+  ): Promise<ImportPreview>
+  commitImport(accountId: number, files: File[], platform: Platform, logAccount?: string | null): Promise<ImportRecord>
   imports(signal?: AbortSignal): Promise<ImportRecord[]>
   undoPreview(importId: number): Promise<UndoPreview>
   undoImport(importId: number): Promise<void>

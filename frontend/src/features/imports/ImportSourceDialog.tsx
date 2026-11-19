@@ -4,7 +4,14 @@ import { SUPPORT_ADDRESS } from '../../components/RouteError'
 import { Modal } from '../../components/ui/Modal'
 import { Button } from '../../components/ui/primitives'
 import type { Platform } from '../../lib/data/model'
-import { PLATFORMS, TRADESEA_PAGE_ROWS, platformInfo } from '../../lib/platforms'
+import {
+  PLATFORMS,
+  ROUND_TURN_LOG,
+  ROUND_TURN_LOG_FOLDER,
+  ROUND_TURN_OVERFLOW,
+  TRADESEA_PAGE_ROWS,
+  platformInfo,
+} from '../../lib/platforms'
 
 const NOT_LISTED = 'not-listed'
 type Choice = Platform | typeof NOT_LISTED | ''
@@ -38,11 +45,39 @@ function TradovateReminder({ timeZone }: { timeZone: string }) {
   )
 }
 
+function RoundTurnMonitorReminder({ timeZone }: { timeZone: string }) {
+  const guide = platformInfo('round_turn_monitor').guide
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg border border-warn/40 bg-warn/10 px-3.5 py-3 text-[13px]">
+      <p className="m-0">
+        Choose <strong>{ROUND_TURN_LOG}</strong> in{' '}
+        {ROUND_TURN_LOG_FOLDER.map((part, i) => (
+          <span key={part}>
+            {i > 0 ? ' › ' : ''}
+            <strong>{part}</strong>
+          </span>
+        ))}
+        , not a file from the Export button. If <strong>{ROUND_TURN_OVERFLOW}</strong> is there too, choose both.
+      </p>
+      <p className="m-0">You can choose the same log every time: only new round turns are added.</p>
+      <p className="m-0 text-muted">
+        Times are read as <span className="num">{timeZone}</span>.{' '}
+        <Link to="/settings" search={(prev) => prev}>
+          Change
+        </Link>
+      </p>
+      <a href={guide} target="_blank" rel="noopener noreferrer" className="self-start">
+        How to import from Round Turn Monitor
+      </a>
+    </div>
+  )
+}
+
 function NotListed() {
   return (
     <p className="m-0 text-[13px]">
-      We import Tradovate and TradeSea today, and more platforms are coming. Tell us which one you use:{' '}
-      <a href={`mailto:${SUPPORT_ADDRESS}`}>{SUPPORT_ADDRESS}</a>
+      We import Tradovate, TradeSea and NinjaTrader (through the Round Turn Monitor) today, and more platforms are
+      coming. Tell us which one you use: <a href={`mailto:${SUPPORT_ADDRESS}`}>{SUPPORT_ADDRESS}</a>
     </p>
   )
 }
@@ -56,7 +91,8 @@ function NotListed() {
  * Tradovate by accident. The main button calls `onPick` **inside its own click handler**: browsers open the file
  * window only straight from a click, so the caller opens it there and then.
  *
- * In the demo (`demo`), only Tradovate files can be read: TradeSea says to sign up instead of its reminder.
+ * In the demo (`demo`), only Tradovate files can be read: TradeSea and the Round Turn Monitor say to sign up instead of
+ * their reminders.
  */
 export function ImportSourceDialog({
   initial,
@@ -72,7 +108,7 @@ export function ImportSourceDialog({
   onPick: (platform: Platform) => void
 }) {
   const [choice, setChoice] = useState<Choice>(initial ?? '')
-  const signUpFirst = demo && choice === 'tradesea'
+  const signUpFirst = demo && (choice === 'tradesea' || choice === 'round_turn_monitor')
   return (
     <Modal label="Where are these trades from?" onClose={onClose} className="max-w-[520px]">
       <h2 className="m-0 text-base font-semibold">Where are these trades from?</h2>
@@ -108,7 +144,14 @@ export function ImportSourceDialog({
             Sign up to import TradeSea files. The sample journal reads Tradovate&rsquo;s Performance report only.
           </p>
         ) : null}
+        {choice === 'round_turn_monitor' && demo ? (
+          <p className="m-0 text-[13px]">
+            Sign up to import the Round Turn Monitor&rsquo;s log. The sample journal reads Tradovate&rsquo;s Performance
+            report only.
+          </p>
+        ) : null}
         {choice === 'tradesea' && !demo ? <TradeSeaReminder /> : null}
+        {choice === 'round_turn_monitor' && !demo ? <RoundTurnMonitorReminder timeZone={timeZone} /> : null}
         {choice === 'tradovate' ? <TradovateReminder timeZone={timeZone} /> : null}
         {choice === NOT_LISTED ? <NotListed /> : null}
       </div>

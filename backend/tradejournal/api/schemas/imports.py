@@ -1,5 +1,5 @@
-"""Importing exports (Tradovate's Performance report, TradeSea's Orders pages): what the files would do, what an import
-did, and what undoing one would remove."""
+"""Importing exports (Tradovate's Performance report, TradeSea's Orders pages, the Round Turn Monitor's log from
+NinjaTrader): what the files would do, what an import did, and what undoing one would remove."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from .journal import AccountRefOut, RowId
 from .money import Money
 
 PairStatus = Literal["new", "duplicate", "other_account"]
-Platform = Literal["tradovate", "tradesea"]
+Platform = Literal["tradovate", "tradesea", "round_turn_monitor"]
 
 
 class ImportIssueOut(ApiModel):
@@ -52,16 +52,28 @@ class CommissionCheckOut(ApiModel):
     root: str  # "NQ"
     round_trips: Money  # contracts bought plus contracts sold, halved (a position still open leaves a half)
     file_total: Money
-    file_rate: Money  # the files' commission per contract, round trip
+    file_rate: (
+        Money  # the files' commission per contract, round trip (the log's usual rate, for the Round Turn Monitor)
+    )
     schedule_rate: Money  # the account's setting for this contract (or its rate for any other contract)
     schedule_total: Money  # what the setting charges for the same round trips
+
+
+class LogAccountOut(ApiModel):
+    """One account in the Round Turn Monitor's log, which holds every account NinjaTrader tracks."""
+
+    name: str  # as NinjaTrader names it: the firm's account number, or Sim101
+    round_turns: int
+    practice: bool  # NinjaTrader's practice account (Sim101, Playback101): only picked when the log has nothing else
+    here: int  # round turns already in the account being imported into
+    elsewhere: str | None  # another account that already holds some of its round turns
 
 
 class ImportPreviewOut(ApiModel):
     """What importing the files would do, worked out without saving anything. Mirrors `FileImportReport`.
 
-    For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; the table
-    still shows the fill pairs the orders make."""
+    For Tradovate, a row is a fill pair (a buy matched to a sell). For TradeSea, a row is a filled order; for the Round
+    Turn Monitor, a round turn. The table shows the fill pairs either makes."""
 
     platform: Platform
     recognised: bool = False  # the platform was told from the files' header row (`platform=auto`)
@@ -82,6 +94,9 @@ class ImportPreviewOut(ApiModel):
     file_commission: Money | None = None  # TradeSea: the files' own commission total
     commissions: list[CommissionCheckOut] = []  # TradeSea: the same, by contract, beside the account's fee setting
     time_zone: str = ""  # the zone the times were read in: the file's own ("PST") or the CSV time zone setting
+    # The Round Turn Monitor: the log's accounts, and the one read. With no account read, `fatal` asks for a choice.
+    log_accounts: list[LogAccountOut] = []
+    log_account: str | None = None
     errors: list[ImportIssueOut]
     warnings: list[ImportIssueOut]
     trades_built: int  # trades the new rows would create or extend
