@@ -79,9 +79,13 @@ account per import, picked in the preview (`log_account`); Sim101 is never picke
 and is imported once. An Export file from the older add-on (15 columns, no contract or commission) is refused with "Update
 the add-on and export again, or choose RoundTurnLog.csv". The add-on's own change is made in its project, not here.
 
-**Export guides on the marketing site: the app links to pages that do not exist yet.** The addresses were picked on
-2026-11-18, before the site's docs section is built. Until it is published, each shows the site's own "page not found"
-page (`site/public/404.html`); the owner accepted that.
+**Export guides on the marketing site** (`site/public/docs/`, PR 185, 2026-11-18). The pages
+below are built, with marked-up screenshots of Roundturn's own Import dialog and preview; they go live when that pull
+request is merged (until then each address shows the site's "page not found" page). Screenshots are made by
+`site/scripts/shots.mjs` from raw captures kept outside the repository (`Development/guide-screenshots/`): it crops them,
+paints over account numbers in the pixels, and draws numbered marks over the image (`site/README.md`, "The docs pages and
+their screenshots"). Still to add: the owner's screenshots of TradeSea's Orders list, Tradovate's Performance report and
+the Round Turn Monitor's log folder in File Explorer.
 
 | Page | Address | Linked from the app |
 |---|---|---|
@@ -93,7 +97,7 @@ page (`site/public/404.html`); the owner accepted that.
 
 Each platform added later gets `https://roundturn.app/docs/import/<platform>/`, lower case, no spaces (`ninjatrader`,
 `projectx`). The addresses live in one place in the app: `DOCS_IMPORT` and each platform's `guide` in
-`frontend/src/lib/platforms.ts`.
+`frontend/src/lib/platforms.ts`. A site test fails if a guide the app links to has no page.
 
 ## 3. Rules for any session (the owner's standing instructions)
 
@@ -213,7 +217,7 @@ an import replaces any template the file also has, an operator's edit included),
 | Decide Free versus Pro | `LIMITS` in `backend/tradejournal/entitlements.py` is empty on purpose. |
 | Set up your accounts' rules | Each active prop account needs a purchase date (Details tab) and its firm's rules (Firm rules tab, then Verify); until then the Accounts tab shows "No rules set" for it. |
 | Read the contract table | `backend/tradejournal/contracts.py` gives each contract's point value and tick size (56 contracts), which TradeSea's P&L is worked out from. Live since PR 182; nobody but its author has checked it. |
-| Publish the docs section | The app links to `roundturn.app/docs/import/tradesea/` and `.../round-turn-monitor/`, 404 pages until the site's docs section exists (section 2). |
+| Publish the docs section | Built in PR 185 (section 2); merging it publishes `roundturn.app/docs/`. Then send screenshots of TradeSea's Orders list (Filled view, the export button, the page arrows), Tradovate's Performance report and its export, and File Explorer showing `Documents › NinjaTrader 8 › RoundTurnLog`, for marking up. |
 | Three Accounts-tab questions | Defaults in use until answered: (1) the old simple "Rules" tab is kept, the new rules are the separate "Firm rules" tab; (2) the research CSV stays out of git (the import takes a file); (3) the nine sample templates in `frontend/src/lib/demo/ruleData.ts` (rows of the research, trimmed) stay committed. |
 
 **Built or planned, not proven**

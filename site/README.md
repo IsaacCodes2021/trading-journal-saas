@@ -7,12 +7,14 @@ The public marketing site for roundturn.app: static pages in `public/`, one smal
 It deploys as a **Cloudflare Worker with static assets**. (The design docs said "Cloudflare Pages". Cloudflare's dashboard now creates new projects as Workers, with the same CDN and the same domains, so the site follows that. Nothing in the design depended on the difference.)
 
 ```
-public/            what is served: index, about, privacy, terms, refunds, 404, style.css, fonts/, favicon, _headers
+public/            what is served: index, about, privacy, terms, refunds, docs/, 404, style.css, fonts/, favicon, _headers
+public/docs/       the docs: how to export from each platform and import into Roundturn, with marked-up screenshots
 public/fonts/      IBM Plex Sans and Mono (latin, five weights), the same files the app uses; the CSP allows only this folder
 public/popup.js   the launch offer pop-up, the only script on the site (home page only)
 src/worker.js      runs only for /api/*: answers 404, except POST /api/e/<event>, which writes one tally; everything else is served straight from public/
 wrangler.jsonc     what Cloudflare reads at deploy: the Worker's name and the assets folder (the tally dataset comes back with the pop-up)
-scripts/           popup-stats.mjs, which reads the tallies back from Cloudflare
+scripts/           popup-stats.mjs, which reads the tallies back from Cloudflare; shots.mjs, which makes the docs' screenshots
+shots.json         the docs' screenshots: where each comes from, its crop, what is painted over, and its marks
 test/              node:test checks, no dependencies
 ```
 
@@ -26,6 +28,23 @@ CI runs the same command (job "Marketing site"). The tests check that nothing lo
 ## What the page says matters
 
 Payment providers will read this site, and so will users. Every claim has to be true of the product. If a feature changes, change the page in the same pull request; the tests fail if a required statement disappears or a promise such as "guaranteed" appears. The privacy page, the terms and the billing and refund policy were written by us, not by a lawyer: have a professional read them. The home, terms and refunds pages must agree on the price and the trial (a test checks it), and a test fails if any page goes back to saying the beta is invite-only or that paid plans are not open yet.
+
+## The docs pages and their screenshots
+
+`public/docs/` holds the user docs: `/docs/`, `/docs/import/`, and one guide per platform at `/docs/import/<platform>/` (lower case, no spaces). The app links to these addresses (`DOCS_IMPORT` and each platform's `guide` in `frontend/src/lib/platforms.ts`), and a test fails if one of them has no page. A new platform gets a page here in the same pull request that adds it to the app, and a card on `/docs/` and `/docs/import/`, and a line in every docs page's menu.
+
+**Screenshots are made, not dropped in.** Raw screenshots stay outside the repository (they can show account numbers and balances), in a folder of their own, for example `Development/guide-screenshots/<platform>/`. `shots.json` says, for each image: the raw file, the part to keep, the rectangles to paint over (account numbers, names, balances), and the marks to draw. Then:
+
+```bash
+cd site
+node scripts/shots.mjs --from ../../guide-screenshots
+```
+
+It crops and paints over in the pixels themselves, writes the PNG under `public/docs/`, and rewrites the image and its marks in the page between `<!-- shot:<id> -->` and `<!-- /shot:<id> -->` (the figure and its caption around them are written by hand). Coordinates are CSS pixels of the raw screenshot; `scale` is 2 for a capture at twice the size. A test fails if an image under `public/docs/` is not one of the script's outputs, or if a page's marks differ from `shots.json`, so nothing reaches the site without going through the crop and the paint.
+
+**The marks** are an `<svg>` over the image, not part of it: boxes in percent, so they follow the image at any width, and numbered pins of a fixed size, so the numbers stay readable on a phone. The page needs no inline style (the CSP forbids it). The numbers match the caption under the image. A crossed-out red mark (`"tone": "no"`) says "not this one".
+
+**What to look for before publishing a screenshot:** account numbers and names, balances, the trader's name or email, and anything else from a real account. Paint it over or crop it out. Roundturn's own screens are captured from a local test account with the test fixtures (`backend/tests/fixtures/`), whose account numbers are made up.
 
 ## The launch offer pop-up and its counts
 

@@ -1,0 +1,118 @@
+{
+  "about": "The marked-up screenshots of the docs pages. Made by scripts/shots.mjs from raw screenshots kept outside the repository; see README.md, 'The docs pages and their screenshots'. Coordinates are CSS pixels of the raw screenshot.",
+  "shots": [
+    {
+      "id": "rtm-monitor",
+      "src": "round-turn-monitor/monitor.png",
+      "scale": 1,
+      "crop": [1062, 2, 222, 52],
+      "out": "docs/import/round-turn-monitor/monitor-export-button.png",
+      "alt": "The Export and Settings buttons at the top right of the Round Turn Monitor window in NinjaTrader, with the Export button marked.",
+      "marks": [{ "n": 1, "box": [1080, 10, 94, 36], "pin": "l" }]
+    },
+    {
+      "id": "rtm-dialog",
+      "src": "roundturn/dialog-rtm.png",
+      "scale": 2,
+      "crop": [239, 263, 522, 373],
+      "out": "docs/import/round-turn-monitor/roundturn-platform.png",
+      "alt": "Roundturn's dialog \"Where are these trades from?\" with NinjaTrader: Round Turn Monitor log chosen, its reminder to choose an Export file or the log, and the Choose files button.",
+      "marks": [
+        { "n": 1, "box": [257, 341, 486, 42] },
+        { "n": 2, "box": [257, 395, 486, 176] },
+        { "n": 3, "box": [638, 583, 105, 36] }
+      ]
+    },
+    {
+      "id": "rtm-preview",
+      "src": "roundturn/preview-rtm.png",
+      "scale": 2,
+      "crop": [20, 355, 960, 545],
+      "out": "docs/import/round-turn-monitor/roundturn-preview.png",
+      "alt": "Roundturn's preview of a Round Turn Monitor log: the NinjaTrader account to import, the counts of round turns, the things to check with a button to use the add-on's commission rate, and the Import button.",
+      "marks": [
+        { "n": 1, "box": [53, 437, 894, 42] },
+        { "n": 2, "box": [53, 763, 201, 30] },
+        { "n": 3, "box": [776, 841, 171, 36] }
+      ]
+    },
+    {
+      "id": "tradovate-dialog",
+      "src": "roundturn/dialog-tradovate.png",
+      "scale": 2,
+      "crop": [239, 332, 522, 236],
+      "out": "docs/import/tradovate/roundturn-platform.png",
+      "alt": "Roundturn's dialog \"Where are these trades from?\" with Tradovate: Performance report chosen, the time zone the file is read in with a link to change it, and the Choose files button.",
+      "marks": [
+        { "n": 1, "box": [257, 411, 486, 42] },
+        { "n": 2, "box": [257, 465, 486, 38] },
+        { "n": 3, "box": [638, 514, 105, 36] }
+      ]
+    },
+    {
+      "id": "tradesea-panel",
+      "src": "tradesea/orders-filled.png",
+      "scale": 1,
+      "crop": [6, 626, 1994, 570],
+      "out": "docs/import/tradesea/tradesea-orders-panel.png",
+      "alt": "TradeSea's panel under the chart: the Orders tab open, the Filled view selected, a page of ten filled orders, and the Export button with the page count at the bottom right.",
+      "marks": [
+        { "n": 1, "box": [98, 645, 52, 34] },
+        { "n": 2, "box": [119, 687, 51, 30], "pin": "br" },
+        { "n": 3, "box": [1820, 1157, 67, 30], "pin": "tl" },
+        { "n": 4, "box": [1889, 1158, 106, 28], "pin": "br" }
+      ]
+    },
+    {
+      "id": "tradesea-tabs",
+      "src": "tradesea/orders-filled.png",
+      "scale": 1,
+      "crop": [12, 630, 290, 102],
+      "out": "docs/import/tradesea/tradesea-orders-filled.png",
+      "alt": "Close-up of TradeSea's Accounts, Orders, Positions and pSpark tabs, and the All, Open, Filled and Cancelled views, with Orders and Filled selected.",
+      "marks": [
+        { "n": 1, "box": [98, 645, 52, 34] },
+        { "n": 2, "box": [119, 687, 51, 30], "pin": "br" }
+      ]
+    },
+    {
+      "id": "tradesea-export",
+      "src": "tradesea/orders-filled.png",
+      "scale": 1,
+      "crop": [1690, 1130, 310, 66],
+      "out": "docs/import/tradesea/tradesea-export-pages.png",
+      "alt": "Close-up of the bottom right of TradeSea's Orders list: the Export button, Page 1 of 2, and the arrows to the previous and next page.",
+      "marks": [
+        { "n": 3, "box": [1820, 1157, 67, 30], "pin": "tl" },
+        { "n": 4, "box": [1889, 1158, 106, 28], "pin": "tl" }
+      ]
+    },
+    {
+      "id": "tradesea-dialog",
+      "src": "roundturn/dialog-tradesea.png",
+      "scale": 2,
+      "crop": [239, 284, 522, 332],
+      "out": "docs/import/tradesea/roundturn-platform.png",
+      "alt": "Roundturn's dialog \"Where are these trades from?\" with TradeSea: Orders (Filled) chosen, its reminder to export every page, and the Choose files button.",
+      "marks": [
+        { "n": 1, "box": [257, 363, 486, 42] },
+        { "n": 2, "box": [257, 417, 486, 132] },
+        { "n": 3, "box": [638, 562, 105, 36] }
+      ]
+    },
+    {
+      "id": "tradesea-preview",
+      "src": "roundturn/preview-tradesea.png",
+      "scale": 2,
+      "crop": [20, 352, 960, 492],
+      "out": "docs/import/tradesea/roundturn-preview.png",
+      "alt": "Roundturn's preview of two TradeSea files: 17 filled orders making 5 trades, the commissions the files add up to, a button to use TradeSea's rate, and the Import button.",
+      "marks": [
+        { "n": 1, "box": [28, 361, 432, 30] },
+        { "n": 2, "box": [48, 634, 700, 24] },
+        { "n": 3, "box": [53, 709, 201, 30] },
+        { "n": 4, "box": [810, 787, 137, 36] }
+      ]
+    }
+  ]
+}
