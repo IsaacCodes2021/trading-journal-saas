@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Import from the Round Turn Monitor (NinjaTrader 8) | Roundturn docs</title>
-<meta name="description" content="How to import the Round Turn Monitor's log from NinjaTrader 8 into Roundturn: which file to choose, which button not to use, and how to pick the NinjaTrader account.">
+<meta name="description" content="How to import the Round Turn Monitor's Export file or its log from NinjaTrader 8 into Roundturn: which file to choose, and how to pick the NinjaTrader account.">
 <meta name="color-scheme" content="dark light">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">
@@ -38,10 +38,10 @@
   <article class="doc">
     <p class="crumbs"><a href="/docs/">Docs</a> / <a href="/docs/import/">Importing</a> / Round Turn Monitor</p>
     <h1>Import from the Round Turn Monitor</h1>
-    <p class="lead">The Round Turn Monitor is an add-on for NinjaTrader 8. After every round turn it adds a row to its log, for every account NinjaTrader tracks. Roundturn reads that log, so there is nothing to export: you choose the same file each time, and only new round turns are added.</p>
+    <p class="lead">The Round Turn Monitor is an add-on for NinjaTrader 8. After every round turn it adds a row to its log, for every account NinjaTrader tracks, and its Export button saves the same rows for one day. Roundturn reads either, and a round turn already imported is never added twice.</p>
 
     <dl class="doc-facts">
-      <div><dt>The file</dt><dd><code>RoundTurnLog.csv</code></dd></div>
+      <div><dt>The file</dt><dd>An Export file, or <code>RoundTurnLog.csv</code></dd></div>
       <div><dt>In Roundturn</dt><dd>NinjaTrader: Round Turn Monitor log</dd></div>
       <div><dt>Times</dt><dd>Your CSV time zone setting</dd></div>
     </dl>
@@ -49,19 +49,19 @@
     <ol class="doc-steps">
       <li>
         <p class="where">In NinjaTrader</p>
-        <h2>Trade as usual, and leave the Export button alone</h2>
-        <p>The add-on writes the log by itself, to <code>Documents › NinjaTrader 8 › RoundTurnLog</code>. You never need its Export button: the Export file has no contract (NQ or MNQ trade at the same price) and no commission, so Roundturn cannot read it safely and refuses it.</p>
+        <h2>Click Export, or use the log</h2>
+        <p>After the session, click <strong>Export</strong> in the Round Turn Monitor window. It saves the trading day's round turns, for one account or all of them, in the same columns as the log. Or skip it: the add-on writes every round turn to its log by itself, in <code>Documents › NinjaTrader 8 › RoundTurnLog</code>.</p>
         <figure class="shot">
           <!-- shot:rtm-monitor -->
           <a class="shot-frame" href="/docs/import/round-turn-monitor/monitor-export-button.png" title="Open the full-size image">
-          <img src="/docs/import/round-turn-monitor/monitor-export-button.png" width="222" height="52" alt="The Export and Settings buttons at the top right of the Round Turn Monitor window in NinjaTrader. The Export button is crossed out." loading="lazy" decoding="async">
+          <img src="/docs/import/round-turn-monitor/monitor-export-button.png" width="222" height="52" alt="The Export and Settings buttons at the top right of the Round Turn Monitor window in NinjaTrader, with the Export button marked." loading="lazy" decoding="async">
           <svg class="shot-marks" aria-hidden="true" focusable="false">
-          <rect class="shot-box no" x="8.11%" y="15.38%" width="42.34%" height="69.23%" rx="6"/>
-          <g class="shot-pin no"><circle cx="8.11%" cy="50%" r="13"/><text x="8.11%" y="50%">×</text></g>
+          <rect class="shot-box" x="8.11%" y="15.38%" width="42.34%" height="69.23%" rx="6"/>
+          <g class="shot-pin"><circle cx="8.11%" cy="50%" r="13"/><text x="8.11%" y="50%">1</text></g>
           </svg>
           </a>
           <!-- /shot:rtm-monitor -->
-          <figcaption><ol><li><span class="pin no" aria-hidden="true">×</span><span>Not this button. Its file covers only today and has no contract or commission.</span></li></ol></figcaption>
+          <figcaption><ol><li><span class="pin" aria-hidden="true">1</span><span><strong>Export</strong> saves the day's round turns as a CSV file, wherever you choose.</span></li></ol></figcaption>
         </figure>
       </li>
       <li>
@@ -71,21 +71,21 @@
         <figure class="shot">
           <!-- shot:rtm-dialog -->
           <a class="shot-frame" href="/docs/import/round-turn-monitor/roundturn-platform.png" title="Open the full-size image">
-          <img src="/docs/import/round-turn-monitor/roundturn-platform.png" width="522" height="356" alt="Roundturn's dialog &quot;Where are these trades from?&quot; with NinjaTrader: Round Turn Monitor log chosen, its reminder of where the log is, and the Choose files button." loading="lazy" decoding="async">
+          <img src="/docs/import/round-turn-monitor/roundturn-platform.png" width="522" height="373" alt="Roundturn's dialog &quot;Where are these trades from?&quot; with NinjaTrader: Round Turn Monitor log chosen, its reminder to choose an Export file or the log, and the Choose files button." loading="lazy" decoding="async">
           <svg class="shot-marks" aria-hidden="true" focusable="false">
-          <rect class="shot-box" x="3.45%" y="22.19%" width="93.1%" height="11.8%" rx="6"/>
-          <g class="shot-pin"><circle cx="96.55%" cy="22.19%" r="13"/><text x="96.55%" y="22.19%">1</text></g>
-          <rect class="shot-box" x="3.45%" y="37.36%" width="93.1%" height="44.1%" rx="6"/>
-          <g class="shot-pin"><circle cx="96.55%" cy="37.36%" r="13"/><text x="96.55%" y="37.36%">2</text></g>
-          <rect class="shot-box" x="76.44%" y="84.83%" width="20.11%" height="10.11%" rx="6"/>
-          <g class="shot-pin"><circle cx="96.55%" cy="84.83%" r="13"/><text x="96.55%" y="84.83%">3</text></g>
+          <rect class="shot-box" x="3.45%" y="20.91%" width="93.1%" height="11.26%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="20.91%" r="13"/><text x="96.55%" y="20.91%">1</text></g>
+          <rect class="shot-box" x="3.45%" y="35.39%" width="93.1%" height="47.18%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="35.39%" r="13"/><text x="96.55%" y="35.39%">2</text></g>
+          <rect class="shot-box" x="76.44%" y="85.79%" width="20.11%" height="9.65%" rx="6"/>
+          <g class="shot-pin"><circle cx="96.55%" cy="85.79%" r="13"/><text x="96.55%" y="85.79%">3</text></g>
           </svg>
           </a>
           <!-- /shot:rtm-dialog -->
           <figcaption>
             <ol>
               <li><span class="pin" aria-hidden="true">1</span><span>Pick <strong>NinjaTrader: Round Turn Monitor log</strong>.</span></li>
-              <li><span class="pin" aria-hidden="true">2</span><span>The reminder says where the log is and which time zone its times are read in.</span></li>
+              <li><span class="pin" aria-hidden="true">2</span><span>The reminder: an Export file or the log, where the log is, and which time zone the times are read in.</span></li>
               <li><span class="pin" aria-hidden="true">3</span><span><strong>Choose files</strong> opens your computer's file window.</span></li>
             </ol>
           </figcaption>
@@ -93,14 +93,14 @@
       </li>
       <li>
         <p class="where">On your computer</p>
-        <h2>Choose RoundTurnLog.csv</h2>
-        <p>Go to <code>Documents › NinjaTrader 8 › RoundTurnLog</code> and choose <code>RoundTurnLog.csv</code>.</p>
+        <h2>Choose the Export file, or the log</h2>
+        <p>Choose the file Export saved. Or go to <code>Documents › NinjaTrader 8 › RoundTurnLog</code> and choose <code>RoundTurnLog.csv</code>.</p>
         <p>If <code>RoundTurnLog_overflow.csv</code> is there too, choose both: hold <kbd>Ctrl</kbd> (<kbd>⌘</kbd> on a Mac) and click each. The add-on writes to the overflow file while the log is open in Excel, so some round turns are only in that file.</p>
       </li>
       <li>
         <p class="where rt">In Roundturn</p>
         <h2>Pick the NinjaTrader account, check, and import</h2>
-        <p>The log holds every account NinjaTrader tracks, Sim101 included, and one import takes one of them. The preview picks the account this Roundturn account already holds, or the only real one. Practice accounts (Sim101, Playback, Backtest) are never picked for you.</p>
+        <p>One import takes one NinjaTrader account. An Export file of one account needs no choice. The log, or an Export of all accounts, holds every account NinjaTrader tracks, Sim101 included: the preview picks the account this Roundturn account already holds, or the only real one. Practice accounts (Sim101, Playback, Backtest) are never picked for you.</p>
         <figure class="shot">
           <!-- shot:rtm-preview -->
           <a class="shot-frame" href="/docs/import/round-turn-monitor/roundturn-preview.png" title="Open the full-size image">
@@ -128,7 +128,7 @@
 
     <h2>Good to know</h2>
     <ul>
-      <li><strong>Choose the same log every time.</strong> Round turns already imported are left alone, and only the new ones are added.</li>
+      <li><strong>Choose the same log every time, or each day's Export file.</strong> Round turns already imported are left alone, and only the new ones are added. A round turn in both an Export file and the log counts once.</li>
       <li><strong>Several NinjaTrader accounts?</strong> Import the log once for each, each into its own Roundturn account. Copied trades can go into several accounts.</li>
       <li><strong>Times</strong> are read in your CSV time zone setting (in Roundturn's Settings), because the log writes NinjaTrader's clock without a time zone.</li>
       <li><strong>Commissions</strong> come from each account's own commission setting, as for every import, not from the log. Round turns logged before the add-on's rate was set show $0.00 in the log; Roundturn charges them the same as the rest.</li>
@@ -140,8 +140,8 @@
       <dd>More than one real account is in the log and Roundturn cannot tell which one belongs here. Pick it in the list.</dd>
       <dt>"A round turn is missing its other half."</dt>
       <dd>Part of the log was left out, usually the overflow file. Choose the whole log again, with <code>RoundTurnLog_overflow.csv</code> if it is there.</dd>
-      <dt>"This is the Round Turn Monitor's Export file, which has no contract or commission."</dt>
-      <dd>You chose a file from the Export button. Choose <code>RoundTurnLog.csv</code> instead.</dd>
+      <dt>"This Export file is from an older version of the Round Turn Monitor, without the contract or commission."</dt>
+      <dd>Exports made before the add-on was updated cannot be read safely: NQ and MNQ trade at the same price. Update the add-on and export again, or choose <code>RoundTurnLog.csv</code>, which has the same round turns.</dd>
       <dt>"This is the Round Turn Monitor's old log"</dt>
       <dd>That is the 19-column log of an earlier version of the add-on. Choose <code>RoundTurnLog.csv</code>, which the add-on writes now.</dd>
     </dl>
