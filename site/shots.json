@@ -113,6 +113,109 @@
         { "n": 3, "box": [53, 709, 201, 30] },
         { "n": 4, "box": [810, 787, 137, 36] }
       ]
+    },
+    {
+      "id": "start-preferences",
+      "src": "roundturn-sample/preferences.png",
+      "scale": 2,
+      "crop": [248, 383, 728, 735],
+      "out": "docs/getting-started/roundturn-preferences.png",
+      "alt": "Roundturn's Preferences in Settings: the time zone times are shown in, the zone Tradovate files are written in, and when a trading day starts.",
+      "marks": [
+        { "n": 1, "box": [277, 462, 670, 40] },
+        { "n": 2, "box": [277, 636, 670, 148] },
+        { "n": 3, "box": [277, 1031, 670, 70] }
+      ]
+    },
+    {
+      "id": "start-add-account",
+      "src": "roundturn-sample/firm-rules.png",
+      "scale": 2,
+      "crop": [249, 108, 726, 400],
+      "out": "docs/getting-started/roundturn-prop-accounts.png",
+      "alt": "Roundturn's Prop accounts in Settings, with sample accounts: each account's stage, size, progress to its target and net P&L, and the Add account button.",
+      "marks": [{ "n": 1, "box": [847, 117, 123, 40], "pin": "tl" }]
+    },
+    {
+      "id": "accounts-firm-rules",
+      "src": "roundturn-sample/firm-rules.png",
+      "scale": 2,
+      "crop": [249, 750, 726, 328],
+      "out": "docs/accounts/roundturn-firm-rules.png",
+      "alt": "An account's Firm rules tab: a search for the firm, program, size and phase, and the rule sets in force on the account's purchase date, the latest marked Suggested.",
+      "marks": [
+        { "n": 1, "box": [422, 806, 83, 42] },
+        { "n": 2, "box": [275, 923, 674, 44] },
+        { "n": 3, "box": [275, 1011, 674, 60] }
+      ]
+    },
+    {
+      "id": "accounts-overview",
+      "src": "roundturn-sample/accounts.png",
+      "scale": 2,
+      "crop": [24, 104, 1296, 440],
+      "out": "docs/accounts/roundturn-accounts-tab.png",
+      "alt": "Roundturn's Accounts tab with sample accounts: each account's balance, net P&L, status (Breached, Payout ready, OK, No rules set), a bar from breach to goal, payout progress and consistency.",
+      "marks": [
+        { "n": 1, "box": [128, 228, 44, 42] },
+        { "n": 2, "box": [598, 233, 84, 32] },
+        { "n": 3, "box": [712, 233, 142, 32] },
+        { "n": 4, "box": [598, 308, 102, 32] },
+        { "n": 5, "box": [598, 429, 80, 30] }
+      ]
+    },
+    {
+      "id": "numbers-dashboard",
+      "src": "roundturn-sample/dashboard.png",
+      "scale": 2,
+      "crop": [24, 104, 952, 352],
+      "out": "docs/numbers/roundturn-dashboard.png",
+      "alt": "The top of Roundturn's Dashboard with sample data: the filter bar, then net P&L after fees, win rate, profit factor, average win and loss, expectancy and max drawdown.",
+      "marks": [
+        { "n": 1, "box": [47, 122, 238, 38] },
+        { "n": 2, "box": [814, 128, 116, 26] },
+        { "n": 3, "box": [32, 217, 225, 107] },
+        { "n": 4, "box": [269, 217, 224, 107] },
+        { "n": 5, "box": [32, 337, 461, 109] },
+        { "n": 6, "box": [506, 337, 462, 109] }
+      ]
+    },
+    {
+      "id": "journal-trade-head",
+      "src": "roundturn-sample/trade.png",
+      "scale": 2,
+      "crop": [24, 100, 952, 160],
+      "out": "docs/journal/roundturn-trade-head.png",
+      "alt": "The top of a trade's page in Roundturn, with sample data: the contract, side, time and account, the Share button, Previous and Next, and the trade's net P&L, gross, fees, points, hold time and trading day.",
+      "marks": [
+        { "n": 1, "box": [406, 111, 81, 34] },
+        { "n": 2, "box": [788, 108, 182, 41], "pin": "bl" }
+      ]
+    },
+    {
+      "id": "journal-tags-shots",
+      "src": "roundturn-sample/trade.png",
+      "scale": 2,
+      "crop": [24, 905, 952, 535],
+      "out": "docs/journal/roundturn-tags-screenshots.png",
+      "alt": "A trade's tags, grouped by Setup, Mistake and Emotion with one chosen, the Add tag button, and its screenshots with a place to drop or paste more.",
+      "marks": [
+        { "n": 1, "box": [50, 958, 360, 178] },
+        { "n": 2, "box": [50, 1142, 92, 40], "pin": "r" },
+        { "n": 3, "box": [50, 1354, 898, 62] }
+      ]
+    },
+    {
+      "id": "data-privacy",
+      "src": "roundturn-sample/privacy.png",
+      "scale": 2,
+      "crop": [248, 156, 728, 440],
+      "out": "docs/your-data/roundturn-data-privacy.png",
+      "alt": "Roundturn's Data and privacy settings: Download my data, which makes one ZIP file of everything, and Delete my account.",
+      "marks": [
+        { "n": 1, "box": [277, 350, 147, 36], "pin": "r" },
+        { "n": 2, "box": [277, 547, 154, 36], "pin": "r" }
+      ]
     }
   ]
 }

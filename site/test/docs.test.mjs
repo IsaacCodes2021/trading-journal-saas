@@ -35,6 +35,28 @@ test("every docs page shows the docs menu, with itself as the current page", () 
   }
 });
 
+test("the docs menu is the same on every docs page, and lists every docs page", () => {
+  const menus = docPages.map(([file, html]) => [
+    urlOf(file),
+    html.match(/<nav class="docs-nav" aria-label="Docs">([\s\S]*?)<\/nav>/)[1].replace(/ aria-current="page"/, "").replace(/\r\n/g, "\n"),
+  ]);
+  const [first, menu] = menus[0];
+  for (const [url, other] of menus) assert.equal(other, menu, `${url}'s docs menu differs from ${first}'s`);
+  for (const [file] of docPages) {
+    const url = urlOf(file).replace(/index\.html$/, "");
+    assert.ok(menu.includes(`<a href="${url}"`), `the docs menu does not list ${url}`);
+  }
+});
+
+test("every page of the site links to the docs from its top menu and its footer", () => {
+  for (const [file, html] of pages()) {
+    const top = html.match(/<nav class="menu" aria-label="Main">([\s\S]*?)<\/nav>/);
+    assert.ok(top && top[1].includes('<a href="/docs/">Docs</a>'), `${urlOf(file)} has no Docs link in its top menu`);
+    const footer = html.match(/<nav aria-label="Footer">([\s\S]*?)<\/nav>/);
+    if (footer) assert.ok(footer[1].includes('<a href="/docs/">Docs</a>'), `${urlOf(file)} has no Docs link in its footer`);
+  }
+});
+
 test("every image under /docs/ is one that scripts/shots.mjs made, with its size in the page", () => {
   const made = new Set(SHOTS.map((s) => s.out));
   for (const file of walk(DOCS).filter((f) => !f.endsWith(".html"))) {

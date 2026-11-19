@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>When something goes wrong | Roundturn docs</title>
+<meta name="description" content="What to do when a page shows an error, pictures do not load, or Roundturn's numbers differ from your platform's.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/docs/">Docs</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <a href="/docs/getting-started/">Getting started</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+    <p class="label">Using Roundturn</p>
+    <a href="/docs/accounts/">Prop accounts and rules</a>
+    <a href="/docs/numbers/">How the numbers work</a>
+    <a href="/docs/journal/">Your journal</a>
+    <a href="/docs/your-data/">Your data</a>
+    <a href="/docs/troubleshooting/" aria-current="page">When something goes wrong</a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / When something goes wrong</p>
+    <h1>When something goes wrong</h1>
+    <p class="lead">The usual causes, and what to check first.</p>
+
+    <dl class="doc-qa">
+      <dt>The numbers differ from Tradovate's</dt>
+      <dd>Most often a different clock: check the two time zones in <strong>Settings › Preferences</strong>. Then the fees: Roundturn charges each account's own commission setting.</dd>
+      <dt>The numbers differ from TradeSea's</dt>
+      <dd>Most often a missing page of the Orders export, or a different commission rate. The import preview checks both: see <a href="/docs/import/tradesea/">the TradeSea guide</a>.</dd>
+      <dt>The numbers differ from the Round Turn Monitor's</dt>
+      <dd>The add-on's net uses its own commission rate, which may have been $0.00 for round turns logged before it was set. Roundturn charges every trade the account's fee setting. See <a href="/docs/import/round-turn-monitor/">the Round Turn Monitor guide</a>.</dd>
+      <dt>A trade is on the wrong day</dt>
+      <dd>Check when your trading day starts, and the zone your files are written in, both in <strong>Settings › Preferences</strong>. Changing them moves your existing trades to match.</dd>
+      <dt>A page says "The server had a problem" and gives a reference</dt>
+      <dd>Quote the reference when you write to us: it finds the exact request.</dd>
+      <dt>Pictures will not load or save, and a message says they are not working right now</dt>
+      <dd>A temporary problem on our side. Try again in a minute.</dd>
+    </dl>
+
+    <h2>Writing to us</h2>
+    <p>Write to <a href="mailto:hello@roundturn.app">hello@roundturn.app</a> from the address on your account. Never send a password or a one-time code: we will never ask for one.</p>
+
+    <aside class="callout">
+      <p class="label">A question this does not answer?</p>
+      <p>Write to <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>. We read every message.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>

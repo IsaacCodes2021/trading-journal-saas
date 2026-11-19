@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prop accounts and firm rules | Roundturn docs</title>
+<meta name="description" content="How Roundturn tracks prop-firm evaluations and funded accounts: firm rules picked and verified per account, statuses, payouts and prop spend.">
+<meta name="color-scheme" content="dark light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+    <nav class="menu" aria-label="Main">
+      <a href="/about/">About</a>
+      <a href="/docs/">Docs</a>
+      <a href="/privacy/">Privacy</a>
+      <a href="/terms/">Terms</a>
+      <a href="/refunds/">Refund Policy</a>
+      <a class="signin" href="https://app.roundturn.app/signin" rel="noopener noreferrer">Sign in</a>
+      <a class="btn" href="https://app.roundturn.app/signup" rel="noopener noreferrer">Start free trial</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap docs">
+  <nav class="docs-nav" aria-label="Docs">
+    <p class="label">Docs</p>
+    <a href="/docs/">Overview</a>
+    <a href="/docs/getting-started/">Getting started</a>
+    <p class="label">Importing</p>
+    <a href="/docs/import/">All platforms</a>
+    <a href="/docs/import/tradovate/">Tradovate</a>
+    <a href="/docs/import/tradesea/">TradeSea</a>
+    <a href="/docs/import/round-turn-monitor/">Round Turn Monitor<small>NinjaTrader 8</small></a>
+    <p class="label">Using Roundturn</p>
+    <a href="/docs/accounts/" aria-current="page">Prop accounts and rules</a>
+    <a href="/docs/numbers/">How the numbers work</a>
+    <a href="/docs/journal/">Your journal</a>
+    <a href="/docs/your-data/">Your data</a>
+    <a href="/docs/troubleshooting/">When something goes wrong</a>
+  </nav>
+
+  <article class="doc">
+    <p class="crumbs"><a href="/docs/">Docs</a> / Prop accounts and rules</p>
+    <h1>Prop accounts and firm rules</h1>
+    <p class="lead">Roundturn checks each evaluation and funded account against its firm's rules, from the trades you import: how far you are from a breach and from the goal, and when a payout is ready.</p>
+
+    <aside class="callout attention">
+      <p class="label">For your information</p>
+      <p>Roundturn works the rules out from your closed trades, so its numbers may differ from your firm's own. The firm's numbers are the ones that count. A rule that needs open-trade equity, such as an intraday trailing drawdown, says "Not verifiable from imports" rather than pass.</p>
+    </aside>
+
+    <h2>An account's settings</h2>
+    <p>Each account in <strong>Settings › Prop accounts</strong> has these tabs:</p>
+    <ul>
+      <li><strong>Details</strong>: name, firm, stage, size, starting balance and purchase date.</li>
+      <li><strong>Fees</strong>: the commission per contract, round trip, for each contract you trade. Every trade's fees come from here.</li>
+      <li><strong>Rules</strong>: a simple profit target, max drawdown, trailing type and daily loss limit, if you track your own.</li>
+      <li><strong>Firm rules</strong>: your firm's rule set, picked and verified (below).</li>
+      <li><strong>Payouts</strong>: each payout you received, gross, with your split and the net.</li>
+      <li><strong>Prop spend</strong>: what the account cost you: fees, resets, data.</li>
+    </ul>
+
+    <h2>Set the firm's rules</h2>
+    <p>Open the account's <strong>Firm rules</strong> tab and find your firm, program, size and phase. Only the versions in force on your purchase date are offered, and the latest is marked Suggested. Check every value against your firm's own page, then <strong>Verify</strong>. If your program is not listed, start blank and type the rules in.</p>
+      <figure class="shot">
+        <!-- shot:accounts-firm-rules -->
+        <a class="shot-frame" href="/docs/accounts/roundturn-firm-rules.png" title="Open the full-size image">
+        <img src="/docs/accounts/roundturn-firm-rules.png" width="726" height="328" alt="An account's Firm rules tab: a search for the firm, program, size and phase, and the rule sets in force on the account's purchase date, the latest marked Suggested." loading="lazy" decoding="async">
+        <svg class="shot-marks" aria-hidden="true" focusable="false">
+        <rect class="shot-box" x="23.83%" y="17.07%" width="11.43%" height="12.8%" rx="6"/>
+        <g class="shot-pin"><circle cx="35.26%" cy="17.07%" r="13"/><text x="35.26%" y="17.07%">1</text></g>
+        <rect class="shot-box" x="3.58%" y="52.74%" width="92.84%" height="13.41%" rx="6"/>
+        <g class="shot-pin"><circle cx="96.42%" cy="52.74%" r="13"/><text x="96.42%" y="52.74%">2</text></g>
+        <rect class="shot-box" x="3.58%" y="79.57%" width="92.84%" height="18.29%" rx="6"/>
+        <g class="shot-pin"><circle cx="96.42%" cy="79.57%" r="13"/><text x="96.42%" y="79.57%">3</text></g>
+        </svg>
+        </a>
+        <!-- /shot:accounts-firm-rules -->
+        <figcaption>
+          <ol>
+          <li><span class="pin" aria-hidden="true">1</span><span>The <strong>Firm rules</strong> tab.</span></li>
+          <li><span class="pin" aria-hidden="true">2</span><span>Search by firm, program, size or phase.</span></li>
+          <li><span class="pin" aria-hidden="true">3</span><span>A rule set in force on your purchase date. Each says how many values to check before it applies.</span></li>
+          </ol>
+        </figcaption>
+      </figure>
+
+    <h2>The Accounts tab</h2>
+    <p>The <strong>Accounts</strong> tab lists every active account against its verified rules. It changes nothing: each account's ⋯ menu leads to its settings.</p>
+      <figure class="shot">
+        <!-- shot:accounts-overview -->
+        <a class="shot-frame" href="/docs/accounts/roundturn-accounts-tab.png" title="Open the full-size image">
+        <img src="/docs/accounts/roundturn-accounts-tab.png" width="1296" height="440" alt="Roundturn's Accounts tab with sample accounts: each account's balance, net P&amp;L, status (Breached, Payout ready, OK, No rules set), a bar from breach to goal, payout progress and consistency." loading="lazy" decoding="async">
+        <svg class="shot-marks" aria-hidden="true" focusable="false">
+        <rect class="shot-box" x="8.02%" y="28.18%" width="3.4%" height="9.55%" rx="6"/>
+        <g class="shot-pin"><circle cx="11.42%" cy="28.18%" r="13"/><text x="11.42%" y="28.18%">1</text></g>
+        <rect class="shot-box" x="44.29%" y="29.32%" width="6.48%" height="7.27%" rx="6"/>
+        <g class="shot-pin"><circle cx="50.77%" cy="29.32%" r="13"/><text x="50.77%" y="29.32%">2</text></g>
+        <rect class="shot-box" x="53.09%" y="29.32%" width="10.96%" height="7.27%" rx="6"/>
+        <g class="shot-pin"><circle cx="64.04%" cy="29.32%" r="13"/><text x="64.04%" y="29.32%">3</text></g>
+        <rect class="shot-box" x="44.29%" y="46.36%" width="7.87%" height="7.27%" rx="6"/>
+        <g class="shot-pin"><circle cx="52.16%" cy="46.36%" r="13"/><text x="52.16%" y="46.36%">4</text></g>
+        <rect class="shot-box" x="44.29%" y="73.86%" width="6.17%" height="6.82%" rx="6"/>
+        <g class="shot-pin"><circle cx="50.46%" cy="73.86%" r="13"/><text x="50.46%" y="73.86%">5</text></g>
+        </svg>
+        </a>
+        <!-- /shot:accounts-overview -->
+        <figcaption>
+          <ol>
+          <li><span class="pin" aria-hidden="true">1</span><span>The ⋯ menu opens the account's settings.</span></li>
+          <li><span class="pin" aria-hidden="true">2</span><span>The status: <strong>OK</strong>, <strong>At risk</strong>, <strong>Breached</strong>, <strong>Passed</strong> or <strong>Payout ready</strong>.</span></li>
+          <li><span class="pin" aria-hidden="true">3</span><span>Where the balance sits between the breach level and the goal.</span></li>
+          <li><span class="pin" aria-hidden="true">4</span><span>A funded account whose payout rules are met: the payout column says how much.</span></li>
+          <li><span class="pin" aria-hidden="true">5</span><span><strong>No rules set</strong>: the account has no verified firm rules yet. The link leads to its rules.</span></li>
+          </ol>
+        </figcaption>
+      </figure>
+    <ul>
+      <li><strong>Payout</strong> shows qualifying days, the consistency rule and the buffer still to build, or what is ready to withdraw.</li>
+      <li><strong>Evaluation passed?</strong> The Accounts tab offers to set up your funded account.</li>
+      <li><strong>Passed, failed or closed</strong> accounts can be archived from their settings. Archived accounts are left out of the numbers unless you turn on <strong>Show archived</strong>.</li>
+      <li><strong>Prop business</strong>, in Settings › Prop accounts, totals your evaluation pass rate, your prop spend, your payouts and the difference.</li>
+    </ul>
+
+    <aside class="callout">
+      <p class="label">A question this does not answer?</p>
+      <p>Write to <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>. We read every message.</p>
+    </aside>
+  </article>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="row">
+      <a class="brand" href="/"><svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><circle class="ring" cx="32" cy="32" r="20" transform="rotate(-60 32 32)"/><polygon class="head" points="39.36,10.39 30.26,22.15 26.79,2.46"/><circle class="dot" cx="32" cy="32" r="6"/></svg>Roundturn</a>
+      <nav aria-label="Footer">
+        <a href="/">Home</a>
+        <a href="/docs/">Docs</a>
+        <a href="/privacy/">Privacy</a>
+        <a href="/terms/">Terms</a>
+        <a href="/refunds/">Refund Policy</a>
+        <a href="mailto:hello@roundturn.app">hello@roundturn.app</a>
+      </nav>
+    </div>
+    <p class="legal">Roundturn is software for reviewing your own trading history. It is not investment advice. Trading futures involves substantial risk of loss, and past results do not predict future results.</p>
+    <p class="legal">Roundturn is not affiliated with Tradovate, TradeSea, NinjaTrader or any broker, exchange or prop firm. Their names are used only to say which files Roundturn reads.</p>
+  </div>
+</footer>
+</body>
+</html>
