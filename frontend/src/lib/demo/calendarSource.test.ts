@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 import { afterEach, describe, expect, it } from 'vitest'
-import { SAMPLE_TRADES } from './generate'
+import { shiftDay, weekStart } from '../calendar'
+import { SAMPLE_TRADES, pointsFor } from './generate'
 import { resetDemoJournal } from './journal'
 import { demoSource } from './source'
 
@@ -118,5 +119,47 @@ describe('the note for a day in the sample journal', () => {
   it('lists the days of a month oldest first', async () => {
     for (const d of ['2026-09-20', '2026-09-03', '2026-09-11']) await demoSource.saveDayNote(d, '<p>x</p>')
     expect((await demoSource.calendar('2026-09', NO_FILTERS)).noted).toEqual(['2026-09-03', '2026-09-11', '2026-09-20'])
+  })
+})
+
+describe('the share cards of the sample journal', () => {
+  const sumOf = (values: readonly string[]) => values.reduce((sum, v) => sum.plus(v), new Decimal(0))
+
+  it('adds up a day as the server does: points per contract, contracts, best and worst by money and by points', async () => {
+    const card = await demoSource.periodCard({ kind: 'day', start: FIRST }, NO_FILTERS)
+    const that = SAMPLE_TRADES.filter((t) => t.trade_day === FIRST)
+    expect([card.start, card.end]).toEqual([FIRST, FIRST])
+    expect(card.summary.trade_count).toBe(that.length)
+    expect(card.contracts).toBe(that.reduce((n, t) => n + t.total_qty, 0))
+    const points = that.map(pointsFor)
+    expect(new Decimal(card.net_points).equals(sumOf(points))).toBe(true)
+    const nets = that.map((t) => new Decimal(t.net_pnl))
+    expect(new Decimal(card.best?.net_pnl ?? 'NaN').equals(Decimal.max(...nets))).toBe(true)
+    expect(new Decimal(card.worst?.net_pnl ?? 'NaN').equals(Decimal.min(...nets))).toBe(true)
+    expect(new Decimal(card.best_points?.points ?? 'NaN').equals(Decimal.max(...points))).toBe(true)
+    expect(new Decimal(card.worst_points?.points ?? 'NaN').equals(Decimal.min(...points))).toBe(true)
+    expect(card.number).toBe(1) // the sample journal's first trading day
+  })
+
+  it('takes a week from Sunday to Saturday and numbers it among the weeks that traded', async () => {
+    const sunday = weekStart(FIRST)
+    const card = await demoSource.periodCard({ kind: 'week', start: sunday }, NO_FILTERS)
+    expect([card.start, card.end]).toEqual([sunday, shiftDay(sunday, 6)])
+    const that = SAMPLE_TRADES.filter((t) => t.trade_day >= sunday && t.trade_day <= shiftDay(sunday, 6))
+    expect(card.summary.trade_count).toBe(that.length)
+    expect(card.number).toBe(1)
+    const later = shiftDay(sunday, 28)
+    const weeksSoFar = new Set(days.map(weekStart).filter((s) => s <= later)).size
+    expect((await demoSource.periodCard({ kind: 'week', start: later }, NO_FILTERS)).number).toBe(weeksSoFar)
+    expect(weeksSoFar).toBeGreaterThan(1)
+  })
+
+  it('applies the filters but not their date range, and has nothing to name on a day without trades', async () => {
+    const shorts = await demoSource.periodCard({ kind: 'day', start: FIRST }, { preset: '7d', direction: 'short' })
+    expect(shorts.summary.trade_count).toBe(
+      SAMPLE_TRADES.filter((t) => t.trade_day === FIRST && t.direction === 'short').length,
+    )
+    const empty = await demoSource.periodCard({ kind: 'day', start: '2020-01-01' }, NO_FILTERS)
+    expect([empty.summary.trade_count, empty.best, empty.worst_points, empty.accounts]).toEqual([0, null, null, []])
   })
 })

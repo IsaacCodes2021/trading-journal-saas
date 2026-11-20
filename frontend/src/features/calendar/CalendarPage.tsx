@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { FilterBar } from '../../components/FilterBar'
 import { cx } from '../../components/ui/cx'
 import { Button, Card, Pnl, Spinner, StatTile } from '../../components/ui/primitives'
@@ -13,12 +14,14 @@ import {
   monthOf,
   shade,
   shiftMonth,
+  weekLabel,
   type CalendarCell,
 } from '../../lib/calendar'
 import type { CalendarMonth } from '../../lib/data/model'
 import { useCalendar, useDashboard, useFilterOptions } from '../../lib/data/queries'
 import { hasNarrowingFilters, type Filters } from '../../lib/filters'
 import { formatAmount, formatDay, formatPercent, formatPnl, pluralize } from '../../lib/format'
+import { PeriodShare, ShareIcon, useMayShare } from '../share/ShareLauncher'
 
 /** The page's address: the month (left out for "the latest month with trades") and the filters. */
 export type CalendarSearch = Filters & { month?: string }
@@ -119,6 +122,8 @@ function MonthView({
 }) {
   const calendar = useCalendar(month, filters)
   const options = useFilterOptions()
+  const mayShare = useMayShare()
+  const [sharing, setSharing] = useState<string | null>(null) // the Sunday of the week being shared
   const data = calendar.data
   const go = (next: string) => onSearch({ ...filters, month: next })
   const weeks = data ? buildWeeks(month, data.daily, data.noted) : []
@@ -193,22 +198,39 @@ function MonthView({
                         <td key={`blank-${index}`} className="border border-line-soft bg-bg" aria-hidden="true" />
                       ),
                     )}
-                    <td className="border border-line-soft px-2 py-2 text-center align-top">
-                      {week.net === null ? (
+                    {week.net === null ? (
+                      <td className="border border-line-soft px-2 py-2 text-center align-top">
                         <span className="text-muted">—</span>
-                      ) : (
-                        <>
+                      </td>
+                    ) : (
+                      <td className="border border-line-soft p-0 text-center align-top">
+                        <button
+                          type="button"
+                          aria-haspopup="dialog"
+                          aria-label={`Share the week of ${weekLabel(week.start)}: ${formatPnl(week.net)} from ${pluralize(week.trades, 'trade')} in ${monthLabel(month)}`}
+                          onClick={() => {
+                            if (mayShare()) setSharing(week.start)
+                          }}
+                          className="flex h-full min-h-[88px] w-full cursor-pointer flex-col items-center gap-0.5 border-0 bg-transparent px-2 py-2 font-[inherit] text-ink hover:bg-raised"
+                        >
                           <Pnl value={week.net} className="text-[13px] font-semibold" />
-                          <div className="text-xs text-muted">{pluralize(week.trades, 'trade')}</div>
-                        </>
-                      )}
-                    </td>
+                          <span className="text-xs text-muted">{pluralize(week.trades, 'trade')}</span>
+                          <span className="mt-auto inline-flex items-center gap-1 text-xs text-muted">
+                            <ShareIcon />
+                            Share
+                          </span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </Card>
+      ) : null}
+      {sharing ? (
+        <PeriodShare period={{ kind: 'week', start: sharing }} filters={filters} onClose={() => setSharing(null)} />
       ) : null}
     </>
   )

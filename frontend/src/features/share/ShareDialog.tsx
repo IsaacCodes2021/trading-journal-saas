@@ -9,10 +9,11 @@ import { Button } from '../../components/ui/primitives'
 import type { ScreenshotRef, TradeDetail } from '../../lib/data/model'
 import { useAddScreenshots } from '../../lib/data/queries'
 import { MAX_IMAGE_MB } from '../../lib/limits'
-import { CARD_STYLES, cardModel, notesText, type Amounts, type CardOptions, type CardStyle } from './cardModel'
+import { CARD_STYLES, cardModel, notesText, type CardOptions, type CardStyle } from './cardModel'
 import { CENTRED, type Crop, type Focus } from './crop'
 import { Cropper } from './Cropper'
-import { canCopyImage, cardToBlob, copyImage, imageFileName, saveBlob } from './exportImage'
+import { AMOUNTS, rememberedStyle, rememberStyle, SaveActions, Segment } from './dialogParts'
+import { cardToBlob, imageFileName } from './exportImage'
 import { CardPreview, ShareCard, type CardPicture } from './ShareCard'
 
 type Step = 'shot' | 'crop' | 'card'
@@ -21,11 +22,6 @@ const STEPS: readonly { step: Step; name: string }[] = [
   { step: 'shot', name: 'Screenshot' },
   { step: 'crop', name: 'Crop' },
   { step: 'card', name: 'Card' },
-]
-
-const AMOUNTS: readonly { value: Amounts; label: string }[] = [
-  { value: 'dollars', label: 'Dollars' },
-  { value: 'points', label: 'Points only' },
 ]
 
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp'
@@ -39,54 +35,6 @@ const SLOT_BEFORE_MEASURING: Record<CardStyle, readonly [number, number]> = {
   gold: [446, 134],
   holo: [456, 154],
   paper: [438, 102],
-}
-
-// The last style used, in this browser only. The pop-up works without it (a private window, blocked storage).
-const STYLE_KEY = 'roundturn.share-style'
-
-function rememberedStyle(): CardStyle {
-  try {
-    const saved = window.localStorage.getItem(STYLE_KEY)
-    if (CARD_STYLES.some((s) => s.value === saved)) return saved as CardStyle
-  } catch {
-    // no storage: the default
-  }
-  return 'gold'
-}
-
-function rememberStyle(style: CardStyle) {
-  try {
-    window.localStorage.setItem(STYLE_KEY, style)
-  } catch {
-    // no storage: nothing is remembered
-  }
-}
-
-function Segment<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string
-  options: readonly { value: T; label: string }[]
-  value: T
-  onChange: (next: T) => void
-}) {
-  return (
-    <div className="sc-seg" role="group" aria-label={label}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
-    </div>
-  )
 }
 
 /**
@@ -127,8 +75,6 @@ export default function ShareDialog({
     amounts: 'dollars',
   }))
   const [slot, setSlot] = useState<readonly [number, number] | null>(null)
-  const [status, setStatus] = useState<{ text: string; error: boolean } | null>(null)
-  const [busy, setBusy] = useState(false)
   const [refusal, setRefusal] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -219,32 +165,6 @@ export default function ShareDialog({
   const makeImage = () => {
     const card = still.current
     return card ? cardToBlob(card) : Promise.reject(new Error('The card is not ready.'))
-  }
-
-  const download = async () => {
-    setBusy(true)
-    setStatus({ text: 'Making the image…', error: false })
-    try {
-      saveBlob(await makeImage(), imageFileName(trade))
-      setStatus({ text: 'Image saved.', error: false })
-    } catch {
-      setStatus({ text: 'The image could not be made. Try again, or try another browser.', error: true })
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const copy = async () => {
-    setBusy(true)
-    setStatus({ text: 'Making the image…', error: false })
-    try {
-      await copyImage(makeImage())
-      setStatus({ text: 'Image copied.', error: false })
-    } catch {
-      setStatus({ text: 'The image could not be copied. Try Download image instead.', error: true })
-    } finally {
-      setBusy(false)
-    }
   }
 
   const at = STEPS.findIndex((s) => s.step === step)
@@ -481,22 +401,7 @@ export default function ShareDialog({
                 />
                 <p className="sc-fine">Points only hides dollars, quantity and fees.</p>
               </fieldset>
-              <div className="sc-dlg-actions">
-                <Button variant="primary" onClick={() => void download()} disabled={busy} data-step-focus>
-                  Download image
-                </Button>
-                {canCopyImage() ? (
-                  <Button onClick={() => void copy()} disabled={busy}>
-                    Copy image
-                  </Button>
-                ) : null}
-              </div>
-              <p className="sc-fine">
-                A 1080 × 1350 image, made on your device. Nothing is posted until you share it yourself.
-              </p>
-              <p className={cx('sc-fine sc-status', status?.error && 'sc-is-error')} aria-live="polite">
-                {status?.text}
-              </p>
+              <SaveActions makeImage={makeImage} fileName={imageFileName(trade)} />
             </div>
           </div>
         ) : null}

@@ -1,5 +1,5 @@
 import { getFontEmbedCSS } from 'html-to-image'
-import type { TradeDetail } from '../../lib/data/model'
+import type { SharePeriod, TradeDetail } from '../../lib/data/model'
 import { cardNumber } from './cardModel'
 import { CARD_H, CARD_W } from './ShareCard'
 
@@ -27,6 +27,11 @@ const XHTML_NS = 'http://www.w3.org/1999/xhtml'
 export function imageFileName(trade: Pick<TradeDetail, 'symbol' | 'trade_day' | 'number'>): string {
   const symbol = trade.symbol.replace(/[^A-Za-z0-9_-]/g, '') || 'trade'
   return `roundturn-${symbol}-${trade.trade_day}-no-${cardNumber(trade.number)}.png`
+}
+
+/** "roundturn-day-2026-11-13-no-00057.png", "roundturn-week-2026-11-29-no-00012.png" (the week by its Sunday). */
+export function periodFileName(period: SharePeriod, number: number): string {
+  return `roundturn-${period.kind}-${period.start}-no-${cardNumber(number)}.png`
 }
 
 function readAsDataUrl(blob: Blob): Promise<string> {

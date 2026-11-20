@@ -12,6 +12,8 @@ import {
   shade,
   shiftDay,
   shiftMonth,
+  weekLabel,
+  weekStart,
 } from './calendar'
 
 const day = (date: string, net: string, count = 1) => ({ day: date, net_pnl: net, trade_count: count })
@@ -230,5 +232,30 @@ describe('the best and worst day', () => {
   it('compares as decimals, not as text', () => {
     expect(extremeDay([day('a', '9.00'), day('b', '10.00')], 'best')?.day).toBe('b')
     expect(extremeDay([day('a', '-9.00'), day('b', '-10.00')], 'worst')?.day).toBe('b')
+  })
+})
+
+describe('weeks, Sunday to Saturday', () => {
+  it('start on the Sunday on or before a day, across a month or a year', () => {
+    expect(weekStart('2026-11-29')).toBe('2026-11-29') // a Sunday is its own week's start
+    expect(weekStart('2026-12-05')).toBe('2026-11-29') // the Saturday after it
+    expect(weekStart('2026-12-01')).toBe('2026-11-29')
+    expect(weekStart('2027-01-01')).toBe('2026-12-27')
+  })
+
+  it('are named by their first and last day, with the year once, or twice across a new year', () => {
+    expect(weekLabel('2026-11-08')).toBe('Nov 8 – Nov 14, 2026')
+    expect(weekLabel('2026-11-29')).toBe('Nov 29 – Dec 5, 2026')
+    expect(weekLabel('2026-12-27')).toBe('Dec 27, 2026 – Jan 2, 2027')
+  })
+
+  it('carry the Sunday they start on in the calendar, even when it is in the month before', () => {
+    expect(buildWeeks('2026-09', [], []).map((w) => w.start)).toEqual([
+      '2026-08-30',
+      '2026-09-06',
+      '2026-09-13',
+      '2026-09-20',
+      '2026-09-27',
+    ])
   })
 })

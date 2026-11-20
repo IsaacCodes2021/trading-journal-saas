@@ -83,7 +83,27 @@ export interface CalendarCell {
   noted: boolean // the day has a note
 }
 
+/** The Sunday a trading day's week starts on: the day itself when it is a Sunday. */
+export function weekStart(day: string): string {
+  return shiftDay(day, -utc(day).getUTCDay())
+}
+
+/** "Nov 29 – Dec 5, 2026" for the week that starts on Sunday `start`; "Dec 27, 2026 – Jan 2, 2027" across a year. */
+export function weekLabel(start: string): string {
+  const end = shiftDay(start, 6)
+  const format = (day: string, year: boolean) =>
+    new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: year ? 'numeric' : undefined,
+      timeZone: 'UTC',
+    }).format(utc(day))
+  const sameYear = start.slice(0, 4) === end.slice(0, 4)
+  return `${format(start, !sameYear)} – ${format(end, true)}`
+}
+
 export interface CalendarWeek {
+  start: string // the Sunday the week starts on, which can be in the month before
   /** Sunday to Saturday; null for a day that belongs to the month before or after. */
   cells: (CalendarCell | null)[]
   net: string | null // the week's result within this month; null when nothing traded
@@ -115,7 +135,7 @@ export function buildWeeks(month: string, daily: readonly DailyResult[], noted: 
       }
       cells.push({ day, number, result, noted: notes.has(day) })
     }
-    weeks.push({ cells, net: trades > 0 ? net.toFixed(2) : null, trades })
+    weeks.push({ start: shiftDay(start, first - 1), cells, net: trades > 0 ? net.toFixed(2) : null, trades })
   }
   return weeks
 }

@@ -1329,6 +1329,48 @@ export interface paths {
         patch: operations["patch_settings"];
         trace?: never;
     };
+    "/api/v1/share/day/{day}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Day Card
+         * @description One trading day's card, with the calendar's filters: its result, trades, contracts, net points, and its best
+         *     and worst trades.
+         */
+        get: operations["get_day_card"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/share/week/{start}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Week Card
+         * @description One week's card, Sunday `start` to the Saturday after it, as the calendar's weeks run (across a month's end
+         *     too).
+         */
+        get: operations["get_week_card"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tag-groups": {
         parameters: {
             query?: never;
@@ -2395,6 +2437,43 @@ export interface components {
              */
             payouts: string;
         };
+        /**
+         * CardTradeOut
+         * @description One trade as a day or week card names it: the best or the worst of them.
+         */
+        CardTradeOut: {
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "long" | "short";
+            /**
+             * Entry At
+             * Format: date-time
+             */
+            entry_at: string;
+            /** Id */
+            id: number;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /**
+             * Points
+             * @example -475.00
+             */
+            points: string;
+            /** Symbol */
+            symbol: string;
+            /** Total Qty */
+            total_qty: number;
+            /**
+             * Trade Day
+             * Format: date
+             */
+            trade_day: string;
+        };
         /** CatalogTagOut */
         CatalogTagOut: {
             /** Color */
@@ -3415,6 +3494,38 @@ export interface components {
             axes: components["schemas"]["ScoreAxisOut"][];
             /** Overall */
             overall: number;
+        };
+        /**
+         * PeriodCardOut
+         * @description A trading day (`start` = `end`) or a week, Sunday to Saturday, with the filters applied.
+         */
+        PeriodCardOut: {
+            /** Accounts */
+            accounts: string[];
+            best: components["schemas"]["CardTradeOut"] | null;
+            best_points: components["schemas"]["CardTradeOut"] | null;
+            /** Contracts */
+            contracts: number;
+            /**
+             * End
+             * Format: date
+             */
+            end: string;
+            /**
+             * Net Points
+             * @example -475.00
+             */
+            net_points: string;
+            /** Number */
+            number: number;
+            /**
+             * Start
+             * Format: date
+             */
+            start: string;
+            summary: components["schemas"]["SummaryOut"];
+            worst: components["schemas"]["CardTradeOut"] | null;
+            worst_points: components["schemas"]["CardTradeOut"] | null;
         };
         /** PlanOut */
         PlanOut: {
@@ -9742,6 +9853,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SettingsOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_day_card: {
+        parameters: {
+            query?: {
+                preset?: "all" | "7d" | "30d" | "90d" | "mtd" | "last_month" | "ytd";
+                start?: string | null;
+                end?: string | null;
+                account_type?: ("evaluation" | "funded") | null;
+                show_archived?: boolean;
+                firms?: string[];
+                account_ids?: number[];
+                symbol_roots?: string[];
+                direction?: ("long" | "short") | null;
+            };
+            header?: never;
+            path: {
+                day: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodCardOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    get_week_card: {
+        parameters: {
+            query?: {
+                preset?: "all" | "7d" | "30d" | "90d" | "mtd" | "last_month" | "ytd";
+                start?: string | null;
+                end?: string | null;
+                account_type?: ("evaluation" | "funded") | null;
+                show_archived?: boolean;
+                firms?: string[];
+                account_ids?: number[];
+                symbol_roots?: string[];
+                direction?: ("long" | "short") | null;
+            };
+            header?: never;
+            path: {
+                start: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PeriodCardOut"];
                 };
             };
             /** @description Unauthorized */

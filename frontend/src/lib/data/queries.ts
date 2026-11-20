@@ -12,6 +12,7 @@ import type {
   Platform,
   ReportBy,
   RuleSetInput,
+  SharePeriod,
   TagCatalog,
   TagEdit,
   TradeDetail,
@@ -69,12 +70,23 @@ export function useDay(day: string, filters: Filters) {
   })
 }
 
+/** The numbers on a day's or a week's share card. Read when the pop-up opens, so it shows what is there now. */
+export function usePeriodCard(period: SharePeriod, filters: Filters) {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['period-card', source.label, period, filters],
+    queryFn: ({ signal }) => source.periodCard(period, filters, signal),
+    staleTime: 0,
+  })
+}
+
 /** The note for a trading day: the editor's HTML, "" when nothing is written. */
-export function useDayNote(day: string) {
+export function useDayNote(day: string, { enabled = true }: { enabled?: boolean } = {}) {
   const source = useDataSource()
   return useQuery({
     queryKey: ['day-note', source.label, day],
     queryFn: ({ signal }) => source.dayNote(day, signal),
+    enabled,
   })
 }
 

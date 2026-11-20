@@ -1,3 +1,4 @@
+import { useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { USERNAME_MAX, usernameProblem, usernameSaveError, useSaveUsername, useSkipUsername } from '../lib/account'
 import { CONTROL, Field } from './ui/Field'
@@ -5,6 +6,20 @@ import { Modal } from './ui/Modal'
 import { Button } from './ui/primitives'
 
 export const USERNAME_HINT = '3 to 20 letters, numbers or underscores.'
+
+// The box put away without an answer (Escape, a click outside) during this visit. It is kept with the app's other state,
+// never garbage-collected, so it lasts until the app is next opened, holds wherever the box is drawn, and lets the Share
+// buttons tell that the box is no longer showing.
+const PUT_AWAY = ['username-prompt-put-away']
+
+export function usernamePromptPutAway(queryClient: QueryClient): boolean {
+  return queryClient.getQueryData<boolean>(PUT_AWAY) === true
+}
+
+function putAway(queryClient: QueryClient) {
+  queryClient.setQueryDefaults(PUT_AWAY, { gcTime: Infinity })
+  queryClient.setQueryData(PUT_AWAY, true)
+}
 
 /**
  * Asked after sign-in of anyone with no username who has not said "not now" (`flags.ask_username`): accounts made before
@@ -17,7 +32,8 @@ export function UsernamePrompt() {
   const skip = useSkipUsername()
   const [name, setName] = useState('')
   const [tried, setTried] = useState(false)
-  const [closed, setClosed] = useState(false)
+  const queryClient = useQueryClient()
+  const [closed, setClosed] = useState(() => usernamePromptPutAway(queryClient))
   if (closed) return null
 
   const shape = usernameProblem(name)
@@ -34,7 +50,18 @@ export function UsernamePrompt() {
   }
 
   return (
-    <Modal label="Pick a username" onClose={busy ? () => undefined : () => setClosed(true)} className="max-w-[440px]">
+    <Modal
+      label="Pick a username"
+      onClose={
+        busy
+          ? () => undefined
+          : () => {
+              putAway(queryClient)
+              setClosed(true)
+            }
+      }
+      className="max-w-[440px]"
+    >
       <form onSubmit={submit} noValidate className="flex flex-col gap-3.5">
         <h2 className="m-0 text-base font-semibold">Pick a username</h2>
         <p className="m-0 text-muted">
