@@ -16,6 +16,7 @@ data/
 *.sqlite3
 *.csv
 !backend/tests/fixtures/*.csv
+!backend/tests/fixtures/platforms/*.csv
 
 
 # Python
