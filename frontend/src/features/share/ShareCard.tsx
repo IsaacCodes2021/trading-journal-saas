@@ -1,6 +1,6 @@
 import { memo, useEffect, useId, useLayoutEffect, useRef, useState, type Ref } from 'react'
 import { cx } from '../../components/ui/cx'
-import type { CardModel, CardStyle } from './cardModel'
+import type { CardKind, CardModel, CardStyle } from './cardModel'
 import { place, type Focus } from './crop'
 import { GUILLOCHE_H, GUILLOCHE_W, STAR, guillochePaths } from './ornaments'
 
@@ -14,6 +14,7 @@ export const CARD_W = 520
 export const CARD_H = 650
 
 const STYLE_NAME: Record<CardStyle, string> = { gold: 'gold foil', holo: 'holographic', paper: 'engraved paper' }
+const KIND_NAME: Record<CardKind, string> = { trade: 'Share card', day: 'Day share card', week: 'Week share card' }
 const TILT_DEGREES: Record<CardStyle, number> = { gold: 3.5, holo: 7, paper: 3.5 }
 
 /** The screenshot on the card, and the crop that places it. */
@@ -45,6 +46,11 @@ function Mark({ paper }: { paper: boolean }) {
       <circle cx="32" cy="32" r="6" fill={dot} />
     </svg>
   )
+}
+
+/** "Long" or "Short", in the trade's colour. */
+function Side({ direction }: { direction: 'long' | 'short' }) {
+  return <span className={`sc-dir sc-dir--${direction}`}>{direction === 'long' ? 'Long' : 'Short'}</span>
 }
 
 /** The engraved rosette and wave band. Memoised: its paths are long and change only with the style. */
@@ -188,11 +194,11 @@ export function ShareCard({
         style === 'gold' && 'sc-metal',
         model.tone === 'neg' && 'sc-is-loss',
         model.tone === 'flat' && 'sc-is-flat',
-        !model.shot && 'sc-no-shot',
+        model.kind === 'trade' ? !model.shot && 'sc-no-shot' : 'sc-period',
         still && 'sc-still',
       )}
       role={still ? undefined : 'group'}
-      aria-label={still ? undefined : `Share card, ${STYLE_NAME[style]} style`}
+      aria-label={still ? undefined : `${KIND_NAME[model.kind]}, ${STYLE_NAME[style]} style`}
       aria-hidden={still ? true : undefined}
     >
       <div className="sc-inner">
@@ -217,11 +223,9 @@ export function ShareCard({
             <div className="sc-kicker">{model.title}</div>
             <div className="sc-orn sc-metal" aria-hidden="true" />
             <div className="sc-instr">
-              <span className="sc-sym">{model.symbol}</span>
-              <span className={`sc-dir sc-dir--${model.direction}`}>
-                {model.direction === 'long' ? 'Long' : 'Short'}
-              </span>
-              <span className="sc-meta">{model.meta}</span>
+              <span className="sc-sym">{model.heading}</span>
+              {model.direction ? <Side direction={model.direction} /> : null}
+              {model.meta ? <span className="sc-meta">{model.meta}</span> : null}
             </div>
           </div>
           <div className="sc-hero">
@@ -232,7 +236,13 @@ export function ShareCard({
             </div>
             {style !== 'paper' ? <Seal text={model.sealText} /> : null}
           </div>
-          <div className={cx('sc-legs', model.pointsOnly && 'sc-legs-3')}>
+          <div
+            className={cx(
+              'sc-legs',
+              model.legs.length === 3 && 'sc-legs-3',
+              model.kind !== 'trade' && model.legs.length === 4 && 'sc-legs-4',
+            )}
+          >
             {model.legs.map((leg) => (
               <div className="sc-leg" key={leg.label}>
                 <span className="sc-label">{leg.label}</span>
@@ -241,6 +251,22 @@ export function ShareCard({
               </div>
             ))}
           </div>
+          {model.extremes ? (
+            <div className="sc-extremes">
+              {model.extremes.map((x) => (
+                <div className="sc-x" key={x.label}>
+                  <span className="sc-label">{x.label}</span>
+                  <span className={cx('sc-x-value', `sc-x--${x.tone}`)}>{x.value}</span>
+                  <span className="sc-x-trade">
+                    <span className="sc-x-sym">{x.symbol}</span>
+                    <Side direction={x.direction} />
+                    <span className="sc-x-when">{x.when}</span>
+                  </span>
+                  <span className="sc-x-sub">{x.sub}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {model.shot ? (
             <div className="sc-shot">
               <ShotWindow picture={picture} onSize={onShotSize} />

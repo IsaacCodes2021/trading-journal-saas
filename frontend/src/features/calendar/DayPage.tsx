@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { useState } from 'react'
 import { EquityChart } from '../../components/charts/EquityCharts'
 import { FilterBar } from '../../components/FilterBar'
 import { Button, Card, Chip, DirectionBadge, Pnl, Spinner, StatTile } from '../../components/ui/primitives'
@@ -8,6 +9,7 @@ import { useDay, useDayNote, useFilterOptions, useSaveDayNote } from '../../lib/
 import type { TradeRow } from '../../lib/data/model'
 import { hasNarrowingFilters, type Filters } from '../../lib/filters'
 import { formatAmount, formatClock, formatDuration, formatPercent, pluralize } from '../../lib/format'
+import { PeriodShare, ShareButton, useMayShare } from '../share/ShareLauncher'
 import { NoteEditorCard } from '../trade-detail/NotesCard'
 
 const cell = 'border-b border-line-soft px-3.5 py-2.5 whitespace-nowrap'
@@ -130,6 +132,8 @@ function DayView({
 }) {
   const data = useDay(day, filters)
   const options = useFilterOptions()
+  const mayShare = useMayShare()
+  const [sharing, setSharing] = useState(false)
   const result = data.data
   const month = monthOf(day)
   const earlier = day <= FIRST_DAY
@@ -180,7 +184,16 @@ function DayView({
             &rsaquo;
           </Link>
         )}
+        {result && result.trades.length > 0 ? (
+          <>
+            <span className="grow" />
+            <ShareButton onClick={() => setSharing(mayShare())}>Share day</ShareButton>
+          </>
+        ) : null}
       </Card>
+      {sharing ? (
+        <PeriodShare period={{ kind: 'day', start: day }} filters={filters} onClose={() => setSharing(false)} />
+      ) : null}
       {data.isPending ? <Spinner label="Loading the day" /> : null}
       {data.isError ? (
         <Card className="p-6" role="alert">

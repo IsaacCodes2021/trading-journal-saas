@@ -82,6 +82,14 @@ describe('the Share button', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(screen.queryByRole('dialog', { name: 'Share trade' })).toBeNull()
   })
+
+  it('opens once the "Pick a username" box is put away with Escape', async () => {
+    const user = await openTrade(journaled, { askUsername: true })
+    expect(await screen.findByRole('dialog', { name: 'Pick a username' })).toBeInTheDocument()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Pick a username' })).toBeNull()
+    expect(await openShare(user)).toBeInTheDocument()
+  })
 })
 
 describe('step 1: the screenshot', () => {

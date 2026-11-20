@@ -820,6 +820,111 @@
   transform: rotate(-16deg);
 }
 
+/* ---------- a day's or a week's card: four even totals, then the best and worst trades where a screenshot would be,
+   centred with the note in the space between the totals and the footer ---------- */
+.sc-legs.sc-legs-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.sc-period .sc-legs {
+  margin-bottom: auto;
+}
+
+.sc-extremes {
+  display: flex;
+  flex-direction: column;
+  padding: 0 14px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sc-x {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+  row-gap: 3px;
+  padding: 11px 0;
+}
+
+.sc-x + .sc-x {
+  border-top: 1px solid var(--rule);
+}
+
+.sc-x-trade {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.sc-x-sym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.sc-x-when {
+  font-size: 13px;
+  opacity: 0.72;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-x-value {
+  font-family: 'IBM Plex Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1.2;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sc-x--pos {
+  color: #34d399;
+}
+
+.sc-x--neg {
+  color: #f87171;
+}
+
+.sc-x-sub {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  opacity: 0.68;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sc-card--paper .sc-extremes {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* Paper's seal hangs over the bottom right corner. With no note, the footer keeps the seal's height so the trades box
+   stays clear of it; with a note (a day's), the note's lines stop short of the seal instead, as the footer's do. */
+.sc-card--paper.sc-period .sc-foot {
+  min-height: 88px;
+}
+
+.sc-card--paper.sc-period .sc-notes {
+  padding-right: 112px;
+}
+
+.sc-card--paper.sc-period .sc-notes ~ .sc-foot {
+  min-height: 40px;
+}
+
+.sc-card--paper .sc-x--pos {
+  color: #0b7d55;
+}
+
+.sc-card--paper .sc-x--neg {
+  color: #b42318;
+}
+
 /* ---------- the still copy for the image: the foil at rest, no motion, no light sweep, no glare, no tilt ---------- */
 .sc-still,
 .sc-still * {

@@ -1,13 +1,17 @@
 import Decimal from 'decimal.js'
+import { shiftDay, weekStart } from '../calendar'
 import type {
   CalendarMonth,
+  CardTrade,
   DashboardData,
   DataSource,
   DayData,
   FilterOptions,
   Neighbors,
+  PeriodCard,
   ReportBy,
   ReportData,
+  SharePeriod,
   TradeDetail,
   TradeRow,
   TradeSort,
@@ -66,6 +70,43 @@ function day(date: string, filters: Filters): DayData {
     'date',
   )
   return { summary: summarize(trades), equity_by_trade: equityByTrade(trades), trades, total: trades.length }
+}
+
+/** The highest (or lowest) by `value`; the earlier trade on a tie, as the server picks. */
+function extreme(trades: readonly TradeRow[], value: (t: TradeRow) => string, best: boolean): CardTrade | null {
+  let found: TradeRow | undefined
+  for (const trade of trades) {
+    const by = new Decimal(value(trade))
+    if (!found || (best ? by.gt(value(found)) : by.lt(value(found)))) found = trade
+  }
+  if (!found) return null
+  const { id, symbol, direction, trade_day, entry_at, total_qty, net_pnl } = found
+  return { id, symbol, direction, trade_day, entry_at, total_qty, net_pnl, points: pointsFor(found) }
+}
+
+/** A day's or week's share card, as the server builds it (`api/period_card.py`). */
+function periodCard(period: SharePeriod, filters: Filters): PeriodCard {
+  const end = period.kind === 'day' ? period.start : shiftDay(period.start, 6)
+  const trades = [...onDays(filters, (d) => d >= period.start && d <= end)].sort((a, b) =>
+    a.exit_at.localeCompare(b.exit_at),
+  )
+  // Every sample trade counts towards the number, whatever the filters, as on the server.
+  const days = new Set(SAMPLE_TRADES.map((t) => (period.kind === 'day' ? t.trade_day : weekStart(t.trade_day))))
+  return {
+    start: period.start,
+    end,
+    number: [...days].filter((d) => d <= period.start).length,
+    summary: summarize(trades),
+    contracts: trades.reduce((total, t) => total + t.total_qty, 0),
+    net_points: trades.reduce((total, t) => total.plus(pointsFor(t)), new Decimal(0)).toString(),
+    accounts: [...new Set(trades.map((t) => t.account.name))].sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase()),
+    ),
+    best: extreme(trades, (t) => t.net_pnl, true),
+    worst: extreme(trades, (t) => t.net_pnl, false),
+    best_points: extreme(trades, pointsFor, true),
+    worst_points: extreme(trades, pointsFor, false),
+  }
 }
 
 function report(by: ReportBy, filters: Filters): ReportData {
@@ -166,6 +207,7 @@ export const demoSource: DataSource = {
   filterOptions: () => Promise.resolve(filterOptions()),
   calendar: (month, filters) => Promise.resolve(calendar(month, filters)),
   day: (date, filters) => Promise.resolve(day(date, filters)),
+  periodCard: (period, filters) => Promise.resolve(periodCard(period, filters)),
   report: (by, filters) => Promise.resolve(report(by, filters)),
   dayNote: (date) => Promise.resolve(journal.dayNoteOf(date)),
   saveDayNote: (date, html) => run(() => journal.saveDayNote(date, html)),

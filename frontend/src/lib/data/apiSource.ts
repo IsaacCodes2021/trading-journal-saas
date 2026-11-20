@@ -109,6 +109,22 @@ export const apiSource: DataSource = {
     }
   },
 
+  // The day or week is the date range: the server puts it in place of the filters' preset.
+  periodCard: (period, filters, signal) =>
+    period.kind === 'day'
+      ? unwrap(
+          api.GET('/api/v1/share/day/{day}', {
+            params: { path: { day: period.start }, query: filterQuery(filters) },
+            signal,
+          }),
+        )
+      : unwrap(
+          api.GET('/api/v1/share/week/{start}', {
+            params: { path: { start: period.start }, query: filterQuery(filters) },
+            signal,
+          }),
+        ),
+
   report: (by, filters, signal) =>
     unwrap(api.GET('/api/v1/reports', { params: { query: { ...filterQuery(filters), by } }, signal })),
 

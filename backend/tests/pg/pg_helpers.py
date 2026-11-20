@@ -109,14 +109,25 @@ def api_client(db, user_id, *, now: datetime = NOON_UTC) -> TestClient:
     return api_client_with_services(db, user_id, now=now)[0]
 
 
-def add_trade(conn, account_id: int, day: date, net: str, *, nth: int = 0, root: str = "NQ", direction: str = "long"):
+def add_trade(
+    conn,
+    account_id: int,
+    day: date,
+    net: str,
+    *,
+    nth: int = 0,
+    root: str = "NQ",
+    direction: str = "long",
+    qty: int = 1,
+    points: str = "1",
+):
     """One closed trade on trading day `day`: $4.00 of fees, so gross is net + 4."""
     exit_at = datetime(day.year, day.month, day.day, 15, nth, tzinfo=UTC)
     conn.execute(
         """INSERT INTO trades (account_id, symbol, symbol_root, direction, entry_at, exit_at, trade_date,
                hold_seconds, total_qty, max_position, fill_pair_count, tick_size, avg_entry, avg_exit,
                points, ticks, gross_pnl, fees, net_pnl)
-           VALUES (%s, %s, %s, %s, %s, %s, %s, 60, 1, 1, 1, 0.25, 100, 101, 1, 4, %s, 4, %s)""",
+           VALUES (%s, %s, %s, %s, %s, %s, %s, 60, %s, %s, 1, 0.25, 100, 101, %s, %s, %s, 4, %s)""",
         (
             account_id,
             f"{root}H4",
@@ -125,6 +136,10 @@ def add_trade(conn, account_id: int, day: date, net: str, *, nth: int = 0, root:
             exit_at - timedelta(seconds=60),
             exit_at,
             day,
+            qty,
+            qty,
+            Decimal(points),
+            Decimal(points) * 4,
             Decimal(net) + 4,
             Decimal(net),
         ),

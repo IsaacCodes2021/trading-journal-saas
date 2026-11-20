@@ -18,38 +18,10 @@ import { FillPairsCard } from './FillPairsCard'
 import { NotesCard } from './NotesCard'
 import { ScreenshotsCard } from './ScreenshotsCard'
 import { TagsCard } from './TagsCard'
+import { ShareButton, useMayShare } from '../share/ShareLauncher'
 
 // The share pop-up, its card, the serif font and the image maker load only when Share is clicked.
 const ShareDialog = lazy(() => import('../share/ShareDialog'))
-
-/** Opens the "Share trade" pop-up: a certificate-style picture of this trade to download or copy. */
-function ShareButton({ onClick }: { onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      aria-haspopup="dialog"
-      onClick={onClick}
-      className="inline-flex h-[30px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-line bg-raised px-2.5 font-[inherit] text-[13px] text-ink hover:border-line-strong"
-    >
-      <svg
-        width="15"
-        height="15"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M12 3v12" />
-        <path d="m7 8 5-5 5 5" />
-        <path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
-      </svg>
-      Share
-    </button>
-  )
-}
 
 function Figure({ label, children, big = false }: { label: string; children: ReactNode; big?: boolean }) {
   return (
@@ -148,6 +120,7 @@ export function TradeDetailPage({
   const catalog = useTagCatalog()
   const neighbors = useNeighbors(id, { ...toQuery(search), page: 1, per_page: 1 })
   const session = useSession()
+  const mayShare = useMayShare()
   const [sharing, setSharing] = useState(false)
 
   if (!valid) return <Missing />
@@ -181,8 +154,7 @@ export function TradeDetailPage({
         </h1>
         <ShareButton
           onClick={() => {
-            // Not over the "Pick a username" box, which is open while the session asks for one.
-            if (!session.data?.flags.ask_username) setSharing(true)
+            if (mayShare()) setSharing(true) // never over the "Pick a username" box
           }}
         />
         <span className="grow" />

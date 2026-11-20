@@ -187,6 +187,22 @@ describe('the calendar and the day', () => {
     expect([stats?.searchParams.get('start'), stats?.searchParams.get('end')]).toEqual(['2024-01-05', '2024-01-05'])
   })
 
+  it('asks for a day’s or a week’s share card by its day, with the filters', async () => {
+    const asked = serve(() => json({ number: 3 }))
+    const dayCard = await apiSource.periodCard(
+      { kind: 'day', start: '2024-01-05' },
+      { preset: '7d', direction: 'short' },
+    )
+    const weekCard = await apiSource.periodCard(
+      { kind: 'week', start: '2024-01-07' },
+      { preset: 'all', firms: ['Apex'] },
+    )
+    expect([dayCard, weekCard]).toEqual([{ number: 3 }, { number: 3 }])
+    expect(asked.map((u) => u.pathname)).toEqual(['/api/v1/share/day/2024-01-05', '/api/v1/share/week/2024-01-07'])
+    expect(asked[0]?.searchParams.get('direction')).toBe('short')
+    expect(asked[1]?.searchParams.getAll('firms')).toEqual(['Apex'])
+  })
+
   it('reads and saves the note of a day with the session’s CSRF token', async () => {
     setCsrfToken('tok')
     const seen = record((call) =>

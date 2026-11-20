@@ -60,6 +60,7 @@ from .routers import (
     screenshots,
     session,
     sessions,
+    share,
     stats,
     stripe_pay,
     tags,
@@ -261,6 +262,7 @@ def create_app(
     app.include_router(tags.router)
     app.include_router(journal.router)
     app.include_router(day_notes.router)
+    app.include_router(share.router)
     app.include_router(screenshots.router)
     app.include_router(imports.router)
     app.include_router(auth.public)

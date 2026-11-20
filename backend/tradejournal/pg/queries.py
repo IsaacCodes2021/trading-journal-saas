@@ -7,6 +7,8 @@ Every function takes a connection from ``Database.tenant_session``: row-level se
 
 from __future__ import annotations
 
+from datetime import date
+
 import psycopg
 
 from ..queries import TradeFilter, TradeRecord
@@ -63,6 +65,26 @@ def trade_number(conn: psycopg.Connection, trade_id: int) -> int:
     what keeps other people's trades out of the count. It is counted live, so deleting an earlier trade (undoing an
     import, or two trades merging) moves the later numbers down."""
     row = conn.execute("SELECT count(*) AS number FROM trades WHERE id <= %s", (trade_id,)).fetchone()
+    return int(row["number"])
+
+
+def trading_day_number(conn: psycopg.Connection, day: date) -> int:
+    """How many days the person traded on, up to and including `day`: the number on a day's shared card (their first
+    trading day is 1). Every trade counts, whatever the page's filters; row-level security keeps other people's out."""
+    row = conn.execute(
+        "SELECT count(DISTINCT trade_date) AS number FROM trades WHERE trade_date <= %s", (day,)
+    ).fetchone()
+    return int(row["number"])
+
+
+def trading_week_number(conn: psycopg.Connection, saturday: date) -> int:
+    """How many weeks (Sunday to Saturday) the person traded in, up to and including the one that ends on `saturday`:
+    the number on a week's shared card. A trading day's week starts on the Sunday before it (`dow` is 0 on a Sunday)."""
+    row = conn.execute(
+        """SELECT count(DISTINCT trade_date - extract(dow FROM trade_date)::int) AS number
+           FROM trades WHERE trade_date <= %s""",
+        (saturday,),
+    ).fetchone()
     return int(row["number"])
 
 

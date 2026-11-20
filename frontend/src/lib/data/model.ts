@@ -152,6 +152,39 @@ export interface DayData {
 /** The most trades one day's page shows. */
 export const DAY_TRADES_LIMIT = 200
 
+/** One trade as a day or week share card names it: the best or the worst of them. */
+export interface CardTrade {
+  id: number
+  symbol: string
+  direction: Direction
+  trade_day: string
+  entry_at: string // ISO 8601 UTC
+  total_qty: number
+  net_pnl: string
+  points: string // per contract, positive = favourable
+}
+
+/** A trading day's (`start` = `end`) or a week's numbers for its share card, Sunday to Saturday, with the filters. */
+export interface PeriodCard {
+  start: string
+  end: string
+  number: number // the person's count of trading days (or weeks with trades) up to this one: the card's number
+  summary: SummaryStats
+  contracts: number
+  net_points: string // each trade's points per contract, added up
+  accounts: string[] // names, in alphabetical order
+  best: CardTrade | null // by net P&L; null with no trades
+  worst: CardTrade | null
+  best_points: CardTrade | null // by points per contract
+  worst_points: CardTrade | null
+}
+
+/** What a day or week share card is about: a trading day, or the week that starts on Sunday `start`. */
+export interface SharePeriod {
+  kind: 'day' | 'week'
+  start: string
+}
+
 /** What a report can break the filtered trades down by. */
 export const REPORT_BYS = ['symbol', 'weekday', 'hour', 'hold', 'tag', 'account'] as const
 export type ReportBy = (typeof REPORT_BYS)[number]
@@ -679,6 +712,8 @@ export interface DataSource {
   calendar(month: string, filters: Filters, signal?: AbortSignal): Promise<CalendarMonth>
   /** One trading day ("YYYY-MM-DD"), with the same filters. */
   day(day: string, filters: Filters, signal?: AbortSignal): Promise<DayData>
+  /** The numbers on a day's or a week's share card, with the same filters (the day or week is the date range). */
+  periodCard(period: SharePeriod, filters: Filters, signal?: AbortSignal): Promise<PeriodCard>
   /** The filtered trades broken down by `by`, each group with the dashboard's statistics. */
   report(by: ReportBy, filters: Filters, signal?: AbortSignal): Promise<ReportData>
   /** The note for a trading day, as the editor's HTML; "" when nothing is written. */

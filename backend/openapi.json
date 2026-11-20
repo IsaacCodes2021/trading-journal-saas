@@ -2069,6 +2069,69 @@
         "title": "BusinessTotalsOut",
         "type": "object"
       },
+      "CardTradeOut": {
+        "description": "One trade as a day or week card names it: the best or the worst of them.",
+        "properties": {
+          "direction": {
+            "enum": [
+              "long",
+              "short"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "entry_at": {
+            "format": "date-time",
+            "title": "Entry At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "points": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Points",
+            "type": "string"
+          },
+          "symbol": {
+            "title": "Symbol",
+            "type": "string"
+          },
+          "total_qty": {
+            "title": "Total Qty",
+            "type": "integer"
+          },
+          "trade_day": {
+            "format": "date",
+            "title": "Trade Day",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "symbol",
+          "direction",
+          "trade_day",
+          "entry_at",
+          "total_qty",
+          "net_pnl",
+          "points"
+        ],
+        "title": "CardTradeOut",
+        "type": "object"
+      },
       "CatalogTagOut": {
         "properties": {
           "color": {
@@ -4635,6 +4698,102 @@
           "axes"
         ],
         "title": "PerformanceScoreOut",
+        "type": "object"
+      },
+      "PeriodCardOut": {
+        "description": "A trading day (`start` = `end`) or a week, Sunday to Saturday, with the filters applied.",
+        "properties": {
+          "accounts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "best": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardTradeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "best_points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardTradeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contracts": {
+            "title": "Contracts",
+            "type": "integer"
+          },
+          "end": {
+            "format": "date",
+            "title": "End",
+            "type": "string"
+          },
+          "net_points": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Points",
+            "type": "string"
+          },
+          "number": {
+            "title": "Number",
+            "type": "integer"
+          },
+          "start": {
+            "format": "date",
+            "title": "Start",
+            "type": "string"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/SummaryOut"
+          },
+          "worst": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardTradeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "worst_points": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CardTradeOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "start",
+          "end",
+          "number",
+          "summary",
+          "contracts",
+          "net_points",
+          "accounts",
+          "best",
+          "worst",
+          "best_points",
+          "worst_points"
+        ],
+        "title": "PeriodCardOut",
         "type": "object"
       },
       "PlanOut": {
@@ -14251,6 +14410,442 @@
         "summary": "Patch Settings",
         "tags": [
           "session"
+        ]
+      }
+    },
+    "/api/v1/share/day/{day}": {
+      "get": {
+        "description": "One trading day's card, with the calendar's filters: its result, trades, contracts, net points, and its best\nand worst trades.",
+        "operationId": "get_day_card",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "day",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Day",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "mtd",
+                "last_month",
+                "ytd"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluation",
+                    "funded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Show Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "firms",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Firms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_roots",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Symbol Roots",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "long",
+                    "short"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodCardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Day Card",
+        "tags": [
+          "share"
+        ]
+      }
+    },
+    "/api/v1/share/week/{start}": {
+      "get": {
+        "description": "One week's card, Sunday `start` to the Saturday after it, as the calendar's weeks run (across a month's end\ntoo).",
+        "operationId": "get_week_card",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "start",
+            "required": true,
+            "schema": {
+              "format": "date",
+              "title": "Start",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "preset",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "7d",
+                "30d",
+                "90d",
+                "mtd",
+                "last_month",
+                "ytd"
+              ],
+              "title": "Preset",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "start",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "in": "query",
+            "name": "end",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "evaluation",
+                    "funded"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Account Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "show_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Show Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "firms",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Firms",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "account_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "symbol_roots",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Symbol Roots",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "long",
+                    "short"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Direction"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PeriodCardOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Get Week Card",
+        "tags": [
+          "share"
         ]
       }
     },
