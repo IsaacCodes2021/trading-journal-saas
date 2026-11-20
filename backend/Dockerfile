@@ -8,7 +8,7 @@
 # Base images are pinned by digest (the tag is for humans); Dependabot's docker updater moves both together.
 
 # ---- stage 1: build the front end ------------------------------------------------------------------------------
-FROM node:24-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6 AS web
+FROM node:26-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc AS web
 
 # Same pnpm as `packageManager` in frontend/package.json, installed from the registry rather than via Corepack.
 RUN npm install --global pnpm@12.8.1
