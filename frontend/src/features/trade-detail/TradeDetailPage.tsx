@@ -14,6 +14,7 @@ import {
   pluralize,
 } from '../../lib/format'
 import { toQuery, type TradeSearch } from '../trades/search'
+import { CopiedToCard } from './CopiedToCard'
 import { FillPairsCard } from './FillPairsCard'
 import { NotesCard } from './NotesCard'
 import { ScreenshotsCard } from './ScreenshotsCard'
@@ -149,7 +150,8 @@ export function TradeDetailPage({
           <span className="num">{data.symbol}</span>
           <DirectionBadge direction={data.direction} />
           <span className="text-sm font-normal text-muted">
-            {formatTradeTime(data.entry_at, timeZone)} &middot; {data.account.name}
+            {formatTradeTime(data.entry_at, timeZone)} &middot;{' '}
+            {data.copy_group ? `${data.copy_group.name} (led by ${data.account.name})` : data.account.name}
           </span>
         </h1>
         <ShareButton
@@ -173,6 +175,7 @@ export function TradeDetailPage({
           <NotesCard key={data.id} trade={data} />
         </div>
         <div className="flex min-w-0 flex-[1_1_340px] flex-col gap-4">
+          <CopiedToCard trade={data} />
           <TagsCard trade={data} catalog={catalog.data} />
           <ScreenshotsCard key={data.id} trade={data} />
           <JournalStatus trade={data} catalog={catalog.data} />

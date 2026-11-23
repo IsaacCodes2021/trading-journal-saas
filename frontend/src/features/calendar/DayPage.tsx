@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { TradeAccount } from '../../components/TradeAccount'
 import { useState } from 'react'
 import { EquityChart } from '../../components/charts/EquityCharts'
 import { FilterBar } from '../../components/FilterBar'
@@ -86,7 +87,9 @@ function DayTrades({ trades, total, timeZone }: { trades: TradeRow[]; total: num
                     {formatClock(trade.entry_at, timeZone)}
                   </Link>
                 </td>
-                <td className={cell}>{trade.account.name}</td>
+                <td className={cell}>
+                  <TradeAccount trade={trade} />
+                </td>
                 <td className={cx(cell, 'num')}>{trade.symbol}</td>
                 <td className={cell}>
                   <DirectionBadge direction={trade.direction} />

@@ -958,6 +958,91 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/copy-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Copy Groups
+         * @description Every copy-trading group, by name, with each member's net P&L (all time, archived accounts included).
+         */
+        get: operations["list_copy_groups"];
+        put?: never;
+        /**
+         * Create Copy Group
+         * @description A leader account and its followers. Imports stay on the leader; the followers' trades are worked out from it.
+         */
+        post: operations["create_copy_group"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copy-groups/{copy_group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rename Copy Group */
+        put: operations["rename_copy_group"];
+        post?: never;
+        /**
+         * Delete Copy Group
+         * @description End a group. Its membership log goes with it; every trade stays on the leader.
+         */
+        delete: operations["delete_copy_group"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copy-groups/{copy_group_id}/followers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Add Copy Follower
+         * @description The account copies the leader from the given trading day (today when none), never an earlier one.
+         */
+        post: operations["add_copy_follower"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/copy-groups/{copy_group_id}/followers/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remove Copy Follower
+         * @description The account stops copying from the given trading day (today when none). Its past copies stay counted.
+         */
+        post: operations["remove_copy_follower"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/dashboard": {
         parameters: {
             query?: never;
@@ -2536,6 +2621,64 @@ export interface components {
              */
             schedule_total: string;
         };
+        /** CopyGroupMemberOut */
+        CopyGroupMemberOut: {
+            account: components["schemas"]["AccountRefOut"];
+            /** Active */
+            active: boolean;
+            /** Archived */
+            archived: boolean;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+            /** Other Groups */
+            other_groups: components["schemas"]["CopyGroupRefOut"][];
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "leader" | "follower";
+            /** Trade Count */
+            trade_count: number;
+        };
+        /** CopyGroupOut */
+        CopyGroupOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Events */
+            events: components["schemas"]["MembershipEventOut"][];
+            /**
+             * Fills Acknowledged At
+             * Format: date-time
+             */
+            fills_acknowledged_at: string;
+            /** Id */
+            id: number;
+            leader: components["schemas"]["AccountRefOut"];
+            /** Leader Archived */
+            leader_archived: boolean;
+            /** Members */
+            members: components["schemas"]["CopyGroupMemberOut"][];
+            /** Name */
+            name: string;
+            /**
+             * Net Pnl
+             * @example -475.00
+             */
+            net_pnl: string;
+        };
+        /** CopyGroupRefOut */
+        CopyGroupRefOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+        };
         /** CreatedGrantCodeOut */
         CreatedGrantCodeOut: {
             /**
@@ -2750,6 +2893,16 @@ export interface components {
         };
         /** FilterOptionsOut */
         FilterOptionsOut: {
+            /**
+             * Accounts
+             * @default []
+             */
+            accounts: components["schemas"]["AccountRefOut"][];
+            /**
+             * Copy Groups
+             * @default []
+             */
+            copy_groups: components["schemas"]["GroupOptionOut"][];
             /** Firms */
             firms: string[];
             /** Symbol Roots */
@@ -2954,6 +3107,13 @@ export interface components {
              * @description A discount as people read it: "20% off your first 3 months"
              */
             words: string | null;
+        };
+        /** GroupOptionOut */
+        GroupOptionOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
         };
         /**
          * ImportIssueOut
@@ -3241,6 +3401,39 @@ export interface components {
              */
             redirect: string;
         };
+        /** MembershipChangeIn */
+        MembershipChangeIn: {
+            /** Account Id */
+            account_id: number;
+            /** Effective Date */
+            effective_date?: string | null;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
+        };
+        /** MembershipEventOut */
+        MembershipEventOut: {
+            /** Account Id */
+            account_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Effective Date */
+            effective_date: string | null;
+            /**
+             * Event Type
+             * @enum {string}
+             */
+            event_type: "added" | "removed";
+            /** Id */
+            id: number;
+            /** Note */
+            note: string;
+        };
         /**
          * NeighborsOut
          * @description The trades either side of one in the list the person came from; null at either end.
@@ -3282,6 +3475,27 @@ export interface components {
              * @example -475.00
              */
             starting_balance: string;
+        };
+        /** NewCopyGroupIn */
+        NewCopyGroupIn: {
+            /**
+             * Acknowledge Fills
+             * @constant
+             */
+            acknowledge_fills: true;
+            /** Copying Since */
+            copying_since?: string | null;
+            /** Follower Account Ids */
+            follower_account_ids: number[];
+            /** Leader Account Id */
+            leader_account_id: number;
+            /** Name */
+            name: string;
+            /**
+             * Note
+             * @default
+             */
+            note?: string;
         };
         /** NewLedgerEntryIn */
         NewLedgerEntryIn: {
@@ -3648,6 +3862,11 @@ export interface components {
              * Format: date-time
              */
             starts_at: string;
+        };
+        /** RenameCopyGroupIn */
+        RenameCopyGroupIn: {
+            /** Name */
+            name: string;
         };
         /** ReportGroupOut */
         ReportGroupOut: {
@@ -4107,6 +4326,12 @@ export interface components {
              */
             avg_exit: string;
             /**
+             * Copied To
+             * @default []
+             */
+            copied_to: components["schemas"]["AccountRefOut"][];
+            copy_group: components["schemas"]["CopyGroupRefOut"] | null;
+            /**
              * Direction
              * @enum {string}
              */
@@ -4184,6 +4409,7 @@ export interface components {
              * @example -475.00
              */
             avg_exit: string;
+            copy_group: components["schemas"]["CopyGroupRefOut"] | null;
             /**
              * Direction
              * @enum {string}
@@ -8487,6 +8713,472 @@ export interface operations {
             };
         };
     };
+    list_copy_groups: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyGroupOut"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    create_copy_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewCopyGroupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyGroupOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    rename_copy_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                copy_group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RenameCopyGroupIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyGroupOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    delete_copy_group: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                copy_group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    add_copy_follower: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                copy_group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyGroupOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    remove_copy_follower: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                copy_group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MembershipChangeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CopyGroupOut"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
     get_dashboard: {
         parameters: {
             query?: {
@@ -8497,6 +9189,7 @@ export interface operations {
                 show_archived?: boolean;
                 firms?: string[];
                 account_ids?: number[];
+                copy_group_ids?: number[];
                 symbol_roots?: string[];
                 direction?: ("long" | "short") | null;
             };
@@ -9350,6 +10043,7 @@ export interface operations {
                 show_archived?: boolean;
                 firms?: string[];
                 account_ids?: number[];
+                copy_group_ids?: number[];
                 symbol_roots?: string[];
                 direction?: ("long" | "short") | null;
                 by?: "symbol" | "weekday" | "hour" | "hold" | "tag" | "account";
@@ -9903,6 +10597,7 @@ export interface operations {
                 show_archived?: boolean;
                 firms?: string[];
                 account_ids?: number[];
+                copy_group_ids?: number[];
                 symbol_roots?: string[];
                 direction?: ("long" | "short") | null;
             };
@@ -9971,6 +10666,7 @@ export interface operations {
                 show_archived?: boolean;
                 firms?: string[];
                 account_ids?: number[];
+                copy_group_ids?: number[];
                 symbol_roots?: string[];
                 direction?: ("long" | "short") | null;
             };
@@ -10652,6 +11348,7 @@ export interface operations {
                 show_archived?: boolean;
                 firms?: string[];
                 account_ids?: number[];
+                copy_group_ids?: number[];
                 symbol_roots?: string[];
                 direction?: ("long" | "short") | null;
                 q?: string;
@@ -10798,6 +11495,7 @@ export interface operations {
                 show_archived?: boolean;
                 firms?: string[];
                 account_ids?: number[];
+                copy_group_ids?: number[];
                 symbol_roots?: string[];
                 direction?: ("long" | "short") | null;
                 q?: string;

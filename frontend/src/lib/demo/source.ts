@@ -21,6 +21,7 @@ import type {
 import type { Filters } from '../filters'
 import { SAMPLE_ACCOUNTS, SAMPLE_TRADES, fillPairsFor, pointsFor } from './generate'
 import * as accounts from './accounts'
+import * as copyGroups from './copyGroups'
 import * as imports from './imports'
 import * as journal from './journal'
 import * as rules from './rules'
@@ -197,6 +198,8 @@ function filterOptions(): FilterOptions {
   return {
     firms: [...new Set(SAMPLE_ACCOUNTS.map((a) => a.firm))].sort(),
     symbol_roots: [...new Set(SAMPLE_TRADES.map((t) => t.symbol_root))].sort(),
+    accounts: accounts.allAccountRefs(),
+    copy_groups: copyGroups.list().map((g) => ({ id: g.id, name: g.name })),
   }
 }
 
@@ -254,6 +257,12 @@ export const demoSource: DataSource = {
   saveRuleSet: (id, input) => run(() => rules.saveRuleSet(id, input)),
   payouts: (id) => run(() => rules.payoutsOf(id)),
   addPayout: (id, input) => run(() => rules.addPayout(id, input)),
+  copyGroups: () => Promise.resolve(copyGroups.list()),
+  createCopyGroup: (input) => run(() => copyGroups.create(input)),
+  renameCopyGroup: (id, name) => run(() => copyGroups.rename(id, name)),
+  deleteCopyGroup: (id) => run(() => copyGroups.remove(id)),
+  addCopyFollower: (id, change) => run(() => copyGroups.addFollower(id, change)),
+  removeCopyFollower: (id, change) => run(() => copyGroups.removeFollower(id, change)),
 }
 
 /** Runs a write and answers as a promise, so a refusal arrives as a rejection, as it will from the server. */

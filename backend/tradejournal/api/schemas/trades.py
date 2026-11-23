@@ -9,6 +9,7 @@ from fastapi import Path, Query
 from pydantic import ConfigDict, Field, model_validator
 
 from .base import ApiModel
+from .copy_groups import CopyGroupRefOut
 from .journal import AccountRefOut, Direction, RowId, TradeFilterQuery
 from .money import Money
 
@@ -90,6 +91,9 @@ class TradeOut(ApiModel):
     tags: list[TagOut]
     has_notes: bool
     screenshot_count: int
+    # The leader's copy-trading group, when the trade was copied to at least one follower: the trade log shows the
+    # trade once, under the group's name (decision 13). `account` is then the leader.
+    copy_group: CopyGroupRefOut | None = None
 
 
 class TradesPageOut(ApiModel):
@@ -123,6 +127,7 @@ class TradeDetailOut(TradeOut):
     fill_pairs: list[FillPairOut]
     notes_html: str  # sanitized again on render, whatever the server did
     screenshots: list[ScreenshotOut]
+    copied_to: list[AccountRefOut] = []  # the followers that got this trade (in the group on its trading day)
 
 
 class NeighborsOut(ApiModel):

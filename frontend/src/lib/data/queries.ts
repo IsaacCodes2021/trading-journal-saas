@@ -7,6 +7,8 @@ import type {
   ArchiveInput,
   DataSource,
   ImportPlatform,
+  MembershipChangeInput,
+  NewCopyGroupInput,
   NewLedgerEntry,
   PayoutInput,
   Platform,
@@ -533,4 +535,43 @@ export function usePayouts(accountId: number) {
 export function useAddPayout(id: number) {
   const source = useDataSource()
   return useAccountWrite((input: PayoutInput) => source.addPayout(id, input), ['payouts', 'ledger'])
+}
+
+// ---- copy-trading groups ---------------------------------------------------------------------------------------
+
+/** Every copy-trading group with each member's net (derived for followers). */
+export function useCopyGroups() {
+  const source = useDataSource()
+  return useQuery({
+    queryKey: ['copy-groups', source.label],
+    queryFn: ({ signal }) => source.copyGroups(signal),
+  })
+}
+
+/** A change to a group moves every follower's numbers, so everything that shows trades or totals is read again. */
+function useCopyGroupWrite<Variables, Result>(write: (variables: Variables) => Promise<Result>) {
+  return useAccountWrite(write, ['copy-groups', 'calendar', 'report', 'day'])
+}
+
+export function useCreateCopyGroup() {
+  const source = useDataSource()
+  return useCopyGroupWrite((input: NewCopyGroupInput) => source.createCopyGroup(input))
+}
+
+export function useRenameCopyGroup() {
+  const source = useDataSource()
+  return useCopyGroupWrite(({ id, name }: { id: number; name: string }) => source.renameCopyGroup(id, name))
+}
+
+export function useDeleteCopyGroup() {
+  const source = useDataSource()
+  return useCopyGroupWrite((id: number) => source.deleteCopyGroup(id))
+}
+
+export function useChangeCopyFollower() {
+  const source = useDataSource()
+  return useCopyGroupWrite(
+    ({ id, kind, change }: { id: number; kind: 'add' | 'remove'; change: MembershipChangeInput }) =>
+      kind === 'add' ? source.addCopyFollower(id, change) : source.removeCopyFollower(id, change),
+  )
 }

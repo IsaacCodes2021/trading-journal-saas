@@ -8,11 +8,15 @@ filter without a second query.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import replace
 
 from .. import finance
+from ..accounts import Account
 from ..journal import Tag
+from ..pg.copy_groups import CopyGroup
 from ..queries import TradeRecord
 from .cents import cents
+from .schemas.copy_groups import CopyGroupRefOut
 from .schemas.journal import AccountRefOut
 from .schemas.trades import NeighborsOut, TagOut, TradeOut, TradeSort, TradesPageOut
 
@@ -21,7 +25,52 @@ def tag_out(tag: Tag) -> TagOut:
     return TagOut(id=tag.id, group_id=tag.group_id, name=tag.name, color=tag.color)
 
 
-def trade_out(record: TradeRecord, tags: Sequence[Tag], *, has_notes: bool, screenshot_count: int) -> TradeOut:
+def one_per_trade(
+    records: Iterable[TradeRecord], groups: Sequence[CopyGroup], accounts: Mapping[int, Account]
+) -> tuple[list[TradeRecord], dict[int, CopyGroupRefOut]]:
+    """The trade log shows a copied trade once, on its leader (decision 13), whatever account or group the filter named:
+    one record per trade id, in the order given, a follower's copy turned back into the leader's trade. Also, for each
+    trade that was copied to at least one follower on its trading day, its group (the row's label)."""
+    kept: dict[int, TradeRecord] = {}
+    for record in records:
+        if record.id not in kept or (record.copy_group_id is None and kept[record.id].copy_group_id is not None):
+            kept[record.id] = record
+    out: list[TradeRecord] = []
+    for record in kept.values():
+        if record.copy_group_id is not None and record.leader_account_id in accounts:
+            leader = accounts[record.leader_account_id]
+            record = replace(
+                record,
+                account_id=leader.id,
+                account_name=leader.name,
+                account_type=leader.account_type,
+                firm=leader.firm,
+                copy_group_id=None,
+                leader_account_id=None,
+            )
+        out.append(record)
+    led = {group.leader_account_id: group for group in groups}
+    labels: dict[int, CopyGroupRefOut] = {}
+    for record in out:
+        group = led.get(record.account_id)
+        if group is not None and copied_on(group, record):
+            labels[record.id] = CopyGroupRefOut(id=group.id, name=group.name)
+    return out, labels
+
+
+def copied_on(group: CopyGroup, record: TradeRecord) -> bool:
+    """Whether any follower was in the group on the trade's trading day."""
+    return any(w.covers(record.trade_date) for a in group.follower_ids() for w in group.windows(a))
+
+
+def trade_out(
+    record: TradeRecord,
+    tags: Sequence[Tag],
+    *,
+    has_notes: bool,
+    screenshot_count: int,
+    copy_group: CopyGroupRefOut | None = None,
+) -> TradeOut:
     return TradeOut(
         id=record.id,
         account=AccountRefOut(
@@ -43,6 +92,7 @@ def trade_out(record: TradeRecord, tags: Sequence[Tag], *, has_notes: bool, scre
         tags=[tag_out(tag) for tag in tags],
         has_notes=has_notes,
         screenshot_count=screenshot_count,
+        copy_group=copy_group,
     )
 
 
@@ -50,25 +100,30 @@ def rows_for(
     records: Iterable[TradeRecord],
     tags: Mapping[int, Sequence[Tag]],
     journal: Mapping[int, tuple[bool, int]],
+    labels: Mapping[int, CopyGroupRefOut] | None = None,
 ) -> list[TradeOut]:
-    """`journal` maps a trade id to (has notes, number of screenshots) for the trades that have either."""
+    """`journal` maps a trade id to (has notes, number of screenshots) for the trades that have either; `labels` a
+    copied trade's id to its group."""
+    labels = labels or {}
     return [
         trade_out(
             record,
             tags.get(record.id, ()),
             has_notes=journal.get(record.id, (False, 0))[0],
             screenshot_count=journal.get(record.id, (False, 0))[1],
+            copy_group=labels.get(record.id),
         )
         for record in records
     ]
 
 
 def matches(row: TradeOut, q: str) -> bool:
-    """A case-insensitive substring of the contract, its root, the account's name or any tag's name."""
+    """A case-insensitive substring of the contract, its root, the account's name, its copy group's or any tag's name."""
     needle = q.strip().casefold()
     if not needle:
         return True
-    texts = (row.symbol, row.symbol_root, row.account.name, *(tag.name for tag in row.tags))
+    group = (row.copy_group.name,) if row.copy_group else ()
+    texts = (row.symbol, row.symbol_root, row.account.name, *group, *(tag.name for tag in row.tags))
     return any(needle in text.casefold() for text in texts)
 
 

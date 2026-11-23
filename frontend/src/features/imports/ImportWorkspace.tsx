@@ -9,6 +9,7 @@ import { pluralize } from '../../lib/format'
 import { platformInfo } from '../../lib/platforms'
 import { MAX_CSV_MB } from '../../lib/tradovate'
 import { AddAccountDialog } from '../accounts/AccountDialogs'
+import { CopyTradingSection } from './CopyTradingSection'
 import { ImportSourceDialog } from './ImportSourceDialog'
 import { LogAccountPicker } from './LogAccountPicker'
 import { PreviewSection } from './PreviewSection'
@@ -263,6 +264,8 @@ export function ImportWorkspace({
           />
         </div>
       </Card>
+
+      <CopyTradingSection account={account} accounts={accounts.data ?? []} />
 
       {preview.isPending ? <Spinner label="Reading the files" /> : null}
       {preview.isError ? (

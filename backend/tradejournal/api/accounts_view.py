@@ -5,7 +5,11 @@ from __future__ import annotations
 from ..accounts import Account
 from ..ledger import LedgerEntry
 from .schemas.accounts import LedgerEntryOut
-from .schemas.journal import AccountOut
+from .schemas.journal import AccountOut, AccountRefOut
+
+
+def account_ref(a: Account) -> AccountRefOut:
+    return AccountRefOut(id=a.id, name=a.name, firm=a.firm, account_type=a.account_type)
 
 
 def account_out(a: Account) -> AccountOut:

@@ -45,6 +45,60 @@ export interface TradeRow {
   tags: TagRef[]
   has_notes: boolean
   screenshot_count: number
+  /** The leader's copy-trading group, when the trade was copied: the log shows it once, under the group's name. */
+  copy_group?: CopyGroupRef | null
+}
+
+/** A copy-trading group by name (decisions in docs/new-feature-copy-trading/decisions.csv). */
+export interface CopyGroupRef {
+  id: number
+  name: string
+}
+
+export interface MembershipEvent {
+  id: number
+  account_id: number
+  event_type: 'added' | 'removed'
+  effective_date: string | null // "YYYY-MM-DD"; null: an "added" that counts every leader trade
+  note: string
+  created_at: string
+}
+
+export interface CopyGroupMember {
+  account: AccountRef
+  role: 'leader' | 'follower'
+  active: boolean // in the group now; a removed follower keeps its past copies and is still listed
+  archived: boolean
+  trade_count: number
+  net_pnl: string // derived for a follower: the leader's net on each trade it copied (an estimate)
+  other_groups: CopyGroupRef[] // the other groups the account leads or is in now: highlighted when any
+}
+
+export interface CopyGroup {
+  id: number
+  name: string
+  leader: AccountRef
+  leader_archived: boolean
+  created_at: string
+  fills_acknowledged_at: string
+  members: CopyGroupMember[] // the leader first
+  net_pnl: string // every member's net added up, the leader's included
+  events: MembershipEvent[]
+}
+
+export interface NewCopyGroupInput {
+  name: string
+  leader_account_id: number
+  follower_account_ids: number[]
+  copying_since: string | null // "YYYY-MM-DD"; null: the followers count every leader trade
+  acknowledge_fills: true
+  note?: string
+}
+
+export interface MembershipChangeInput {
+  account_id: number
+  effective_date: string | null // null: today
+  note: string
 }
 
 export const TRADE_SORTS = ['date', 'account', 'symbol', 'direction', 'qty', 'hold', 'net_pnl'] as const
@@ -132,6 +186,9 @@ export interface DashboardData {
 export interface FilterOptions {
   firms: string[]
   symbol_roots: string[]
+  /** Every account and copy-trading group, for the account filter. */
+  accounts?: AccountRef[]
+  copy_groups?: CopyGroupRef[]
 }
 
 /** One month of the calendar: what traded each day, the month's statistics, and which days have a note. */
@@ -229,6 +286,8 @@ export interface TradeDetail extends TradeRow {
   fill_pairs: FillPairRow[]
   notes_html: string // sanitized again on render, whatever the server did
   screenshots: ScreenshotRef[]
+  /** The followers that got this trade (in its group on its trading day). */
+  copied_to?: AccountRef[]
 }
 
 /** A tag with how many trades carry it, for the tags screen. */
@@ -773,4 +832,11 @@ export interface DataSource {
   saveRuleSet(id: number, input: RuleSetInput): Promise<RuleSet>
   payouts(id: number, signal?: AbortSignal): Promise<Payouts>
   addPayout(id: number, input: PayoutInput): Promise<LedgerEntry>
+  // Copy-trading groups. Changes answer with the group as it is afterwards.
+  copyGroups(signal?: AbortSignal): Promise<CopyGroup[]>
+  createCopyGroup(input: NewCopyGroupInput): Promise<CopyGroup>
+  renameCopyGroup(id: number, name: string): Promise<CopyGroup>
+  deleteCopyGroup(id: number): Promise<void>
+  addCopyFollower(id: number, change: MembershipChangeInput): Promise<CopyGroup>
+  removeCopyFollower(id: number, change: MembershipChangeInput): Promise<CopyGroup>
 }

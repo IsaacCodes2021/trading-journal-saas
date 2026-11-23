@@ -24,6 +24,9 @@ export interface Filters {
   direction?: Direction
   /** Trades of archived (passed, failed, closed) accounts are left out unless this is on. Absent means off. */
   show_archived?: true
+  /** Accounts and copy-trading groups; both empty means every account. A group is its leader and its followers. */
+  account_ids?: number[]
+  copy_group_ids?: number[]
 }
 
 export const DEFAULT_PRESET: Preset = '30d'
@@ -36,6 +39,16 @@ function oneOf<T extends string>(allowed: readonly T[], value: unknown): T | und
 function stringList(value: unknown): string[] | undefined {
   const items = Array.isArray(value) ? value : value === undefined || value === '' ? [] : [value]
   const clean = [...new Set(items.filter((item): item is string => typeof item === 'string' && item.trim() !== ''))]
+  return clean.length > 0 ? clean : undefined
+}
+
+/** One or many row ids from a search param: `account_ids=3`, `account_ids=3&account_ids=7` and `[3, 7]` all work. */
+function idList(value: unknown): number[] | undefined {
+  const items = Array.isArray(value) ? value : value === undefined || value === '' ? [] : [value]
+  const ids = items.map((item) => (typeof item === 'string' ? Number(item) : item))
+  const clean = [
+    ...new Set(ids.filter((id): id is number => typeof id === 'number' && Number.isSafeInteger(id) && id > 0)),
+  ]
   return clean.length > 0 ? clean : undefined
 }
 
@@ -55,6 +68,10 @@ export function pickFilters(search: Record<string, unknown>): Partial<Filters> {
   if (firms) filters.firms = firms
   if (symbols) filters.symbol_roots = symbols
   if (direction) filters.direction = direction
+  const accountIds = idList(search['account_ids'])
+  const groupIds = idList(search['copy_group_ids'])
+  if (accountIds) filters.account_ids = accountIds
+  if (groupIds) filters.copy_group_ids = groupIds
   if (search['show_archived'] === true || search['show_archived'] === 'true') filters.show_archived = true
   return filters
 }
@@ -70,7 +87,14 @@ export function filtersOf(search: Partial<Filters>): Filters {
 }
 
 export function hasNarrowingFilters(filters: Filters): boolean {
-  return Boolean(filters.account_type ?? filters.firms ?? filters.symbol_roots ?? filters.direction)
+  return Boolean(
+    filters.account_type ??
+    filters.firms ??
+    filters.symbol_roots ??
+    filters.direction ??
+    filters.account_ids ??
+    filters.copy_group_ids,
+  )
 }
 
 /** A short label for a multi-select button: "All symbols", "NQ", "Apex, Lucid", "3 firms". */

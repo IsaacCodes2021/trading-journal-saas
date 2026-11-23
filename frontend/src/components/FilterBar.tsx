@@ -116,6 +116,81 @@ function MultiFilter({
   )
 }
 
+/** Accounts and copy-trading groups in one list (decision 16): a group stands for its leader and its followers. */
+function AccountFilter({
+  options,
+  accountIds,
+  groupIds,
+  onChange,
+}: {
+  options: FilterOptions | undefined
+  accountIds: number[] | undefined
+  groupIds: number[] | undefined
+  onChange: (next: { account_ids?: number[]; copy_group_ids?: number[] }) => void
+}) {
+  const accounts = options?.accounts ?? []
+  const groups = options?.copy_groups ?? []
+  const names = [
+    ...groups.filter((g) => groupIds?.includes(g.id)).map((g) => g.name),
+    ...accounts.filter((a) => accountIds?.includes(a.id)).map((a) => a.name),
+  ]
+  const toggle = (list: number[] | undefined, id: number, on: boolean) => {
+    const next = on ? [...(list ?? []), id] : (list ?? []).filter((x) => x !== id)
+    return next.length > 0 ? next : undefined
+  }
+  const row = 'flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 hover:bg-raised'
+  return (
+    <Popover
+      label="Accounts"
+      button={
+        <>
+          {names.length ? 'Accounts: ' : ''}
+          {summarizeSelection(names, 'All accounts', 'chosen')} <Chevron />
+        </>
+      }
+    >
+      {() => (
+        <div className="flex max-h-[60vh] flex-col gap-1 overflow-y-auto">
+          {accounts.length === 0 ? <p className="px-2 py-1.5 text-muted">Nothing to choose yet</p> : null}
+          {groups.length > 0 ? (
+            <>
+              <p className="m-0 px-2 pt-1 text-xs font-semibold text-muted">Copy groups</p>
+              {groups.map((group) => (
+                <label key={`g${group.id}`} className={row}>
+                  <input
+                    type="checkbox"
+                    checked={groupIds?.includes(group.id) ?? false}
+                    onChange={(e) =>
+                      onChange({
+                        account_ids: accountIds,
+                        copy_group_ids: toggle(groupIds, group.id, e.target.checked),
+                      })
+                    }
+                  />
+                  {group.name}
+                </label>
+              ))}
+              <p className="m-0 px-2 pt-2 text-xs font-semibold text-muted">Accounts</p>
+            </>
+          ) : null}
+          {accounts.map((account) => (
+            <label key={`a${account.id}`} className={row}>
+              <input
+                type="checkbox"
+                checked={accountIds?.includes(account.id) ?? false}
+                onChange={(e) =>
+                  onChange({ account_ids: toggle(accountIds, account.id, e.target.checked), copy_group_ids: groupIds })
+                }
+              />
+              {account.name}
+            </label>
+          ))}
+        </div>
+      )}
+    </Popover>
+  )
+}
+
 /** The bar every data page shares. Each change goes to `onChange`, which writes it to the URL. */
 export function FilterBar({
   filters,
@@ -146,6 +221,12 @@ export function FilterBar({
           onChange={(preset) => set({ preset })}
         />
       ) : null}
+      <AccountFilter
+        options={options}
+        accountIds={filters.account_ids}
+        groupIds={filters.copy_group_ids}
+        onChange={(patch) => set(patch)}
+      />
       <ChoiceFilter<AccountType>
         label="Account type"
         allLabel="All account types"

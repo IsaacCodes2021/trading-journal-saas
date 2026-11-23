@@ -21,7 +21,8 @@ function SectionTitle({ children, note }: { children: string; note?: string }) {
   )
 }
 
-function Tiles({ data }: { data: DashboardData }) {
+/** The key statistics, also shown for one follower in a trade's copy pop-up. */
+export function Tiles({ data }: { data: DashboardData }) {
   const s = data.summary
   return (
     <section aria-label="Key statistics" className="flex flex-wrap gap-3">
@@ -56,7 +57,7 @@ function Tiles({ data }: { data: DashboardData }) {
   )
 }
 
-function EquityCard({ data }: { data: DashboardData }) {
+export function EquityCard({ data }: { data: DashboardData }) {
   const [basis, setBasis] = useState<'trade' | 'day'>('trade')
   const points = basis === 'trade' ? data.equity_by_trade : data.equity_by_day
   return (

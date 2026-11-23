@@ -72,6 +72,8 @@ class TradeFilterQuery(ApiModel):
     show_archived: bool = False  # trades of archived (passed, failed, closed) accounts are left out unless asked
     firms: list[str] = []
     account_ids: list[RowId] = []
+    # Copy-trading groups: the leader's trades and the copies the group gave its followers (decision 29).
+    copy_group_ids: list[RowId] = []
     symbol_roots: list[str] = []
     direction: Direction | None = None
 
@@ -85,9 +87,16 @@ class TradeFilterQuery(ApiModel):
 FilterQuery = Annotated[TradeFilterQuery, Query()]
 
 
+class GroupOptionOut(ApiModel):
+    id: int
+    name: str
+
+
 class FilterOptionsOut(ApiModel):
     firms: list[str]  # the firms the person has accounts with
     symbol_roots: list[str]  # the contracts the person has traded, by root ("NQ")
+    accounts: list[AccountRefOut] = []  # every account, by name, for the account filter (archived ones too)
+    copy_groups: list[GroupOptionOut] = []  # copy-trading groups, by name: the account filter offers them too
 
 
 class DateRangeOut(ApiModel):

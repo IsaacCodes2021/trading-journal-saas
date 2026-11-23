@@ -5,15 +5,24 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from ...pg import accounts as pg_accounts
+from ...pg import copy_groups as pg_groups
 from ...pg import journal as pg_journal
 from ...pg import queries as pg_queries
 from ...pg import settings as pg_settings
 from ...timeutil import zone
+from ..accounts_view import account_ref
 from ..dashboard import build_dashboard
 from ..deps import ERROR_RESPONSES, ClockDep, TenantDep
 from ..filtering import resolve_filter
 from ..reports import build_report
-from ..schemas.journal import DashboardOut, FilterOptionsOut, FilterQuery, ReportOut, ReportQueryParams
+from ..schemas.journal import (
+    DashboardOut,
+    FilterOptionsOut,
+    FilterQuery,
+    GroupOptionOut,
+    ReportOut,
+    ReportQueryParams,
+)
 
 router = APIRouter(prefix="/api/v1", tags=["stats"], responses=ERROR_RESPONSES)
 
@@ -41,6 +50,12 @@ def get_report(query: ReportQueryParams, tenant: TenantDep, clock: ClockDep) -> 
 @router.get("/filter-options", response_model=FilterOptionsOut)
 def get_filter_options(tenant: TenantDep) -> FilterOptionsOut:
     with tenant.session() as conn:
-        firms = sorted({account.firm for account in pg_accounts.list_accounts(conn)})
+        accounts = pg_accounts.list_accounts(conn)
         roots = pg_queries.symbol_roots(conn)
-    return FilterOptionsOut(firms=firms, symbol_roots=roots)
+        groups = pg_groups.list_groups(conn)
+    return FilterOptionsOut(
+        firms=sorted({account.firm for account in accounts}),
+        symbol_roots=roots,
+        accounts=[account_ref(a) for a in accounts],
+        copy_groups=[GroupOptionOut(id=g.id, name=g.name) for g in groups],
+    )

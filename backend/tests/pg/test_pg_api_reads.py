@@ -145,7 +145,12 @@ def test_a_preset_means_the_persons_trading_day_not_the_servers_calendar_day(db,
 
 def test_filter_options_list_the_firms_and_contracts_the_person_has(db, alice, journal):
     body = api(db, alice).get("/api/v1/filter-options").json()
-    assert body == {"firms": ["Apex", "Lucid"], "symbol_roots": ["ES", "NQ"]}
+    assert {k: body[k] for k in ("firms", "symbol_roots", "copy_groups")} == {
+        "firms": ["Apex", "Lucid"],
+        "symbol_roots": ["ES", "NQ"],
+        "copy_groups": [],
+    }
+    assert [(a["id"], a["firm"]) for a in body["accounts"]] == [(journal["apex"], "Apex"), (journal["lucid"], "Lucid")]
 
 
 # ---- accounts ------------------------------------------------------------------------------------------------------
@@ -188,7 +193,9 @@ def test_one_user_never_sees_anothers_trades_accounts_or_choices(db, alice, bob,
     dashboard = as_bob.get("/api/v1/dashboard").json()
     assert dashboard["summary"]["trade_count"] == 1 and dashboard["summary"]["net_pnl"] == "7.00"
     assert [a["name"] for a in as_bob.get("/api/v1/accounts").json()] == ["Bob Tradeify"]
-    assert as_bob.get("/api/v1/filter-options").json() == {"firms": ["Tradeify"], "symbol_roots": ["CL"]}
+    options = as_bob.get("/api/v1/filter-options").json()
+    assert options["firms"] == ["Tradeify"] and options["symbol_roots"] == ["CL"]
+    assert [a["name"] for a in options["accounts"]] == ["Bob Tradeify"] and options["copy_groups"] == []
     # Naming alice's account id changes nothing: row-level security hides her rows from his transaction.
     guessed = as_bob.get("/api/v1/dashboard", params={"account_ids": [journal["apex"], journal["lucid"]]}).json()
     assert guessed["summary"]["trade_count"] == 0 and guessed["accounts"] == []
