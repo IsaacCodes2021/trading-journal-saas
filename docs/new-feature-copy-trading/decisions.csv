@@ -1,0 +1,33 @@
+id,date,area,decision,rationale,status
+1,2026-11-23,Import,Import is leader-only; followers never get imported data,Minimize data input and database rows,Final
+2,2026-11-23,Data model,Store each trade once on the leader account,User copying to 20 accounts should not create 20 trade rows,Final
+3,2026-11-23,Data model,Follower P&L is computed at read time and not stored,Avoids N-times row growth at scale; follower P&L equals leader P&L,Final
+4,2026-11-23,Data model,All followers trade the same size as the leader (no multiplier),User confirmed,Final
+5,2026-11-23,Data model,Per-follower analytics are derived estimates covered by a variance disclaimer,User accepted slight variances,Final
+6,2026-11-23,Import,User must acknowledge that copy trading does not guarantee identical fills,Set expectations about variance,Final
+7,2026-11-23,Groups,User names each copy-trading group,User-defined label,Final
+8,2026-11-23,Groups,An account may belong to multiple groups; user is responsible for tracking,User decision,Final
+9,2026-11-23,Groups,Membership changes are forward-only and stored as dated events with an optional note,Old trades keep the follower set they actually had,Final
+10,2026-11-23,Accounts tab,Add Individual and Groups sub-tabs; Groups shows group name / account / account P&L / cumulative group P&L,User spec,Final
+11,2026-11-23,Accounts tab,Accounts in multiple groups highlighted light yellow with hover/click to show other groups,User spec,Final
+12,2026-11-23,Dashboard,A follower's derived P&L is included in that account's own totals,User confirmed; equity and payout tracking should reflect reality,Final
+13,2026-11-23,Trades page,Show grouped trade once with group name as primary label and leader truncated ID (first 3...last 3) as secondary,User spec,Final
+14,2026-11-23,Trades page,Journal entry attaches to leader trade and applies to whole group; no per-follower notes,User confirmed,Final
+15,2026-11-23,Trades page,Trade detail lists follower accounts; clicking one opens popup reusing dashboard analytics code scoped to that account,User spec,Final
+16,2026-11-23,Filters,Account filter includes groups and individual accounts,User confirmed,Final
+17,2026-11-23,Scope,Desktop-first; mobile out of scope for this feature,Users expected to be on computers,Final
+18,2026-11-23,Scope,No migration of existing data,Owner is only user and has no existing copy-trade data,Final
+19,2026-11-23,Testing,Owner will test with his own copy-traded accounts after release,User statement,Final
+20,2026-11-23,Data model,Membership is by trading day: a follower counts a leader trade when the trade's trading day is on or after the add date and before the remove date,Trades already carry a trading day (the person's own session); a day is what the owner records a change against,Default (confirm)
+21,2026-11-23,Groups,Followers chosen when a group is made count from an optional 'Copying since' day; left empty they count every leader trade,The leader's history is usually imported after copying started; forward-only (row 9) applies to changes made after the group exists,Default (confirm)
+22,2026-11-23,Groups,A change after the group exists (add or remove a follower) takes effect today or later; an earlier day is refused,Row 9: old trades keep the follower set they had,Default (confirm)
+23,2026-11-23,Groups,An account leads at most one group; to copy to more accounts add followers to that group,Each trade then has exactly one group name for the Trades page label (row 13),Default (confirm)
+24,2026-11-23,Groups,The leader is fixed for the life of a group and cannot be one of its own followers,Changing the leader would rewrite which trades the group had,Default (confirm)
+25,2026-11-23,Data model,A follower's copy of a trade carries the leader's gross; fees and net P&L unchanged; the follower's own fee schedule is not applied,Spec section 3: follower P&L equals the leader's P&L; no per-follower rows,Default (confirm)
+26,2026-11-23,Data model,Copies are not chained: a follower that also leads another group passes on only its own imported trades; never the copies it receives,Avoids counting one trade twice through a chain; spec section 5 says a follower may lead another group,Default (confirm)
+27,2026-11-23,Dashboard,Dashboard; reports; calendar; share cards and the Accounts tab count each follower's copy as a trade of that account (20 accounts = 20 trades); only the Trades page shows a grouped trade once,Row 12; one rule everywhere except the Trades page (row 13),Default (confirm)
+28,2026-11-23,Filters,Filtering by an account or a group follows that account's own fields: type; firm and archived status of the follower decide whether its copies show,Row 12: a follower's totals are its own,Default (confirm)
+29,2026-11-23,Filters,Choosing a group in the account filter means the leader's trades plus that group's copies; on the Trades page each trade still shows once,Row 16 and row 13 together,Default (confirm)
+30,2026-11-23,Edge cases,A leader account cannot be deleted in the app (only archived). An archived leader shows a warning on the Groups tab; deleting the group is the explicit way to end it and removes only the group and its events; never a trade,Spec section 5: warn instead of silently orphaning,Default (confirm)
+31,2026-11-23,Import,Importing into an account that is only a follower is allowed but warned: its trades already arrive from the leader so they would count twice,Spec section 5: a follower-only trade is imported as a standalone account,Default (confirm)
+32,2026-11-23,Data model,The fills acknowledgment is stored on the group (time it was accepted); the group cannot be made without it,Row 6; evidence the user accepted it,Default (confirm)
