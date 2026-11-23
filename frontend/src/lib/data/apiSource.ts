@@ -53,6 +53,8 @@ function filterQuery(filters: Filters) {
     symbol_roots: filters.symbol_roots,
     direction: filters.direction,
     show_archived: filters.show_archived,
+    account_ids: filters.account_ids,
+    copy_group_ids: filters.copy_group_ids,
   }
 }
 
@@ -310,4 +312,26 @@ export const apiSource: DataSource = {
     unwrap(api.GET('/api/v1/accounts/{account_id}/payouts', { params: { path: { account_id: id } }, signal })),
   addPayout: (id, input) =>
     unwrap(api.POST('/api/v1/accounts/{account_id}/payouts', { params: { path: { account_id: id } }, body: input })),
+
+  copyGroups: (signal) => unwrap(api.GET('/api/v1/copy-groups', { signal })),
+  createCopyGroup: (input) => unwrap(api.POST('/api/v1/copy-groups', { body: input })),
+  renameCopyGroup: (id, name) =>
+    unwrap(api.PUT('/api/v1/copy-groups/{copy_group_id}', { params: { path: { copy_group_id: id } }, body: { name } })),
+  async deleteCopyGroup(id) {
+    await unwrap(api.DELETE('/api/v1/copy-groups/{copy_group_id}', { params: { path: { copy_group_id: id } } }))
+  },
+  addCopyFollower: (id, change) =>
+    unwrap(
+      api.POST('/api/v1/copy-groups/{copy_group_id}/followers', {
+        params: { path: { copy_group_id: id } },
+        body: change,
+      }),
+    ),
+  removeCopyFollower: (id, change) =>
+    unwrap(
+      api.POST('/api/v1/copy-groups/{copy_group_id}/followers/remove', {
+        params: { path: { copy_group_id: id } },
+        body: change,
+      }),
+    ),
 }

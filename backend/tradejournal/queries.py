@@ -23,6 +23,8 @@ class TradeFilter:
     end: date | None = None  # trading day, inclusive
     symbol_roots: tuple[str, ...] = ()
     direction: Direction | None = None
+    # Copy-trading groups (Postgres only): a group stands for its leader's trades and the copies it gave its followers.
+    copy_group_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,10 @@ class TradeRecord:
     fees: Decimal
     net_pnl: Decimal
     notes: str
+    # A follower's copy of a leader trade (worked out when read, never stored): the group it came through and the
+    # leader's account. `id` is then the leader trade's id, so notes, tags and screenshots are the leader's.
+    copy_group_id: int | None = None
+    leader_account_id: int | None = None
 
 
 _SELECT = """

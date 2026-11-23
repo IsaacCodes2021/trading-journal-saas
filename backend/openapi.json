@@ -2256,6 +2256,141 @@
         "title": "CommissionCheckOut",
         "type": "object"
       },
+      "CopyGroupMemberOut": {
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountRefOut"
+          },
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          },
+          "other_groups": {
+            "items": {
+              "$ref": "#/components/schemas/CopyGroupRefOut"
+            },
+            "title": "Other Groups",
+            "type": "array"
+          },
+          "role": {
+            "enum": [
+              "leader",
+              "follower"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "trade_count": {
+            "title": "Trade Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "account",
+          "role",
+          "active",
+          "archived",
+          "trade_count",
+          "net_pnl",
+          "other_groups"
+        ],
+        "title": "CopyGroupMemberOut",
+        "type": "object"
+      },
+      "CopyGroupOut": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/MembershipEventOut"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "fills_acknowledged_at": {
+            "format": "date-time",
+            "title": "Fills Acknowledged At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "leader": {
+            "$ref": "#/components/schemas/AccountRefOut"
+          },
+          "leader_archived": {
+            "title": "Leader Archived",
+            "type": "boolean"
+          },
+          "members": {
+            "items": {
+              "$ref": "#/components/schemas/CopyGroupMemberOut"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "net_pnl": {
+            "examples": [
+              "-475.00"
+            ],
+            "pattern": "^-?\\d+(\\.\\d+)?$",
+            "title": "Net Pnl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "leader",
+          "leader_archived",
+          "created_at",
+          "fills_acknowledged_at",
+          "members",
+          "net_pnl",
+          "events"
+        ],
+        "title": "CopyGroupOut",
+        "type": "object"
+      },
+      "CopyGroupRefOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "CopyGroupRefOut",
+        "type": "object"
+      },
       "CreatedGrantCodeOut": {
         "properties": {
           "code": {
@@ -2723,6 +2858,22 @@
       },
       "FilterOptionsOut": {
         "properties": {
+          "accounts": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AccountRefOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "copy_groups": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/GroupOptionOut"
+            },
+            "title": "Copy Groups",
+            "type": "array"
+          },
           "firms": {
             "items": {
               "type": "string"
@@ -2740,7 +2891,9 @@
         },
         "required": [
           "firms",
-          "symbol_roots"
+          "symbol_roots",
+          "accounts",
+          "copy_groups"
         ],
         "title": "FilterOptionsOut",
         "type": "object"
@@ -3220,6 +3373,24 @@
           "status"
         ],
         "title": "GrantCodeOut",
+        "type": "object"
+      },
+      "GroupOptionOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "GroupOptionOut",
         "type": "object"
       },
       "ImportIssueOut": {
@@ -4019,6 +4190,91 @@
         "title": "LogoutOut",
         "type": "object"
       },
+      "MembershipChangeIn": {
+        "additionalProperties": false,
+        "properties": {
+          "account_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Account Id",
+            "type": "integer"
+          },
+          "effective_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Date"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id"
+        ],
+        "title": "MembershipChangeIn",
+        "type": "object"
+      },
+      "MembershipEventOut": {
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "effective_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective Date"
+          },
+          "event_type": {
+            "enum": [
+              "added",
+              "removed"
+            ],
+            "title": "Event Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "note": {
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "account_id",
+          "event_type",
+          "effective_date",
+          "note",
+          "created_at"
+        ],
+        "title": "MembershipEventOut",
+        "type": "object"
+      },
       "NeighborsOut": {
         "description": "The trades either side of one in the list the person came from; null at either end.",
         "properties": {
@@ -4138,6 +4394,65 @@
           "phase"
         ],
         "title": "NewAccountIn",
+        "type": "object"
+      },
+      "NewCopyGroupIn": {
+        "additionalProperties": false,
+        "properties": {
+          "acknowledge_fills": {
+            "const": true,
+            "title": "Acknowledge Fills",
+            "type": "boolean"
+          },
+          "copying_since": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Copying Since"
+          },
+          "follower_account_ids": {
+            "items": {
+              "maximum": 9.223372036854776e+18,
+              "minimum": 1.0,
+              "type": "integer"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Follower Account Ids",
+            "type": "array"
+          },
+          "leader_account_id": {
+            "maximum": 9.223372036854776e+18,
+            "minimum": 1.0,
+            "title": "Leader Account Id",
+            "type": "integer"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Note",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "leader_account_id",
+          "follower_account_ids",
+          "acknowledge_fills"
+        ],
+        "title": "NewCopyGroupIn",
         "type": "object"
       },
       "NewLedgerEntryIn": {
@@ -5092,6 +5407,22 @@
           "ends_at"
         ],
         "title": "RedemptionOut",
+        "type": "object"
+      },
+      "RenameCopyGroupIn": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RenameCopyGroupIn",
         "type": "object"
       },
       "ReportGroupOut": {
@@ -6521,6 +6852,24 @@
             "title": "Avg Exit",
             "type": "string"
           },
+          "copied_to": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/AccountRefOut"
+            },
+            "title": "Copied To",
+            "type": "array"
+          },
+          "copy_group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CopyGroupRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "direction": {
             "enum": [
               "long",
@@ -6653,11 +7002,13 @@
           "tags",
           "has_notes",
           "screenshot_count",
+          "copy_group",
           "number",
           "points",
           "fill_pairs",
           "notes_html",
-          "screenshots"
+          "screenshots",
+          "copied_to"
         ],
         "title": "TradeDetailOut",
         "type": "object"
@@ -6682,6 +7033,16 @@
             "pattern": "^-?\\d+(\\.\\d+)?$",
             "title": "Avg Exit",
             "type": "string"
+          },
+          "copy_group": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CopyGroupRefOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "direction": {
             "enum": [
@@ -6784,7 +7145,8 @@
           "net_pnl",
           "tags",
           "has_notes",
-          "screenshot_count"
+          "screenshot_count",
+          "copy_group"
         ],
         "title": "TradeOut",
         "type": "object"
@@ -12447,6 +12809,582 @@
         ]
       }
     },
+    "/api/v1/copy-groups": {
+      "get": {
+        "description": "Every copy-trading group, by name, with each member's net P&L (all time, archived accounts included).",
+        "operationId": "list_copy_groups",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CopyGroupOut"
+                  },
+                  "title": "Response List Copy Groups",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "List Copy Groups",
+        "tags": [
+          "copy-groups"
+        ]
+      },
+      "post": {
+        "description": "A leader account and its followers. Imports stay on the leader; the followers' trades are worked out from it.",
+        "operationId": "create_copy_group",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewCopyGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Create Copy Group",
+        "tags": [
+          "copy-groups"
+        ]
+      }
+    },
+    "/api/v1/copy-groups/{copy_group_id}": {
+      "delete": {
+        "description": "End a group. Its membership log goes with it; every trade stays on the leader.",
+        "operationId": "delete_copy_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "copy_group_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Copy Group Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Delete Copy Group",
+        "tags": [
+          "copy-groups"
+        ]
+      },
+      "put": {
+        "operationId": "rename_copy_group",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "copy_group_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Copy Group Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameCopyGroupIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Rename Copy Group",
+        "tags": [
+          "copy-groups"
+        ]
+      }
+    },
+    "/api/v1/copy-groups/{copy_group_id}/followers": {
+      "post": {
+        "description": "The account copies the leader from the given trading day (today when none), never an earlier one.",
+        "operationId": "add_copy_follower",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "copy_group_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Copy Group Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Add Copy Follower",
+        "tags": [
+          "copy-groups"
+        ]
+      }
+    },
+    "/api/v1/copy-groups/{copy_group_id}/followers/remove": {
+      "post": {
+        "description": "The account stops copying from the given trading day (today when none). Its past copies stay counted.",
+        "operationId": "remove_copy_follower",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "copy_group_id",
+            "required": true,
+            "schema": {
+              "maximum": 9223372036854775807,
+              "minimum": 1,
+              "title": "Copy Group Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MembershipChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CopyGroupOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          }
+        },
+        "summary": "Remove Copy Follower",
+        "tags": [
+          "copy-groups"
+        ]
+      }
+    },
     "/api/v1/dashboard": {
       "get": {
         "description": "The headline numbers, equity curves, daily results, score and per-account results for the filtered trades.",
@@ -12560,6 +13498,21 @@
                 "type": "integer"
               },
               "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "copy_group_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Copy Group Ids",
               "type": "array"
             }
           },
@@ -13727,6 +14680,21 @@
           },
           {
             "in": "query",
+            "name": "copy_group_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Copy Group Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
             "name": "symbol_roots",
             "required": false,
             "schema": {
@@ -14541,6 +15509,21 @@
           },
           {
             "in": "query",
+            "name": "copy_group_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Copy Group Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
             "name": "symbol_roots",
             "required": false,
             "schema": {
@@ -14754,6 +15737,21 @@
                 "type": "integer"
               },
               "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "copy_group_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Copy Group Ids",
               "type": "array"
             }
           },
@@ -15720,6 +16718,21 @@
           },
           {
             "in": "query",
+            "name": "copy_group_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Copy Group Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
             "name": "symbol_roots",
             "required": false,
             "schema": {
@@ -16089,6 +17102,21 @@
                 "type": "integer"
               },
               "title": "Account Ids",
+              "type": "array"
+            }
+          },
+          {
+            "in": "query",
+            "name": "copy_group_ids",
+            "required": false,
+            "schema": {
+              "default": [],
+              "items": {
+                "maximum": 9223372036854775807,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "title": "Copy Group Ids",
               "type": "array"
             }
           },

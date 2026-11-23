@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { Modal } from '../../components/ui/Modal'
 import { Popover } from '../../components/ui/Popover'
 import { cx } from '../../components/ui/cx'
-import { Button, Card, Pnl, Spinner } from '../../components/ui/primitives'
+import { Button, Card, Pnl, Segmented, Spinner } from '../../components/ui/primitives'
 import {
   PHASE_LABELS,
   type AccountRow,
@@ -13,7 +13,8 @@ import {
   type RuleStatus,
   type Spectrum,
 } from '../../lib/data/model'
-import { useAccountsOverview, useDismissPassPrompt } from '../../lib/data/queries'
+import { useAccountsOverview, useCopyGroups, useDismissPassPrompt } from '../../lib/data/queries'
+import { CopyGroupsView } from './CopyGroupsView'
 import { formatMoney } from '../../lib/money'
 import { RULE_STATUS_LABELS, STATUS_LABELS } from '../../lib/rules'
 
@@ -497,20 +498,60 @@ function AccountCards({
   )
 }
 
+function Header() {
+  return (
+    <div className="flex flex-col gap-1">
+      <h1 className="m-0 text-xl font-semibold">Accounts</h1>
+      <p className="m-0 text-[13px] text-muted">
+        Each active account against its verified rules, from your imported trades. To change an account, its rules or
+        its payouts, open its settings from the ⋯ menu.
+      </p>
+    </div>
+  )
+}
+
+function ViewTabs({
+  view,
+  onChange,
+}: {
+  view: 'individual' | 'groups'
+  onChange: (next: 'individual' | 'groups') => void
+}) {
+  return (
+    <Segmented
+      label="Accounts view"
+      value={view}
+      onChange={onChange}
+      options={[
+        { value: 'individual', label: 'Individual' },
+        { value: 'groups', label: 'Groups' },
+      ]}
+    />
+  )
+}
+
 export function AccountsOverviewPage() {
   const overview = useAccountsOverview()
+  const groups = useCopyGroups()
   const [rulesOf, setRulesOf] = useState<AccountRow | null>(null)
+  const [view, setView] = useState<'individual' | 'groups'>('individual')
   const data = overview.data
+  // The Individual and Groups tabs show only once there is a copy-trading group (decision 10).
+  const hasGroups = (groups.data?.length ?? 0) > 0
+  if (view === 'groups' && hasGroups && groups.data) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Header />
+        <ViewTabs view={view} onChange={setView} />
+        <CopyGroupsView groups={groups.data} />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h1 className="m-0 text-xl font-semibold">Accounts</h1>
-        <p className="m-0 text-[13px] text-muted">
-          Each active account against its verified rules, from your imported trades. To change an account, its rules or
-          its payouts, open its settings from the ⋯ menu.
-        </p>
-      </div>
+      <Header />
+      {hasGroups ? <ViewTabs view={view} onChange={setView} /> : null}
       {overview.isPending ? <Spinner label="Loading your accounts" /> : null}
       {overview.isError ? (
         <p role="alert" className="m-0">

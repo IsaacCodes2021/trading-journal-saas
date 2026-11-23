@@ -50,6 +50,7 @@ from .routers import (
     auth,
     beta,
     billing,
+    copy_groups,
     day_notes,
     export,
     grants,
@@ -257,6 +258,7 @@ def create_app(
     app.include_router(export.router)
     app.include_router(rules.router)  # before accounts: /accounts/overview is not an account id
     app.include_router(accounts.router)
+    app.include_router(copy_groups.router)
     app.include_router(stats.router)
     app.include_router(trades.router)
     app.include_router(tags.router)

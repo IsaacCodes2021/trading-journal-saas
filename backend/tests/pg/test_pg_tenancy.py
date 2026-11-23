@@ -6,6 +6,7 @@ row-level security, composite foreign keys, and the NOT NULL default on user_id.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import uuid4
 
@@ -13,7 +14,7 @@ import psycopg
 import pytest
 from pg_helpers import make_account, make_trades
 
-from tradejournal.pg import accounts, journal
+from tradejournal.pg import accounts, copy_groups, journal
 from tradejournal.pg.session import Database
 
 # Every table that carries a user_id. test_pg_schema checks this list against the catalog, so a new table that is
@@ -29,7 +30,7 @@ SYSTEM_TABLES = [
 TENANT_TABLES = [
     "user_settings", "accounts", "fee_schedules", "imports", "trades", "fill_pairs", "import_fill_pairs",
     "tag_groups", "tags", "trade_tags", "day_notes", "screenshots", "account_ledger", "user_usage", "account_rules",
-    "executions", "import_executions",
+    "executions", "import_executions", "copy_groups", "copy_group_membership_events",
 ]  # fmt: skip
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
@@ -70,6 +71,14 @@ def data(db, alice, tmp_path):
         ).fetchone()["id"]
         conn.execute(
             "INSERT INTO import_executions (import_id, execution_id) VALUES (%s, %s)", (import_id, execution_id)
+        )
+        follower = make_account(conn, "Apex 08")
+        copy_groups.create_group(
+            conn,
+            "Mirror",
+            leader_account_id=account.id,
+            follower_account_ids=[follower.id],
+            acknowledged_at=datetime(2024, 1, 5, tzinfo=UTC),
         )
         conn.execute("INSERT INTO day_notes (trade_date, notes) VALUES ('2024-01-05', 'a note')")
         conn.execute(
@@ -166,7 +175,7 @@ def test_the_tenant_does_not_leak_to_the_next_user_of_a_pooled_connection(app_ur
     try:
         with pool.tenant_session(alice) as a:
             pid = a.info.backend_pid
-            assert count(a, "accounts") == 1
+            assert count(a, "accounts") == 2  # the leader and the follower of her copy group
         with pool._pool.connection() as same:
             assert same.info.backend_pid == pid  # proof that it is the very same connection
             assert same.execute("SELECT app_user_id() AS me").fetchone()["me"] is None
@@ -223,7 +232,7 @@ def test_the_foreign_keys_hold_even_with_row_level_security_switched_off(owner, 
                 "INSERT INTO fee_schedules (user_id, account_id, symbol_root, fee_per_contract_rt) VALUES (%s, %s, '*', 1)",
                 (bob, data["account"].id),
             )
-        assert count(owner, "accounts") == 1  # RLS really is off in here: the owner sees Alice's account
+        assert count(owner, "accounts") == 2  # RLS really is off in here: the owner sees Alice's two accounts
     finally:
         owner.execute("ROLLBACK")
 

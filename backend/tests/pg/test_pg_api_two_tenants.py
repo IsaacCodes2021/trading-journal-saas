@@ -62,6 +62,10 @@ OWNED = {
     "into_id": "tag2",  # the tag a merge moves trades into
     "entry_id": "entry",
     "screenshot_id": "screenshot",
+    # Copy-trading groups: the world's group is led by its second account and copied to its first.
+    "copy_group_id": "copy_group",
+    "leader_account_id": "account",
+    "follower_account_ids": "account2",  # a list: the one id is sent as [id]
 }
 # Names that look like ids but are not rows of the person's journal, and why they are not attacked here.
 NOT_JOURNAL_ROWS = {
@@ -71,7 +75,7 @@ NOT_JOURNAL_ROWS = {
 }
 # Filters that take ids in the query string. They are named in Bob's reads and added to every attack on a route that has
 # them, so a filter cannot be a way in.
-QUERY_IDS = {"account_ids": "account"}
+QUERY_IDS = {"account_ids": "account", "copy_group_ids": "copy_group"}
 # Write routes that name nothing of anyone's (so there is no foreign id to try). A new write route must be added here on
 # purpose, or given an id the suite knows: it cannot slip past unnoticed.
 NAMES_NOTHING = {
@@ -101,6 +105,7 @@ FIELD_VALUES = {
     "html": "<p>changed</p>",
     "values": RULE_SET,  # the least a rule set needs: its name
     "source_template_id": None,  # rules typed in by hand (a template is no one's row, see NOT_JOURNAL_ROWS)
+    "acknowledge_fills": True,  # a copy group is not made without it
 }
 
 
@@ -302,8 +307,38 @@ def build_world(db, system, user_id, name: str, files_dir: Path) -> World:
         ),
         "payout",
     )
+    leader = _ok(
+        client.post(
+            "/api/v1/accounts",
+            json={
+                "name": f"{name}-LEADER",
+                "firm": "Apex",
+                "account_type": "evaluation",
+                "account_size": "50000.00",
+                "starting_balance": "50000.00",
+                "purchase_date": "2024-01-02",
+                "phase": None,
+            },
+        ),
+        "second account",
+    ).json()["id"]
+    copy_group = _ok(
+        client.post(
+            "/api/v1/copy-groups",
+            json={
+                "name": f"{name}-COPYGROUP",
+                "leader_account_id": leader,
+                "follower_account_ids": [account],
+                "acknowledge_fills": True,
+                "note": f"{name}-COPYNOTE",
+            },
+        ),
+        "copy group",
+    ).json()["id"]
     ids = {
         "account": account,
+        "account2": leader,
+        "copy_group": copy_group,
         "import": imported,
         "trade": trade,
         "group": group,
@@ -334,6 +369,7 @@ def snapshot(world: World) -> dict:
         "dashboard": "/api/v1/dashboard",
         "day note": f"/api/v1/day-notes/{DAY}",
         "days with notes": "/api/v1/day-notes?start=2024-01-01&end=2024-12-31",
+        "copy groups": "/api/v1/copy-groups",
     }
     return {name: c.get(url).json() for name, url in reads.items()}
 
@@ -344,7 +380,7 @@ def snapshot(world: World) -> dict:
 def _example(schema: dict, field: str | None, refs: dict[str, int]):
     schema = _deref(schema)
     if field in OWNED:
-        return refs[field]
+        return [refs[field]] if field.endswith("_ids") else refs[field]
     if field in FIELD_VALUES:
         return FIELD_VALUES[field]
     if "enum" in schema:
@@ -500,6 +536,13 @@ def test_control_the_same_requests_work_on_bobs_own_rows(op, worlds):
                 json={"outcome": "closed", "ended_on": "2024-02-01", "note": ""},
             ),
             "archive first",
+        )
+    if op.key == ("POST", "/api/v1/copy-groups/{copy_group_id}/followers"):
+        _ok(
+            bob.client.post(
+                f"/api/v1/copy-groups/{bob.ids['copy_group']}/followers/remove", json={"account_id": bob.ids["account"]}
+            ),
+            "remove the follower first, so it can be added",
         )
     response = send(bob.client, op, _full(op, bob, {}))
     assert response.status_code < 300, f"{op.method} {op.path}: {response.status_code} {response.text[:300]}"

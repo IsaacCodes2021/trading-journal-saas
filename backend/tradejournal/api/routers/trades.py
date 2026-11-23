@@ -5,13 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Request
 from psycopg import Connection
 
+from ...pg import accounts as pg_accounts
+from ...pg import copy_groups as pg_groups
 from ...pg import journal as pg_journal
 from ...pg import queries as pg_queries
 from ...pg import store as pg_store
+from ..accounts_view import account_ref
 from ..cents import cents
 from ..deps import ERROR_RESPONSES, ClockDep, TenantDep
 from ..filtering import resolve_filter
 from ..schemas import Problem
+from ..schemas.copy_groups import CopyGroupRefOut
 from ..schemas.journal import PathId
 from ..schemas.trades import (
     FillPairOut,
@@ -24,16 +28,20 @@ from ..schemas.trades import (
     TradesPageOut,
     TradesQueryParams,
 )
-from ..trades_view import matches, neighbors_in, page_of, rows_for, sort_rows, trade_out
+from ..trades_view import copied_on, matches, neighbors_in, one_per_trade, page_of, rows_for, sort_rows, trade_out
 from .screenshots import file_url
 
 router = APIRouter(prefix="/api/v1", tags=["trades"], responses={**ERROR_RESPONSES, 404: {"model": Problem}})
 
 
 def _ordered_rows(conn: Connection, query: TradeListFilters, now) -> list[TradeOut]:
-    """Every trade matching the filters and the search, in the requested order (one transaction, one snapshot)."""
-    records = pg_queries.load_trades(conn, resolve_filter(query, conn, now))
-    rows = rows_for(records, pg_journal.tags_by_trade(conn), pg_journal.journal_summary(conn))
+    """Every trade matching the filters and the search, in the requested order (one transaction, one snapshot). A
+    copied trade is one row, on its leader, under its group's name, whichever of its accounts the filter named."""
+    accounts = {a.id: a for a in pg_accounts.list_accounts(conn)}
+    records, labels = one_per_trade(
+        pg_queries.load_trades(conn, resolve_filter(query, conn, now)), pg_groups.list_groups(conn), accounts
+    )
+    rows = rows_for(records, pg_journal.tags_by_trade(conn), pg_journal.journal_summary(conn), labels)
     return sort_rows([row for row in rows if matches(row, query.q)], query.sort)
 
 
@@ -58,7 +66,11 @@ def get_trade(trade_id: PathId, request: Request, tenant: TenantDep) -> TradeDet
         pairs = pg_store.trade_fill_pairs(conn, trade_id)
         screenshots = pg_journal.screenshots(conn, trade_id)
         number = pg_queries.trade_number(conn, trade_id)
-    row = trade_out(record, tags, has_notes=record.notes != "", screenshot_count=len(screenshots))
+        group = pg_groups.group_led_by(conn, record.account_id)
+        accounts = {a.id: a for a in pg_accounts.list_accounts(conn)}
+        copied_to = [account_ref(accounts[a]) for a in pg_groups.copied_to(conn, trade_id)]
+    label = CopyGroupRefOut(id=group.id, name=group.name) if group is not None and copied_on(group, record) else None
+    row = trade_out(record, tags, has_notes=record.notes != "", screenshot_count=len(screenshots), copy_group=label)
     return TradeDetailOut(
         **row.model_dump(),
         number=number,
@@ -76,6 +88,7 @@ def get_trade(trade_id: PathId, request: Request, tenant: TenantDep) -> TradeDet
             for pair in pairs
         ],
         notes_html=record.notes,
+        copied_to=copied_to,
         screenshots=[
             ScreenshotOut(
                 id=shot.id,

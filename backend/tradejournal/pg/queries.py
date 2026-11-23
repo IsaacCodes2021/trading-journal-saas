@@ -21,14 +21,58 @@ _SELECT = """
 
 _DEFAULT_FILTER = TradeFilter()
 
+# Every trade as it is stored, then every follower's copy of a leader trade (copy-trading groups, migration 0026). A
+# copy is not stored: it is the leader's trade placed on the follower for each window the follower was in the group.
+# A window starts on an `added` event's day (none: from the start) and ends on the next event's day (a `removed`), so a
+# follower counts a trade whose trading day is on or after the day it was added and before the day it was removed.
+# Copies are not chained: only stored trades are copied (decision 26).
+_PLACED = """
+    WITH windows AS (
+        SELECT group_id, account_id, event_type, effective_date AS starts,
+               lead(effective_date) OVER (
+                   PARTITION BY group_id, account_id ORDER BY effective_date NULLS FIRST, id
+               ) AS ends
+        FROM copy_group_membership_events
+    ),
+    placed AS (
+        SELECT trades.id AS trade_id, trades.account_id AS shown_account_id,
+               NULL::bigint AS copy_group_id, NULL::bigint AS leader_account_id
+        FROM trades
+        UNION ALL
+        SELECT trades.id, windows.account_id, copy_groups.id, copy_groups.leader_account_id
+        FROM trades
+        JOIN copy_groups ON copy_groups.leader_account_id = trades.account_id
+        JOIN windows ON windows.group_id = copy_groups.id AND windows.event_type = 'added'
+             AND (windows.starts IS NULL OR trades.trade_date >= windows.starts)
+             AND (windows.ends IS NULL OR trades.trade_date < windows.ends)
+    )
+    SELECT trades.*, placed.shown_account_id, placed.copy_group_id, placed.leader_account_id,
+           accounts.name AS account_name, accounts.account_type AS account_type, accounts.firm AS firm
+    FROM placed
+    JOIN trades ON trades.id = placed.trade_id
+    JOIN accounts ON accounts.id = placed.shown_account_id
+"""
+
 
 def load_trades(conn: psycopg.Connection, trade_filter: TradeFilter = _DEFAULT_FILTER) -> list[TradeRecord]:
-    """Trades matching the filter, in the order they were closed."""
+    """Trades matching the filter, in the order they were closed, each follower's copies included as trades of the
+    follower (decision 12 of `docs/new-feature-copy-trading/decisions.csv`). A copy has the leader trade's id, so a
+    caller that shows each trade once keeps one record per id.
+
+    The account filters (accounts, type, firm, archived) are about the account a record is shown on: a follower's own
+    fields decide whether its copies count. A group stands for its leader's stored trades and the copies it gave."""
     clauses: list[str] = []
     params: list = []
-    if trade_filter.account_ids:
-        clauses.append("trades.account_id = ANY(%s::bigint[])")
-        params.append(list(trade_filter.account_ids))
+    if trade_filter.account_ids or trade_filter.copy_group_ids:
+        clauses.append(
+            """(placed.shown_account_id = ANY(%s::bigint[])
+                OR placed.copy_group_id = ANY(%s::bigint[])
+                OR (placed.copy_group_id IS NULL AND trades.account_id IN (
+                    SELECT leader_account_id FROM copy_groups WHERE id = ANY(%s::bigint[]))))"""
+        )
+        params.extend(
+            [list(trade_filter.account_ids), list(trade_filter.copy_group_ids), list(trade_filter.copy_group_ids)]
+        )
     if trade_filter.account_type:
         clauses.append("accounts.account_type = %s")
         params.append(trade_filter.account_type)
@@ -50,11 +94,13 @@ def load_trades(conn: psycopg.Connection, trade_filter: TradeFilter = _DEFAULT_F
         clauses.append("trades.direction = %s")
         params.append(trade_filter.direction)
     where = " WHERE " + " AND ".join(clauses) if clauses else ""
-    rows = conn.execute(_SELECT + where + " ORDER BY trades.exit_at, trades.entry_at, trades.id", params)
+    order = " ORDER BY trades.exit_at, trades.entry_at, trades.id, placed.copy_group_id NULLS FIRST, accounts.name, accounts.id"
+    rows = conn.execute(_PLACED + where + order, params)
     return [_record(row) for row in rows]
 
 
 def load_trade(conn: psycopg.Connection, trade_id: int) -> TradeRecord | None:
+    """One stored trade, on the account that holds it (a leader's, for a copied trade)."""
     row = conn.execute(_SELECT + " WHERE trades.id = %s", (trade_id,)).fetchone()
     return _record(row) if row else None
 
@@ -99,7 +145,7 @@ def symbol_roots(conn: psycopg.Connection) -> list[str]:
 def _record(row: dict) -> TradeRecord:
     return TradeRecord(
         id=row["id"],
-        account_id=row["account_id"],
+        account_id=row.get("shown_account_id", row["account_id"]),
         account_name=row["account_name"],
         account_type=row["account_type"],
         firm=row["firm"],
@@ -123,4 +169,6 @@ def _record(row: dict) -> TradeRecord:
         fees=row["fees"],
         net_pnl=row["net_pnl"],
         notes=row["notes"],
+        copy_group_id=row.get("copy_group_id"),
+        leader_account_id=row.get("leader_account_id"),
     )

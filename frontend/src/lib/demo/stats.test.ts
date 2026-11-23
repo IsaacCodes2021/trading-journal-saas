@@ -265,9 +265,12 @@ describe('the sample data', () => {
   })
 
   it('offers only the firms and symbols that exist', async () => {
-    expect(await demoSource.filterOptions()).toEqual({
+    const options = await demoSource.filterOptions()
+    expect(options).toMatchObject({
       firms: ['Apex', 'Lucid'],
       symbol_roots: ['CL', 'ES', 'GC', 'MNQ', 'NQ'],
+      copy_groups: [],
     })
+    expect(options.accounts?.length).toBeGreaterThan(0)
   })
 })

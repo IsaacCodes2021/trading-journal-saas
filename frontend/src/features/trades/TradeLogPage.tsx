@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { FilterBar } from '../../components/FilterBar'
+import { TradeAccount } from '../../components/TradeAccount'
 import { Button, Card, Chip, DirectionBadge, Pnl, Spinner } from '../../components/ui/primitives'
 import type { TradeRow, TradeSortField } from '../../lib/data/model'
 import { useFilterOptions, useTrades } from '../../lib/data/queries'
@@ -93,7 +94,7 @@ function SearchBox({ value, onCommit }: { value: string; onCommit: (text: string
     <input
       type="search"
       aria-label="Search trades"
-      placeholder="Search symbol, account or tag"
+      placeholder="Search symbol, account, group or tag"
       value={text}
       onChange={(e) => setText(e.target.value)}
       className="h-9 w-80 max-w-full rounded-lg border border-line-strong bg-bg px-3 font-[inherit] text-ink"
@@ -186,7 +187,9 @@ export function TradeLogPage({
                         {formatTradeTime(trade.entry_at, timeZone)}
                       </Link>
                     </td>
-                    <td className={cell}>{trade.account.name}</td>
+                    <td className={cell}>
+                      <TradeAccount trade={trade} />
+                    </td>
                     <td className={cx(cell, 'num')}>{trade.symbol}</td>
                     <td className={cell}>
                       <DirectionBadge direction={trade.direction} />

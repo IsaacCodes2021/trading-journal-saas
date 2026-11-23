@@ -23,6 +23,7 @@ def resolve_filter(query: TradeFilterQuery, conn: psycopg.Connection, now: datet
         start, end = preset_range(query.preset, trading_date(now, pg_settings.trading_session(conn)))
     return TradeFilter(
         account_ids=tuple(query.account_ids),
+        copy_group_ids=tuple(query.copy_group_ids),
         account_type=query.account_type,
         include_archived=query.show_archived,
         firms=tuple(query.firms),

@@ -94,6 +94,14 @@ with the statement figure (in the browser) and the Import button waits for a fig
 the prompt's columns, version and contract list (with dollars per point) to the reader and `contracts.py`: a change to
 the contract table changes the prompt with it.
 
+**Copy-trading groups** (brief and decisions: `docs/new-feature-copy-trading/`, `decisions.csv` there is the source of
+truth). One leader account per group, imported as usual; its trades are stored once and each follower's copies are
+worked out when trades are read (`pg/queries.py`, `load_trades`), from a dated membership log (`pg/copy_groups.py`,
+migration 0026: `copy_groups`, `copy_group_membership_events`). No trade, fill pair or import row is ever written for a
+follower. Every total (dashboard, reports, calendar, Accounts tab, rules, share cards) counts a follower's copies as its
+own trades; only the trade log shows a copied trade once, under the group's name. Membership changes are dated today or
+later. Built on branch `app/copy-trading-groups`; migration 0026 is not applied in production.
+
 **The docs on the marketing site** (`site/public/docs/`). The export guides below went live on 2026-11-19 (PR 185), with
 marked-up screenshots of Roundturn's own Import dialog and preview and of TradeSea's Orders list. Branch
 `site/docs-using-roundturn` adds Getting started and the "Using Roundturn" pages (`/docs/accounts/`, `/docs/numbers/`,
@@ -183,7 +191,7 @@ reading source (you would be reading the mutant).
 **Deploy path:** a merge to `main` deploys the web service on its own. The new image stays **out of traffic until the database
 has its migrations** (the health check is `/readyz`, which compares the schema version). Migrations are never run by the app:
 the owner or a session runs `python -m tradejournal.pg.migrate` as the schema owner (`TJ_OWNER_URL`, from the git-ignored
-`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0026**. In
+`backend/.env.hosted`, using the *external* database host from a PC). The next migration number is **0027** (0026, copy-trading groups, is on its branch and not yet applied). In
 `.env.hosted` the owner, admin, sweep and webhook addresses are **commented-out lines** (`# TJ_OWNER_URL=...`), so a search for
 `^TJ_` misses them: load the value in a small script that sets the environment and runs the module, never on a command line
 or printed.
